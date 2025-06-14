@@ -2,14 +2,20 @@ from fastapi import FastAPI
 
 app = FastAPI(
     title="CampaignForge AI",
+    description="Multimedia Campaign Creation Platform API",
+    version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
 @app.get("/")
-def root():
-    return {"message": "CampaignForge AI", "status": "running"}
+async def root():
+    return {
+        "message": "CampaignForge AI Backend",
+        "version": "1.0.0",
+        "status": "running"
+    }
 
 @app.get("/health")
-def health():
+async def health_check():
     return {"status": "healthy"}
