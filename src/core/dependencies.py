@@ -20,28 +20,28 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db)
 ) -> User:
     """Get current authenticated user"""
-ECHO is off.
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-ECHO is off.
+
     token = credentials.credentials
     payload = verify_token(token)
-ECHO is off.
+
     if payload is None:
         raise credentials_exception
-ECHO is off.
+
     user_id: str = payload.get("sub")
     if user_id is None:
         raise credentials_exception
-ECHO is off.
+
     # Get user from database
     user = await User.get_by_id(db, user_id)
     if user is None:
         raise credentials_exception
-ECHO is off.
+
     return user
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:

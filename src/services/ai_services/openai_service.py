@@ -12,10 +12,10 @@ logger = structlog.get_logger()
 
 class OpenAIService:
     """OpenAI API service wrapper"""
-ECHO is off.
+
     def __init__(self):
         self.client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-ECHO is off.
+
     async def generate_text(
         self,
         prompt: str,
@@ -31,13 +31,13 @@ ECHO is off.
                 max_tokens=max_tokens,
                 temperature=temperature
             )
-ECHO is off.
+
             return response.choices[0].message.content
-ECHO is off.
+
         except Exception as e:
             logger.error("OpenAI text generation failed", error=str(e))
             raise
-ECHO is off.
+
     async def generate_image(
         self,
         prompt: str,
@@ -55,9 +55,9 @@ ECHO is off.
                 style=style,
                 n=1
             )
-ECHO is off.
+
             return response.data[0].url
-ECHO is off.
+
         except Exception as e:
             logger.error("OpenAI image generation failed", error=str(e))
             raise

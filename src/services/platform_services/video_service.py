@@ -10,14 +10,14 @@ logger = structlog.get_logger()
 
 class VideoProcessorService:
     """Video processing service for multiple platforms"""
-ECHO is off.
+
     def __init__(self):
         self.ydl_opts = {
             'quiet': True,
             'no_warnings': True,
             'extract_flat': False
         }
-ECHO is off.
+
     def detect_platform(self, url: str) -> str:
         """Detect video platform from URL"""
         if 'youtube.com' in url or 'youtu.be' in url:
@@ -32,13 +32,13 @@ ECHO is off.
             return 'linkedin'
         else:
             raise ValueError(f"Unsupported platform for URL: {url}")
-ECHO is off.
+
     async def extract_metadata(self, url: str) -> Dict:
         """Extract metadata from video URL"""
         try:
             with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
-ECHO is off.
+
                 return {
                     'title': info.get('title'),
                     'description': info.get('description'),
@@ -50,7 +50,7 @@ ECHO is off.
                     'thumbnail': info.get('thumbnail'),
                     'platform': self.detect_platform(url)
                 }
-ECHO is off.
+
         except Exception as e:
             logger.error("Video metadata extraction failed", url=url, error=str(e))
             raise

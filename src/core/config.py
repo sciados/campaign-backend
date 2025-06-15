@@ -8,38 +8,38 @@ import os
 
 class Settings(BaseSettings):
     """Application settings"""
-ECHO is off.
+
     # Basic settings
     APP_NAME: str = "CampaignForge AI"
     VERSION: str = "1.0.0"
     DEBUG: bool = False
-ECHO is off.
+
     # Security
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-ECHO is off.
+
     # Database
     DATABASE_URL: str
-ECHO is off.
+
     # Redis Cache
     REDIS_URL: str = "redis://localhost:6379"
-ECHO is off.
+
     # CORS
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000"]
     ALLOWED_HOSTS: List[str] = ["*"]
-ECHO is off.
+
     # AI Services
     OPENAI_API_KEY: str
     ANTHROPIC_API_KEY: str
     STABILITY_AI_API_KEY: Optional[str] = None
-ECHO is off.
+
     # Storage
     CLOUDFLARE_R2_ENDPOINT: str
     CLOUDFLARE_R2_ACCESS_KEY: str
     CLOUDFLARE_R2_SECRET_KEY: str
     CLOUDFLARE_R2_BUCKET: str
-ECHO is off.
+
     # File Upload
     MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100MB
     ALLOWED_FILE_TYPES: List[str] = [
@@ -48,14 +48,14 @@ ECHO is off.
         "image/jpeg", "image/png", "image/gif",
         "text/csv", "application/vnd.ms-excel"
     ]
-ECHO is off.
+
     # External APIs
     YOUTUBE_API_KEY: Optional[str] = None
     VIMEO_ACCESS_TOKEN: Optional[str] = None
-ECHO is off.
+
     # Monitoring
     SENTRY_DSN: Optional[str] = None
-ECHO is off.
+
     class Config:
         env_file = ".env"
         case_sensitive = True
