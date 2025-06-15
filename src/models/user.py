@@ -39,4 +39,4 @@ class User(BaseModel):
     
     # Relationships
     campaigns = relationship("Campaign", back_populates="user", cascade="all, delete-orphan")
-    brand_settings = relationship("BrandSetting", back_populates="user")
+    # brand_settings = relationship("BrandSetting", back_populates="user")  # Commented out until we create BrandSetting model
