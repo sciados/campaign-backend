@@ -76,8 +76,8 @@ class CampaignAsset(BaseModel):
     prompt_used = Column(Text)
     generation_settings = Column(JSONB)
     
-    # Asset Data
-    metadata = Column(JSONB)  # dimensions, duration, etc.
+    # Asset Data - RENAMED from 'metadata' to 'asset_metadata'
+    asset_metadata = Column(JSONB)  # dimensions, duration, etc.
     
     # Relationships
     campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=False)
