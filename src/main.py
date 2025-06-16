@@ -24,7 +24,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",  # Local development
+        # "http://localhost:3000",  # Local development
         "https://campaignforge-frontend.vercel.app",  # Your Vercel frontend
         "https://*.vercel.app"  # Vercel preview deployments
     ],
