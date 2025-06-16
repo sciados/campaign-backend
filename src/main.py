@@ -9,7 +9,9 @@ import os
 
 from src.core.database import get_db, engine, Base
 
-# Import models at the end to avoid circular imports
+# Import routes
+from src.auth.routes import router as auth_router
+
 app = FastAPI(
     title="CampaignForge AI",
     description="Multimedia Campaign Creation Platform API",
@@ -30,6 +32,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include authentication routes
+app.include_router(auth_router)
 
 @app.on_event("startup")
 async def startup_event():
