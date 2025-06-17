@@ -11,6 +11,7 @@ from src.core.database import engine, Base
 from src.auth.routes import router as auth_router
 from src.admin.routes import router as admin_router
 from src.dashboard.routes import router as dashboard_router  # ADD THIS LINE
+from src.intelligence.routes import router as intelligence_router
 
 # Lifespan event handler (modern approach)
 @asynccontextmanager
@@ -71,6 +72,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(dashboard_router)  # ADD THIS LINE
+app.include_router(intelligence_router)
 
 # Basic routes
 @app.get("/")
