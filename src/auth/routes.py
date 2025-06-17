@@ -2,7 +2,6 @@
 Authentication routes - Clean best practice implementation
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import selectinload  # Add this line
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from uuid import uuid4
@@ -145,60 +144,99 @@ async def login_user(
 ):
     """Authenticate user and return access token"""
     
-    # Get user with company data
-    result = await db.execute(
-        select(User).options(selectinload(User.company))
-        .where(User.email == credentials.email)
-    )
-    user = result.scalar_one_or_none()
-    
-    # Verify credentials
-    if not user or not verify_password(credentials.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+    try:
+        # Get user first
+        result = await db.execute(
+            select(User).where(User.email == credentials.email)
         )
-    
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Account is inactive"
-        )
-    
-    # Create access token
-    access_token = create_access_token(data={
-        "sub": str(user.id),
-        "company_id": str(user.company_id),
-        "role": user.role
-    })
-    
-    # Build response
-    return AuthResponse(
-        user=UserResponse(
-            id=user.id,
-            email=user.email,
-            full_name=user.full_name,
-            role=user.role,
-            is_active=user.is_active,
-            is_verified=user.is_verified,
-            company=CompanyResponse(
-                id=user.company.id,
-                company_name=user.company.company_name,
-                company_slug=user.company.company_slug,
-                subscription_tier=user.company.subscription_tier,
-                monthly_credits_limit=user.company.monthly_credits_limit,
-                monthly_credits_used=user.company.monthly_credits_used,
-                company_size=user.company.company_size
+        user = result.scalar_one_or_none()
+        
+        # Verify credentials
+        if not user or not verify_password(credentials.password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password"
             )
-        ),
-        access_token=access_token
-    )
+        
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account is inactive"
+            )
+        
+        # Get company data separately
+        company_result = await db.execute(
+            select(Company).where(Company.id == user.company_id)
+        )
+        company = company_result.scalar_one_or_none()
+        
+        if not company:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User company not found"
+            )
+        
+        # Create access token
+        access_token = create_access_token(data={
+            "sub": str(user.id),
+            "company_id": str(user.company_id),
+            "role": user.role
+        })
+        
+        # Build response
+        return AuthResponse(
+            user=UserResponse(
+                id=user.id,
+                email=user.email,
+                full_name=user.full_name,
+                role=user.role,
+                is_active=user.is_active,
+                is_verified=user.is_verified,
+                company=CompanyResponse(
+                    id=company.id,
+                    company_name=company.company_name,
+                    company_slug=company.company_slug,
+                    subscription_tier=company.subscription_tier,
+                    monthly_credits_limit=company.monthly_credits_limit,
+                    monthly_credits_used=company.monthly_credits_used,
+                    company_size=company.company_size
+                )
+            ),
+            access_token=access_token
+        )
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        print(f"Login error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Login failed"
+        )
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """Get current user information with company data"""
+    
+    # Get company data if not already loaded
+    if hasattr(current_user, 'company') and current_user.company:
+        company = current_user.company
+    else:
+        # Fetch company separately
+        company_result = await db.execute(
+            select(Company).where(Company.id == current_user.company_id)
+        )
+        company = company_result.scalar_one_or_none()
+        
+        if not company:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User company not found"
+            )
     
     return UserResponse(
         id=current_user.id,
@@ -208,13 +246,13 @@ async def get_current_user_info(
         is_active=current_user.is_active,
         is_verified=current_user.is_verified,
         company=CompanyResponse(
-            id=current_user.company.id,
-            company_name=current_user.company.company_name,
-            company_slug=current_user.company.company_slug,
-            subscription_tier=current_user.company.subscription_tier,
-            monthly_credits_limit=current_user.company.monthly_credits_limit,
-            monthly_credits_used=current_user.company.monthly_credits_used,
-            company_size=current_user.company.company_size
+            id=company.id,
+            company_name=company.company_name,
+            company_slug=company.company_slug,
+            subscription_tier=company.subscription_tier,
+            monthly_credits_limit=company.monthly_credits_limit,
+            monthly_credits_used=company.monthly_credits_used,
+            company_size=company.company_size
         )
     )
 
