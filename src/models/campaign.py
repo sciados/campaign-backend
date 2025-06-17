@@ -66,6 +66,11 @@ class Campaign(BaseModel):
     user = relationship("User", back_populates="campaigns")
     company = relationship("Company", back_populates="campaigns")
     assets = relationship("CampaignAsset", back_populates="campaign", cascade="all, delete-orphan")
+    
+    # Intelligence & Generated Content Relationships (ADD THESE)
+    intelligence_sources = relationship("CampaignIntelligence", back_populates="campaign", cascade="all, delete-orphan")
+    generated_content = relationship("GeneratedContent", back_populates="campaign", cascade="all, delete-orphan") 
+    smart_urls = relationship("SmartURL", back_populates="campaign", cascade="all, delete-orphan")
 
 class CampaignAsset(BaseModel):
     """Campaign asset model for storing generated files"""
