@@ -256,6 +256,47 @@ async def get_current_user_info(
         )
     )
 
+@router.get("/validate", response_model=UserResponse)
+async def validate_token(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Validate token and return user data (alias for /me endpoint)"""
+    
+    # Get company data if not already loaded
+    if hasattr(current_user, 'company') and current_user.company:
+        company = current_user.company
+    else:
+        # Fetch company separately
+        company_result = await db.execute(
+            select(Company).where(Company.id == current_user.company_id)
+        )
+        company = company_result.scalar_one_or_none()
+        
+        if not company:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User company not found"
+            )
+    
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        role=current_user.role,
+        is_active=current_user.is_active,
+        is_verified=current_user.is_verified,
+        company=CompanyResponse(
+            id=company.id,
+            company_name=company.company_name,
+            company_slug=company.company_slug,
+            subscription_tier=company.subscription_tier,
+            monthly_credits_limit=company.monthly_credits_limit,
+            monthly_credits_used=company.monthly_credits_used,
+            company_size=company.company_size
+        )
+    )
+
 @router.post("/logout")
 async def logout_user():
     """Logout user (client should remove token)"""
