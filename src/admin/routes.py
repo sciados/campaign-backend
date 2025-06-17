@@ -183,68 +183,82 @@ async def get_all_companies(
 ):
     """Get paginated list of all companies"""
     
-    # Build query
-    query = select(Company).options(
-        selectinload(Company.users),
-        selectinload(Company.campaigns)
-    )
-    
-    # Apply filters
-    conditions = []
-    if search:
-        conditions.append(
-            or_(
-                Company.company_name.ilike(f"%{search}%"),
-                Company.industry.ilike(f"%{search}%")
+    try:
+        # Build query - start simple without complex relationships
+        query = select(Company)
+        
+        # Apply filters
+        conditions = []
+        if search:
+            conditions.append(
+                or_(
+                    Company.company_name.ilike(f"%{search}%"),
+                    Company.industry.ilike(f"%{search}%")
+                )
             )
+        
+        if subscription_tier:
+            conditions.append(Company.subscription_tier == subscription_tier)
+        
+        if conditions:
+            query = query.where(and_(*conditions))
+        
+        # Get total count
+        total_query = select(func.count(Company.id))
+        if conditions:
+            total_query = total_query.where(and_(*conditions))
+        
+        total = await db.scalar(total_query) or 0
+        
+        # Apply pagination
+        offset = (page - 1) * limit
+        query = query.offset(offset).limit(limit).order_by(Company.created_at.desc())
+        
+        result = await db.execute(query)
+        companies = result.scalars().all()
+        
+        # Convert to response format
+        company_list = []
+        for company in companies:
+            # Get user count for this company
+            user_count_query = select(func.count(User.id)).where(User.company_id == company.id)
+            user_count = await db.scalar(user_count_query) or 0
+            
+            # Get campaign count for this company
+            campaign_count_query = select(func.count(Campaign.id)).where(Campaign.company_id == company.id)
+            campaign_count = await db.scalar(campaign_count_query) or 0
+            
+            company_list.append(AdminCompanyResponse(
+                id=company.id,
+                company_name=company.company_name,
+                company_slug=company.company_slug,
+                industry=company.industry or "",
+                company_size=company.company_size,
+                subscription_tier=company.subscription_tier,
+                subscription_status=company.subscription_status,
+                monthly_credits_used=company.monthly_credits_used,
+                monthly_credits_limit=company.monthly_credits_limit,
+                total_campaigns=company.total_campaigns,  # Use the model field directly
+                created_at=company.created_at,
+                user_count=user_count,
+                campaign_count=campaign_count
+            ))
+        
+        return CompanyListResponse(
+            companies=company_list,
+            total=total,
+            page=page,
+            limit=limit,
+            pages=((total - 1) // limit + 1) if total > 0 else 0
         )
-    
-    if subscription_tier:
-        conditions.append(Company.subscription_tier == subscription_tier)
-    
-    if conditions:
-        query = query.where(and_(*conditions))
-    
-    # Get total count
-    total_query = select(func.count(Company.id))
-    if conditions:
-        total_query = total_query.where(and_(*conditions))
-    
-    total = await db.scalar(total_query) or 0
-    
-    # Apply pagination
-    offset = (page - 1) * limit
-    query = query.offset(offset).limit(limit).order_by(Company.created_at.desc())
-    
-    result = await db.execute(query)
-    companies = result.scalars().all()
-    
-    # Convert to response format
-    company_list = []
-    for company in companies:
-        company_list.append(AdminCompanyResponse(
-            id=company.id,
-            company_name=company.company_name,
-            company_slug=company.company_slug,
-            industry=company.industry,
-            company_size=company.company_size,
-            subscription_tier=company.subscription_tier,
-            subscription_status=company.subscription_status,
-            monthly_credits_used=company.monthly_credits_used,
-            monthly_credits_limit=company.monthly_credits_limit,
-            total_campaigns=company.total_campaigns,
-            created_at=company.created_at,
-            user_count=len(company.users),
-            campaign_count=len(company.campaigns)
-        ))
-    
-    return CompanyListResponse(
-        companies=company_list,
-        total=total,
-        page=page,
-        limit=limit,
-        pages=((total - 1) // limit + 1) if total > 0 else 0
-    )
+        
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error in get_all_companies: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch companies: {str(e)}"
+        )
 
 @router.get("/users/{user_id}", response_model=AdminUserResponse)
 async def get_user_details(
@@ -337,7 +351,9 @@ async def update_company_subscription(
     if subscription_update.monthly_credits_limit is not None:
         company.monthly_credits_limit = subscription_update.monthly_credits_limit
     if subscription_update.subscription_status is not None:
-        company.subscription_status = subscription_update.subscription_status
+        # Only update if the field exists on the model
+        if hasattr(company, 'subscription_status'):
+            company.subscription_status = subscription_update.subscription_status
     
     # Reset monthly credits if requested
     if subscription_update.reset_monthly_credits:
