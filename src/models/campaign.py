@@ -56,7 +56,7 @@ class Campaign(BaseModel):
     # Generated Content Storage
     content = Column(JSONB, default={})  # All generated text content
     settings = Column(JSONB, default={})  # Campaign configuration
-    metadata = Column(JSONB, default={})  # Analytics and tracking data
+    campaign_metadata = Column(JSONB, default={})  # Analytics and tracking data
     
     # Ownership
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
