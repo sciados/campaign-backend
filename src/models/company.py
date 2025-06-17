@@ -114,7 +114,8 @@ class CompanyInvitation(BaseModel):
     
     # Status & Expiry
     status = Column(String(50), default=InvitationStatus.PENDING.value)
-    expires_at = Column(DateTime(timezone=True), server_default=func.now() + func.make_interval(days=7))
+    # FIXED: Use positional arguments for make_interval(years, months, weeks, days, hours, mins, secs)
+    expires_at = Column(DateTime(timezone=True), server_default=func.now() + func.make_interval(0, 0, 0, 7, 0, 0, 0))
     accepted_at = Column(DateTime(timezone=True))
     accepted_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     
