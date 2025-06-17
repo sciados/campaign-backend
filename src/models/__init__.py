@@ -27,18 +27,44 @@ class BaseModel(Base, UUIDMixin, TimestampMixin):
         return cls.__name__.lower()
 
 # Import all models to make them available
-from .user import User, SubscriptionTier
+from .user import User
 from .campaign import Campaign, CampaignAsset, CampaignType, CampaignStatus, AssetType
+from .company import (
+    Company, 
+    CompanyMembership, 
+    CompanyInvitation,
+    CompanySize,
+    CompanySubscriptionTier,
+    MembershipRole,
+    MembershipStatus,
+    InvitationStatus
+)
 
 __all__ = [
+    # Base classes
     "BaseModel", 
     "TimestampMixin", 
     "UUIDMixin",
-    "User", 
-    "SubscriptionTier",
+    
+    # User models
+    "User",
+    
+    # Campaign models
     "Campaign", 
     "CampaignAsset", 
     "CampaignType", 
     "CampaignStatus", 
-    "AssetType"
+    "AssetType",
+    
+    # Company models
+    "Company",
+    "CompanyMembership",
+    "CompanyInvitation",
+    
+    # Company enums
+    "CompanySize",
+    "CompanySubscriptionTier", 
+    "MembershipRole",
+    "MembershipStatus",
+    "InvitationStatus"
 ]

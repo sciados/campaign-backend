@@ -8,6 +8,7 @@ from typing import Optional
 import os
 
 from src.core.database import get_db, engine, Base
+from src.admin.routes import router as admin_router
 
 # Import routes
 from src.auth.routes import router as auth_router
@@ -50,6 +51,8 @@ async def root():
         "status": "running",
         "database": "connected" if os.getenv("DATABASE_URL") else "not configured"
     }
+
+app.include_router(admin_router)
 
 @app.get("/health")
 async def health_check(db: AsyncSession = Depends(get_db)):

@@ -80,5 +80,11 @@ class CampaignAsset(BaseModel):
     asset_metadata = Column(JSONB)  # dimensions, duration, etc.
     
     # Relationships
-    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=False)
-    campaign = relationship("Campaign", back_populates="campaign_assets")
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
+    
+    user = relationship("User", back_populates="campaigns")
+    company = relationship("Company", back_populates="campaigns")
+    
+    # Campaign Assets (separate table for better organization)
+    campaign_assets = relationship("CampaignAsset", back_populates="campaign", cascade="all, delete-orphan")
