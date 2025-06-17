@@ -9,6 +9,7 @@ import os
 
 from src.core.database import engine, Base
 from src.auth.routes import router as auth_router
+from src.admin.routes import router as admin_router
 
 # Lifespan event handler (modern approach)
 @asynccontextmanager
@@ -67,6 +68,11 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Include routers
 app.include_router(auth_router)
+app.include_router(admin_router)
+
+# Note: Add dashboard router when src/dashboard/routes.py is created
+# from src.dashboard.routes import router as dashboard_router  
+# app.include_router(dashboard_router)
 
 # Basic routes
 @app.get("/")
