@@ -19,7 +19,7 @@ from src.models.user import User
 from src.models.company import Company, CompanyMembership, CompanySubscriptionTier
 from src.models.campaign import Campaign
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"])
 
 async def require_admin(current_user: User = Depends(get_current_user)):
     """Require admin role for admin endpoints"""
