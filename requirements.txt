@@ -36,6 +36,7 @@ python-pptx>=0.6.21
 # Optional but recommended for better parsing
 lxml>=4.9.0
 requests>=2.28.0
+structlog==25.4.0
 
 # Add these to requirements.txt:
 aiofiles>=23.1.0
