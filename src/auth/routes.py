@@ -11,9 +11,10 @@ from pydantic import BaseModel, EmailStr
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload # Needed for eager loading of relationships
 
 # Import password hashing and JWT functions from your security module
-from src.core.security import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from src.core.security import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY
 # Import your database session, User model, and Company model
 from src.core.database import get_db
 from src.models.user import User # Assuming your User model is here
@@ -216,11 +217,13 @@ async def login_user_json(user_login: UserLogin, db: AsyncSession = Depends(get_
 # I'm including it here for reference and immediate use if you put it in this file,
 # but it's best practice to separate it.
 
-from fastapi.security import OAuth2PasswordBearer
-import jwt
+# Removed direct 'import jwt' as it clashes with 'jose.jwt' used in security.py
+# If you need raw PyJWT, ensure it's installed as 'PyJWT' and import specifically
+# from jose import jwt # This is already implicitly handled by `src.core.security` imports
 
-# This should use the SECRET_KEY from src/core/security.py
-from src.core.security import SECRET_KEY
+from fastapi.security import OAuth2PasswordBearer
+from src.core.security import SECRET_KEY # Ensure SECRET_KEY is accessible from security.py if needed here
+from jose import jwt # Explicitly import jwt from jose for decoding here if needed, or import verify_token from security.py
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token") # Point to the /auth/token endpoint
 
@@ -231,6 +234,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
+        # Use jwt.decode from jose, imported explicitly above or via src.core.security
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"]) # Use SECRET_KEY from your security module
         user_id: str = payload.get("sub")
         user_email: str = payload.get("email")
