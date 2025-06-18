@@ -210,6 +210,52 @@ async def login_user_json(user_login: UserLogin, db: AsyncSession = Depends(get_
         "user_id": user.id
     }
 
+@router.get("/profile", summary="Get current user profile")
+async def get_user_profile(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """
+    Get current user profile with company information.
+    This endpoint can be used to validate tokens and get user data.
+    """
+    try:
+        # Get company data if not already loaded
+        if hasattr(current_user, 'company') and current_user.company:
+            company = current_user.company
+        else:
+            # Fetch company separately if not loaded
+            company = await db.scalar(select(Company).where(Company.id == current_user.company_id))
+            if not company:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User company not found"
+                )
+
+        return {
+            "id": current_user.id,
+            "email": current_user.email,
+            "full_name": current_user.full_name,
+            "role": current_user.role,
+            "is_active": current_user.is_active,
+            "is_verified": current_user.is_verified,
+            "company": {
+                "id": company.id,
+                "company_name": company.company_name,
+                "company_slug": company.company_slug,
+                "subscription_tier": company.subscription_tier,
+                "monthly_credits_used": company.monthly_credits_used,
+                "monthly_credits_limit": company.monthly_credits_limit,
+                "company_size": company.company_size
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error fetching profile for user {current_user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch user profile"
+        )
+
 
 # --- Authentication Dependency (for protected routes in other modules) ---
 # This is typically defined in a central 'src/auth/dependencies.py' file
@@ -276,4 +322,3 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
             detail="Authentication processing error.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
