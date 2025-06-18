@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from uuid import UUID, uuid4 # Import uuid4 to generate new UUIDs
 
 from fastapi import APIRouter, HTTPException, status, Depends
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +20,9 @@ from src.core.database import get_db
 from src.models.user import User # Assuming your User model is here
 from src.models.company import Company # Assuming your Company model is here and required for User
 
+# JWT and security imports
+from jose import jwt
+
 # Set up logging for this module
 logger = logging.getLogger(__name__)
 
@@ -30,6 +33,72 @@ router = APIRouter(
     tags=["Authentication"],
     responses={404: {"description": "Not found"}},
 )
+
+# HTTPBearer for extracting JWT tokens from Authorization header
+security = HTTPBearer()
+
+# --- Authentication Dependency ---
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    """
+    Extract and validate JWT token, return authenticated user with company data
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        # Verify and decode the token
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=["HS256"])
+        user_id_str: str = payload.get("sub")
+        user_email: str = payload.get("email")
+        user_role: str = payload.get("role")
+        company_id: str = payload.get("company_id")
+
+        if user_id_str is None or user_email is None or user_role is None or company_id is None:
+            raise credentials_exception
+        
+        # Convert string to UUID
+        try:
+            user_id = UUID(user_id_str)
+        except ValueError:
+            raise credentials_exception
+        
+        # Fetch the user from the DB to ensure they exist, are active, and load their company relationship
+        user = await db.scalar(
+            select(User)
+            .where(User.id == user_id)
+            .options(selectinload(User.company)) # Eagerly load the company
+        )
+        if user is None or not user.is_active:
+            raise credentials_exception
+        
+        # Verify company_id in token matches user's actual company_id
+        if str(user.company_id) != company_id:
+             logger.warning(f"Token company_id mismatch for user {user_id}. Token: {company_id}, User DB: {user.company_id}")
+             raise credentials_exception
+
+        return user # Return the full User ORM object with company loaded
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except jwt.InvalidTokenError:
+        raise credentials_exception
+    except Exception as e:
+        logger.exception(f"Unexpected error in get_current_user dependency: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication processing error.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 # --- Pydantic Models for Request Body Validation ---
 
@@ -254,71 +323,4 @@ async def get_user_profile(current_user: User = Depends(get_current_user), db: A
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch user profile"
-        )
-
-
-# --- Authentication Dependency (for protected routes in other modules) ---
-# This is typically defined in a central 'src/auth/dependencies.py' file
-# and imported by other routers that need authentication.
-# I'm including it here for reference and immediate use if you put it in this file,
-# but it's best practice to separate it.
-
-# Removed direct 'import jwt' as it clashes with 'jose.jwt' used in security.py
-# If you need raw PyJWT, ensure it's installed as 'PyJWT' and import specifically
-# from jose import jwt # This is already implicitly handled by `src.core.security` imports
-
-from fastapi.security import OAuth2PasswordBearer
-from src.core.security import SECRET_KEY # Ensure SECRET_KEY is accessible from security.py if needed here
-from jose import jwt # Explicitly import jwt from jose for decoding here if needed, or import verify_token from security.py
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token") # Point to the /auth/token endpoint
-
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        # Use jwt.decode from jose, imported explicitly above or via src.core.security
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"]) # Use SECRET_KEY from your security module
-        user_id: str = payload.get("sub")
-        user_email: str = payload.get("email")
-        user_role: str = payload.get("role")
-        company_id: str = payload.get("company_id") # Get company_id from token
-
-        if user_id is None or user_email is None or user_role is None or company_id is None:
-            raise credentials_exception
-        
-        # Fetch the user from the DB to ensure they exist, are active, and load their company relationship
-        # Use selectinload to eagerly load the company relationship if it's defined in User model
-        user = await db.scalar(
-            select(User)
-            .where(User.id == UUID(user_id))
-            .options(selectinload(User.company)) # Eagerly load the company
-        )
-        if user is None or not user.is_active:
-            raise credentials_exception
-        
-        # You can add additional checks here if the company_id in the token must match the user's actual company_id
-        if str(user.company_id) != company_id:
-             logger.warning(f"Token company_id mismatch for user {user_id}. Token: {company_id}, User DB: {user.company_id}")
-             raise credentials_exception
-
-        return user # Return the full User ORM object with company loaded
-
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.InvalidTokenError:
-        raise credentials_exception
-    except Exception as e:
-        logger.exception(f"Unexpected error in get_current_user dependency: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Authentication processing error.",
-            headers={"WWW-Authenticate": "Bearer"},
         )
