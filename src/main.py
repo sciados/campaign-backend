@@ -46,8 +46,6 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",  # Local development
         "https://campaignforge-frontend.vercel.app",  # Production frontend
-        "https://campaignforge-frontend-git-main-yourusername.vercel.app",  # Git branch deployments
-        "*"  # Temporary fix - replace with specific domains in production
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
