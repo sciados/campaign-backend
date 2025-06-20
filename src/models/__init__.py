@@ -39,6 +39,7 @@ from .company import (
     InvitationStatus
 )
 from .campaign import Campaign, CampaignType, CampaignStatus, CampaignWorkflowState, WorkflowPreference
+from .campaign_assets import CampaignAsset, AssetType, AssetStatus
 from .intelligence import (
     CampaignIntelligence,
     GeneratedContent,
@@ -74,6 +75,11 @@ __all__ = [
     "CampaignStatus",
     "CampaignWorkflowState",
     "WorkflowPreference",
+    
+    # Campaign Assets models
+    "CampaignAsset",
+    "AssetType",
+    "AssetStatus",
     
     # Intelligence models
     "CampaignIntelligence",

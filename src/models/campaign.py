@@ -133,6 +133,9 @@ class Campaign(BaseModel):
     user = relationship("User", back_populates="campaigns")
     company = relationship("Company", back_populates="campaigns")
     
+    # Asset relationships
+    assets = relationship("CampaignAsset", back_populates="campaign", cascade="all, delete-orphan")
+    
     # Intelligence and content relationships
     intelligence_sources = relationship(
         "CampaignIntelligence", 

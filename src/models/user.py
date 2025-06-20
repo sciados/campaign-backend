@@ -44,6 +44,9 @@ class User(BaseModel):
         back_populates="user"
     )
     
+    # Asset relationships
+    uploaded_assets = relationship("CampaignAsset", back_populates="uploader")
+    
     # Invitations sent by this user
     sent_invitations = relationship(
         "CompanyInvitation",

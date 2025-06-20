@@ -75,6 +75,9 @@ class Company(BaseModel):
     memberships = relationship("CompanyMembership", back_populates="company", cascade="all, delete-orphan")
     invitations = relationship("CompanyInvitation", back_populates="company", cascade="all, delete-orphan")
     
+    # Asset relationships
+    assets = relationship("CampaignAsset", back_populates="company")
+    
     # Intelligence relationships
     intelligence_sources = relationship("CampaignIntelligence", back_populates="company")
     generated_content = relationship("GeneratedContent", back_populates="company")

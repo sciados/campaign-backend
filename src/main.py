@@ -1,5 +1,5 @@
 """
-Main FastAPI application - FIXED VERSION with proper CORS
+Main FastAPI application - FIXED VERSION with proper CORS and table creation
 """
 
 from fastapi import FastAPI
@@ -14,6 +14,10 @@ from src.dashboard.routes import router as dashboard_router
 from src.intelligence.routes import router as intelligence_router
 from src.admin.routes import router as admin_router
 
+# Import database and models for table creation
+from src.core.database import engine
+from src.models import Base
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,12 +28,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS configuration - FIXED to include exact Vercel domain
+# CORS configuration - Production only (no local development)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",           # Local development
-        "http://127.0.0.1:3000",          # Local development alternative
         "https://campaignforge-frontend.vercel.app",  # Production Vercel domain
         "https://campaignforge-frontend-git-main-shaunmcdonalds-projects.vercel.app",  # Git branch deployments
         "https://campaignforge-frontend-shaunmcdonalds-projects.vercel.app",  # Project domain
@@ -40,6 +42,24 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"]
 )
+
+# Add startup event to create tables
+@app.on_event("startup")
+async def create_tables():
+    """Create database tables on startup"""
+    try:
+        logger.info("Creating database tables...")
+        async with engine.begin() as conn:
+            # Import all models to ensure they're registered
+            from src.models import (
+                User, Company, Campaign, CampaignAsset, CampaignIntelligence, 
+                GeneratedContent, SmartURL, CompanyMembership, CompanyInvitation
+            )
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables created successfully!")
+    except Exception as e:
+        logger.error(f"Error creating database tables: {e}")
+        raise
 
 # Add a health check endpoint
 @app.get("/health")
