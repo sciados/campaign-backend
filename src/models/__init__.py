@@ -28,7 +28,7 @@ class BaseModel(Base, UUIDMixin, TimestampMixin):
 
 # Import all models to make them available
 from .user import User
-from .campaign import Campaign, CampaignAsset, CampaignType, CampaignStatus, AssetType
+from .campaign import Campaign, CampaignType, CampaignStatus, CampaignWorkflowState, WorkflowPreference
 from .company import (
     Company, 
     CompanyMembership, 
@@ -51,10 +51,10 @@ __all__ = [
     
     # Campaign models
     "Campaign", 
-    "CampaignAsset", 
     "CampaignType", 
-    "CampaignStatus", 
-    "AssetType",
+    "CampaignStatus",
+    "CampaignWorkflowState",
+    "WorkflowPreference",
     
     # Company models
     "Company",
