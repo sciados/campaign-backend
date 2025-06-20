@@ -12,7 +12,7 @@ from src.auth.routes import router as auth_router
 from src.admin.routes import router as admin_router
 from src.dashboard.routes import router as dashboard_router
 from src.intelligence.routes import router as intelligence_router
-from src.campaigns.routes import router as campaign_router  # ADD THIS LINE
+from src.campaigns.routes import router as campaign_router
 
 # Lifespan event handler (modern approach)
 @asynccontextmanager
@@ -40,12 +40,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Configuration
+# Updated CORS Configuration - Add your exact Vercel domain
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # Local development
-        "https://campaignforge-frontend.vercel.app",  # Production frontend
+        "https://campaignforge-frontend.vercel.app",  # Your exact Vercel domain
+        "https://*.vercel.app",  # Allow all Vercel domains (for preview deployments)
+        "https://campaign-backend-production-e2db.up.railway.app",  # Your Railway domain
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -72,7 +74,7 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(dashboard_router)
 app.include_router(intelligence_router)
-app.include_router(campaign_router)  # ADD THIS LINE
+app.include_router(campaign_router)
 
 # Basic routes
 @app.get("/")
