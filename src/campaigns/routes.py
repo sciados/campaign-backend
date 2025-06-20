@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from uuid import UUID, uuid4
 from datetime import datetime
-import traceback
 
 from src.core.database import get_db
 from src.auth.dependencies import get_current_user
@@ -83,12 +82,6 @@ async def create_campaign(
     """Create a new campaign (Step 1)"""
     
     try:
-        # Add debugging
-        print(f"🔍 DEBUG: Creating campaign for user {current_user.id}")
-        print(f"🔍 DEBUG: User email: {current_user.email}")
-        print(f"🔍 DEBUG: Company ID: {current_user.company_id}")
-        print(f"🔍 DEBUG: Request data: {request}")
-        
         # Validate campaign type is provided and valid
         if not request.campaign_type:
             raise HTTPException(
@@ -98,9 +91,7 @@ async def create_campaign(
         
         try:
             campaign_type_enum = CampaignType(request.campaign_type)
-            print(f"🔍 DEBUG: Campaign type validated: {campaign_type_enum}")
-        except ValueError as ve:
-            print(f"❌ DEBUG: Invalid campaign type: {ve}")
+        except ValueError:
             valid_types = [e.value for e in CampaignType]
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -108,7 +99,6 @@ async def create_campaign(
             )
         
         # Create campaign with enhanced workflow support
-        print(f"🔍 DEBUG: Creating campaign object...")
         campaign = Campaign(
             id=uuid4(),
             title=request.title,
@@ -132,28 +122,14 @@ async def create_campaign(
             }
         )
         
-        print(f"🔍 DEBUG: Campaign object created successfully")
-        print(f"🔍 DEBUG: Campaign ID: {campaign.id}")
-        
-        print(f"🔍 DEBUG: Adding to database session...")
         db.add(campaign)
-        
-        print(f"🔍 DEBUG: Committing to database...")
         await db.commit()
-        
-        print(f"🔍 DEBUG: Refreshing campaign object...")
         await db.refresh(campaign)
         
-        print(f"🔍 DEBUG: Updating company campaign count...")
         # Update company campaign count
         if current_user.company:
             current_user.company.total_campaigns += 1
-            print(f"🔍 DEBUG: Company total campaigns now: {current_user.company.total_campaigns}")
             await db.commit()
-        else:
-            print("⚠️ DEBUG: No company object found, skipping count update")
-        
-        print(f"🔍 DEBUG: Success! Campaign created with ID: {campaign.id}")
         
         return CampaignResponse(
             id=str(campaign.id),
@@ -176,30 +152,14 @@ async def create_campaign(
             generated_content_count=campaign.content_generated
         )
         
-    except HTTPException as he:
-        # Re-raise HTTP exceptions (like validation errors)
-        print(f"❌ DEBUG: HTTP Exception: {he}")
-        raise he
+    except HTTPException:
+        raise
         
     except Exception as e:
-        print(f"❌ DEBUG: Unexpected exception occurred!")
-        print(f"❌ DEBUG: Exception type: {type(e).__name__}")
-        print(f"❌ DEBUG: Exception message: '{str(e)}'")
-        print(f"❌ DEBUG: Full traceback:")
-        print(traceback.format_exc())
-        
         await db.rollback()
-        
-        # Create detailed error message
-        error_details = f"{type(e).__name__}"
-        if str(e):
-            error_details += f": {str(e)}"
-        if e.args:
-            error_details += f" | Args: {e.args}"
-            
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create campaign: {error_details}"
+            detail=f"Failed to create campaign: {str(e)}"
         )
 
 @router.get("", response_model=CampaignListResponse)
@@ -987,8 +947,6 @@ async def get_campaign_stats(
         )
         
     except Exception as e:
-        print(f"❌ DEBUG: Error getting campaign stats: {str(e)}")
-        print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get campaign stats: {str(e)}"
