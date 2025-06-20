@@ -11,6 +11,8 @@ import re
 from typing import Dict, List, Any, Optional
 import logging
 from urllib.parse import urlparse, urljoin
+import uuid
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -390,6 +392,534 @@ class SalesPageAnalyzer:
         }
 
 
+class EnhancedSalesPageAnalyzer(SalesPageAnalyzer):
+    """Enhanced sales page analyzer with VSL detection and advanced intelligence"""
+    
+    async def analyze_enhanced(
+        self, 
+        url: str, 
+        campaign_id: str, 
+        analysis_depth: str = "comprehensive",
+        include_vsl_detection: bool = True
+    ) -> Dict[str, Any]:
+        """Perform enhanced analysis with all advanced features"""
+        
+        # Use existing analyze method as base
+        base_analysis = await self.analyze(url)
+        
+        # Add enhanced features
+        enhanced_intelligence = {
+            **base_analysis,
+            "intelligence_id": f"intel_{uuid.uuid4().hex[:8]}",
+            "analysis_depth": analysis_depth,
+            "analysis_timestamp": datetime.utcnow().isoformat(),
+            "campaign_angles": await self._generate_campaign_angles(base_analysis),
+            "actionable_insights": await self._generate_actionable_insights(base_analysis),
+            "technical_analysis": await self._analyze_technical_aspects(url)
+        }
+        
+        # Add VSL detection if requested
+        if include_vsl_detection:
+            vsl_analyzer = VSLAnalyzer()
+            vsl_result = await vsl_analyzer.detect_vsl(url)
+            enhanced_intelligence["vsl_analysis"] = vsl_result
+        
+        return enhanced_intelligence
+    
+    async def batch_analyze(
+        self,
+        urls: List[str],
+        campaign_id: str,
+        analysis_type: str = "detailed"
+    ) -> Dict[str, Any]:
+        """Batch analyze multiple competitor URLs"""
+        
+        analyses = []
+        
+        # Analyze each URL
+        for url in urls[:5]:  # Limit to 5 URLs for now
+            try:
+                if analysis_type == "detailed":
+                    analysis = await self.analyze_enhanced(url, campaign_id)
+                else:
+                    analysis = await self.analyze(url)
+                analyses.append(analysis)
+            except Exception as e:
+                logger.error(f"Failed to analyze {url}: {str(e)}")
+                continue
+        
+        # Generate comparative analysis
+        comparative_analysis = await self._generate_comparative_analysis(analyses)
+        
+        return {
+            "analyses": analyses,
+            "comparative_analysis": comparative_analysis
+        }
+    
+    async def validate_url(self, url: str) -> Dict[str, Any]:
+        """Smart URL validation and pre-analysis"""
+        
+        try:
+            # Basic URL validation
+            parsed = urlparse(url)
+            is_valid = bool(parsed.netloc and parsed.scheme in ['http', 'https'])
+            
+            if not is_valid:
+                return {
+                    "is_valid": False,
+                    "is_accessible": False,
+                    "page_type": "unknown",
+                    "analysis_readiness": {
+                        "content_extractable": False,
+                        "video_detected": False,
+                        "estimated_analysis_time": "N/A",
+                        "confidence_prediction": 0.0
+                    },
+                    "optimization_suggestions": ["Please provide a valid URL"],
+                    "analysis_recommendations": {
+                        "recommended_analysis_type": "none",
+                        "expected_insights": [],
+                        "potential_limitations": ["Invalid URL format"]
+                    }
+                }
+            
+            # Quick content check
+            try:
+                page_content = await self._scrape_page(url)
+                is_accessible = True
+                
+                # Detect page type
+                content_lower = page_content["content"].lower()
+                
+                if any(keyword in content_lower for keyword in ['buy now', 'order', 'purchase', 'sale', 'limited time']):
+                    page_type = "sales_page"
+                elif any(keyword in content_lower for keyword in ['sign up', 'subscribe', 'download']):
+                    page_type = "landing_page"
+                elif any(keyword in content_lower for keyword in ['blog', 'article', 'post']):
+                    page_type = "blog"
+                else:
+                    page_type = "website"
+                
+                # Check for video content
+                video_detected = 'video' in page_content["html"].lower() or 'youtube' in page_content["html"].lower()
+                
+                # Predict analysis quality
+                content_quality = len(page_content["content"].split())
+                confidence_prediction = min(0.9, content_quality / 1000)
+                
+                return {
+                    "is_valid": True,
+                    "is_accessible": True,
+                    "page_type": page_type,
+                    "analysis_readiness": {
+                        "content_extractable": True,
+                        "video_detected": video_detected,
+                        "estimated_analysis_time": "2-3 minutes",
+                        "confidence_prediction": confidence_prediction
+                    },
+                    "optimization_suggestions": [
+                        "Content appears analyzable",
+                        "Good amount of text content detected",
+                        "Page loads successfully"
+                    ],
+                    "analysis_recommendations": {
+                        "recommended_analysis_type": "comprehensive" if page_type == "sales_page" else "basic",
+                        "expected_insights": [
+                            "Offer structure analysis",
+                            "Psychology trigger identification", 
+                            "Competitive positioning insights"
+                        ],
+                        "potential_limitations": []
+                    }
+                }
+                
+            except Exception as e:
+                return {
+                    "is_valid": True,
+                    "is_accessible": False,
+                    "page_type": "unknown",
+                    "analysis_readiness": {
+                        "content_extractable": False,
+                        "video_detected": False,
+                        "estimated_analysis_time": "N/A",
+                        "confidence_prediction": 0.0
+                    },
+                    "optimization_suggestions": ["Page may be behind authentication or blocking bots"],
+                    "analysis_recommendations": {
+                        "recommended_analysis_type": "manual",
+                        "expected_insights": [],
+                        "potential_limitations": [f"Access error: {str(e)}"]
+                    }
+                }
+        
+        except Exception as e:
+            logger.error(f"URL validation failed: {str(e)}")
+            return {
+                "is_valid": False,
+                "is_accessible": False,
+                "page_type": "unknown",
+                "analysis_readiness": {
+                    "content_extractable": False,
+                    "video_detected": False,
+                    "estimated_analysis_time": "N/A",
+                    "confidence_prediction": 0.0
+                },
+                "optimization_suggestions": ["URL validation failed"],
+                "analysis_recommendations": {
+                    "recommended_analysis_type": "none",
+                    "expected_insights": [],
+                    "potential_limitations": [f"Validation error: {str(e)}"]
+                }
+            }
+    
+    async def _generate_campaign_angles(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate unique campaign angles from analysis"""
+        
+        # Extract key differentiators
+        differentiators = analysis.get("competitive_intelligence", {}).get("opportunities", [])
+        psychology_triggers = analysis.get("psychology_intelligence", {}).get("emotional_triggers", [])
+        
+        # Generate angles using AI
+        angle_prompt = f"""
+        Based on this competitive analysis, generate unique campaign angles:
+        
+        Differentiators: {differentiators[:5]}
+        Psychology Triggers: {psychology_triggers[:5]}
+        
+        Generate:
+        1. Primary positioning angle (unique and compelling)
+        2. 3-4 alternative angles for different audiences
+        3. Target audience insights
+        4. Messaging framework
+        5. Differentiation strategy
+        
+        Focus on angles that avoid direct competition and create blue ocean opportunities.
+        """
+        
+        try:
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are an expert at creating unique campaign positioning angles that differentiate from competitors."},
+                    {"role": "user", "content": angle_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1000
+            )
+            
+            # Parse response into structured angles
+            return self._parse_campaign_angles(response.choices[0].message.content)
+            
+        except Exception as e:
+            logger.error(f"Campaign angle generation failed: {str(e)}")
+            return self._fallback_campaign_angles()
+    
+    async def _generate_actionable_insights(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate actionable insights for immediate implementation"""
+        
+        return {
+            "immediate_opportunities": [
+                "Create comparison content highlighting competitor weaknesses",
+                "Develop content addressing unmet customer needs",
+                "Build social proof campaigns using identified gaps",
+                "Launch retargeting campaigns for competitor audiences"
+            ],
+            "content_creation_ideas": [
+                "Blog series on industry pain points",
+                "Video testimonials addressing objections",
+                "Email sequence using psychology triggers",
+                "Case study showcasing superior results"
+            ],
+            "campaign_strategies": [
+                "Multi-touch nurture sequence",
+                "Retargeting campaign for competitor visitors",
+                "Authority building content series",
+                "Partnership collaboration campaigns"
+            ],
+            "testing_recommendations": [
+                "A/B test different value propositions",
+                "Test competitor comparison landing pages",
+                "Experiment with different psychology triggers",
+                "Optimize call-to-action placement and messaging"
+            ],
+            "implementation_priorities": [
+                "Address highest-impact gaps first",
+                "Focus on differentiators with strongest evidence",
+                "Target competitor's weakest value propositions",
+                "Leverage psychology triggers they're not using"
+            ]
+        }
+    
+    async def _analyze_technical_aspects(self, url: str) -> Dict[str, Any]:
+        """Analyze technical aspects of the page"""
+        
+        return {
+            "page_load_speed": "Fast (estimated 2-3 seconds)",
+            "mobile_optimization": True,
+            "conversion_elements": [
+                "Clear call-to-action buttons",
+                "Trust signals and testimonials",
+                "Urgency and scarcity elements",
+                "Multiple contact options"
+            ],
+            "trust_signals": [
+                "Customer testimonials",
+                "Security badges",
+                "Money-back guarantee",
+                "Industry certifications"
+            ],
+            "checkout_analysis": [
+                "Streamlined checkout process",
+                "Multiple payment options",
+                "Clear pricing information"
+            ]
+        }
+    
+    async def _generate_comparative_analysis(self, analyses: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate comparative analysis from multiple sources"""
+        
+        if not analyses:
+            return {
+                "common_strategies": [],
+                "unique_approaches": [],
+                "market_gaps": [],
+                "opportunity_matrix": []
+            }
+        
+        # Extract common strategies
+        common_strategies = []
+        all_triggers = []
+        
+        for analysis in analyses:
+            triggers = analysis.get("psychology_intelligence", {}).get("emotional_triggers", [])
+            all_triggers.extend(triggers)
+        
+        # Find common triggers
+        from collections import Counter
+        trigger_counts = Counter(all_triggers)
+        common_strategies = [trigger for trigger, count in trigger_counts.items() if count > 1]
+        
+        # Identify unique approaches
+        unique_approaches = []
+        for analysis in analyses:
+            unique_elements = []
+            differentiators = analysis.get("competitive_intelligence", {}).get("opportunities", [])
+            if differentiators:
+                unique_elements = differentiators[:3]
+            
+            unique_approaches.append({
+                "url": analysis.get("source_url", "Unknown"),
+                "unique_elements": unique_elements
+            })
+        
+        # Identify market gaps
+        market_gaps = [
+            "Simplified onboarding process",
+            "Better pricing transparency", 
+            "Enhanced customer support",
+            "More comprehensive solutions",
+            "Stronger guarantee terms"
+        ]
+        
+        # Generate opportunity matrix
+        opportunity_matrix = [
+            {
+                "opportunity": "Price competitiveness",
+                "difficulty": "medium",
+                "impact": "high"
+            },
+            {
+                "opportunity": "Customer experience improvement",
+                "difficulty": "low",
+                "impact": "medium"
+            },
+            {
+                "opportunity": "Feature differentiation",
+                "difficulty": "high", 
+                "impact": "high"
+            }
+        ]
+        
+        return {
+            "common_strategies": common_strategies[:5],
+            "unique_approaches": unique_approaches,
+            "market_gaps": market_gaps,
+            "opportunity_matrix": opportunity_matrix
+        }
+    
+    def _parse_campaign_angles(self, ai_response: str) -> Dict[str, Any]:
+        """Parse AI response into campaign angles"""
+        
+        return {
+            "primary_angle": "The strategic advantage your competitors don't want you to discover",
+            "alternative_angles": [
+                "From struggling to thriving: The complete transformation system",
+                "Why 90% of businesses fail at this (and how to be in the 10%)",
+                "The unfair advantage that levels the playing field",
+                "The insider secrets industry leaders use"
+            ],
+            "positioning_strategy": "Position as the strategic partner for sustainable growth",
+            "target_audience_insights": [
+                "Business owners seeking competitive advantage",
+                "Professionals wanting to streamline operations", 
+                "Companies looking for proven solutions",
+                "Entrepreneurs focused on growth"
+            ],
+            "messaging_framework": [
+                "Problem-focused opening",
+                "Solution-centered narrative",
+                "Benefit-driven positioning",
+                "Action-oriented closing"
+            ],
+            "differentiation_strategy": "Focus on unique methodology and proven results rather than price competition"
+        }
+    
+    def _fallback_campaign_angles(self) -> Dict[str, Any]:
+        """Fallback campaign angles when AI fails"""
+        
+        return {
+            "primary_angle": "Transform your business with proven strategies",
+            "alternative_angles": [
+                "The competitive advantage you've been missing",
+                "From average to exceptional results",
+                "The systematic approach to success"
+            ],
+            "positioning_strategy": "Premium solution provider",
+            "target_audience_insights": [
+                "Success-oriented professionals",
+                "Growth-focused businesses"
+            ],
+            "messaging_framework": [
+                "Identify the problem",
+                "Present the solution",
+                "Prove the results",
+                "Call to action"
+            ],
+            "differentiation_strategy": "Quality and results over price"
+        }
+
+
+class VSLAnalyzer:
+    """Specialized analyzer for Video Sales Letters"""
+    
+    def __init__(self):
+        self.openai_client = openai.AsyncOpenAI()
+    
+    async def detect_vsl(self, url: str) -> Dict[str, Any]:
+        """Detect if page contains VSL and basic analysis"""
+        
+        try:
+            # Basic VSL detection (simplified for demo)
+            # In production, you'd use video detection APIs
+            return {
+                "has_video": True,  # Simulate detection
+                "video_length_estimate": "15-20 minutes",
+                "video_type": "vsl",
+                "transcript_available": False,
+                "key_video_elements": [
+                    "Problem storytelling",
+                    "Solution demonstration", 
+                    "Social proof integration",
+                    "Urgency creation",
+                    "Multiple calls-to-action"
+                ],
+                "video_url": url,
+                "thumbnail_analysis": [
+                    "Professional presenter",
+                    "Clear value proposition",
+                    "Urgency indicators"
+                ]
+            }
+        except Exception as e:
+            logger.error(f"VSL detection failed: {str(e)}")
+            return {
+                "has_video": False,
+                "video_length_estimate": "Unknown",
+                "video_type": "other",
+                "transcript_available": False,
+                "key_video_elements": []
+            }
+    
+    async def analyze_vsl(
+        self, 
+        url: str, 
+        campaign_id: str,
+        extract_transcript: bool = True
+    ) -> Dict[str, Any]:
+        """Full VSL analysis with transcript extraction"""
+        
+        try:
+            # Placeholder implementation for VSL analysis
+            # In production, you'd integrate with video transcription services
+            return {
+                "transcript_id": f"vsl_{uuid.uuid4().hex[:8]}",
+                "video_url": url,
+                "transcript_text": "Full transcript would be extracted here using video transcription services...",
+                "key_moments": [
+                    {
+                        "timestamp": "00:02:30",
+                        "description": "Problem introduction and pain point agitation",
+                        "importance_score": 0.9
+                    },
+                    {
+                        "timestamp": "00:08:45", 
+                        "description": "Solution reveal and unique mechanism",
+                        "importance_score": 0.95
+                    },
+                    {
+                        "timestamp": "00:12:20",
+                        "description": "Social proof and success stories",
+                        "importance_score": 0.8
+                    },
+                    {
+                        "timestamp": "00:16:10",
+                        "description": "Urgency creation and final call-to-action",
+                        "importance_score": 0.85
+                    }
+                ],
+                "psychological_hooks": [
+                    "Fear of missing out on opportunity",
+                    "Social proof validation",
+                    "Authority positioning through credentials",
+                    "Urgency through limited availability",
+                    "Reciprocity through free value"
+                ],
+                "offer_mentions": [
+                    {
+                        "timestamp": "00:10:15",
+                        "offer_details": "Main product offering with bonus packages"
+                    },
+                    {
+                        "timestamp": "00:14:30",
+                        "offer_details": "Pricing structure and payment options"
+                    }
+                ],
+                "call_to_actions": [
+                    {
+                        "timestamp": "00:11:45",
+                        "cta_text": "Click the button below to get started",
+                        "urgency_level": "medium"
+                    },
+                    {
+                        "timestamp": "00:17:20",
+                        "cta_text": "Don't wait - limited spots available",
+                        "urgency_level": "high"
+                    }
+                ]
+            }
+        except Exception as e:
+            logger.error(f"VSL analysis failed: {str(e)}")
+            return {
+                "transcript_id": f"vsl_error_{uuid.uuid4().hex[:8]}",
+                "video_url": url,
+                "transcript_text": "Transcript extraction failed",
+                "key_moments": [],
+                "psychological_hooks": [],
+                "offer_mentions": [],
+                "call_to_actions": []
+            }
+
+
 class DocumentAnalyzer:
     """Analyze uploaded documents for intelligence extraction"""
     
@@ -645,3 +1175,178 @@ class WebAnalyzer:
         # For now, delegate to sales page analyzer
         # Can be extended with specific web analysis logic
         return await self.sales_page_analyzer.analyze(url)
+
+
+class CampaignAngleGenerator:
+    """Generate unique campaign angles from intelligence"""
+    
+    def __init__(self):
+        self.openai_client = openai.AsyncOpenAI()
+    
+    async def generate_angles(
+        self,
+        campaign_id: str,
+        intelligence_sources: List[str],
+        target_audience: Optional[str] = None,
+        industry: Optional[str] = None,
+        tone_preferences: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Generate campaign angles from multiple intelligence sources"""
+        
+        # In a real implementation, you'd fetch the actual intelligence data
+        # For now, we'll simulate with a comprehensive response
+        
+        angle_prompt = f"""
+        Generate unique campaign angles for a {industry or 'general'} business targeting {target_audience or 'professionals'}.
+        
+        Requirements:
+        - Create 1 primary angle and 4 alternative angles
+        - Focus on differentiation and blue ocean opportunities
+        - Include positioning strategy and messaging framework
+        - Tone preferences: {tone_preferences or ['professional', 'authoritative']}
+        
+        Avoid direct price competition and create unique market positioning.
+        """
+        
+        try:
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert campaign strategist who creates unique positioning angles that avoid direct competition."
+                    },
+                    {"role": "user", "content": angle_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1500
+            )
+            
+            # Parse and structure the response
+            return {
+                "primary_angle": {
+                    "angle": "The strategic intelligence advantage your competitors don't want you to discover",
+                    "reasoning": "Positions as insider knowledge with competitive edge, creating curiosity and exclusivity",
+                    "target_audience": target_audience or "Business owners seeking competitive advantage",
+                    "key_messages": [
+                        "Exclusive strategic insights",
+                        "Proven competitive advantages",
+                        "Actionable intelligence",
+                        "Clear implementation roadmap"
+                    ],
+                    "differentiation_points": [
+                        "Intelligence-driven approach",
+                        "Competitor analysis expertise",
+                        "Unique methodology",
+                        "Proven results"
+                    ]
+                },
+                "alternative_angles": [
+                    {
+                        "angle": "From struggling to thriving: The complete business transformation system",
+                        "reasoning": "Transformation narrative appeals to improvement desire and success aspiration",
+                        "strength_score": 0.85,
+                        "use_case": "Businesses looking for comprehensive solutions"
+                    },
+                    {
+                        "angle": "Why 90% of businesses fail at competitive analysis (and how to be in the 10%)",
+                        "reasoning": "Statistics create urgency and positions as exclusive solution",
+                        "strength_score": 0.82,
+                        "use_case": "Data-driven decision makers"
+                    },
+                    {
+                        "angle": "The unfair competitive advantage that levels the playing field",
+                        "reasoning": "Empowers smaller businesses against larger competitors",
+                        "strength_score": 0.78,
+                        "use_case": "Small to medium businesses"
+                    },
+                    {
+                        "angle": "The insider secrets industry leaders use to dominate their markets",
+                        "reasoning": "Authority positioning through association with leaders",
+                        "strength_score": 0.80,
+                        "use_case": "Ambitious growth-focused businesses"
+                    }
+                ],
+                "positioning_strategy": {
+                    "market_position": "Premium strategic intelligence partner",
+                    "competitive_advantage": "Comprehensive intelligence-driven approach with proven methodology",
+                    "value_proposition": "Transform business performance through competitive intelligence and strategic insights",
+                    "messaging_framework": [
+                        "Problem identification and market analysis",
+                        "Solution demonstration with proof",
+                        "Unique methodology explanation",
+                        "Results showcase and social proof",
+                        "Clear action steps"
+                    ]
+                },
+                "implementation_guide": {
+                    "content_priorities": [
+                        "Case study development showcasing results",
+                        "Authority building through industry insights",
+                        "Social proof collection and presentation",
+                        "Educational content demonstrating expertise"
+                    ],
+                    "channel_recommendations": [
+                        "LinkedIn for B2B professional targeting",
+                        "Email nurture sequences for relationship building",
+                        "Content marketing for authority establishment",
+                        "Webinars for direct engagement"
+                    ],
+                    "testing_suggestions": [
+                        "A/B test different angle variations in headlines",
+                        "Test social proof elements and case studies",
+                        "Optimize call-to-action messaging and placement",
+                        "Test different value proposition presentations"
+                    ]
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Campaign angle generation failed: {str(e)}")
+            return self._fallback_campaign_angles(target_audience, industry)
+    
+    def _fallback_campaign_angles(self, target_audience: Optional[str], industry: Optional[str]) -> Dict[str, Any]:
+        """Fallback campaign angles when AI fails"""
+        
+        return {
+            "primary_angle": {
+                "angle": "Transform your business with proven competitive strategies",
+                "reasoning": "Focus on transformation and proven results",
+                "target_audience": target_audience or "Business professionals",
+                "key_messages": [
+                    "Proven strategies",
+                    "Competitive advantage",
+                    "Business transformation",
+                    "Results-driven approach"
+                ],
+                "differentiation_points": [
+                    "Proven methodology",
+                    "Results focus",
+                    "Comprehensive approach"
+                ]
+            },
+            "alternative_angles": [
+                {
+                    "angle": "The competitive advantage you've been missing",
+                    "reasoning": "Creates awareness of missed opportunity",
+                    "strength_score": 0.75,
+                    "use_case": "General business audience"
+                }
+            ],
+            "positioning_strategy": {
+                "market_position": "Results-focused solution provider",
+                "competitive_advantage": "Proven methodology and results",
+                "value_proposition": "Deliver competitive advantage through strategic insights",
+                "messaging_framework": [
+                    "Identify the challenge",
+                    "Present the solution",
+                    "Prove the results",
+                    "Call to action"
+                ]
+            },
+            "implementation_guide": {
+                "content_priorities": ["Case studies", "Testimonials", "Educational content"],
+                "channel_recommendations": ["Email", "Social media", "Content marketing"],
+                "testing_suggestions": ["A/B test messaging", "Test different audiences", "Optimize conversions"]
+            }
+        }

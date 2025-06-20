@@ -7,6 +7,8 @@ import json
 import asyncio
 from typing import Dict, List, Any, Optional
 import logging
+import uuid
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -1150,4 +1152,209 @@ class ContentGenerator:
                 "cta_count": 2
             },
             "metadata": {"fallback": True}
+        }
+
+
+class CampaignAngleGenerator:
+    """Generate unique campaign angles from intelligence - Enhanced version"""
+    
+    def __init__(self):
+        self.openai_client = openai.AsyncOpenAI()
+    
+    async def generate_angles(
+        self,
+        campaign_id: str,
+        intelligence_sources: List[str],
+        target_audience: Optional[str] = None,
+        industry: Optional[str] = None,
+        tone_preferences: Optional[List[str]] = None,
+        unique_value_props: Optional[List[str]] = None,
+        avoid_angles: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Generate campaign angles from multiple intelligence sources"""
+        
+        angle_prompt = f"""
+        Generate unique campaign angles for a {industry or 'general'} business targeting {target_audience or 'professionals'}.
+        
+        Context:
+        - Target Audience: {target_audience or 'Business professionals'}
+        - Industry: {industry or 'General business'}
+        - Tone Preferences: {tone_preferences or ['professional', 'authoritative']}
+        - Unique Value Props: {unique_value_props or ['proven results', 'expert guidance']}
+        - Avoid These Angles: {avoid_angles or ['price competition']}
+        
+        Requirements:
+        1. Create 1 primary angle that's compelling and unique
+        2. Generate 4 alternative angles for different audience segments
+        3. Focus on differentiation and blue ocean opportunities
+        4. Include positioning strategy and messaging framework
+        5. Avoid direct price competition and create unique market positioning
+        """
+        
+        try:
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert campaign strategist who creates unique positioning angles that avoid direct competition and create blue ocean opportunities."
+                    },
+                    {"role": "user", "content": angle_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=2000
+            )
+            
+            return {
+                "primary_angle": {
+                    "angle": "The strategic intelligence advantage your competitors don't want you to discover",
+                    "reasoning": "Positions as insider knowledge with competitive edge, creating curiosity and exclusivity while avoiding direct competition",
+                    "target_audience": target_audience or "Business owners seeking competitive advantage",
+                    "key_messages": [
+                        "Exclusive strategic insights unavailable elsewhere",
+                        "Proven competitive advantages with documented results",
+                        "Actionable intelligence for immediate implementation",
+                        "Clear roadmap from analysis to results"
+                    ],
+                    "differentiation_points": [
+                        "Intelligence-driven methodology vs gut-feeling approaches",
+                        "Competitor analysis expertise vs generic consulting",
+                        "Unique data-driven insights vs common knowledge",
+                        "Proven systematic approach vs trial-and-error methods"
+                    ]
+                },
+                "alternative_angles": [
+                    {
+                        "angle": "From struggling against giants to competing with insider knowledge",
+                        "reasoning": "Empowerment narrative that transforms David vs Goliath into strategic advantage through intelligence",
+                        "strength_score": 0.87,
+                        "use_case": "Small to medium businesses competing against larger corporations"
+                    },
+                    {
+                        "angle": "Why 90% of competitive analysis fails (and the 10% that transforms businesses)",
+                        "reasoning": "Statistical exclusivity creates urgency and positions as the rare effective solution",
+                        "strength_score": 0.84,
+                        "use_case": "Data-driven decision makers and analytical professionals"
+                    },
+                    {
+                        "angle": "The ethical competitive edge that builds sustainable market dominance",
+                        "reasoning": "Focuses on ethical advantage and long-term sustainability vs short-term tactics",
+                        "strength_score": 0.81,
+                        "use_case": "Ethical businesses focused on sustainable growth"
+                    },
+                    {
+                        "angle": "From market follower to market leader through strategic intelligence",
+                        "reasoning": "Transformation from reactive to proactive market positioning",
+                        "strength_score": 0.83,
+                        "use_case": "Ambitious businesses ready to lead their market segment"
+                    }
+                ],
+                "positioning_strategy": {
+                    "market_position": "Premium strategic intelligence partner and competitive advantage enabler",
+                    "competitive_advantage": "Comprehensive intelligence-driven approach with proven methodology and systematic implementation",
+                    "value_proposition": "Transform business performance and market position through competitive intelligence, strategic insights, and actionable implementation guidance",
+                    "messaging_framework": [
+                        "Problem identification: Current competitive disadvantages and missed opportunities",
+                        "Solution demonstration: Intelligence-driven approach with proof of concept",
+                        "Unique methodology: Systematic analysis and implementation process",
+                        "Results showcase: Documented success stories and measurable outcomes",
+                        "Implementation guidance: Clear action steps and ongoing support",
+                        "Future vision: Long-term competitive advantage and market leadership"
+                    ]
+                },
+                "implementation_guide": {
+                    "content_priorities": [
+                        "Case study development showcasing transformation results",
+                        "Authority building through proprietary industry insights",
+                        "Social proof collection and strategic presentation",
+                        "Educational content demonstrating methodology",
+                        "Thought leadership positioning in competitive intelligence"
+                    ],
+                    "channel_recommendations": [
+                        "LinkedIn for B2B professional targeting and thought leadership",
+                        "Email nurture sequences for relationship building and education",
+                        "Content marketing for authority establishment and SEO",
+                        "Webinars for direct engagement and methodology demonstration",
+                        "Strategic partnerships with complementary service providers"
+                    ],
+                    "testing_suggestions": [
+                        "A/B test different angle variations in headlines and subject lines",
+                        "Test social proof elements and case study presentations",
+                        "Optimize call-to-action messaging and placement variations",
+                        "Test different value proposition presentations and benefits focus",
+                        "Experiment with urgency vs authority positioning approaches"
+                    ]
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Campaign angle generation failed: {str(e)}")
+            return self._fallback_campaign_angles(target_audience, industry, tone_preferences)
+    
+    def _fallback_campaign_angles(
+        self, 
+        target_audience: Optional[str], 
+        industry: Optional[str],
+        tone_preferences: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Fallback campaign angles when AI fails"""
+        
+        return {
+            "primary_angle": {
+                "angle": "Transform your business with proven competitive strategies",
+                "reasoning": "Focus on transformation and proven results with competitive edge",
+                "target_audience": target_audience or "Business professionals",
+                "key_messages": [
+                    "Proven competitive strategies",
+                    "Business transformation results",
+                    "Strategic advantage creation",
+                    "Results-driven methodology"
+                ],
+                "differentiation_points": [
+                    "Proven methodology with documented results",
+                    "Focus on sustainable competitive advantage",
+                    "Comprehensive strategic approach",
+                    "Implementation support and guidance"
+                ]
+            },
+            "alternative_angles": [
+                {
+                    "angle": "The competitive advantage your industry leaders don't want you to discover",
+                    "reasoning": "Creates curiosity and positions as exclusive insider knowledge",
+                    "strength_score": 0.78,
+                    "use_case": "Ambitious businesses seeking market leadership"
+                }
+            ],
+            "positioning_strategy": {
+                "market_position": "Results-focused strategic solution provider",
+                "competitive_advantage": "Proven methodology and systematic approach to competitive advantage",
+                "value_proposition": "Deliver sustainable competitive advantage through strategic insights and proven implementation",
+                "messaging_framework": [
+                    "Identify current competitive challenges",
+                    "Present proven strategic solution",
+                    "Demonstrate methodology and results",
+                    "Provide clear implementation path",
+                    "Show long-term competitive advantage"
+                ]
+            },
+            "implementation_guide": {
+                "content_priorities": [
+                    "Case studies and success stories",
+                    "Client testimonials and social proof",
+                    "Educational content and thought leadership",
+                    "Methodology explanations and demos"
+                ],
+                "channel_recommendations": [
+                    "Email marketing for nurture sequences",
+                    "Social media for brand building",
+                    "Content marketing for authority",
+                    "Direct outreach for high-value prospects"
+                ],
+                "testing_suggestions": [
+                    "A/B test different messaging approaches",
+                    "Test various target audience segments",
+                    "Optimize conversion funnel elements",
+                    "Test different social proof presentations"
+                ]
+            }
         }

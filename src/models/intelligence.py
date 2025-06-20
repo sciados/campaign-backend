@@ -416,3 +416,306 @@ smart_urls = relationship("SmartURL", back_populates="campaign", cascade="all, d
 #   "competitive_insights": {}   # Key insights driving strategy
 # }
 """
+
+# ============================================================================
+# APPEND THESE SECTIONS TO YOUR EXISTING src/models/intelligence.py FILE
+# ============================================================================
+
+# ============================================================================
+# CONSOLIDATION AND MULTI-SOURCE ANALYSIS MODELS
+# ============================================================================
+
+class ConsolidateIntelligenceRequest(PydanticBaseModel):
+    campaign_id: str = Field(..., description="Campaign ID to consolidate intelligence for")
+    weight_by_confidence: bool = Field(
+        default=True,
+        description="Whether to weight insights by confidence scores"
+    )
+    include_conflicting_insights: bool = Field(
+        default=True,
+        description="Whether to include conflicting insights in analysis"
+    )
+    generate_unified_strategy: bool = Field(
+        default=True,
+        description="Whether to generate unified campaign strategy"
+    )
+
+class IntelligenceConsolidationResponse(PydanticBaseModel):
+    campaign_id: str
+    total_sources: int
+    confidence_weighted_score: float
+    top_insights: List[str]
+    common_patterns: List[str]
+    conflicting_insights: List[str]
+    recommended_actions: List[str]
+    unified_strategy: Optional[Dict[str, Any]] = None
+
+# ============================================================================
+# EXPORT AND REPORTING MODELS
+# ============================================================================
+
+class ExportReportRequest(PydanticBaseModel):
+    campaign_id: str = Field(..., description="Campaign ID to export")
+    format: Literal['pdf', 'excel', 'json', 'presentation'] = Field(
+        default='pdf',
+        description="Export format"
+    )
+    sections: Optional[List[str]] = Field(
+        default=None,
+        description="Specific sections to include in export"
+    )
+    include_recommendations: bool = Field(
+        default=True,
+        description="Whether to include actionable recommendations"
+    )
+    include_visuals: bool = Field(
+        default=True,
+        description="Whether to include charts and visualizations"
+    )
+
+class ExportReportResponse(PydanticBaseModel):
+    download_url: str
+    expires_at: str
+    file_size: int
+    format: str
+    sections_included: List[str]
+
+# ============================================================================
+# MONITORING AND UPDATES MODELS
+# ============================================================================
+
+class CompetitiveUpdate(PydanticBaseModel):
+    competitor_url: str
+    change_type: Literal['pricing', 'offer', 'content', 'design']
+    change_description: str
+    impact_assessment: str
+    detected_at: str
+    confidence_score: float
+
+class CompetitiveUpdatesResponse(PydanticBaseModel):
+    campaign_id: str
+    updates: List[CompetitiveUpdate]
+    recommendations: List[str]
+    monitoring_active: bool
+    last_check: str
+
+# ============================================================================
+# INTELLIGENCE HISTORY AND TRENDS MODELS
+# ============================================================================
+
+class IntelligenceTimelineEntry(PydanticBaseModel):
+    date: str
+    intelligence_count: int
+    avg_confidence: float
+    key_insights: List[str]
+    sources_analyzed: List[str]
+
+class OpportunityTracking(PydanticBaseModel):
+    opportunity: str
+    first_detected: str
+    current_status: Literal['new', 'developing', 'mature', 'declining']
+    confidence_trend: List[float]
+    actionability_score: float
+
+class IntelligenceTrends(PydanticBaseModel):
+    insight_evolution: List[str]
+    confidence_progression: List[float]
+    opportunity_tracking: List[OpportunityTracking]
+    emerging_patterns: List[str]
+
+class IntelligenceHistoryResponse(PydanticBaseModel):
+    campaign_id: str
+    timeline: List[IntelligenceTimelineEntry]
+    trends: IntelligenceTrends
+    recommendations: Dict[str, List[str]]
+
+# ============================================================================
+# ENHANCED CAMPAIGN MODEL RELATIONSHIPS INSTRUCTIONS
+# ============================================================================
+
+# Instructions for updating existing Campaign model
+"""
+Add these relationships to your existing Campaign class in src/models/campaign.py:
+
+from sqlalchemy.orm import relationship
+
+class Campaign(BaseModel):
+    # ... your existing fields ...
+    
+    # Add these new relationships:
+    intelligence_sources = relationship(
+        "CampaignIntelligence", 
+        back_populates="campaign", 
+        cascade="all, delete-orphan"
+    )
+    generated_content = relationship(
+        "GeneratedContent", 
+        back_populates="campaign", 
+        cascade="all, delete-orphan"
+    ) 
+    smart_urls = relationship(
+        "SmartURL", 
+        back_populates="campaign", 
+        cascade="all, delete-orphan"
+    )
+
+# Also enhance your existing content JSONB field to store intelligence metadata:
+# 
+# Enhanced content structure:
+# {
+#   "intelligence_summary": {
+#     "total_sources": 5,
+#     "avg_confidence": 0.85,
+#     "primary_insights": ["insight1", "insight2"],
+#     "last_updated": "2025-06-20T10:30:00Z"
+#   },
+#   "generated_assets": [
+#     {
+#       "content_id": "uuid",
+#       "content_type": "email_sequence",
+#       "generated_at": "2025-06-20T10:30:00Z",
+#       "performance_score": 0.75
+#     }
+#   ],
+#   "performance_tracking": {
+#     "conversion_rate": 0.045,
+#     "engagement_rate": 0.12,
+#     "roi": 3.2,
+#     "cost_per_acquisition": 25.50
+#   },
+#   "competitive_insights": {
+#     "market_position": "challenger",
+#     "key_differentiators": ["insight1", "insight2"],
+#     "opportunities": ["opp1", "opp2"],
+#     "threats": ["threat1", "threat2"]
+#   }
+# }
+"""
+
+# ============================================================================
+# VALIDATION AND UTILITY FUNCTIONS
+# ============================================================================
+
+def validate_intelligence_data(intelligence_data: Dict[str, Any]) -> bool:
+    """Validate intelligence data structure"""
+    required_fields = [
+        'offer_intelligence',
+        'psychology_intelligence', 
+        'competitive_intelligence',
+        'content_intelligence'
+    ]
+    
+    return all(field in intelligence_data for field in required_fields)
+
+def calculate_confidence_score(intelligence_data: Dict[str, Any]) -> float:
+    """Calculate overall confidence score for intelligence data"""
+    base_score = 0.5
+    
+    # Check data richness
+    if intelligence_data.get('offer_intelligence'):
+        base_score += 0.1
+    if intelligence_data.get('psychology_intelligence'):
+        base_score += 0.1
+    if intelligence_data.get('competitive_intelligence'):
+        base_score += 0.1
+    if intelligence_data.get('content_intelligence'):
+        base_score += 0.1
+    
+    # Check content quality indicators
+    offer_data = intelligence_data.get('offer_intelligence', {})
+    if offer_data.get('products') or offer_data.get('pricing'):
+        base_score += 0.1
+    
+    psychology_data = intelligence_data.get('psychology_intelligence', {})
+    if psychology_data.get('emotional_triggers'):
+        base_score += 0.1
+    
+    return min(base_score, 1.0)
+
+def merge_intelligence_sources(sources: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Merge multiple intelligence sources into consolidated insights"""
+    if not sources:
+        return {}
+    
+    merged = {
+        'offer_intelligence': {},
+        'psychology_intelligence': {},
+        'competitive_intelligence': {},
+        'content_intelligence': {}
+    }
+    
+    # Simple merge strategy - combine all unique insights
+    for source in sources:
+        for category in merged.keys():
+            source_data = source.get(category, {})
+            if isinstance(source_data, dict):
+                for key, value in source_data.items():
+                    if key not in merged[category]:
+                        merged[category][key] = []
+                    if isinstance(value, list):
+                        merged[category][key].extend(value)
+                    elif value:
+                        merged[category][key].append(value)
+    
+    # Remove duplicates
+    for category in merged:
+        for key in merged[category]:
+            if isinstance(merged[category][key], list):
+                merged[category][key] = list(set(merged[category][key]))
+    
+    return merged
+
+# ============================================================================
+# ADDITIONAL HELPER FUNCTIONS FOR INTELLIGENCE PROCESSING
+# ============================================================================
+
+def extract_key_insights(intelligence_sources: List[CampaignIntelligence]) -> List[str]:
+    """Extract key insights from multiple intelligence sources"""
+    insights = []
+    
+    for source in intelligence_sources:
+        # Extract from offer intelligence
+        if source.offer_intelligence and source.offer_intelligence.get('products'):
+            insights.extend(source.offer_intelligence['products'][:2])
+        
+        # Extract from psychology intelligence
+        if source.psychology_intelligence and source.psychology_intelligence.get('emotional_triggers'):
+            insights.extend(source.psychology_intelligence['emotional_triggers'][:2])
+        
+        # Extract from competitive intelligence
+        if source.competitive_intelligence and source.competitive_intelligence.get('opportunities'):
+            insights.extend(source.competitive_intelligence['opportunities'][:2])
+    
+    # Remove duplicates and return top insights
+    unique_insights = list(set(insights))
+    return unique_insights[:10]
+
+def calculate_campaign_intelligence_score(campaign_id: str, intelligence_sources: List[CampaignIntelligence]) -> float:
+    """Calculate overall intelligence score for a campaign"""
+    if not intelligence_sources:
+        return 0.0
+    
+    # Weight by confidence and recency
+    total_score = 0.0
+    total_weight = 0.0
+    
+    for source in intelligence_sources:
+        # Base confidence score
+        confidence = source.confidence_score or 0.5
+        
+        # Recency weight (newer sources get higher weight)
+        from datetime import datetime, timezone
+        if source.created_at:
+            days_old = (datetime.now(timezone.utc) - source.created_at).days
+            recency_weight = max(0.1, 1.0 - (days_old / 30))  # Decay over 30 days
+        else:
+            recency_weight = 0.5
+        
+        # Usage weight (more used sources get higher weight)
+        usage_weight = min(1.0, (source.usage_count or 0) / 10 + 0.1)
+        
+        final_weight = confidence * recency_weight * usage_weight
+        total_score += confidence * final_weight
+        total_weight += final_weight
+    
+    return total_score / total_weight if total_weight > 0 else 0.0
