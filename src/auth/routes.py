@@ -26,10 +26,10 @@ from jose import jwt
 # Set up logging for this module
 logger = logging.getLogger(__name__)
 
-# --- FastAPI Router Definition ---
+# --- FastAPI Router Definition - FIXED: Remove duplicate prefix ---
 
 router = APIRouter(
-    prefix="/auth",
+    # prefix="/auth",  # ❌ REMOVED: This was causing double prefix /api/auth/auth
     tags=["Authentication"],
     responses={404: {"description": "Not found"}},
 )
@@ -107,6 +107,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     full_name: str
+    company_name: str  # ✅ ADDED: Frontend sends this field
 
 class Token(BaseModel):
     """Schema for returning JWT access tokens."""
@@ -148,11 +149,14 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
         # Generate a new UUID for the company
         new_company_id = uuid4()
         
+        # ✅ FIXED: Use company_name from request instead of generating default
+        company_name = user_data.company_name or f"{user_data.full_name}'s Company"
+        
         # Create a new Company instance
         new_company = Company(
             id=new_company_id,
-            company_name=f"{user_data.full_name}'s Company", # Default company name
-            company_slug=f"{user_data.full_name.lower().replace(' ', '-')}-company-{uuid4().hex[:4]}",
+            company_name=company_name,  # Use provided company name
+            company_slug=f"{company_name.lower().replace(' ', '-')}-{uuid4().hex[:4]}",
             subscription_tier="free", # Default tier for new companies
             subscription_status="active",
             monthly_credits_used=0,
@@ -181,9 +185,29 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
         await db.refresh(new_user) # Refresh to get the generated ID and other defaults
         await db.refresh(new_company)
 
+        # ✅ ADDED: Create access token immediately after registration
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": str(new_user.id), "email": new_user.email, "role": new_user.role, "company_id": str(new_company.id)},
+            expires_delta=access_token_expires
+        )
+
         logger.info(f"User {new_user.email} registered and new company '{new_company.company_name}' created.")
 
-        return {"message": "User registered successfully! A new company was created for you.", "user_id": new_user.id, "company_id": new_company.id}
+        # ✅ FIXED: Return format expected by frontend
+        return {
+            "message": "User registered successfully! A new company was created for you.", 
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "id": str(new_user.id),
+                "email": new_user.email,
+                "full_name": new_user.full_name,
+                "role": new_user.role,
+                "company_id": str(new_company.id),
+                "company_name": new_company.company_name
+            }
+        }
 
     except Exception as e:
         await db.rollback() # Rollback in case of error
@@ -220,12 +244,6 @@ async def login_for_access_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account is inactive. Please contact support."
         )
-    # If you have email verification:
-    # if not user.is_verified:
-    #      raise HTTPException(
-    #         status_code=status.HTTP_401_UNAUTHORIZED,
-    #         detail="Account not verified. Please check your email."
-    #     )
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -263,6 +281,9 @@ async def login_user_json(user_login: UserLogin, db: AsyncSession = Depends(get_
             detail="User account is inactive. Please contact support."
         )
 
+    # ✅ ADDED: Get company information for response
+    company = await db.scalar(select(Company).where(Company.id == user.company_id))
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": str(user.id), "email": user.email, "role": user.role, "company_id": str(user.company_id)},
@@ -271,12 +292,18 @@ async def login_user_json(user_login: UserLogin, db: AsyncSession = Depends(get_
     
     logger.info(f"User {user_login.email} logged in successfully via JSON, issued token.")
     
+    # ✅ FIXED: Return format expected by frontend
     return {
-        "message": "Login successful!",
         "access_token": access_token,
         "token_type": "bearer",
-        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60, # Convert minutes to seconds
-        "user_id": user.id
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "company_id": str(user.company_id),
+            "company_name": company.company_name if company else "Unknown"
+        }
     }
 
 @router.get("/profile", summary="Get current user profile")
