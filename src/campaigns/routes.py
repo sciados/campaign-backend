@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from uuid import UUID, uuid4
 from datetime import datetime
@@ -26,7 +26,7 @@ class CampaignCreateRequest(BaseModel):
     description: str
     keywords: Optional[List[str]] = []
     target_audience: Optional[str] = None
-    campaign_type: str = "social_media"
+    campaign_type: str = Field(default="universal", description="Campaign type is required")
     tone: Optional[str] = "conversational"
     style: Optional[str] = "modern"
     settings: Dict[str, Any] = {}
@@ -74,15 +74,22 @@ async def create_campaign(
         print(f"🔍 DEBUG: Request data: {request}")
         print(f"🔍 DEBUG: Keywords: {request.keywords}, type: {type(request.keywords)}")
         
-        # Validate campaign type
+        # Validate campaign type is provided and valid
+        if not request.campaign_type:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Campaign type is required"
+            )
+        
         try:
             campaign_type_enum = CampaignType(request.campaign_type)
             print(f"🔍 DEBUG: Campaign type validated: {campaign_type_enum}")
         except ValueError as ve:
             print(f"❌ DEBUG: Invalid campaign type: {ve}")
+            valid_types = [e.value for e in CampaignType]
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid campaign type: {request.campaign_type}. Valid options: {[e.value for e in CampaignType]}"
+                detail=f"Invalid campaign type: {request.campaign_type}. Valid options: {valid_types}"
             )
         
         # Create campaign
@@ -105,6 +112,7 @@ async def create_campaign(
         print(f"🔍 DEBUG: Campaign object created successfully")
         print(f"🔍 DEBUG: Campaign ID: {campaign.id}")
         print(f"🔍 DEBUG: Campaign keywords: {campaign.keywords}")
+        print(f"🔍 DEBUG: Campaign type: {campaign.campaign_type}")
         
         print(f"🔍 DEBUG: Adding to database session...")
         db.add(campaign)
@@ -182,7 +190,7 @@ async def test_create(
             title="Test Campaign",
             description="Test Description",
             keywords=["test"],
-            campaign_type=CampaignType.SOCIAL_MEDIA,  # Use known working type
+            campaign_type=CampaignType.universal,  # Use known working type
             user_id=current_user.id,
             company_id=current_user.company_id
         )
@@ -251,15 +259,19 @@ async def list_campaigns(
     result = await db.execute(query)
     campaigns = result.scalars().all()
     
-    # Convert to response format
-    campaign_list = [
-        CampaignResponse(
+    # Convert to response format with safe campaign_type handling
+    campaign_list = []
+    for campaign in campaigns:
+        # Safe handling of campaign_type - this should not be None anymore, but adding safety
+        campaign_type_value = campaign.campaign_type.value if campaign.campaign_type else "universal"
+        
+        campaign_response = CampaignResponse(
             id=str(campaign.id),
             title=campaign.title,
             description=campaign.description,
             keywords=campaign.keywords or [],
             target_audience=campaign.target_audience,
-            campaign_type=campaign.campaign_type.value,
+            campaign_type=campaign_type_value,
             status=campaign.status.value,
             tone=campaign.tone,
             style=campaign.style,
@@ -267,8 +279,7 @@ async def list_campaigns(
             created_at=campaign.created_at,
             updated_at=campaign.updated_at
         )
-        for campaign in campaigns
-    ]
+        campaign_list.append(campaign_response)
     
     return CampaignListResponse(
         campaigns=campaign_list,
@@ -302,13 +313,16 @@ async def get_campaign(
             detail="Campaign not found"
         )
     
+    # Safe handling of campaign_type
+    campaign_type_value = campaign.campaign_type.value if campaign.campaign_type else "universal"
+    
     return CampaignResponse(
         id=str(campaign.id),
         title=campaign.title,
         description=campaign.description,
         keywords=campaign.keywords or [],
         target_audience=campaign.target_audience,
-        campaign_type=campaign.campaign_type.value,
+        campaign_type=campaign_type_value,
         status=campaign.status.value,
         tone=campaign.tone,
         style=campaign.style,
@@ -344,6 +358,13 @@ async def update_campaign(
         )
     
     try:
+        # Validate campaign type is provided and valid
+        if not request.campaign_type:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Campaign type is required"
+            )
+        
         # Update campaign fields
         campaign.title = request.title
         campaign.description = request.description
@@ -354,15 +375,15 @@ async def update_campaign(
         campaign.settings = request.settings
         campaign.updated_at = datetime.utcnow()
         
-        # Update campaign type if provided
-        if request.campaign_type:
-            try:
-                campaign.campaign_type = CampaignType(request.campaign_type)
-            except ValueError:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid campaign type: {request.campaign_type}"
-                )
+        # Update campaign type
+        try:
+            campaign.campaign_type = CampaignType(request.campaign_type)
+        except ValueError:
+            valid_types = [e.value for e in CampaignType]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid campaign type: {request.campaign_type}. Valid options: {valid_types}"
+            )
         
         await db.commit()
         await db.refresh(campaign)
@@ -388,8 +409,6 @@ async def update_campaign(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update campaign: {str(e)}"
         )
-
-# ... [rest of the routes remain the same] ...
 
 @router.delete("/{campaign_id}")
 async def delete_campaign(
@@ -420,7 +439,8 @@ async def delete_campaign(
         await db.delete(campaign)
         
         # Update company campaign count
-        current_user.company.total_campaigns = max(0, current_user.company.total_campaigns - 1)
+        if current_user.company:
+            current_user.company.total_campaigns = max(0, current_user.company.total_campaigns - 1)
         
         await db.commit()
         
@@ -459,6 +479,9 @@ async def duplicate_campaign(
         )
     
     try:
+        # Use default campaign type if original doesn't have one
+        campaign_type = original_campaign.campaign_type if original_campaign.campaign_type else CampaignType.universal
+        
         # Create duplicate campaign
         duplicate = Campaign(
             id=uuid4(),
@@ -466,7 +489,7 @@ async def duplicate_campaign(
             description=original_campaign.description,
             keywords=original_campaign.keywords or [],
             target_audience=original_campaign.target_audience,
-            campaign_type=original_campaign.campaign_type,
+            campaign_type=campaign_type,
             status=CampaignStatus.DRAFT,
             tone=original_campaign.tone,
             style=original_campaign.style,
@@ -480,8 +503,9 @@ async def duplicate_campaign(
         await db.refresh(duplicate)
         
         # Update company campaign count
-        current_user.company.total_campaigns += 1
-        await db.commit()
+        if current_user.company:
+            current_user.company.total_campaigns += 1
+            await db.commit()
         
         return CampaignResponse(
             id=str(duplicate.id),
@@ -503,4 +527,50 @@ async def duplicate_campaign(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to duplicate campaign: {str(e)}"
+        )
+
+# Get campaign stats for dashboard
+@router.get("/dashboard/stats", response_model=CampaignStatsResponse)
+async def get_campaign_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get campaign statistics for dashboard"""
+    
+    try:
+        # Get total campaigns count
+        total_campaigns_result = await db.execute(
+            select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
+        )
+        total_campaigns = total_campaigns_result.scalar() or 0
+        
+        # Get active campaigns count (non-draft, non-completed)
+        active_campaigns_result = await db.execute(
+            select(func.count(Campaign.id)).where(
+                and_(
+                    Campaign.company_id == current_user.company_id,
+                    Campaign.status.notin_([CampaignStatus.DRAFT, CampaignStatus.COMPLETED])
+                )
+            )
+        )
+        active_campaigns = active_campaigns_result.scalar() or 0
+        
+        # Get credits info from company
+        credits_used = current_user.company.monthly_credits_used if current_user.company else 0
+        credits_limit = current_user.company.monthly_credits_limit if current_user.company else 1000
+        credits_remaining = max(0, credits_limit - credits_used)
+        
+        return CampaignStatsResponse(
+            credits_used_this_month=credits_used,
+            credits_remaining=credits_remaining,
+            total_campaigns=total_campaigns,
+            active_campaigns=active_campaigns
+        )
+        
+    except Exception as e:
+        print(f"❌ DEBUG: Error getting campaign stats: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get campaign stats: {str(e)}"
         )
