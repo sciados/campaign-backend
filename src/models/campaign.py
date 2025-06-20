@@ -17,6 +17,7 @@ class CampaignType(str, enum.Enum):
     PRODUCT_LAUNCH = "product_launch"
     BRAND_AWARENESS = "brand_awareness"
     MULTIMEDIA = "multimedia"
+    UNIVERSAL = "universal"  # ✅ ADD THIS LINE
 
 class CampaignStatus(str, enum.Enum):
     DRAFT = "draft"
