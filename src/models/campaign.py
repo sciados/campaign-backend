@@ -9,15 +9,15 @@ import enum
 from src.models import BaseModel
 
 class CampaignType(str, enum.Enum):
-    SOCIAL_MEDIA = "social_media"
-    EMAIL_MARKETING = "email_marketing"
-    VIDEO_CONTENT = "video_content"
-    BLOG_POST = "blog_post"
-    ADVERTISEMENT = "advertisement"
-    PRODUCT_LAUNCH = "product_launch"
-    BRAND_AWARENESS = "brand_awareness"
-    MULTIMEDIA = "multimedia"
-    UNIVERSAL = "universal"  # ✅ ADD THIS LINE
+    social_media = "social_media"
+    email_marketing = "email_marketing"
+    video_content = "video_content"
+    blog_post = "blog_post"
+    advertisement = "advertisement"
+    product_launch = "product_launch"
+    brand_awareness = "brand_awareness"
+    multimedia = "multimedia"
+    universal = "universal"  # ✅ ADD THIS LINE
 
 class CampaignStatus(str, enum.Enum):
     DRAFT = "draft"
