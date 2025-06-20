@@ -14,12 +14,33 @@ from src.core.database import get_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
 from src.models.campaign import Campaign
-from src.models.intelligence import CampaignIntelligence, GeneratedContent, SmartURL, IntelligenceSourceType
-from src.intelligence.analyzers import SalesPageAnalyzer, DocumentAnalyzer, WebAnalyzer
-from src.intelligence.generators import ContentGenerator
+from src.models.intelligence import (
+    CampaignIntelligence, 
+    GeneratedContent, 
+    SmartURL, 
+    IntelligenceSourceType,
+    # Enhanced request/response models
+    EnhancedAnalysisRequest,
+    VSLAnalysisRequest,
+    CampaignAngleRequest,
+    BatchAnalysisRequest,
+    URLValidationRequest,
+    EnhancedSalesPageIntelligence,
+    VSLTranscriptionResult,
+    CampaignAngleResponse,
+    MultiSourceIntelligence,
+    BatchAnalysisResponse,
+    URLValidationResponse
+)
+from src.intelligence.analyzers import SalesPageAnalyzer, DocumentAnalyzer, WebAnalyzer, EnhancedSalesPageAnalyzer, VSLAnalyzer
+from src.intelligence.generators import ContentGenerator, CampaignAngleGenerator
 from src.core.credits import check_and_consume_credits
 
 router = APIRouter(prefix="/api/intelligence", tags=["intelligence"])
+
+# ============================================================================
+# EXISTING ROUTES (Keep all your current routes)
+# ============================================================================
 
 # Request/Response Models
 class AnalyzeURLRequest(BaseModel):
@@ -347,131 +368,3 @@ async def get_campaign_intelligence(
             )
         )
     )
-    campaign = campaign_result.scalar_one_or_none()
-    if not campaign:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Campaign not found"
-        )
-    
-    # Get intelligence sources
-    intelligence_result = await db.execute(
-        select(CampaignIntelligence).where(
-            CampaignIntelligence.campaign_id == campaign_id
-        ).order_by(CampaignIntelligence.created_at.desc())
-    )
-    intelligence_sources = intelligence_result.scalars().all()
-    
-    # Get generated content
-    content_result = await db.execute(
-        select(GeneratedContent).where(
-            GeneratedContent.campaign_id == campaign_id
-        ).order_by(GeneratedContent.created_at.desc())
-    )
-    generated_content = content_result.scalars().all()
-    
-    return {
-        "campaign_id": campaign_id,
-        "intelligence_sources": [
-            {
-                "id": str(intel.id),
-                "source_type": intel.source_type,
-                "source_title": intel.source_title,
-                "source_url": intel.source_url,
-                "confidence_score": intel.confidence_score,
-                "usage_count": intel.usage_count,
-                "created_at": intel.created_at,
-                "key_insights": len(intel.offer_intelligence.get("products", [])) + 
-                              len(intel.psychology_intelligence.get("emotional_triggers", [])) +
-                              len(intel.competitive_intelligence.get("opportunities", []))
-            }
-            for intel in intelligence_sources
-        ],
-        "generated_content": [
-            {
-                "id": str(content.id),
-                "content_type": content.content_type,
-                "content_title": content.content_title,
-                "user_rating": content.user_rating,
-                "is_published": content.is_published,
-                "created_at": content.created_at
-            }
-            for content in generated_content
-        ],
-        "summary": {
-            "total_intelligence_sources": len(intelligence_sources),
-            "total_generated_content": len(generated_content),
-            "avg_confidence_score": sum(i.confidence_score for i in intelligence_sources) / len(intelligence_sources) if intelligence_sources else 0
-        }
-    }
-
-@router.get("/usage-stats")
-async def get_intelligence_usage_stats(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get intelligence usage statistics for current user's company"""
-    
-    # Get current month's usage
-    now = datetime.utcnow()
-    first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    
-    # Intelligence analyses this month
-    analyses_this_month = await db.scalar(
-        select(func.count(CampaignIntelligence.id)).where(
-            and_(
-                CampaignIntelligence.company_id == current_user.company_id,
-                CampaignIntelligence.created_at >= first_of_month
-            )
-        )
-    ) or 0
-    
-    # Content generations this month
-    generations_this_month = await db.scalar(
-        select(func.count(GeneratedContent.id)).where(
-            and_(
-                GeneratedContent.company_id == current_user.company_id,
-                GeneratedContent.created_at >= first_of_month
-            )
-        )
-    ) or 0
-    
-    # Get tier limits
-    tier_limits = {
-        "free": {"analyses": 5, "generations": 10},
-        "growth": {"analyses": 50, "generations": 100},
-        "professional": {"analyses": 200, "generations": 500},
-        "agency": {"analyses": -1, "generations": -1}  # Unlimited
-    }
-    
-    user_tier = current_user.company.subscription_tier
-    limits = tier_limits.get(user_tier, tier_limits["free"])
-    
-    return {
-        "current_usage": {
-            "analyses_this_month": analyses_this_month,
-            "generations_this_month": generations_this_month,
-            "credits_used": current_user.company.monthly_credits_used,
-            "credits_limit": current_user.company.monthly_credits_limit
-        },
-        "tier_limits": {
-            "tier": user_tier,
-            "analysis_limit": limits["analyses"],
-            "generation_limit": limits["generations"],
-            "analyses_remaining": max(0, limits["analyses"] - analyses_this_month) if limits["analyses"] != -1 else -1,
-            "generations_remaining": max(0, limits["generations"] - generations_this_month) if limits["generations"] != -1 else -1
-        },
-        "upgrade_suggestions": {
-            "should_upgrade": (
-                (limits["analyses"] != -1 and analyses_this_month >= limits["analyses"] * 0.8) or
-                (limits["generations"] != -1 and generations_this_month >= limits["generations"] * 0.8)
-            ),
-            "next_tier": "growth" if user_tier == "free" else "professional" if user_tier == "growth" else "agency",
-            "upgrade_benefits": [
-                "More intelligence analyses per month",
-                "Unlimited content generation",
-                "Advanced psychology insights",
-                "Priority processing"
-            ]
-        }
-    }
