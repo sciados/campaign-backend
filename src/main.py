@@ -1,53 +1,39 @@
 """
-Main FastAPI application - Clean best practice implementation
+Main FastAPI application - FIXED VERSION with proper CORS
 """
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import os
+import logging
 
-from src.core.database import engine, Base
+# Import route modules
 from src.auth.routes import router as auth_router
-from src.admin.routes import router as admin_router
+from src.campaigns.routes import router as campaigns_router
 from src.dashboard.routes import router as dashboard_router
 from src.intelligence.routes import router as intelligence_router
-from src.campaigns.routes import router as campaign_router
+from src.admin.routes import router as admin_router
 
-# Lifespan event handler (modern approach)
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        print("✓ Database tables created successfully")
-    except Exception as e:
-        print(f"✗ Database startup error: {str(e)}")
-    
-    yield
-    
-    # Shutdown (add cleanup code here if needed)
-    print("🔄 Application shutting down")
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Create FastAPI app with lifespan
 app = FastAPI(
-    title="CampaignForge AI",
-    description="Multimedia Campaign Creation Platform API",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    lifespan=lifespan
+    title="CampaignForge API",
+    description="AI-powered marketing campaign intelligence platform",
+    version="1.0.0"
 )
 
-# Updated CORS Configuration - Add your exact Vercel domain
+# CORS configuration - FIXED to include exact Vercel domain
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",  # Local development
-        "https://campaignforge-frontend.vercel.app",  # Your exact Vercel domain
-        "https://*.vercel.app",  # Allow all Vercel domains (for preview deployments)
-        "https://campaign-backend-production-e2db.up.railway.app",  # Your Railway domain
+        "http://localhost:3000",           # Local development
+        "http://127.0.0.1:3000",          # Local development alternative
+        "https://campaignforge-frontend.vercel.app",  # Production Vercel domain
+        "https://campaignforge-frontend-git-main-shaunmcdonalds-projects.vercel.app",  # Git branch deployments
+        "https://campaignforge-frontend-shaunmcdonalds-projects.vercel.app",  # Project domain
+        "https://*.vercel.app",            # All Vercel domains (wildcard)
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -55,48 +41,77 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-# Global exception handler
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """Handle unexpected errors gracefully"""
-    print(f"Global exception: {type(exc).__name__}: {str(exc)}")  # Add logging
-    return JSONResponse(
-        status_code=500,
-        content={
-            "detail": "Internal server error",
-            "error": str(exc),
-            "path": str(request.url)
-        }
-    )
-
-# Include routers
-app.include_router(auth_router)
-app.include_router(admin_router)
-app.include_router(dashboard_router)
-app.include_router(intelligence_router)
-app.include_router(campaign_router)
-
-# Basic routes
-@app.get("/")
-async def root():
-    """API root endpoint"""
-    return {
-        "name": "CampaignForge AI",
-        "version": "1.0.0",
-        "status": "running",
-        "docs": "/docs"
-    }
-
+# Add a health check endpoint
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "database": "connected" if os.getenv("DATABASE_URL") else "not configured"
-    }
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "healthy",
+            "service": "CampaignForge API",
+            "version": "1.0.0"
+        }
+    )
 
-# Handle preflight requests
+# Add root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return JSONResponse(
+        status_code=200,
+        content={
+            "message": "CampaignForge API is running",
+            "status": "operational",
+            "docs": "/docs",
+            "health": "/health"
+        }
+    )
+
+# Include all routers with proper prefixes
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(campaigns_router, prefix="/api/campaigns", tags=["Campaigns"])
+app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
+app.include_router(intelligence_router, prefix="/api/intelligence", tags=["Intelligence"])
+app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
+
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    """Global exception handler to prevent 500 errors from crashing the app"""
+    logger.error(f"Global exception handler caught: {exc}")
+    logger.error(f"Request URL: {request.url}")
+    logger.error(f"Request method: {request.method}")
+    
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "message": "An unexpected error occurred",
+            "details": str(exc) if app.debug else "Contact support for assistance"
+        }
+    )
+
+# Add OPTIONS handler for all preflight requests
 @app.options("/{full_path:path}")
-async def options_handler():
-    """Handle CORS preflight requests"""
-    return JSONResponse(content={})
+async def options_handler(full_path: str):
+    """Handle all OPTIONS requests for CORS preflight"""
+    return JSONResponse(
+        status_code=200,
+        content={"message": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8000,
+        log_level="info",
+        reload=True
+    )

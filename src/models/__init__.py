@@ -1,5 +1,5 @@
 """
-Base models and mixins
+Base models and mixins - FIXED VERSION
 """
 
 from sqlalchemy import Column, DateTime, Boolean, String, func
@@ -26,9 +26,8 @@ class BaseModel(Base, UUIDMixin, TimestampMixin):
     def __tablename__(cls):
         return cls.__name__.lower()
 
-# Import all models to make them available
+# Import all models in correct order to avoid circular imports
 from .user import User
-from .campaign import Campaign, CampaignType, CampaignStatus, CampaignWorkflowState, WorkflowPreference
 from .company import (
     Company, 
     CompanyMembership, 
@@ -38,6 +37,14 @@ from .company import (
     MembershipRole,
     MembershipStatus,
     InvitationStatus
+)
+from .campaign import Campaign, CampaignType, CampaignStatus, CampaignWorkflowState, WorkflowPreference
+from .intelligence import (
+    CampaignIntelligence,
+    GeneratedContent,
+    SmartURL,
+    IntelligenceSourceType,
+    AnalysisStatus
 )
 
 __all__ = [
@@ -49,13 +56,6 @@ __all__ = [
     # User models
     "User",
     
-    # Campaign models
-    "Campaign", 
-    "CampaignType", 
-    "CampaignStatus",
-    "CampaignWorkflowState",
-    "WorkflowPreference",
-    
     # Company models
     "Company",
     "CompanyMembership",
@@ -66,5 +66,19 @@ __all__ = [
     "CompanySubscriptionTier", 
     "MembershipRole",
     "MembershipStatus",
-    "InvitationStatus"
+    "InvitationStatus",
+    
+    # Campaign models
+    "Campaign", 
+    "CampaignType", 
+    "CampaignStatus",
+    "CampaignWorkflowState",
+    "WorkflowPreference",
+    
+    # Intelligence models
+    "CampaignIntelligence",
+    "GeneratedContent", 
+    "SmartURL",
+    "IntelligenceSourceType",
+    "AnalysisStatus"
 ]

@@ -1,5 +1,5 @@
 """
-User model and related schemas
+User model and related schemas - FIXED VERSION
 """
 
 from sqlalchemy import Column, String, Boolean, ForeignKey, Text
@@ -28,7 +28,32 @@ class User(BaseModel):
     # User Preferences (personal, not company-wide)
     preferences = Column(JSONB, default={})
     
-    # Relationships
+    # Relationships - Use string references to avoid circular imports
     company = relationship("Company", back_populates="users")
     campaigns = relationship("Campaign", back_populates="user", cascade="all, delete-orphan")
-    company_memberships = relationship("CompanyMembership", foreign_keys="CompanyMembership.user_id")
+    
+    # Intelligence relationships
+    intelligence_sources = relationship("CampaignIntelligence", back_populates="user")
+    generated_content = relationship("GeneratedContent", back_populates="user")
+    smart_urls = relationship("SmartURL", back_populates="user")
+    
+    # Company membership relationships
+    company_memberships = relationship(
+        "CompanyMembership", 
+        foreign_keys="CompanyMembership.user_id",
+        back_populates="user"
+    )
+    
+    # Invitations sent by this user
+    sent_invitations = relationship(
+        "CompanyInvitation",
+        foreign_keys="CompanyInvitation.invited_by", 
+        back_populates="inviter"
+    )
+    
+    # Invitations accepted by this user
+    accepted_invitations = relationship(
+        "CompanyInvitation",
+        foreign_keys="CompanyInvitation.accepted_by",
+        back_populates="accepter"
+    )

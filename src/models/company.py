@@ -1,5 +1,5 @@
 """
-Company models and related schemas
+Company models and related schemas - FIXED VERSION
 """
 
 from sqlalchemy import Column, String, Text, Integer, ForeignKey, Boolean, DateTime, UniqueConstraint
@@ -69,11 +69,16 @@ class Company(BaseModel):
     # Company Settings
     settings = Column(JSONB, default={})
     
-    # Relationships
+    # Relationships - Use string references to avoid circular imports
     users = relationship("User", back_populates="company")
     campaigns = relationship("Campaign", back_populates="company")
     memberships = relationship("CompanyMembership", back_populates="company", cascade="all, delete-orphan")
     invitations = relationship("CompanyInvitation", back_populates="company", cascade="all, delete-orphan")
+    
+    # Intelligence relationships
+    intelligence_sources = relationship("CampaignIntelligence", back_populates="company")
+    generated_content = relationship("GeneratedContent", back_populates="company")
+    smart_urls = relationship("SmartURL", back_populates="company")
 
 class CompanyMembership(BaseModel):
     """Company membership model for team collaboration"""
@@ -94,9 +99,9 @@ class CompanyMembership(BaseModel):
     joined_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
-    user = relationship("User", foreign_keys=[user_id])
+    user = relationship("User", foreign_keys=[user_id], back_populates="company_memberships")
     company = relationship("Company", back_populates="memberships")
-    inviter = relationship("User", foreign_keys=[invited_by])
+    inviter = relationship("User", foreign_keys=[invited_by], back_populates="sent_invitations")
     
     __table_args__ = (
         UniqueConstraint('user_id', 'company_id', name='unique_user_company_membership'),
@@ -114,7 +119,6 @@ class CompanyInvitation(BaseModel):
     
     # Status & Expiry
     status = Column(String(50), default=InvitationStatus.PENDING.value)
-    # FIXED: Use positional arguments for make_interval(years, months, weeks, days, hours, mins, secs)
     expires_at = Column(DateTime(timezone=True), server_default=func.now() + func.make_interval(0, 0, 0, 7, 0, 0, 0))
     accepted_at = Column(DateTime(timezone=True))
     accepted_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
@@ -124,5 +128,5 @@ class CompanyInvitation(BaseModel):
     
     # Relationships
     company = relationship("Company", back_populates="invitations")
-    inviter = relationship("User", foreign_keys=[invited_by])
-    accepter = relationship("User", foreign_keys=[accepted_by])
+    inviter = relationship("User", foreign_keys=[invited_by], back_populates="sent_invitations")
+    accepter = relationship("User", foreign_keys=[accepted_by], back_populates="accepted_invitations")

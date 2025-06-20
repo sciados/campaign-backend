@@ -1,6 +1,6 @@
-# src/models/campaign.py
+# src/models/campaign.py - FIXED VERSION
 """
-Campaign models - Enhanced with flexible workflow support
+Campaign models - Enhanced with flexible workflow support - FIXED RELATIONSHIPS
 """
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -125,11 +125,11 @@ class Campaign(BaseModel):
     # Content storage (flexible JSON structure)
     content = Column(JSONB, default={})  # Store campaign-related content and metadata
     
-    # Relationships
+    # Foreign Keys
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
-    # Enhanced relationships for workflow
+    # Relationships - Use string references to avoid circular imports
     user = relationship("User", back_populates="campaigns")
     company = relationship("Company", back_populates="campaigns")
     
@@ -266,74 +266,3 @@ class Campaign(BaseModel):
             "content_count": self.content_generated,
             "workflow_preference": self.workflow_preference.value if self.workflow_preference else "flexible"
         }
-
-# Helper functions for workflow management
-def calculate_completion_percentage(input_sources, intelligence_sources, generated_content):
-    """Calculate overall completion percentage"""
-    total_weight = 100
-    
-    # Step 1: Always complete (25%)
-    progress = 25
-    
-    # Step 2: Sources (25% weight)
-    if len(input_sources) > 0:
-        progress += 25
-    
-    # Step 3: Analysis (25% weight) 
-    if len(intelligence_sources) > 0:
-        progress += 25
-    
-    # Step 4: Content (25% weight)
-    if len(generated_content) > 0:
-        progress += 25
-    
-    return progress
-
-def suggest_session_length(workflow_preference):
-    """Suggest session length based on user preference"""
-    if workflow_preference == WorkflowPreference.QUICK:
-        return "15-30 minutes (quick session)"
-    elif workflow_preference == WorkflowPreference.METHODICAL:
-        return "45-90 minutes (deep work session)"
-    else:
-        return "30-60 minutes (flexible session)"
-
-def can_quick_complete_campaign(input_sources, intelligence_sources, generated_content):
-    """Determine if user can quickly complete remaining steps"""
-    remaining_steps = []
-    
-    if len(input_sources) == 0:
-        remaining_steps.append("add_sources")
-    if len(intelligence_sources) == 0:
-        remaining_steps.append("analyze_sources")
-    if len(generated_content) == 0:
-        remaining_steps.append("generate_content")
-    
-    # Can quick complete if 2 or fewer steps remain
-    return len(remaining_steps) <= 2
-
-def calculate_time_spent_today(session_history):
-    """Calculate time spent working on campaign today"""
-    if not session_history:
-        return "0 minutes"
-    
-    today = datetime.now().date()
-    today_sessions = [
-        session for session in session_history 
-        if session.get("date") == today.isoformat()
-    ]
-    
-    if not today_sessions:
-        return "0 minutes"
-    
-    total_minutes = sum(session.get("duration_minutes", 0) for session in today_sessions)
-    
-    if total_minutes < 60:
-        return f"{total_minutes} minutes"
-    else:
-        hours = total_minutes // 60
-        minutes = total_minutes % 60
-        if minutes > 0:
-            return f"{hours}h {minutes}m"
-        else:
-            return f"{hours}h"
