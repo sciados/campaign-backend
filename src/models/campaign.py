@@ -2,7 +2,7 @@
 Campaign model - Clean best practice implementation
 """
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from sqlalchemy.orm import relationship
 import enum
 
@@ -44,6 +44,7 @@ class Campaign(BaseModel):
     # Basic Information
     title = Column(String(255), nullable=False)
     description = Column(Text)
+    keywords = Column(ARRAY(String), default=[])  # ✅ ADD THIS LINE
     target_audience = Column(Text)
     campaign_type = Column(Enum(CampaignType), nullable=False)
     status = Column(Enum(CampaignStatus), default=CampaignStatus.DRAFT)

@@ -23,6 +23,7 @@ router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
 class CampaignCreateRequest(BaseModel):
     title: str
     description: str
+    keywords: Optional[List[str]] = []  # ✅ ADD THIS LINE
     target_audience: Optional[str] = None
     campaign_type: str = "social_media"
     tone: Optional[str] = "conversational"
@@ -33,6 +34,7 @@ class CampaignResponse(BaseModel):
     id: str
     title: str
     description: str
+    keywords: Optional[List[str]] = []  # ✅ ADD THIS LINE
     target_audience: Optional[str]
     campaign_type: str
     status: str
@@ -53,6 +55,8 @@ class CampaignStatsResponse(BaseModel):
     credits_remaining: int
     total_campaigns: int
     active_campaigns: int
+
+# src/campaigns/routes.py - UPDATE THE create_campaign FUNCTION
 
 @router.post("", response_model=CampaignResponse)
 async def create_campaign(
@@ -77,6 +81,7 @@ async def create_campaign(
             id=uuid4(),
             title=request.title,
             description=request.description,
+            keywords=request.keywords or [],  # ✅ ADD THIS LINE
             target_audience=request.target_audience,
             campaign_type=campaign_type_enum,
             status=CampaignStatus.DRAFT,
@@ -99,6 +104,7 @@ async def create_campaign(
             id=str(campaign.id),
             title=campaign.title,
             description=campaign.description,
+            keywords=campaign.keywords or [],  # ✅ ADD THIS LINE
             target_audience=campaign.target_audience,
             campaign_type=campaign.campaign_type.value,
             status=campaign.status.value,
@@ -166,6 +172,7 @@ async def list_campaigns(
             id=str(campaign.id),
             title=campaign.title,
             description=campaign.description,
+            keywords=campaign.keywords or [],
             target_audience=campaign.target_audience,
             campaign_type=campaign.campaign_type.value,
             status=campaign.status.value,
@@ -214,6 +221,7 @@ async def get_campaign(
         id=str(campaign.id),
         title=campaign.title,
         description=campaign.description,
+        keywords=campaign.keywords or [],
         target_audience=campaign.target_audience,
         campaign_type=campaign.campaign_type.value,
         status=campaign.status.value,
@@ -254,6 +262,7 @@ async def update_campaign(
         # Update campaign fields
         campaign.title = request.title
         campaign.description = request.description
+        campaign.keywords = request.keywords
         campaign.target_audience = request.target_audience
         campaign.tone = request.tone
         campaign.style = request.style
@@ -277,6 +286,7 @@ async def update_campaign(
             id=str(campaign.id),
             title=campaign.title,
             description=campaign.description,
+            keywords=campaign.keywords or [],
             target_audience=campaign.target_audience,
             campaign_type=campaign.campaign_type.value,
             status=campaign.status.value,
@@ -590,6 +600,7 @@ async def duplicate_campaign(
             id=uuid4(),
             title=f"{original_campaign.title} (Copy)",
             description=original_campaign.description,
+            keywords=original_campaign.keywords or [],
             target_audience=original_campaign.target_audience,
             campaign_type=original_campaign.campaign_type,
             status=CampaignStatus.DRAFT,
@@ -612,6 +623,7 @@ async def duplicate_campaign(
             id=str(duplicate.id),
             title=duplicate.title,
             description=duplicate.description,
+            keywords=duplicate.keywords or [],
             target_audience=duplicate.target_audience,
             campaign_type=duplicate.campaign_type.value,
             status=duplicate.status.value,
@@ -664,6 +676,7 @@ async def export_campaign(
             "campaign": {
                 "title": campaign.title,
                 "description": campaign.description,
+                "keywords":campaign.keywords or [],
                 "target_audience": campaign.target_audience,
                 "campaign_type": campaign.campaign_type.value,
                 "status": campaign.status.value,
