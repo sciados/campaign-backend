@@ -9,6 +9,7 @@ from pydantic import BaseModel, HttpUrl
 from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime
+import traceback
 
 from src.core.database import get_db
 from src.auth.dependencies import get_current_user
@@ -19,6 +20,7 @@ from src.models.intelligence import (
     GeneratedContent, 
     SmartURL, 
     IntelligenceSourceType,
+    AnalysisStatus,
     # Enhanced request/response models
     EnhancedAnalysisRequest,
     VSLAnalysisRequest,
@@ -110,7 +112,7 @@ async def analyze_sales_page(
             campaign_id=uuid.UUID(request.campaign_id),
             user_id=current_user.id,
             company_id=current_user.company_id,
-            analysis_status="processing"
+            analysis_status=AnalysisStatus.PROCESSING
         )
         
         db.add(intelligence)
@@ -137,7 +139,7 @@ async def analyze_sales_page(
         intelligence.confidence_score = analysis_result.get("confidence_score", 0.8)
         intelligence.source_title = analysis_result.get("page_title", "Analyzed Page")
         intelligence.raw_content = analysis_result.get("raw_content", "")
-        intelligence.analysis_status = "completed"
+        intelligence.analysis_status = AnalysisStatus.COMPLETED
         
         await db.commit()
         
@@ -158,7 +160,7 @@ async def analyze_sales_page(
     except Exception as e:
         # Update status to failed
         if 'intelligence' in locals():
-            intelligence.analysis_status = "failed"
+            intelligence.analysis_status = AnalysisStatus.FAILED
             intelligence.processing_metadata = {"error": str(e)}
             await db.commit()
         
@@ -212,7 +214,7 @@ async def upload_document_for_analysis(
             campaign_id=uuid.UUID(campaign_id),
             user_id=current_user.id,
             company_id=current_user.company_id,
-            analysis_status="processing"
+            analysis_status=AnalysisStatus.PROCESSING
         )
         
         db.add(intelligence)
@@ -228,7 +230,7 @@ async def upload_document_for_analysis(
         intelligence.competitive_intelligence = analysis_result.get("competitive_intelligence", {})
         intelligence.confidence_score = analysis_result.get("confidence_score", 0.7)
         intelligence.raw_content = analysis_result.get("extracted_text", "")
-        intelligence.analysis_status = "completed"
+        intelligence.analysis_status = AnalysisStatus.COMPLETED
         
         await db.commit()
         
@@ -368,3 +370,455 @@ async def get_campaign_intelligence(
             )
         )
     )
+    campaign = campaign_result.scalar_one_or_none()
+    
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+    
+    try:
+        # Get all intelligence sources for this campaign
+        intelligence_query = select(CampaignIntelligence).where(
+            CampaignIntelligence.campaign_id == campaign_id
+        ).order_by(CampaignIntelligence.created_at.desc())
+        
+        intelligence_result = await db.execute(intelligence_query)
+        intelligence_sources = intelligence_result.scalars().all()
+        
+        # Get all generated content for this campaign
+        content_query = select(GeneratedContent).where(
+            GeneratedContent.campaign_id == campaign_id
+        ).order_by(GeneratedContent.created_at.desc())
+        
+        content_result = await db.execute(content_query)
+        generated_content = content_result.scalars().all()
+        
+        # Calculate summary statistics
+        total_intelligence = len(intelligence_sources)
+        total_content = len(generated_content)
+        avg_confidence = 0.0
+        
+        if intelligence_sources:
+            confidence_scores = [source.confidence_score for source in intelligence_sources if source.confidence_score]
+            avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
+        
+        # Convert to response format
+        intelligence_data = []
+        for source in intelligence_sources:
+            intelligence_data.append({
+                "id": str(source.id),
+                "source_title": source.source_title or "Untitled Source",
+                "source_url": source.source_url,
+                "source_type": source.source_type.value if source.source_type else "unknown",
+                "confidence_score": source.confidence_score or 0.0,
+                "usage_count": source.usage_count or 0,
+                "analysis_status": source.analysis_status.value if source.analysis_status else "unknown",
+                "created_at": source.created_at.isoformat() if source.created_at else None,
+                "updated_at": source.updated_at.isoformat() if source.updated_at else None,
+                # Include intelligence data for frontend use
+                "offer_intelligence": source.offer_intelligence or {},
+                "psychology_intelligence": source.psychology_intelligence or {},
+                "content_intelligence": source.content_intelligence or {},
+                "competitive_intelligence": source.competitive_intelligence or {},
+                "brand_intelligence": source.brand_intelligence or {}
+            })
+        
+        content_data = []
+        for content in generated_content:
+            content_data.append({
+                "id": str(content.id),
+                "content_type": content.content_type,
+                "content_title": content.content_title,
+                "created_at": content.created_at.isoformat() if content.created_at else None,
+                "user_rating": content.user_rating,
+                "is_published": content.is_published or False,
+                "performance_data": content.performance_data or {}
+            })
+        
+        return {
+            "campaign_id": campaign_id,
+            "intelligence_sources": intelligence_data,
+            "generated_content": content_data,
+            "summary": {
+                "total_intelligence_sources": total_intelligence,
+                "total_generated_content": total_content,
+                "avg_confidence_score": round(avg_confidence, 3)
+            }
+        }
+        
+    except Exception as e:
+        print(f"❌ DEBUG: Error getting campaign intelligence: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get campaign intelligence: {str(e)}"
+        )
+
+# ============================================================================
+# ENHANCED INTELLIGENCE METHODS (NEW)
+# ============================================================================
+
+@router.post("/analyze-sales-page-enhanced", response_model=EnhancedSalesPageIntelligence)
+async def analyze_sales_page_enhanced(
+    request: EnhancedAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Enhanced sales page analysis with comprehensive intelligence extraction"""
+    
+    # Check credits
+    await check_and_consume_credits(
+        user=current_user,
+        operation="enhanced_analysis",
+        credits_required=8,
+        db=db
+    )
+    
+    # Verify campaign ownership
+    campaign_result = await db.execute(
+        select(Campaign).where(
+            and_(
+                Campaign.id == request.campaign_id,
+                Campaign.company_id == current_user.company_id
+            )
+        )
+    )
+    campaign = campaign_result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+    
+    try:
+        # Create intelligence record
+        intelligence = CampaignIntelligence(
+            source_url=request.url,
+            source_type=IntelligenceSourceType.SALES_PAGE,
+            campaign_id=uuid.UUID(request.campaign_id),
+            user_id=current_user.id,
+            company_id=current_user.company_id,
+            analysis_status=AnalysisStatus.PROCESSING
+        )
+        
+        db.add(intelligence)
+        await db.commit()
+        await db.refresh(intelligence)
+        
+        # Run enhanced analysis
+        analyzer = EnhancedSalesPageAnalyzer()
+        analysis_result = await analyzer.analyze_enhanced(
+            url=request.url,
+            analysis_depth=request.analysis_depth,
+            include_vsl_detection=request.include_vsl_detection,
+            custom_analysis_points=request.custom_analysis_points or []
+        )
+        
+        # Update intelligence record
+        intelligence.offer_intelligence = analysis_result.get("offer_analysis", {})
+        intelligence.psychology_intelligence = analysis_result.get("psychology_analysis", {})
+        intelligence.content_intelligence = analysis_result.get("content_strategy", {})
+        intelligence.competitive_intelligence = analysis_result.get("competitive_intelligence", {})
+        intelligence.confidence_score = analysis_result.get("confidence_score", 0.85)
+        intelligence.source_title = analysis_result.get("source_title", "Enhanced Analysis")
+        intelligence.analysis_status = AnalysisStatus.COMPLETED
+        
+        await db.commit()
+        
+        # Return enhanced response
+        return EnhancedSalesPageIntelligence(
+            intelligence_id=str(intelligence.id),
+            confidence_score=intelligence.confidence_score,
+            source_url=request.url,
+            source_title=intelligence.source_title,
+            analysis_timestamp=intelligence.created_at.isoformat(),
+            **analysis_result
+        )
+        
+    except Exception as e:
+        if 'intelligence' in locals():
+            intelligence.analysis_status = AnalysisStatus.FAILED
+            intelligence.processing_metadata = {"error": str(e)}
+            await db.commit()
+            
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Enhanced analysis failed: {str(e)}"
+        )
+
+@router.post("/vsl-analysis", response_model=VSLTranscriptionResult)
+async def detect_and_analyze_vsl(
+    request: VSLAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Detect and analyze Video Sales Letters"""
+    
+    # Check credits
+    await check_and_consume_credits(
+        user=current_user,
+        operation="vsl_analysis",
+        credits_required=10,
+        db=db
+    )
+    
+    try:
+        analyzer = VSLAnalyzer()
+        vsl_result = await analyzer.analyze_vsl(
+            url=request.url,
+            extract_transcript=request.extract_transcript,
+            analyze_psychological_hooks=request.analyze_psychological_hooks
+        )
+        
+        # Create intelligence record for VSL
+        intelligence = CampaignIntelligence(
+            source_url=request.url,
+            source_type=IntelligenceSourceType.VIDEO,
+            campaign_id=uuid.UUID(request.campaign_id),
+            user_id=current_user.id,
+            company_id=current_user.company_id,
+            analysis_status=AnalysisStatus.COMPLETED,
+            content_intelligence={"vsl_analysis": vsl_result},
+            confidence_score=0.9,
+            source_title="VSL Analysis"
+        )
+        
+        db.add(intelligence)
+        await db.commit()
+        
+        return VSLTranscriptionResult(**vsl_result)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"VSL analysis failed: {str(e)}"
+        )
+
+@router.post("/generate-campaign-angles", response_model=CampaignAngleResponse)
+async def generate_campaign_angles(
+    request: CampaignAngleRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generate unique campaign angles based on intelligence"""
+    
+    # Check credits
+    await check_and_consume_credits(
+        user=current_user,
+        operation="campaign_angles",
+        credits_required=5,
+        db=db
+    )
+    
+    try:
+        # Get intelligence sources
+        intelligence_sources = []
+        for source_id in request.intelligence_sources:
+            result = await db.execute(
+                select(CampaignIntelligence).where(
+                    and_(
+                        CampaignIntelligence.id == source_id,
+                        CampaignIntelligence.company_id == current_user.company_id
+                    )
+                )
+            )
+            source = result.scalar_one_or_none()
+            if source:
+                intelligence_sources.append(source)
+        
+        if not intelligence_sources:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No valid intelligence sources found"
+            )
+        
+        # Generate campaign angles
+        generator = CampaignAngleGenerator()
+        angles_result = await generator.generate_angles(
+            intelligence_sources=intelligence_sources,
+            target_audience=request.target_audience,
+            industry=request.industry,
+            tone_preferences=request.tone_preferences or [],
+            unique_value_props=request.unique_value_props or [],
+            avoid_angles=request.avoid_angles or []
+        )
+        
+        return CampaignAngleResponse(**angles_result)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Campaign angle generation failed: {str(e)}"
+        )
+
+@router.post("/consolidate/{campaign_id}", response_model=MultiSourceIntelligence)
+async def consolidate_multi_source_intelligence(
+    campaign_id: str,
+    options: Dict[str, Any] = {},
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Consolidate intelligence from multiple sources"""
+    
+    # Check credits
+    await check_and_consume_credits(
+        user=current_user,
+        operation="intelligence_consolidation",
+        credits_required=7,
+        db=db
+    )
+    
+    try:
+        # Get all intelligence for campaign
+        intelligence_result = await db.execute(
+            select(CampaignIntelligence).where(
+                and_(
+                    CampaignIntelligence.campaign_id == campaign_id,
+                    CampaignIntelligence.company_id == current_user.company_id,
+                    CampaignIntelligence.analysis_status == AnalysisStatus.COMPLETED
+                )
+            )
+        )
+        intelligence_sources = intelligence_result.scalars().all()
+        
+        if not intelligence_sources:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No completed intelligence sources found for this campaign"
+            )
+        
+        # Consolidate intelligence
+        from src.intelligence.analyzers import IntelligenceConsolidator
+        consolidator = IntelligenceConsolidator()
+        
+        consolidated_result = await consolidator.consolidate_sources(
+            intelligence_sources=intelligence_sources,
+            weight_by_confidence=options.get("weight_by_confidence", True),
+            include_conflicting_insights=options.get("include_conflicting_insights", True),
+            generate_unified_strategy=options.get("generate_unified_strategy", True)
+        )
+        
+        return MultiSourceIntelligence(**consolidated_result)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Intelligence consolidation failed: {str(e)}"
+        )
+
+@router.post("/batch-analyze", response_model=BatchAnalysisResponse)
+async def batch_analyze_competitors(
+    request: BatchAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Batch analyze multiple competitor URLs"""
+    
+    # Check credits (more for batch operations)
+    credits_required = len(request.urls) * 5
+    await check_and_consume_credits(
+        user=current_user,
+        operation="batch_analysis",
+        credits_required=credits_required,
+        db=db
+    )
+    
+    try:
+        analyzer = EnhancedSalesPageAnalyzer()
+        batch_results = []
+        
+        for url in request.urls:
+            try:
+                # Create intelligence record
+                intelligence = CampaignIntelligence(
+                    source_url=url,
+                    source_type=IntelligenceSourceType.COMPETITOR_ANALYSIS,
+                    campaign_id=uuid.UUID(request.campaign_id),
+                    user_id=current_user.id,
+                    company_id=current_user.company_id,
+                    analysis_status=AnalysisStatus.PROCESSING
+                )
+                
+                db.add(intelligence)
+                await db.commit()
+                await db.refresh(intelligence)
+                
+                # Analyze URL
+                analysis_result = await analyzer.analyze_enhanced(
+                    url=url,
+                    analysis_depth=request.analysis_type,
+                    include_vsl_detection=True
+                )
+                
+                # Update intelligence
+                intelligence.offer_intelligence = analysis_result.get("offer_analysis", {})
+                intelligence.psychology_intelligence = analysis_result.get("psychology_analysis", {})
+                intelligence.competitive_intelligence = analysis_result.get("competitive_intelligence", {})
+                intelligence.confidence_score = analysis_result.get("confidence_score", 0.8)
+                intelligence.analysis_status = AnalysisStatus.COMPLETED
+                
+                await db.commit()
+                
+                # Add to batch results
+                enhanced_intelligence = EnhancedSalesPageIntelligence(
+                    intelligence_id=str(intelligence.id),
+                    confidence_score=intelligence.confidence_score,
+                    source_url=url,
+                    source_title=analysis_result.get("source_title", url),
+                    analysis_timestamp=intelligence.created_at.isoformat(),
+                    **analysis_result
+                )
+                
+                batch_results.append(enhanced_intelligence)
+                
+            except Exception as url_error:
+                print(f"Failed to analyze {url}: {url_error}")
+                continue
+        
+        # Generate comparative analysis
+        if request.compare_results and len(batch_results) > 1:
+            from src.intelligence.analyzers import ComparativeAnalyzer
+            comparative_analyzer = ComparativeAnalyzer()
+            comparative_analysis = await comparative_analyzer.compare_analyses(batch_results)
+        else:
+            comparative_analysis = {
+                "common_strategies": [],
+                "unique_approaches": [],
+                "market_gaps": [],
+                "opportunity_matrix": []
+            }
+        
+        return BatchAnalysisResponse(
+            analyses=batch_results,
+            comparative_analysis=comparative_analysis
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Batch analysis failed: {str(e)}"
+        )
+
+@router.post("/validate-url", response_model=URLValidationResponse)
+async def validate_and_pre_analyze_url(
+    request: URLValidationRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Smart URL validation and pre-analysis"""
+    
+    try:
+        from src.intelligence.analyzers import URLValidator
+        validator = URLValidator()
+        
+        validation_result = await validator.validate_url(request.url)
+        
+        return URLValidationResponse(**validation_result)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"URL validation failed: {str(e)}"
+        )
