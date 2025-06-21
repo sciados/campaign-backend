@@ -14,7 +14,7 @@ from src.models.user import User
 from src.models.company import Company
 from src.models.campaign import Campaign
 
-router = APIRouter(prefix="/api/dashboard/", tags=["dashboard"])
+router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 class CompanyStatsResponse(BaseModel):
     company_name: str
