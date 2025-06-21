@@ -95,6 +95,10 @@ app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"]
 app.include_router(intelligence_router, prefix="/api/intelligence", tags=["Intelligence"])
 app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
 
+# ✅ ADDED: Route aliases for frontend compatibility
+# Add auth routes without /api prefix for frontend compatibility
+app.include_router(auth_router, prefix="/auth", tags=["Authentication - Legacy"])
+
 # Global exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
