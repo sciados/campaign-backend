@@ -1,7 +1,7 @@
 """
 Main FastAPI application - FIXED VERSION with proper CORS and table creation
 """
-
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -21,6 +21,7 @@ from src.models import Base
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "https://campaignforge-frontend.vercel.app")
 
 app = FastAPI(
     title="CampaignForge API",
@@ -31,12 +32,7 @@ app = FastAPI(
 # CORS configuration - Production only (no local development)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://campaignforge-frontend.vercel.app",  # Production Vercel domain
-        "https://campaignforge-frontend-git-main-shaunmcdonalds-projects.vercel.app",  # Git branch deployments
-        "https://campaignforge-frontend-shaunmcdonalds-projects.vercel.app",  # Project domain
-        "https://*.vercel.app",            # All Vercel domains (wildcard)
-    ],
+    allow_origins=allowed_origins_env,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
