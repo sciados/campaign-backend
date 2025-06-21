@@ -53,46 +53,74 @@ async def get_current_user(
     
     try:
         # Verify and decode the token
+        print(f"🔍 Decoding token...")
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=["HS256"])
+        print(f"🔍 Token payload: {payload}")
+        
         user_id_str: str = payload.get("sub")
         user_email: str = payload.get("email")
         user_role: str = payload.get("role")
         company_id: str = payload.get("company_id")
 
+        print(f"🔍 Extracted from token:")
+        print(f"   user_id: {user_id_str}")
+        print(f"   email: {user_email}")
+        print(f"   role: {user_role}")
+        print(f"   company_id: {company_id}")
+
         if user_id_str is None or user_email is None or user_role is None or company_id is None:
+            print(f"❌ Missing required fields in token")
             raise credentials_exception
         
         # Convert string to UUID
         try:
             user_id = UUID(user_id_str)
+            print(f"✅ User ID converted to UUID: {user_id}")
         except ValueError:
+            print(f"❌ Invalid UUID format: {user_id_str}")
             raise credentials_exception
         
         # Fetch the user from the DB to ensure they exist, are active, and load their company relationship
+        print(f"🔍 Fetching user from database...")
         user = await db.scalar(
             select(User)
             .where(User.id == user_id)
             .options(selectinload(User.company)) # Eagerly load the company
         )
-        if user is None or not user.is_active:
+        
+        if user is None:
+            print(f"❌ User not found in database")
             raise credentials_exception
+            
+        if not user.is_active:
+            print(f"❌ User is not active")
+            raise credentials_exception
+        
+        print(f"✅ User found: {user.email}")
+        print(f"✅ User company_id: {user.company_id}")
         
         # Verify company_id in token matches user's actual company_id
         if str(user.company_id) != company_id:
-             logger.warning(f"Token company_id mismatch for user {user_id}. Token: {company_id}, User DB: {user.company_id}")
+             print(f"❌ Token company_id mismatch!")
+             print(f"   Token company_id: {company_id}")
+             print(f"   User DB company_id: {user.company_id}")
              raise credentials_exception
 
+        print(f"✅ Authentication successful!")
         return user # Return the full User ORM object with company loaded
 
     except jwt.ExpiredSignatureError:
+        print(f"❌ Token expired")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.JWTError:
+    except jwt.JWTError as e:
+        print(f"❌ JWT Error: {e}")
         raise credentials_exception
     except Exception as e:
+        print(f"❌ Unexpected error in get_current_user dependency: {str(e)}")
         logger.exception(f"Unexpected error in get_current_user dependency: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
