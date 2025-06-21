@@ -90,7 +90,7 @@ async def get_current_user(
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.InvalidTokenError:
+    except jwt.JWTError:
         raise credentials_exception
     except Exception as e:
         logger.exception(f"Unexpected error in get_current_user dependency: {str(e)}")
