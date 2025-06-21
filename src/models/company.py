@@ -101,10 +101,10 @@ class CompanyMembership(BaseModel):
     invited_at = Column(DateTime(timezone=True))
     joined_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    # Relationships
+    # Relationships - FIXED
     user = relationship("User", foreign_keys=[user_id], back_populates="company_memberships")
     company = relationship("Company", back_populates="memberships")
-    inviter = relationship("User", foreign_keys=[invited_by], back_populates="sent_invitations")
+    inviter = relationship("User", foreign_keys=[invited_by], back_populates="invited_memberships")
     
     __table_args__ = (
         UniqueConstraint('user_id', 'company_id', name='unique_user_company_membership'),

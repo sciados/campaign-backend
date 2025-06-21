@@ -47,16 +47,23 @@ class User(BaseModel):
     # Asset relationships
     uploaded_assets = relationship("CampaignAsset", back_populates="uploader")
     
-    # Invitations sent by this user
+    # Invitations sent by this user (as inviter)
     sent_invitations = relationship(
         "CompanyInvitation",
         foreign_keys="CompanyInvitation.invited_by", 
         back_populates="inviter"
     )
     
-    # Invitations accepted by this user
+    # Invitations accepted by this user (as accepter)
     accepted_invitations = relationship(
         "CompanyInvitation",
         foreign_keys="CompanyInvitation.accepted_by",
         back_populates="accepter"
+    )
+    
+    # Memberships where this user was the inviter
+    invited_memberships = relationship(
+        "CompanyMembership",
+        foreign_keys="CompanyMembership.invited_by",
+        back_populates="inviter"
     )
