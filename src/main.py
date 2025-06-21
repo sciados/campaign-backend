@@ -21,7 +21,6 @@ from src.models import Base
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "https://campaignforge-frontend.vercel.app")
 
 app = FastAPI(
     title="CampaignForge API",
@@ -29,10 +28,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS configuration - Production only (no local development)
+# ✅ FIXED: Simple CORS configuration
+allowed_origins = [os.getenv("ALLOWED_ORIGINS", "https://campaignforge-frontend.vercel.app")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins_env,
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
@@ -91,9 +92,8 @@ app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"]
 app.include_router(intelligence_router, prefix="/api/intelligence", tags=["Intelligence"])
 app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
 
-# ✅ ADDED: Route aliases for frontend compatibility
-# Add auth routes without /api prefix for frontend compatibility
-app.include_router(auth_router, prefix="/auth", tags=["Authentication - Legacy"])
+# ✅ REMOVED: Duplicate auth router that was causing conflicts
+# app.include_router(auth_router, prefix="/auth", tags=["Authentication - Legacy"])
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -112,19 +112,10 @@ async def global_exception_handler(request, exc):
         }
     )
 
-# Add OPTIONS handler for all preflight requests
-@app.options("/{full_path:path}")
-async def options_handler(full_path: str):
-    """Handle all OPTIONS requests for CORS preflight"""
-    return JSONResponse(
-        status_code=200,
-        content={"message": "OK"},
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
+# ✅ REMOVED: Conflicting OPTIONS handler - let CORS middleware handle this
+# @app.options("/{full_path:path}")
+# async def options_handler(full_path: str):
+#     ...
 
 if __name__ == "__main__":
     import uvicorn
