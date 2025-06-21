@@ -18,7 +18,8 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["campaigns"])
+# router = APIRouter(tags=["campaigns"])
+router = APIRouter(prefix="/api/campaigns", tags=["dashboard"])
 
 # ============================================================================
 # PYDANTIC SCHEMAS
