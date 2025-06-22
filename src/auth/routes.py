@@ -26,10 +26,8 @@ from jose import jwt
 # Set up logging for this module
 logger = logging.getLogger(__name__)
 
-# --- FastAPI Router Definition - FIXED: Remove duplicate prefix ---
-
+# ✅ FIXED: Remove duplicate prefix (main.py already adds /api/auth)
 router = APIRouter(
-    # prefix="/auth",  # ❌ REMOVED: This was causing double prefix /api/auth/auth
     tags=["Authentication"],
     responses={404: {"description": "Not found"}},
 )

@@ -1,5 +1,5 @@
 """
-Campaign routes - SAFE VERSION with workflow endpoints added
+Campaign routes - Clean version with proper routing and workflow endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,8 +18,8 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# ✅ FIXED: Remove duplicate prefix (main.py already adds /api/campaigns)
 router = APIRouter(tags=["campaigns"])
-# router = APIRouter(prefix="/api/campaigns", tags=["dashboard"])
 
 # ============================================================================
 # PYDANTIC SCHEMAS
@@ -65,14 +65,6 @@ class CampaignResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# ✅ NEW: Dashboard stats response schema
-class DashboardStatsResponse(BaseModel):
-    credits_used_this_month: int
-    credits_remaining: int
-    total_campaigns: int
-    active_campaigns: int
-
-# ✅ NEW: Workflow schemas
 class WorkflowPreferences(BaseModel):
     workflow_preference: Optional[str] = "flexible"
     quick_mode: Optional[bool] = False
@@ -160,60 +152,7 @@ async def get_campaigns(
             detail=f"Failed to retrieve campaigns: {str(e)}"
         )
 
-# ✅ NEW: Missing dashboard/stats endpoint
-@router.get("/dashboard/stats", response_model=DashboardStatsResponse)
-async def get_dashboard_stats(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Get dashboard statistics for campaigns"""
-    try:
-        logger.info(f"Getting dashboard stats for user {current_user.id}")
-        
-        # Get company to check credits
-        company_query = select(Company).where(Company.id == current_user.company_id)
-        company_result = await db.execute(company_query)
-        company = company_result.scalar_one_or_none()
-        
-        if not company:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Company not found"
-            )
-        
-        # Get campaign counts
-        total_campaigns_query = select(func.count(Campaign.id)).where(
-            Campaign.company_id == current_user.company_id
-        )
-        total_campaigns = await db.scalar(total_campaigns_query) or 0
-        
-        # Get active campaigns
-        active_campaigns_query = select(func.count(Campaign.id)).where(
-            Campaign.company_id == current_user.company_id,
-            Campaign.status.in_([CampaignStatus.DRAFT, CampaignStatus.ACTIVE])
-        )
-        active_campaigns = await db.scalar(active_campaigns_query) or 0
-        
-        # Calculate credits
-        credits_remaining = max(0, company.monthly_credits_limit - company.monthly_credits_used)
-        
-        return DashboardStatsResponse(
-            credits_used_this_month=company.monthly_credits_used,
-            credits_remaining=credits_remaining,
-            total_campaigns=total_campaigns,
-            active_campaigns=active_campaigns
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting dashboard stats: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve dashboard stats: {str(e)}"
-        )
-
-@router.post("/", response_model=CampaignResponse)
+@router.post("", response_model=CampaignResponse)
 async def create_campaign(
     campaign_data: CampaignCreate,
     db: AsyncSession = Depends(get_db),
@@ -436,7 +375,7 @@ async def delete_campaign(
         )
 
 # ============================================================================
-# ✅ NEW: WORKFLOW ENDPOINTS
+# WORKFLOW ENDPOINTS
 # ============================================================================
 
 @router.get("/{campaign_id}/workflow-state", response_model=WorkflowStateResponse)
@@ -640,7 +579,7 @@ async def save_campaign_progress(
         )
 
 # ============================================================================
-# ✅ NEW: INTELLIGENCE ENDPOINT (Basic Implementation)
+# INTELLIGENCE ENDPOINTS
 # ============================================================================
 
 @router.get("/{campaign_id}/intelligence")

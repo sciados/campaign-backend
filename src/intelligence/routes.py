@@ -38,7 +38,8 @@ from src.intelligence.analyzers import SalesPageAnalyzer, DocumentAnalyzer, WebA
 from src.intelligence.generators import ContentGenerator, CampaignAngleGenerator
 from src.core.credits import check_and_consume_credits
 
-router = APIRouter(prefix="/api/intelligence", tags=["intelligence"])
+# ✅ FIXED: Remove duplicate prefix (main.py already adds /api/intelligence)
+router = APIRouter(tags=["intelligence"])
 
 # ============================================================================
 # EXISTING ROUTES (Keep all your current routes)
