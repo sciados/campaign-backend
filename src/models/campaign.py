@@ -1,6 +1,6 @@
-# src/models/campaign.py - FIXED VERSION
+# src/models/campaign.py - SIMPLIFIED VERSION - Universal Campaigns Only
 """
-Campaign models - Enhanced with flexible workflow support - FIXED RELATIONSHIPS
+Campaign models - Simplified with universal campaigns only
 """
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -12,17 +12,7 @@ from uuid import uuid4
 
 from src.models import BaseModel
 
-class CampaignType(str, enum.Enum):
-    UNIVERSAL = "universal"
-    SOCIAL_MEDIA = "social_media"
-    EMAIL_MARKETING = "email_marketing"
-    VIDEO_CONTENT = "video_content"
-    BLOG_POST = "blog_post"
-    ADVERTISEMENT = "advertisement"
-    PRODUCT_LAUNCH = "product_launch"
-    BRAND_AWARENESS = "brand_awareness"
-    MULTIMEDIA = "multimedia"
-
+# ✅ SIMPLIFIED: Only campaign statuses matter, not types
 class CampaignStatus(str, enum.Enum):
     DRAFT = "draft"
     ACTIVE = "active"
@@ -49,7 +39,7 @@ class CampaignWorkflowState(str, enum.Enum):
     CAMPAIGN_COMPLETE = "campaign_complete"   # All steps done, can still add more
 
 class Campaign(BaseModel):
-    """Enhanced Campaign model with flexible workflow support"""
+    """Simplified Campaign model - All campaigns are universal"""
     __tablename__ = "campaigns"
     
     # Basic Campaign Information
@@ -57,10 +47,11 @@ class Campaign(BaseModel):
     description = Column(Text)
     keywords = Column(JSONB, default=[])  # List of keywords
     target_audience = Column(String(1000))
-    campaign_type = Column(Enum(CampaignType), nullable=False, default=CampaignType.UNIVERSAL)
+    
+    # ✅ REMOVED: campaign_type - All campaigns are universal
     status = Column(Enum(CampaignStatus), default=CampaignStatus.DRAFT)
-    tone = Column(String(100))  # conversational, professional, casual, etc.
-    style = Column(String(100))  # modern, classic, bold, etc.
+    tone = Column(String(100), default="conversational")  # conversational, professional, casual, etc.
+    style = Column(String(100), default="modern")  # modern, classic, bold, etc.
     
     # Campaign Settings and Configuration
     settings = Column(JSONB, default={})  # Flexible settings storage
@@ -269,3 +260,9 @@ class Campaign(BaseModel):
             "content_count": self.content_generated,
             "workflow_preference": self.workflow_preference.value if self.workflow_preference else "flexible"
         }
+    
+    # ✅ NEW: Helper property for backward compatibility
+    @property
+    def campaign_type(self):
+        """All campaigns are universal - for backward compatibility"""
+        return "universal"

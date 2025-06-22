@@ -1,5 +1,5 @@
 """
-Campaign routes - Clean version with proper routing and workflow endpoints
+Campaign routes - SIMPLIFIED VERSION - Universal Campaigns Only
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,17 +12,16 @@ import logging
 
 from src.core.database import get_db
 from src.auth.dependencies import get_current_user
-from src.models import Campaign, User, Company, CampaignType, CampaignStatus
+from src.models import Campaign, User, Company, CampaignStatus
 from pydantic import BaseModel
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# ✅ FIXED: Remove duplicate prefix (main.py already adds /api/campaigns)
 router = APIRouter(tags=["campaigns"])
 
 # ============================================================================
-# PYDANTIC SCHEMAS
+# PYDANTIC SCHEMAS - SIMPLIFIED
 # ============================================================================
 
 class CampaignCreate(BaseModel):
@@ -30,16 +29,16 @@ class CampaignCreate(BaseModel):
     description: Optional[str] = None
     keywords: Optional[List[str]] = []
     target_audience: Optional[str] = None
-    campaign_type: str = "universal"
-    tone: Optional[str] = None
-    style: Optional[str] = None
+    tone: Optional[str] = "conversational"
+    style: Optional[str] = "modern"
+    settings: Optional[Dict[str, Any]] = {}
+    # ✅ REMOVED: campaign_type - All campaigns are universal
 
 class CampaignUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     keywords: Optional[List[str]] = None
     target_audience: Optional[str] = None
-    campaign_type: Optional[str] = None
     status: Optional[str] = None
     tone: Optional[str] = None
     style: Optional[str] = None
@@ -50,7 +49,7 @@ class CampaignResponse(BaseModel):
     description: Optional[str] = None
     keywords: List[str] = []
     target_audience: Optional[str] = None
-    campaign_type: str
+    campaign_type: str = "universal"  # ✅ Always universal
     status: str
     tone: Optional[str] = None
     style: Optional[str] = None
@@ -86,7 +85,21 @@ class WorkflowStateResponse(BaseModel):
     primary_suggestion: str
 
 # ============================================================================
-# CAMPAIGN ROUTES
+# UTILITY FUNCTIONS - SIMPLIFIED
+# ============================================================================
+
+def normalize_campaign_status(status_str: str) -> CampaignStatus:
+    """Normalize campaign status string to enum value"""
+    try:
+        # Try direct enum creation first
+        return CampaignStatus(status_str.lower())
+    except ValueError:
+        # Fallback to draft
+        logger.warning(f"Unknown campaign status '{status_str}', defaulting to DRAFT")
+        return CampaignStatus.DRAFT
+
+# ============================================================================
+# CAMPAIGN ROUTES - SIMPLIFIED
 # ============================================================================
 
 @router.get("", response_model=List[CampaignResponse])
@@ -94,7 +107,6 @@ async def get_campaigns(
     skip: int = 0,
     limit: int = 100,
     status: Optional[str] = None,
-    campaign_type: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -105,11 +117,13 @@ async def get_campaigns(
         # Build query
         query = select(Campaign).where(Campaign.company_id == current_user.company_id)
         
-        # Add filters
+        # Add status filter
         if status:
-            query = query.where(Campaign.status == status)
-        if campaign_type:
-            query = query.where(Campaign.campaign_type == campaign_type)
+            try:
+                status_enum = normalize_campaign_status(status)
+                query = query.where(Campaign.status == status_enum)
+            except:
+                logger.warning(f"Invalid status filter: {status}")
         
         # Add pagination
         query = query.offset(skip).limit(limit)
@@ -129,7 +143,7 @@ async def get_campaigns(
                 description=campaign.description,
                 keywords=campaign.keywords or [],
                 target_audience=campaign.target_audience,
-                campaign_type=campaign.campaign_type.value if campaign.campaign_type else "universal",
+                campaign_type="universal",  # ✅ Always universal
                 status=campaign.status.value if campaign.status else "draft",
                 tone=campaign.tone,
                 style=campaign.style,
@@ -158,29 +172,31 @@ async def create_campaign(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Create a new campaign"""
+    """✅ SIMPLIFIED: Create a new universal campaign"""
     try:
-        logger.info(f"Creating campaign for user {current_user.id}")
+        logger.info(f"Creating universal campaign for user {current_user.id}")
+        logger.info(f"Campaign data received: {campaign_data.dict()}")
         
-        # Create new campaign
+        # ✅ SIMPLIFIED: All campaigns are universal, no type conversion needed
         new_campaign = Campaign(
             title=campaign_data.title,
             description=campaign_data.description,
             keywords=campaign_data.keywords or [],
             target_audience=campaign_data.target_audience,
-            campaign_type=CampaignType(campaign_data.campaign_type),
-            tone=campaign_data.tone,
-            style=campaign_data.style,
+            # ✅ REMOVED: campaign_type - All campaigns are universal
+            tone=campaign_data.tone or "conversational",
+            style=campaign_data.style or "modern",
             user_id=current_user.id,
             company_id=current_user.company_id,
-            status=CampaignStatus.DRAFT
+            status=CampaignStatus.DRAFT,
+            settings=campaign_data.settings or {}
         )
         
         db.add(new_campaign)
         await db.commit()
         await db.refresh(new_campaign)
         
-        logger.info(f"Created campaign {new_campaign.id}")
+        logger.info(f"Created universal campaign {new_campaign.id}")
         
         return CampaignResponse(
             id=str(new_campaign.id),
@@ -188,7 +204,7 @@ async def create_campaign(
             description=new_campaign.description,
             keywords=new_campaign.keywords or [],
             target_audience=new_campaign.target_audience,
-            campaign_type=new_campaign.campaign_type.value,
+            campaign_type="universal",  # ✅ Always universal
             status=new_campaign.status.value,
             tone=new_campaign.tone,
             style=new_campaign.style,
@@ -203,10 +219,15 @@ async def create_campaign(
         
     except Exception as e:
         logger.error(f"Error creating campaign: {e}")
+        logger.error(f"Campaign data was: {campaign_data.dict()}")
         await db.rollback()
+        
+        # Provide specific error details
+        error_detail = f"Failed to create campaign: {str(e)}"
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create campaign: {str(e)}"
+            detail=error_detail
         )
 
 @router.get("/{campaign_id}", response_model=CampaignResponse)
@@ -240,7 +261,7 @@ async def get_campaign(
             description=campaign.description,
             keywords=campaign.keywords or [],
             target_audience=campaign.target_audience,
-            campaign_type=campaign.campaign_type.value if campaign.campaign_type else "universal",
+            campaign_type="universal",  # ✅ Always universal
             status=campaign.status.value if campaign.status else "draft",
             tone=campaign.tone,
             style=campaign.style,
@@ -291,10 +312,8 @@ async def update_campaign(
         # Update fields
         update_data = campaign_data.dict(exclude_unset=True)
         for field, value in update_data.items():
-            if field == "campaign_type" and value:
-                setattr(campaign, field, CampaignType(value))
-            elif field == "status" and value:
-                setattr(campaign, field, CampaignStatus(value))
+            if field == "status" and value:
+                setattr(campaign, field, normalize_campaign_status(value))
             else:
                 setattr(campaign, field, value)
         
@@ -309,7 +328,7 @@ async def update_campaign(
             description=campaign.description,
             keywords=campaign.keywords or [],
             target_audience=campaign.target_audience,
-            campaign_type=campaign.campaign_type.value if campaign.campaign_type else "universal",
+            campaign_type="universal",  # ✅ Always universal
             status=campaign.status.value if campaign.status else "draft",
             tone=campaign.tone,
             style=campaign.style,
@@ -375,7 +394,89 @@ async def delete_campaign(
         )
 
 # ============================================================================
-# WORKFLOW ENDPOINTS
+# ✅ FIXED: ADD MISSING DASHBOARD STATS ENDPOINT
+# ============================================================================
+
+@router.get("/dashboard/stats")
+async def get_dashboard_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """✅ FIXED: Get dashboard statistics (was missing from original routes)"""
+    try:
+        logger.info(f"Getting dashboard stats for user {current_user.id}, company {current_user.company_id}")
+        
+        # Get basic campaign counts
+        total_query = select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
+        active_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.status == CampaignStatus.ACTIVE
+        )
+        draft_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.status == CampaignStatus.DRAFT
+        )
+        completed_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.status == CampaignStatus.COMPLETED
+        )
+        
+        # Execute queries
+        total_result = await db.execute(total_query)
+        active_result = await db.execute(active_query)
+        draft_result = await db.execute(draft_query)
+        completed_result = await db.execute(completed_query)
+        
+        total_campaigns = total_result.scalar() or 0
+        active_campaigns = active_result.scalar() or 0
+        draft_campaigns = draft_result.scalar() or 0
+        completed_campaigns = completed_result.scalar() or 0
+        
+        # Calculate average completion (simplified for now)
+        avg_completion = 25.0 if total_campaigns > 0 else 0.0
+        
+        # Get recent campaigns for activity feed
+        recent_query = select(Campaign).where(
+            Campaign.company_id == current_user.company_id
+        ).order_by(Campaign.updated_at.desc()).limit(5)
+        
+        recent_result = await db.execute(recent_query)
+        recent_campaigns = recent_result.scalars().all()
+        
+        recent_activity = []
+        for campaign in recent_campaigns:
+            recent_activity.append({
+                "id": str(campaign.id),
+                "title": campaign.title,
+                "type": "campaign",
+                "action": "updated",
+                "timestamp": campaign.updated_at.isoformat() if campaign.updated_at else None,
+                "status": campaign.status.value if campaign.status else "draft"
+            })
+        
+        return {
+            "total_campaigns": total_campaigns,
+            "active_campaigns": active_campaigns,
+            "draft_campaigns": draft_campaigns,
+            "completed_campaigns": completed_campaigns,
+            "total_sources": 0,  # Will be populated when intelligence models are active
+            "total_content": 0,  # Will be populated when content models are active
+            "avg_completion": avg_completion,
+            "recent_activity": recent_activity,
+            "user_id": str(current_user.id),
+            "company_id": str(current_user.company_id),
+            "generated_at": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting dashboard stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get dashboard stats: {str(e)}"
+        )
+
+# ============================================================================
+# WORKFLOW ENDPOINTS (keeping existing ones but simplified)
 # ============================================================================
 
 @router.get("/{campaign_id}/workflow-state", response_model=WorkflowStateResponse)
@@ -579,7 +680,7 @@ async def save_campaign_progress(
         )
 
 # ============================================================================
-# INTELLIGENCE ENDPOINTS
+# INTELLIGENCE ENDPOINTS (keeping existing ones)
 # ============================================================================
 
 @router.get("/{campaign_id}/intelligence")
