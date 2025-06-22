@@ -97,7 +97,7 @@ class WorkflowStateResponse(BaseModel):
 # CAMPAIGN ROUTES
 # ============================================================================
 
-@router.get("/", response_model=List[CampaignResponse])
+@router.get("", response_model=List[CampaignResponse])
 async def get_campaigns(
     skip: int = 0,
     limit: int = 100,
