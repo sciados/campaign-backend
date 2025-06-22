@@ -38,7 +38,8 @@ from .company import (
     MembershipStatus,
     InvitationStatus
 )
-from .campaign import Campaign, CampaignType, CampaignStatus, CampaignWorkflowState, WorkflowPreference
+# ✅ FIXED: Remove CampaignType from import (was causing line 41 error)
+from .campaign import Campaign, CampaignStatus, CampaignWorkflowState, WorkflowPreference
 from .campaign_assets import CampaignAsset, AssetType, AssetStatus
 from .intelligence import (
     CampaignIntelligence,
@@ -69,9 +70,8 @@ __all__ = [
     "MembershipStatus",
     "InvitationStatus",
     
-    # Campaign models
+    # Campaign models - ✅ FIXED: Remove "CampaignType" from exports (was causing line 74 error)
     "Campaign", 
-    "CampaignType", 
     "CampaignStatus",
     "CampaignWorkflowState",
     "WorkflowPreference",
