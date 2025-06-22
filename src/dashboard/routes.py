@@ -58,17 +58,18 @@ async def get_company_stats(
             select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
         ) or 0
         
-        # ✅ FIXED: Use valid CampaignStatus enum values only
-        # Valid: DRAFT, ACTIVE, PAUSED, COMPLETED, ARCHIVED, PROCESSING, ERROR
+        # ✅ FIXED: Use actual database enum values
+        # Database has: DRAFT, IN_PROGRESS, REVIEW, ACTIVE, COMPLETED, ARCHIVED
         active_campaigns = await db.scalar(
             select(func.count(Campaign.id)).where(
                 and_(
                     Campaign.company_id == current_user.company_id,
                     Campaign.status.in_([
                         CampaignStatus.DRAFT, 
-                        CampaignStatus.ACTIVE, 
-                        CampaignStatus.PROCESSING
-                    ])  # ✅ FIXED: Removed "in_progress", use valid enum values
+                        CampaignStatus.IN_PROGRESS,
+                        CampaignStatus.REVIEW,
+                        CampaignStatus.ACTIVE
+                    ])  # ✅ FIXED: Use enum values that actually exist in database
                 )
             )
         ) or 0

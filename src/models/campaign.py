@@ -1,6 +1,6 @@
-# src/models/campaign.py - SIMPLIFIED VERSION - Universal Campaigns Only
+# src/models/campaign.py - FIXED enum to match database
 """
-Campaign models - Simplified with universal campaigns only
+Campaign models - Updated enum values to match database
 """
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -12,15 +12,14 @@ from uuid import uuid4
 
 from src.models import BaseModel
 
-# ✅ SIMPLIFIED: Only campaign statuses matter, not types
+# ✅ FIXED: Match the actual database enum values
 class CampaignStatus(str, enum.Enum):
     DRAFT = "draft"
+    IN_PROGRESS = "in_progress" 
+    REVIEW = "review"
     ACTIVE = "active"
-    PAUSED = "paused"
     COMPLETED = "completed"
     ARCHIVED = "archived"
-    PROCESSING = "processing"
-    ERROR = "error"
 
 class WorkflowPreference(str, enum.Enum):
     QUICK = "quick"           # User wants to rush through steps
@@ -48,7 +47,7 @@ class Campaign(BaseModel):
     keywords = Column(JSONB, default=[])  # List of keywords
     target_audience = Column(String(1000))
     
-    # ✅ REMOVED: campaign_type - All campaigns are universal
+    # ✅ FIXED: Use enum values that match database
     status = Column(Enum(CampaignStatus), default=CampaignStatus.DRAFT)
     tone = Column(String(100), default="conversational")  # conversational, professional, casual, etc.
     style = Column(String(100), default="modern")  # modern, classic, bold, etc.
@@ -261,7 +260,7 @@ class Campaign(BaseModel):
             "workflow_preference": self.workflow_preference.value if self.workflow_preference else "flexible"
         }
     
-    # ✅ NEW: Helper property for backward compatibility
+    # ✅ Helper property for backward compatibility
     @property
     def campaign_type(self):
         """All campaigns are universal - for backward compatibility"""
