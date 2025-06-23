@@ -13,6 +13,9 @@ import traceback
 import logging
 import json
 
+# ✅ FIXED: Import and setup logger
+logger = logging.getLogger(__name__)
+
 from src.core.database import get_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
