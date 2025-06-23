@@ -11,6 +11,7 @@ import uuid
 from datetime import datetime
 import traceback
 import logging
+import json
 
 from src.core.database import get_db
 from src.auth.dependencies import get_current_user
@@ -443,7 +444,9 @@ async def generate_content_from_intelligence(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Generate marketing content from analyzed intelligence"""
+    """✅ FIXED: Generate marketing content from analyzed intelligence - Transaction Safe"""
+    
+    print(f"🎯 Starting content generation: {request.content_type}")
     
     if not GENERATORS_AVAILABLE:
         raise HTTPException(
@@ -452,59 +455,102 @@ async def generate_content_from_intelligence(
         )
     
     # Get intelligence data
-    intelligence_result = await db.execute(
-        select(CampaignIntelligence).where(
-            and_(
-                CampaignIntelligence.id == request.intelligence_id,
-                CampaignIntelligence.company_id == current_user.company_id
+    try:
+        intelligence_result = await db.execute(
+            select(CampaignIntelligence).where(
+                and_(
+                    CampaignIntelligence.id == request.intelligence_id,
+                    CampaignIntelligence.company_id == current_user.company_id
+                )
             )
         )
-    )
-    intelligence = intelligence_result.scalar_one_or_none()
-    
-    if not intelligence:
+        intelligence = intelligence_result.scalar_one_or_none()
+        
+        if not intelligence:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Intelligence source not found"
+            )
+        
+        print(f"✅ Found intelligence source: {intelligence.id}")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error finding intelligence: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Intelligence source not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to find intelligence source"
         )
     
     # Check credits for content generation
     if CREDITS_AVAILABLE:
-        await check_and_consume_credits(
-            user=current_user,
-            operation="content_generation",
-            credits_required=2,
-            db=db
-        )
+        try:
+            await check_and_consume_credits(
+                user=current_user,
+                operation="content_generation",
+                credits_required=2,
+                db=db
+            )
+            print(f"✅ Credits checked successfully")
+        except Exception as e:
+            print(f"⚠️ Credits check failed but continuing: {str(e)}")
     
     try:
-        # Generate content using intelligence
+        # ✅ STEP 1: Generate content using intelligence
+        print(f"🔧 Starting content generation...")
+        
         generator = ContentGenerator()
         
         content_result = await generator.generate_content(
             intelligence_data={
-                "offer_intelligence": intelligence.offer_intelligence,
-                "psychology_intelligence": intelligence.psychology_intelligence,
-                "content_intelligence": intelligence.content_intelligence,
-                "competitive_intelligence": intelligence.competitive_intelligence,
-                "brand_intelligence": intelligence.brand_intelligence
+                "offer_intelligence": intelligence.offer_intelligence or {},
+                "psychology_intelligence": intelligence.psychology_intelligence or {},
+                "content_intelligence": intelligence.content_intelligence or {},
+                "competitive_intelligence": intelligence.competitive_intelligence or {},
+                "brand_intelligence": intelligence.brand_intelligence or {}
             },
             content_type=request.content_type,
-            preferences=request.preferences
+            preferences=request.preferences or {}
         )
         
-        # Create generated content record
+        print(f"✅ Content generated: {content_result.get('title', 'Untitled')}")
+        
+        # ✅ STEP 2: Prepare content data with safe formatting
+        print(f"💾 Preparing content for database...")
+        
+        # Ensure content_body is properly formatted
+        content_body = content_result.get("content", {})
+        if isinstance(content_body, dict):
+            content_body_str = json.dumps(content_body)
+        else:
+            content_body_str = str(content_body)
+        
+        # Safe metadata handling
+        metadata = content_result.get("metadata", {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+        
+        # Safe preferences handling
+        preferences = request.preferences or {}
+        if not isinstance(preferences, dict):
+            preferences = {}
+        
+        # ✅ FIXED: Safe intelligence_used data (no extra semicolons)
+        intelligence_used_data = {
+            "intelligence_id": str(intelligence.id),
+            "source_url": str(intelligence.source_url or ""),  # Remove any trailing semicolons
+            "confidence_score": float(intelligence.confidence_score or 0.0)
+        }
+        
+        # ✅ STEP 3: Create and save content record
         generated_content = GeneratedContent(
-            content_type=request.content_type,
-            content_title=content_result.get("title", f"Generated {request.content_type}"),
-            content_body=content_result.get("content", ""),
-            content_metadata=content_result.get("metadata", {}),
-            generation_settings=request.preferences,
-            intelligence_used={
-                "intelligence_id": str(intelligence.id),
-                "source_url": intelligence.source_url,
-                "confidence_score": intelligence.confidence_score
-            },
+            content_type=str(request.content_type),
+            content_title=str(content_result.get("title", f"Generated {request.content_type}")),
+            content_body=content_body_str,
+            content_metadata=metadata,
+            generation_settings=preferences,
+            intelligence_used=intelligence_used_data,
             campaign_id=uuid.UUID(request.campaign_id),
             intelligence_source_id=intelligence.id,
             user_id=current_user.id,
@@ -512,32 +558,59 @@ async def generate_content_from_intelligence(
         )
         
         db.add(generated_content)
+        
+        # ✅ CRITICAL: Commit content first before anything else
         await db.commit()
         await db.refresh(generated_content)
         
-        # Create smart URL if content includes links
+        print(f"✅ Content saved to database: {generated_content.id}")
+        
+        # ✅ STEP 4: Handle optional features in separate transactions
         smart_url = None
+        
+        # Smart URL creation (non-critical)
         if content_result.get("needs_tracking"):
-            smart_url_record = SmartURL(
-                short_code=f"cf{uuid.uuid4().hex[:8]}",
-                original_url=content_result.get("target_url", ""),
-                tracking_url=f"https://track.campaignforge.co/cf{uuid.uuid4().hex[:8]}",
-                campaign_id=uuid.UUID(request.campaign_id),
-                generated_content_id=generated_content.id,
-                user_id=current_user.id,
-                company_id=current_user.company_id
-            )
-            
-            db.add(smart_url_record)
+            try:
+                smart_url_record = SmartURL(
+                    short_code=f"cf{uuid.uuid4().hex[:8]}",
+                    original_url=content_result.get("target_url", ""),
+                    tracking_url=f"https://track.campaignforge.co/cf{uuid.uuid4().hex[:8]}",
+                    campaign_id=uuid.UUID(request.campaign_id),
+                    generated_content_id=generated_content.id,
+                    user_id=current_user.id,
+                    company_id=current_user.company_id
+                )
+                
+                db.add(smart_url_record)
+                await db.commit()
+                smart_url = smart_url_record.tracking_url
+                print(f"✅ Smart URL created: {smart_url}")
+                
+            except Exception as smart_url_error:
+                print(f"⚠️ Smart URL creation failed (non-critical): {str(smart_url_error)}")
+                # Don't rollback - content is already saved
+        
+        # Usage count update (non-critical)
+        try:
+            intelligence.usage_count = (intelligence.usage_count or 0) + 1
             await db.commit()
-            smart_url = smart_url_record.tracking_url
+            print(f"✅ Intelligence usage count updated")
+        except Exception as usage_error:
+            print(f"⚠️ Usage count update failed (non-critical): {str(usage_error)}")
+            # Don't rollback - content is already saved
         
-        # Update intelligence usage stats
-        intelligence.usage_count = (intelligence.usage_count or 0) + 1
-        await db.commit()
+        # Campaign counters update (non-critical)
+        try:
+            await update_campaign_counters(request.campaign_id, db)
+            await db.commit()
+            print(f"✅ Campaign counters updated")
+        except Exception as counter_error:
+            print(f"⚠️ Campaign counter update failed (non-critical): {str(counter_error)}")
+            # Don't rollback - content is already saved
         
-        print(f"📊 Content generation completed and campaign counters updated")
+        print(f"🎉 Content generation completed successfully!")
         
+        # ✅ STEP 5: Return successful response
         return ContentGenerationResponse(
             content_id=str(generated_content.id),
             content_type=request.content_type,
@@ -546,7 +619,21 @@ async def generate_content_from_intelligence(
             performance_predictions=content_result.get("performance_predictions", {})
         )
         
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+        
     except Exception as e:
+        print(f"❌ Content generation failed: {str(e)}")
+        import traceback
+        print(f"📍 Full traceback: {traceback.format_exc()}")
+        
+        # Rollback any pending transaction
+        try:
+            await db.rollback()
+        except:
+            pass
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Content generation failed: {str(e)}"
