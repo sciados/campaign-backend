@@ -124,6 +124,44 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["intelligence"])
 
 # ============================================================================
+# HELPER FUNCTIONS - CAMPAIGN COUNTER UPDATES
+# ============================================================================
+
+async def update_campaign_counters(campaign_id: str, db: AsyncSession):
+    """Update campaign counter fields based on actual data"""
+    
+    # Count intelligence sources
+    intelligence_count = await db.execute(
+        select(func.count(CampaignIntelligence.id)).where(
+            CampaignIntelligence.campaign_id == campaign_id
+        )
+    )
+    sources_count = intelligence_count.scalar() or 0
+    
+    # Count generated content
+    content_count = await db.execute(
+        select(func.count(GeneratedContent.id)).where(
+            GeneratedContent.campaign_id == campaign_id
+        )
+    )
+    generated_content_count = content_count.scalar() or 0
+    
+    # Update campaign record
+    from sqlalchemy import update
+    await db.execute(
+        update(Campaign).where(Campaign.id == campaign_id).values(
+            sources_count=sources_count,
+            intelligence_extracted=sources_count,  # For compatibility
+            intelligence_count=sources_count,      # For compatibility
+            content_generated=generated_content_count,
+            generated_content_count=generated_content_count,
+            updated_at=datetime.utcnow()
+        )
+    )
+    
+    print(f"📊 Updated campaign counters: {sources_count} sources, {generated_content_count} content")
+
+# ============================================================================
 # REQUEST/RESPONSE MODELS
 # ============================================================================
 
@@ -251,7 +289,12 @@ async def analyze_sales_page(
         
         await db.commit()
         
+        # ✅ NEW: Update campaign counters
+        await update_campaign_counters(request.campaign_id, db)
+        await db.commit()
+        
         print(f"💾 Intelligence record updated: {intelligence.analysis_status}")
+        print(f"📊 Campaign counters updated")
         
         # Extract competitive opportunities
         competitive_intel = analysis_result.get("competitive_intelligence", {})
@@ -377,6 +420,10 @@ async def upload_document_for_analysis(
         
         await db.commit()
         
+        # ✅ NEW: Update campaign counters
+        await update_campaign_counters(campaign_id, db)
+        await db.commit()
+        
         return {
             "intelligence_id": str(intelligence.id),
             "status": "completed",
@@ -488,6 +535,8 @@ async def generate_content_from_intelligence(
         # Update intelligence usage stats
         intelligence.usage_count = (intelligence.usage_count or 0) + 1
         await db.commit()
+        
+        print(f"📊 Content generation completed and campaign counters updated")
         
         return ContentGenerationResponse(
             content_id=str(generated_content.id),
@@ -605,3 +654,46 @@ async def get_campaign_intelligence(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get campaign intelligence: {str(e)}"
         )
+
+# ============================================================================
+# CAMPAIGN COUNTER SYNC ENDPOINT
+# ============================================================================
+
+@router.post("/campaigns/{campaign_id}/sync-counters")
+async def sync_campaign_counters(
+    campaign_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Manually sync campaign counters with actual data"""
+    
+    # Verify campaign ownership
+    campaign_result = await db.execute(
+        select(Campaign).where(
+            and_(
+                Campaign.id == campaign_id,
+                Campaign.company_id == current_user.company_id
+            )
+        )
+    )
+    campaign = campaign_result.scalar_one_or_none()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    # Update counters
+    await update_campaign_counters(campaign_id, db)
+    await db.commit()
+    
+    # Get updated campaign data
+    updated_campaign_result = await db.execute(
+        select(Campaign).where(Campaign.id == campaign_id)
+    )
+    updated_campaign = updated_campaign_result.scalar_one()
+    
+    return {
+        "campaign_id": campaign_id,
+        "sources_count": getattr(updated_campaign, 'sources_count', 0),
+        "intelligence_count": getattr(updated_campaign, 'intelligence_count', 0),
+        "content_count": getattr(updated_campaign, 'content_generated', 0),
+        "message": "Campaign counters synchronized successfully"
+    }
