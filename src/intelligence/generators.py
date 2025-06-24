@@ -1102,4 +1102,244 @@ class ContentGenerator:
         }
 
 
-# Keep the existing CampaignAngleGenerator class unchanged for now...
+class CampaignAngleGenerator:
+    """Generate campaign angles from intelligence data"""
+    
+    def __init__(self):
+        # ✅ FIXED: Safe initialization with error handling
+        try:
+            import openai
+            api_key = os.getenv("OPENAI_API_KEY")
+            if api_key:
+                self.openai_client = openai.AsyncOpenAI(api_key=api_key)
+                self.ai_available = True
+            else:
+                self.openai_client = None
+                self.ai_available = False
+        except Exception as e:
+            self.openai_client = None
+            self.ai_available = False
+            logger.error(f"❌ CampaignAngleGenerator initialization failed: {str(e)}")
+    
+    async def generate_angles(
+        self,
+        intelligence_sources: List[Any],
+        target_audience: Optional[str] = None,
+        industry: Optional[str] = None,
+        tone_preferences: Optional[List[str]] = None,
+        unique_value_props: Optional[List[str]] = None,
+        avoid_angles: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Generate campaign angles from intelligence sources"""
+        
+        logger.info("🎯 Generating campaign angles")
+        
+        # ✅ FIXED: Safe parameter handling
+        target_audience = target_audience or "business professionals"
+        industry = industry or "general business"
+        tone_preferences = tone_preferences or ["professional", "authoritative"]
+        unique_value_props = unique_value_props or ["proven results", "expert guidance"]
+        avoid_angles = avoid_angles or ["price competition"]
+        
+        try:
+            if self.ai_available and self.openai_client:
+                return await self._generate_ai_angles(
+                    intelligence_sources, target_audience, industry, 
+                    tone_preferences, unique_value_props, avoid_angles
+                )
+            else:
+                return self._generate_template_angles(
+                    target_audience, industry, tone_preferences, unique_value_props
+                )
+        except Exception as e:
+            logger.error(f"❌ Campaign angle generation failed: {str(e)}")
+            return self._generate_template_angles(
+                target_audience, industry, tone_preferences, unique_value_props
+            )
+    
+    async def _generate_ai_angles(
+        self, intelligence_sources, target_audience, industry,
+        tone_preferences, unique_value_props, avoid_angles
+    ) -> Dict[str, Any]:
+        """Generate angles using AI"""
+        
+        prompt = f"""
+        Generate unique campaign angles for a {industry} business targeting {target_audience}.
+        
+        Context:
+        - Target Audience: {target_audience}
+        - Industry: {industry}
+        - Tone Preferences: {tone_preferences}
+        - Unique Value Props: {unique_value_props}
+        - Avoid These Angles: {avoid_angles}
+        
+        Create 1 primary angle and 3 alternative angles that are compelling and unique.
+        Focus on differentiation and avoid direct competition.
+        
+        Return as JSON with primary_angle and alternative_angles arrays.
+        """
+        
+        response = await self.openai_client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert campaign strategist. Return only valid JSON."
+                },
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2000
+        )
+        
+        ai_response = response.choices[0].message.content
+        
+        try:
+            import re
+            json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
+            if json_match:
+                parsed = json.loads(json_match.group())
+                return self._format_angle_response(parsed, target_audience, industry)
+        except:
+            pass
+        
+        # Fallback if parsing fails
+        return self._generate_template_angles(target_audience, industry, tone_preferences, unique_value_props)
+    
+    def _generate_template_angles(
+        self, target_audience: str, industry: str, 
+        tone_preferences: List[str], unique_value_props: List[str]
+    ) -> Dict[str, Any]:
+        """Generate template campaign angles"""
+        
+        return {
+            "primary_angle": {
+                "angle": f"The strategic intelligence advantage for {target_audience}",
+                "reasoning": "Positions as insider knowledge with competitive edge",
+                "target_audience": target_audience,
+                "key_messages": [
+                    "Exclusive strategic insights",
+                    "Proven competitive advantages",
+                    "Actionable intelligence for immediate results",
+                    "Clear roadmap from analysis to success"
+                ],
+                "differentiation_points": [
+                    "Intelligence-driven methodology vs gut-feeling approaches",
+                    "Proven systematic approach vs trial-and-error methods",
+                    "Data-driven insights vs common knowledge",
+                    "Competitive analysis expertise vs generic consulting"
+                ]
+            },
+            "alternative_angles": [
+                {
+                    "angle": f"From struggling in {industry} to leading with insider knowledge",
+                    "reasoning": "Empowerment narrative transforming challenge into advantage",
+                    "strength_score": 0.85,
+                    "use_case": f"{target_audience} competing against larger competitors"
+                },
+                {
+                    "angle": "Why 90% of competitive analysis fails (and the 10% that transforms businesses)",
+                    "reasoning": "Statistical exclusivity creating urgency and positioning as rare solution",
+                    "strength_score": 0.82,
+                    "use_case": "Data-driven decision makers and analytical professionals"
+                },
+                {
+                    "angle": f"The ethical competitive edge that builds sustainable {industry} dominance",
+                    "reasoning": "Focus on ethical advantage and long-term sustainability",
+                    "strength_score": 0.80,
+                    "use_case": "Ethical businesses focused on sustainable growth"
+                }
+            ],
+            "positioning_strategy": {
+                "market_position": f"Premium strategic intelligence partner for {industry}",
+                "competitive_advantage": "Comprehensive intelligence-driven approach with proven methodology",
+                "value_proposition": f"Transform {industry} performance through competitive intelligence and strategic insights",
+                "messaging_framework": [
+                    "Problem identification: Current competitive disadvantages",
+                    "Solution demonstration: Intelligence-driven approach with proof",
+                    "Unique methodology: Systematic analysis and implementation",
+                    "Results showcase: Documented success stories and outcomes",
+                    "Implementation guidance: Clear action steps and support",
+                    "Future vision: Long-term competitive advantage and leadership"
+                ]
+            },
+            "implementation_guide": {
+                "content_priorities": [
+                    "Case study development showcasing transformation results",
+                    "Authority building through proprietary industry insights",
+                    "Social proof collection and strategic presentation",
+                    "Educational content demonstrating methodology",
+                    "Thought leadership positioning in competitive intelligence"
+                ],
+                "channel_recommendations": [
+                    "LinkedIn for B2B professional targeting",
+                    "Email nurture sequences for relationship building",
+                    "Content marketing for authority establishment",
+                    "Webinars for methodology demonstration",
+                    "Strategic partnerships with complementary providers"
+                ],
+                "testing_suggestions": [
+                    "A/B test different angle variations in headlines",
+                    "Test social proof elements and case studies",
+                    "Optimize call-to-action messaging variations",
+                    "Test different value proposition presentations",
+                    "Experiment with urgency vs authority positioning"
+                ]
+            }
+        }
+    
+    def _format_angle_response(
+        self, parsed_data: Dict[str, Any], target_audience: str, industry: str
+    ) -> Dict[str, Any]:
+        """Format AI response into standard angle structure"""
+        
+        return {
+            "primary_angle": {
+                "angle": parsed_data.get("primary_angle", {}).get("angle", f"Strategic advantage for {target_audience}"),
+                "reasoning": parsed_data.get("primary_angle", {}).get("reasoning", "Creates competitive advantage"),
+                "target_audience": target_audience,
+                "key_messages": parsed_data.get("primary_angle", {}).get("key_messages", [
+                    "Strategic insights", "Competitive advantage", "Proven results"
+                ]),
+                "differentiation_points": parsed_data.get("primary_angle", {}).get("differentiation_points", [
+                    "Data-driven approach", "Proven methodology", "Expert guidance"
+                ])
+            },
+            "alternative_angles": parsed_data.get("alternative_angles", [
+                {
+                    "angle": f"Transform your {industry} approach with proven intelligence",
+                    "reasoning": "Focus on transformation and proven results",
+                    "strength_score": 0.8,
+                    "use_case": f"{target_audience} seeking competitive advantage"
+                }
+            ]),
+            "positioning_strategy": {
+                "market_position": f"Premium strategic intelligence partner for {industry}",
+                "competitive_advantage": "Intelligence-driven methodology with proven results",
+                "value_proposition": f"Transform {industry} performance through strategic insights",
+                "messaging_framework": [
+                    "Problem identification", "Solution demonstration", 
+                    "Methodology explanation", "Results showcase", "Action steps"
+                ]
+            },
+            "implementation_guide": {
+                "content_priorities": [
+                    "Case studies and success stories",
+                    "Authority building content",
+                    "Educational methodology content",
+                    "Social proof and testimonials"
+                ],
+                "channel_recommendations": [
+                    "LinkedIn for professional targeting",
+                    "Email marketing for nurture",
+                    "Content marketing for authority",
+                    "Webinars for engagement"
+                ],
+                "testing_suggestions": [
+                    "A/B test messaging variations",
+                    "Test different audience segments",
+                    "Optimize conversion elements",
+                    "Test social proof presentations"
+                ]
+            }
+        }
