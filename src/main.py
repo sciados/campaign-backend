@@ -13,6 +13,7 @@ from src.campaigns.routes import router as campaigns_router
 from src.dashboard.routes import router as dashboard_router
 from src.intelligence.routes import router as intelligence_router
 from src.admin.routes import router as admin_router
+from src.intelligence.test_routes import router as test_router
 
 # Import database and models for table creation
 from src.core.database import engine
@@ -27,6 +28,7 @@ app = FastAPI(
     description="AI-powered marketing campaign intelligence platform",
     version="1.0.0"
 )
+app.include_router(test_router)
 
 # ✅ FIXED: Simple CORS configuration
 allowed_origins = [os.getenv("ALLOWED_ORIGINS", "https://campaignforge-frontend.vercel.app")]
