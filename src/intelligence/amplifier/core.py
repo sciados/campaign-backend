@@ -9,8 +9,10 @@ class IntelligenceAmplifier:
         self.providers = initialize_ai_providers()
 
     async def amplify_intelligence(self, user_sources, preferences):
-        analysis = await analyze_sources(user_sources, self.providers)
-        summary = await summarize_analysis(analysis)
+        # analysis = await analyze_sources(user_sources, self.providers)
+        analysis = user_sources  # Don't await - just use the sources directly
+        # summary = await summarize_analysis(analysis)
+        summary = summarize_analysis(analysis)  # Remove await
         base_intel = self._extract_base_intelligence(analysis)
         opportunities = await identify_opportunities(base_intel, preferences, self.providers)
         enhancements = await generate_enhancements(base_intel, opportunities, self.providers)
