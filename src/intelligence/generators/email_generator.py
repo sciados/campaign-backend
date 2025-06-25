@@ -129,6 +129,11 @@ class EmailSequenceGenerator:
         logger.warning("🚨 Using guaranteed diversified email fallback")
         return self._guaranteed_diverse_email_fallback(product_details, sequence_length, uniqueness_id)
     
+    # Alias for backward compatibility
+    async def generate_content(self, intelligence_data: Dict[str, Any], content_type: str = "email_sequence", preferences: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Generate content - alias for generate_email_sequence"""
+        return await self.generate_email_sequence(intelligence_data, preferences)
+    
     async def _generate_diversified_email_content(
         self, provider, product_details, intelligence_data, sequence_length, preferences, uniqueness_id
     ) -> str:
