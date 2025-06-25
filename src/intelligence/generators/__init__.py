@@ -22,19 +22,27 @@ GENERATORS_AVAILABLE = {}
 
 # Email Sequence Generator (Primary)
 try:
-    from .email_generator import EmailSequenceGenerator
+    from .email_generator import EmailSequenceGenerator, CampaignAngleGenerator
     GENERATORS_AVAILABLE["email_sequence"] = True
-    logger.info("✅ Email Sequence Generator available")
+    GENERATORS_AVAILABLE["campaign_angles"] = True
+    logger.info("✅ Email Sequence Generator and Campaign Angle Generator available")
 except ImportError as e:
-    logger.warning(f"⚠️ Email Sequence Generator not available: {str(e)}")
+    logger.warning(f"⚠️ Email generators not available: {str(e)}")
     GENERATORS_AVAILABLE["email_sequence"] = False
+    GENERATORS_AVAILABLE["campaign_angles"] = False
     
-    # Fallback class
+    # Fallback classes
     class EmailSequenceGenerator:
         def __init__(self):
             pass
         async def generate_email_sequence(self, intelligence_data, preferences=None):
             return {"error": "Email generator not available", "fallback": True}
+    
+    class CampaignAngleGenerator:
+        def __init__(self):
+            pass
+        async def generate_angles(self, intelligence_data, **kwargs):
+            return {"error": "Campaign angle generator not available", "fallback": True}
 
 # Social Media Generator
 try:
@@ -157,6 +165,7 @@ except ImportError as e:
 __all__ = [
     # Core Generators
     'EmailSequenceGenerator',
+    'CampaignAngleGenerator',  # Added this!
     'SocialMediaGenerator', 
     'AdCopyGenerator',
     'BlogPostGenerator',
@@ -207,6 +216,7 @@ def get_generator_status() -> dict:
         "generator_status": GENERATORS_AVAILABLE,
         "fully_operational": available_count == total_count,
         "core_generators_available": GENERATORS_AVAILABLE.get("email_sequence", False),
+        "campaign_angles_available": GENERATORS_AVAILABLE.get("campaign_angles", False),
         "factory_available": GENERATORS_AVAILABLE.get("factory", False),
         "recommendations": _get_setup_recommendations()
     }
@@ -222,6 +232,9 @@ def _get_setup_recommendations() -> list:
     
     if not GENERATORS_AVAILABLE.get("email_sequence", False):
         recommendations.append("🚨 CRITICAL: Email Sequence Generator unavailable - core functionality affected")
+    
+    if not GENERATORS_AVAILABLE.get("campaign_angles", False):
+        recommendations.append("⚠️ Campaign Angle Generator unavailable - angle generation affected")
     
     if not GENERATORS_AVAILABLE.get("factory", False):
         recommendations.append("⚠️ Factory system unavailable - use individual generators directly")
@@ -249,6 +262,7 @@ def get_package_info() -> dict:
         "status": get_generator_status(),
         "features": [
             "Email sequence generation with 5 diverse angles",
+            "Campaign angle generation for strategic positioning",
             "Social media posts for multiple platforms", 
             "Ad copy generation with conversion optimization",
             "Long-form blog post creation",
@@ -259,6 +273,7 @@ def get_package_info() -> dict:
         ],
         "supported_content_types": [
             "email_sequence",
+            "campaign_angles",
             "social_media_posts",
             "ad_copy", 
             "blog_post",
@@ -275,6 +290,11 @@ async def generate_emails(intelligence_data: dict, preferences: dict = None) -> 
     """Quick access function for email generation"""
     generator = EmailSequenceGenerator()
     return await generator.generate_email_sequence(intelligence_data, preferences)
+
+async def generate_campaign_angles(intelligence_data: list, **kwargs) -> dict:
+    """Quick access function for campaign angle generation"""
+    generator = CampaignAngleGenerator()
+    return await generator.generate_angles(intelligence_data, **kwargs)
 
 async def generate_social_posts(intelligence_data: dict, preferences: dict = None) -> dict:
     """Quick access function for social media generation"""
