@@ -125,6 +125,11 @@ class ProductionEmailGenerator:
         logger.warning("🚨 All providers failed, using guaranteed fallback")
         return self._guaranteed_fallback_generation(product_details, sequence_length, uniqueness_id)
     
+    # Alias for backward compatibility
+    async def generate_content(self, intelligence_data: Dict[str, Any], content_type: str = "email_sequence", preferences: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Generate content - alias for generate_email_sequence"""
+        return await self.generate_email_sequence(intelligence_data, preferences)
+    
     async def _generate_with_provider(
         self, provider, product_details, intelligence_data, sequence_length, preferences, uniqueness_id
     ) -> str:
@@ -468,7 +473,7 @@ The research speaks for itself - {product_name} offers a proven pathway to natur
             }
         }
     
-    # Helper methods (same as before)
+    # Helper methods
     def _safe_int_conversion(self, value: str, default: int, min_val: int, max_val: int) -> int:
         try:
             result = int(value) if str(value).isdigit() else default
@@ -477,10 +482,9 @@ The research speaks for itself - {product_name} offers a proven pathway to natur
             return default
     
     def _extract_product_details(self, intelligence_data: Dict[str, Any]) -> Dict[str, str]:
-        # Same implementation as before
+        # Extract product name from insights
         offer_intel = intelligence_data.get("offer_intelligence", {})
         
-        # Extract product name from insights
         product_name = "Product"
         insights = offer_intel.get("insights", [])
         for insight in insights:
@@ -522,9 +526,10 @@ The research speaks for itself - {product_name} offers a proven pathway to natur
                 benefits.append(insight)
         
         return benefits[:3]
-    
-    class CampaignAngleGenerator:
-     """Generate UNIQUE campaign angles from intelligence data - NO TEMPLATES"""
+
+
+class CampaignAngleGenerator:
+    """Generate UNIQUE campaign angles from intelligence data - NO TEMPLATES"""
     
     def __init__(self):
         # Initialize AI providers similar to ProductionEmailGenerator
@@ -547,9 +552,9 @@ The research speaks for itself - {product_name} offers a proven pathway to natur
         providers = []
         
         try:
-            import openai
             api_key = os.getenv("OPENAI_API_KEY")
             if api_key:
+                import openai
                 providers.append({
                     "name": "openai",
                     "client": openai.AsyncOpenAI(api_key=api_key),
@@ -613,3 +618,7 @@ The research speaks for itself - {product_name} offers a proven pathway to natur
                 "generation_method": "ai_strategic_analysis"
             }
         }
+
+
+# Alias for backward compatibility
+ContentGenerator = ProductionEmailGenerator
