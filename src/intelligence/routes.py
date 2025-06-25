@@ -38,8 +38,9 @@ except ImportError as e:
     ANALYZERS_AVAILABLE = False
 
 try:
-    from src.intelligence.generators import ContentGenerator, CampaignAngleGenerator
+    from src.intelligence.generators import ProductionEmailGenerator as ContentGenerator, CampaignAngleGenerator
     GENERATORS_AVAILABLE = True
+    logger.info("✅ Production email generator imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ IMPORT WARNING: Generators not available: {str(e)}")
     GENERATORS_AVAILABLE = False
