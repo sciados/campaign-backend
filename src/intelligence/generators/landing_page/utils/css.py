@@ -1284,6 +1284,68 @@ body {
     text-decoration: none;
     font-weight: 600;
 }}"""
+    
+class ResponsiveStylesheet:
+    """
+    Responsive stylesheet generator for landing pages
+    """
+    
+    def __init__(self):
+        self.breakpoints = {
+            'mobile': '(max-width: 768px)',
+            'tablet': '(min-width: 769px) and (max-width: 1024px)', 
+            'desktop': '(min-width: 1025px)'
+        }
+        self.styles = {
+            'mobile': [],
+            'tablet': [],
+            'desktop': [],
+            'global': []
+        }
+    
+    def add_global_style(self, css_rule: str):
+        """Add a global CSS rule"""
+        self.styles['global'].append(css_rule)
+    
+    def add_mobile_style(self, css_rule: str):
+        """Add a mobile-specific CSS rule"""
+        self.styles['mobile'].append(css_rule)
+    
+    def add_tablet_style(self, css_rule: str):
+        """Add a tablet-specific CSS rule"""
+        self.styles['tablet'].append(css_rule)
+    
+    def add_desktop_style(self, css_rule: str):
+        """Add a desktop-specific CSS rule"""
+        self.styles['desktop'].append(css_rule)
+    
+    def generate_css(self) -> str:
+        """Generate the complete responsive CSS"""
+        css_parts = []
+        
+        # Global styles first
+        if self.styles['global']:
+            css_parts.extend(self.styles['global'])
+        
+        # Mobile styles
+        if self.styles['mobile']:
+            css_parts.append(f"\n@media {self.breakpoints['mobile']} {{")
+            css_parts.extend(f"  {rule}" for rule in self.styles['mobile'])
+            css_parts.append("}")
+        
+        # Tablet styles
+        if self.styles['tablet']:
+            css_parts.append(f"\n@media {self.breakpoints['tablet']} {{")
+            css_parts.extend(f"  {rule}" for rule in self.styles['tablet'])
+            css_parts.append("}")
+        
+        # Desktop styles
+        if self.styles['desktop']:
+            css_parts.append(f"\n@media {self.breakpoints['desktop']} {{")
+            css_parts.extend(f"  {rule}" for rule in self.styles['desktop'])
+            css_parts.append("}")
+        
+        return "\n".join(css_parts)
 
 # Export the CSS generator
-__all__ = ['CSSGenerator']
+__all__ = ['CSSGenerator', 'ResponsiveStylesheet']
