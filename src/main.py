@@ -1,5 +1,5 @@
 """
-Main FastAPI application - FIXED VERSION with proper CORS and table creation
+Main FastAPI application - UPDATED VERSION with Landing Page routes
 """
 import os
 from fastapi import FastAPI
@@ -15,6 +15,10 @@ from src.intelligence.routes import router as intelligence_router
 from src.admin.routes import router as admin_router
 from src.intelligence.test_routes import router as test_router
 
+# ✅ NEW: Import landing page and analytics routes
+from src.intelligence.generators.landing_page.routes import router as landing_pages_router
+from src.analytics.routes import router as analytics_router
+
 # Import database and models for table creation
 from src.core.database import engine
 from src.models import Base
@@ -25,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="CampaignForge API",
-    description="AI-powered marketing campaign intelligence platform",
+    description="AI-powered marketing campaign intelligence platform with landing page generation",
     version="1.0.0"
 )
 app.include_router(test_router)
@@ -55,9 +59,9 @@ async def create_tables():
                 GeneratedContent, SmartURL, CompanyMembership, CompanyInvitation
             )
             await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables created successfully!")
+        logger.info("✅ Database tables created successfully!")
     except Exception as e:
-        logger.error(f"Error creating database tables: {e}")
+        logger.error(f"❌ Error creating database tables: {e}")
         raise
 
 # Add a health check endpoint
@@ -69,7 +73,13 @@ async def health_check():
         content={
             "status": "healthy",
             "service": "CampaignForge API",
-            "version": "1.0.0"
+            "version": "1.0.0",
+            "features": {
+                "campaign_intelligence": True,
+                "landing_page_generation": True,
+                "real_time_analytics": True,
+                "a_b_testing": True
+            }
         }
     )
 
@@ -83,7 +93,14 @@ async def root():
             "message": "CampaignForge API is running",
             "status": "operational",
             "docs": "/docs",
-            "health": "/health"
+            "health": "/health",
+            "features": {
+                "🧠 AI Campaign Intelligence": "/api/intelligence/",
+                "🚀 Landing Page Generation": "/api/landing-pages/",
+                "📊 Real-time Analytics": "/api/analytics/",
+                "👥 Team Collaboration": "/api/auth/",
+                "📈 Campaign Management": "/api/campaigns/"
+            }
         }
     )
 
@@ -94,8 +111,9 @@ app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"]
 app.include_router(intelligence_router, prefix="/api/intelligence", tags=["Intelligence"])
 app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
 
-# ✅ REMOVED: Duplicate auth router that was causing conflicts
-# app.include_router(auth_router, prefix="/auth", tags=["Authentication - Legacy"])
+# ✅ NEW: Include landing page and analytics routes
+app.include_router(landing_pages_router, prefix="/api", tags=["Landing Pages"])
+app.include_router(analytics_router, prefix="/api", tags=["Analytics"])
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -113,11 +131,6 @@ async def global_exception_handler(request, exc):
             "details": str(exc) if app.debug else "Contact support for assistance"
         }
     )
-
-# ✅ REMOVED: Conflicting OPTIONS handler - let CORS middleware handle this
-# @app.options("/{full_path:path}")
-# async def options_handler(full_path: str):
-#     ...
 
 if __name__ == "__main__":
     import uvicorn

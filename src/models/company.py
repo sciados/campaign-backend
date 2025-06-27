@@ -1,3 +1,4 @@
+# src/models/company.py - FIXED VERSION with missing field
 """
 Company models and related schemas - FIXED VERSION
 """
@@ -61,10 +62,11 @@ class Company(BaseModel):
     subscription_status = Column(String(50), default="active")
     billing_email = Column(String(255))
     
-    # Usage Tracking
+    # Usage Tracking - ✅ FIXED: Added missing field
     monthly_credits_used = Column(Integer, default=0)
     monthly_credits_limit = Column(Integer, default=1000)
     total_campaigns = Column(Integer, default=0)
+    total_campaigns_created = Column(Integer, default=0)  # ← CRITICAL FIX for registration
     
     # Company Settings
     settings = Column(JSONB, default={})
