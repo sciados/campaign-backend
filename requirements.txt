@@ -43,6 +43,7 @@ structlog==23.2.0
 bleach==6.1.0
 setuptools>=65.0.0
 numpy>=1.24.0,<2.0.0
+fal-client==0.7.0
 
 # For Railway deployment
 gunicorn==21.2.0
