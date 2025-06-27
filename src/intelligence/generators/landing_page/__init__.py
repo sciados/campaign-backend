@@ -25,10 +25,10 @@ except ImportError as e:
     LandingPageDatabase = None
 
 try:
-    from .components.sections import LandingPageSectionBuilders
+    from .components.sections import SectionBuilder
 except ImportError as e:
-    print(f"Warning: Could not import LandingPageSectionBuilders: {e}")
-    LandingPageSectionBuilders = None
+    print(f"Warning: Could not import LandingPage Section Builders: {e}")
+    SectionBuilder = None
 
 try:
     from .components.modular import ModularLandingPageBuilder
@@ -101,8 +101,8 @@ if EnhancedLandingPageGenerator is not None:
 if LandingPageStorage is not None:
     __all__.extend(['LandingPageStorage', 'LandingPageDatabase'])
 
-if LandingPageSectionBuilders is not None:
-    __all__.append('LandingPageSectionBuilders')
+if SectionBuilder is not None:
+    __all__.append('SectionBuilder')
 
 if ModularLandingPageBuilder is not None:
     __all__.append('ModularLandingPageBuilder')
@@ -129,7 +129,7 @@ def get_available_features():
     return {
         'generator': EnhancedLandingPageGenerator is not None,
         'storage': LandingPageStorage is not None,
-        'sections': LandingPageSectionBuilders is not None,
+        'sections': SectionBuilder is not None,
         'modular': ModularLandingPageBuilder is not None,
         'templates': TemplateManager is not None,
         'variants': VariantGenerator is not None,

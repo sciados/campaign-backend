@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import logging
 
 from src.core.database import get_db
-from src.auth.dependencies import get_current_user_with_company
+from src.auth.dependencies import get_current_active_user
 from src.models import User, Company, GeneratedContent, Campaign
 from src.intelligence.generators.landing_page.analytics.tracker import AnalyticsTracker
 
@@ -22,7 +22,7 @@ router = APIRouter()
 @router.get("/analytics/top-performing/")
 async def get_top_performing_pages(
     db: AsyncSession = Depends(get_db),
-    user_data: tuple = Depends(get_current_user_with_company),
+    user_data: tuple = Depends(get_current_active_user),
     limit: int = 10,
     time_window_days: int = 30
 ):
@@ -107,7 +107,7 @@ async def get_top_performing_pages(
 async def get_campaign_performance(
     campaign_id: str,
     db: AsyncSession = Depends(get_db),
-    user_data: tuple = Depends(get_current_user_with_company),
+    user_data: tuple = Depends(get_current_active_user),
     time_window_days: int = 30
 ):
     """
@@ -231,7 +231,7 @@ async def get_campaign_performance(
 async def get_conversion_funnel(
     content_id: str,
     db: AsyncSession = Depends(get_db),
-    user_data: tuple = Depends(get_current_user_with_company),
+    user_data: tuple = Depends(get_current_active_user),
     time_window_hours: int = 24
 ):
     """
@@ -360,7 +360,7 @@ async def get_conversion_funnel(
 @router.get("/analytics/company/dashboard/")
 async def get_company_analytics_dashboard(
     db: AsyncSession = Depends(get_db),
-    user_data: tuple = Depends(get_current_user_with_company),
+    user_data: tuple = Depends(get_current_active_user),
     time_window_days: int = 30
 ):
     """
