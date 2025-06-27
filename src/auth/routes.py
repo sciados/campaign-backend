@@ -20,6 +20,9 @@ from src.core.database import get_db
 from src.models.user import User # Assuming your User model is here
 from src.models.company import Company # Assuming your Company model is here and required for User
 
+# ✅ FIXED: Import get_current_user from dependencies instead of redefining it
+from src.auth.dependencies import get_current_user
+
 # JWT and security imports
 from jose import jwt
 
@@ -35,96 +38,7 @@ router = APIRouter(
 # HTTPBearer for extracting JWT tokens from Authorization header
 security = HTTPBearer()
 
-# --- Authentication Dependency ---
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
-) -> User:
-    """
-    Extract and validate JWT token, return authenticated user with company data
-    """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    
-    try:
-        # Verify and decode the token
-        print(f"🔍 Decoding token...")
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=["HS256"])
-        print(f"🔍 Token payload: {payload}")
-        
-        user_id_str: str = payload.get("sub")
-        user_email: str = payload.get("email")
-        user_role: str = payload.get("role")
-        company_id: str = payload.get("company_id")
-
-        print(f"🔍 Extracted from token:")
-        print(f"   user_id: {user_id_str}")
-        print(f"   email: {user_email}")
-        print(f"   role: {user_role}")
-        print(f"   company_id: {company_id}")
-
-        if user_id_str is None or user_email is None or user_role is None or company_id is None:
-            print(f"❌ Missing required fields in token")
-            raise credentials_exception
-        
-        # Convert string to UUID
-        try:
-            user_id = UUID(user_id_str)
-            print(f"✅ User ID converted to UUID: {user_id}")
-        except ValueError:
-            print(f"❌ Invalid UUID format: {user_id_str}")
-            raise credentials_exception
-        
-        # Fetch the user from the DB to ensure they exist, are active, and load their company relationship
-        print(f"🔍 Fetching user from database...")
-        user = await db.scalar(
-            select(User)
-            .where(User.id == user_id)
-            .options(selectinload(User.company)) # Eagerly load the company
-        )
-        
-        if user is None:
-            print(f"❌ User not found in database")
-            raise credentials_exception
-            
-        if not user.is_active:
-            print(f"❌ User is not active")
-            raise credentials_exception
-        
-        print(f"✅ User found: {user.email}")
-        print(f"✅ User company_id: {user.company_id}")
-        
-        # Verify company_id in token matches user's actual company_id
-        if str(user.company_id) != company_id:
-             print(f"❌ Token company_id mismatch!")
-             print(f"   Token company_id: {company_id}")
-             print(f"   User DB company_id: {user.company_id}")
-             raise credentials_exception
-
-        print(f"✅ Authentication successful!")
-        return user # Return the full User ORM object with company loaded
-
-    except jwt.ExpiredSignatureError:
-        print(f"❌ Token expired")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.JWTError as e:
-        print(f"❌ JWT Error: {e}")
-        raise credentials_exception
-    except Exception as e:
-        print(f"❌ Unexpected error in get_current_user dependency: {str(e)}")
-        logger.exception(f"Unexpected error in get_current_user dependency: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Authentication processing error.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+# ✅ REMOVED: Duplicate get_current_user function - now imported from dependencies
 
 # --- Pydantic Models for Request Body Validation ---
 
