@@ -1,5 +1,5 @@
 """
-Main FastAPI application - UPDATED VERSION with Landing Page routes
+Main FastAPI application - UPDATED VERSION with Fixed CORS
 """
 import os
 from fastapi import FastAPI
@@ -17,7 +17,15 @@ from src.intelligence.test_routes import router as test_router
 
 # ✅ NEW: Import landing page and analytics routes
 from src.intelligence.generators.landing_page.routes import router as landing_pages_router
-from src.analytics.routes import router as analytics_router
+
+# Create analytics router placeholder if it doesn't exist
+try:
+    from src.analytics.routes import router as analytics_router
+    ANALYTICS_AVAILABLE = True
+except ImportError:
+    from fastapi import APIRouter
+    analytics_router = APIRouter()
+    ANALYTICS_AVAILABLE = False
 
 # Import database and models for table creation
 from src.core.database import engine
@@ -34,8 +42,21 @@ app = FastAPI(
 )
 app.include_router(test_router)
 
-# ✅ FIXED: Simple CORS configuration
-allowed_origins = [os.getenv("ALLOWED_ORIGINS", "https://campaignforge-frontend.vercel.app")]
+# ✅ FIXED: Better CORS configuration with multiple origins
+allowed_origins = [
+    "https://campaignforge-frontend.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:3001", 
+    "https://campaign-backend-production-e2db.up.railway.app"
+]
+
+# Add custom origins from environment variable if provided
+custom_origins = os.getenv("ALLOWED_ORIGINS")
+if custom_origins:
+    additional_origins = [origin.strip() for origin in custom_origins.split(",")]
+    allowed_origins.extend(additional_origins)
+
+logger.info(f"🌐 CORS allowed origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -74,10 +95,11 @@ async def health_check():
             "status": "healthy",
             "service": "CampaignForge API",
             "version": "1.0.0",
+            "cors_origins": allowed_origins,
             "features": {
                 "campaign_intelligence": True,
                 "landing_page_generation": True,
-                "real_time_analytics": True,
+                "real_time_analytics": ANALYTICS_AVAILABLE,
                 "a_b_testing": True
             }
         }
@@ -113,7 +135,26 @@ app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
 
 # ✅ NEW: Include landing page and analytics routes
 app.include_router(landing_pages_router, prefix="/api", tags=["Landing Pages"])
-app.include_router(analytics_router, prefix="/api", tags=["Analytics"])
+if ANALYTICS_AVAILABLE:
+    app.include_router(analytics_router, prefix="/api", tags=["Analytics"])
+    logger.info("✅ Analytics routes loaded")
+else:
+    logger.warning("⚠️ Analytics routes not available")
+
+# Add explicit CORS preflight handler
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    """Handle CORS preflight requests"""
+    return JSONResponse(
+        status_code=200,
+        content={},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true"
+        }
+    )
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -129,6 +170,10 @@ async def global_exception_handler(request, exc):
             "error": "Internal server error",
             "message": "An unexpected error occurred",
             "details": str(exc) if app.debug else "Contact support for assistance"
+        },
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true"
         }
     )
 
