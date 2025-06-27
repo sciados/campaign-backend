@@ -10,7 +10,7 @@ from datetime import datetime
 class AdminStatsResponse(BaseModel):
     total_users: int
     total_companies: int
-    total_campaigns: int
+    total_campaigns_created: int
     active_users: int
     new_users_month: int
     new_users_week: int
@@ -65,7 +65,7 @@ class AdminCompanyResponse(BaseModel):
     subscription_status: str
     monthly_credits_used: int
     monthly_credits_limit: int
-    total_campaigns: int
+    total_campaigns_created: int
     created_at: datetime
     user_count: int
     campaign_count: int
@@ -96,7 +96,7 @@ class UserActivityResponse(BaseModel):
     user_email: str
     company_name: str
     last_login: Optional[datetime]
-    total_campaigns: int
+    total_campaigns_created: int
     credits_used_month: int
     subscription_tier: str
 
@@ -105,7 +105,7 @@ class CompanyAnalyticsResponse(BaseModel):
     company_name: str
     subscription_tier: str
     total_users: int
-    total_campaigns: int
+    total_campaigns_created: int
     monthly_credits_used: int
     monthly_credits_limit: int
     utilization_rate: float

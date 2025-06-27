@@ -392,7 +392,7 @@ async def get_company_analytics_dashboard(
                 "success": True,
                 "message": "No landing pages found for analytics",
                 "dashboard_data": {
-                    "summary": {"total_pages": 0, "total_campaigns": 0},
+                    "summary": {"total_pages": 0, "total_campaigns_created": 0},
                     "performance": {},
                     "trends": []
                 }
@@ -475,7 +475,7 @@ async def get_company_analytics_dashboard(
             },
             "dashboard_summary": {
                 "total_landing_pages": len(landing_pages),
-                "total_campaigns": len(campaign_ids),
+                "total_campaigns_created": len(campaign_ids),
                 "total_page_views": total_metrics["page_views"],
                 "total_conversions": total_metrics["conversions"],
                 "total_unique_sessions": total_metrics["unique_sessions"],

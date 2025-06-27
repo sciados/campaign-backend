@@ -1136,7 +1136,7 @@ async def get_dashboard_stats(
         draft_result = await db.execute(draft_query)
         completed_result = await db.execute(completed_query)
         
-        total_campaigns = total_result.scalar() or 0
+        total_campaigns_created = total_result.scalar() or 0
         active_campaigns = active_result.scalar() or 0
         draft_campaigns = draft_result.scalar() or 0
         completed_campaigns = completed_result.scalar() or 0
@@ -1156,7 +1156,7 @@ async def get_dashboard_stats(
         total_content = content_result.scalar() or 0
         
         # Calculate average completion
-        avg_completion = 25.0 if total_campaigns > 0 else 0.0
+        avg_completion = 25.0 if total_campaigns_created > 0 else 0.0
         
         # Get recent campaigns for activity feed
         recent_query = select(Campaign).where(
@@ -1178,7 +1178,7 @@ async def get_dashboard_stats(
             })
         
         return {
-            "total_campaigns": total_campaigns,
+            "total_campaigns_created": total_campaigns_created,
             "active_campaigns": active_campaigns,
             "draft_campaigns": draft_campaigns,
             "completed_campaigns": completed_campaigns,
@@ -1501,15 +1501,15 @@ async def get_campaign_stats(
         active_result = await db.execute(active_query)
         draft_result = await db.execute(draft_query)
         
-        total_campaigns = total_result.scalar()
+        total_campaigns_created = total_result.scalar()
         active_campaigns = active_result.scalar()
         draft_campaigns = draft_result.scalar()
         
         return {
-            "total_campaigns": total_campaigns,
+            "total_campaigns_created": total_campaigns_created,
             "active_campaigns": active_campaigns,
             "draft_campaigns": draft_campaigns,
-            "completed_campaigns": total_campaigns - active_campaigns - draft_campaigns,
+            "completed_campaigns": total_campaigns_created - active_campaigns - draft_campaigns,
             "total_sources": 0,  # Will be populated when intelligence is added back
             "total_content": 0,  # Will be populated when intelligence is added back
             "avg_completion": 25.0  # Basic completion for existing campaigns

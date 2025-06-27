@@ -187,7 +187,7 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
             subscription_status="active",
             monthly_credits_used=0,
             monthly_credits_limit=5000, # Example default limit
-            total_campaigns=0,
+            total_campaigns_created=0,
             created_at=datetime.utcnow()
         )
         db.add(new_company)

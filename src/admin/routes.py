@@ -48,7 +48,7 @@ async def get_admin_stats(
     # Total counts
     total_users = await db.scalar(select(func.count(User.id)))
     total_companies = await db.scalar(select(func.count(Company.id)))
-    total_campaigns = await db.scalar(select(func.count(Campaign.id)))
+    total_campaigns_created = await db.scalar(select(func.count(Campaign.id)))
     
     # Active users (logged in last 30 days)
     active_users = await db.scalar(
@@ -86,7 +86,7 @@ async def get_admin_stats(
     return AdminStatsResponse(
         total_users=total_users or 0,
         total_companies=total_companies or 0,
-        total_campaigns=total_campaigns or 0,
+        total_campaigns_created=total_campaigns_created or 0,
         active_users=active_users or 0,
         new_users_month=new_users_month or 0,
         new_users_week=new_users_week or 0,
@@ -239,7 +239,7 @@ async def get_all_companies(
                 subscription_status=company.subscription_status,
                 monthly_credits_used=company.monthly_credits_used,
                 monthly_credits_limit=company.monthly_credits_limit,
-                total_campaigns=company.total_campaigns,  # Use the model field directly
+                total_campaigns_created=company.total_campaigns_created,  # Use the model field directly
                 created_at=company.created_at,
                 user_count=user_count,
                 campaign_count=campaign_count
@@ -474,7 +474,7 @@ async def get_company_details(
         subscription_status=company.subscription_status,
         monthly_credits_used=company.monthly_credits_used,
         monthly_credits_limit=company.monthly_credits_limit,
-        total_campaigns=company.total_campaigns,
+        total_campaigns_created=company.total_campaigns_created,
         created_at=company.created_at,
         user_count=user_count,
         campaign_count=campaign_count

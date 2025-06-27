@@ -23,7 +23,7 @@ class CompanyStatsResponse(BaseModel):
     monthly_credits_used: int
     monthly_credits_limit: int
     credits_remaining: int
-    total_campaigns: int
+    total_campaigns_created: int
     active_campaigns: int
     team_members: int
     campaigns_this_month: int
@@ -54,7 +54,7 @@ async def get_company_stats(
         first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
         # Total campaigns for this company
-        total_campaigns = await db.scalar(
+        total_campaigns_created = await db.scalar(
             select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
         ) or 0
         
@@ -99,7 +99,7 @@ async def get_company_stats(
             monthly_credits_used=company.monthly_credits_used,
             monthly_credits_limit=company.monthly_credits_limit,
             credits_remaining=credits_remaining,
-            total_campaigns=total_campaigns,
+            total_campaigns_created=total_campaigns_created,
             active_campaigns=active_campaigns,
             team_members=team_members,
             campaigns_this_month=campaigns_this_month,
@@ -123,7 +123,7 @@ async def get_company_stats(
                 monthly_credits_used=company.monthly_credits_used if company else 0,
                 monthly_credits_limit=company.monthly_credits_limit if company else 5000,
                 credits_remaining=5000,
-                total_campaigns=0,
+                total_campaigns_created=0,
                 active_campaigns=0,
                 team_members=1,
                 campaigns_this_month=0,
