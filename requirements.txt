@@ -41,6 +41,7 @@ chardet==5.2.0
 urllib3==2.1.0
 structlog==23.2.0
 bleach==6.1.0
+numpy==1.24.3
 
 # For Railway deployment
 gunicorn==21.2.0
