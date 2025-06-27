@@ -14,7 +14,7 @@ import structlog
 from src.core.database import get_db
 from src.core.security import verify_token, SECRET_KEY
 from src.models.user import User
-from jose import jwt, JWTError
+from jose import jwt, JWTError  # ✅ FIXED: Import JWTError correctly
 
 logger = structlog.get_logger()
 security = HTTPBearer()
@@ -71,7 +71,7 @@ async def get_current_user(
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.InvalidTokenError:
+    except JWTError:  # ✅ FIXED: Use JWTError instead of jwt.InvalidTokenError
         raise credentials_exception
     except Exception as e:
         logger.error(f"Unexpected error in get_current_user: {str(e)}")
