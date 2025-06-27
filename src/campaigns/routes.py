@@ -2,7 +2,9 @@
 Campaign routes - ENHANCED VERSION with Content Management
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+# from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, update
 from sqlalchemy.orm import selectinload
