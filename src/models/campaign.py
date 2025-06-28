@@ -98,9 +98,9 @@ class Campaign(BaseModel):
     step_4_data = Column(JSONB, default={})  # Content generation preferences
     
     # Progress percentages for UI
-    step_2_progress = Column(Float, default=0.0)  # 0.0 to 1.0
-    step_3_progress = Column(Float, default=0.0)
-    step_4_progress = Column(Float, default=0.0)
+    step_2_progress = Column(JSONB, default={})
+    step_3_progress = Column(JSONB, default={})
+    step_4_progress = Column(JSONB, default={})
     
     # Resume data - what user was working on when they left
     last_active_step = Column(Integer, default=1)
