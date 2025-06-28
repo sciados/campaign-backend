@@ -178,8 +178,21 @@ async def get_campaigns(
     try:
         logger.info(f"Getting campaigns for user {current_user.id}, company {current_user.company_id}")
         
-        # Build query
-        query = select(Campaign).where(Campaign.company_id == current_user.company_id)
+        # Build a more selective query - only get essential columns
+        query = select(
+            Campaign.id,
+            Campaign.title,
+            Campaign.description,
+            Campaign.target_audience,
+            Campaign.status,
+            Campaign.tone,
+            Campaign.style,
+            Campaign.created_at,
+            Campaign.updated_at,
+            Campaign.sources_count,
+            Campaign.intelligence_extracted,
+            Campaign.content_generated
+        ).where(Campaign.company_id == current_user.company_id)
         
         # Add status filter
         if status:
@@ -194,18 +207,18 @@ async def get_campaigns(
         
         # Execute query
         result = await db.execute(query)
-        campaigns = result.scalars().all()
+        campaigns = result.all()
         
         logger.info(f"Found {len(campaigns)} campaigns")
         
-        # Convert to response format - SIMPLIFIED
+        # Convert to response format
         campaign_responses = []
         for campaign in campaigns:
             campaign_response = CampaignResponse(
                 id=str(campaign.id),
                 title=campaign.title,
                 description=campaign.description,
-                keywords=campaign.keywords or [],
+                keywords=[],  # Empty for now
                 target_audience=campaign.target_audience,
                 campaign_type="universal",
                 status=campaign.status.value if campaign.status else "draft",
@@ -213,8 +226,8 @@ async def get_campaigns(
                 style=campaign.style,
                 created_at=campaign.created_at,
                 updated_at=campaign.updated_at,
-                workflow_state=campaign.workflow_state.value if campaign.workflow_state else "basic_setup",
-                completion_percentage=25.0,  # Fixed value instead of calling method
+                workflow_state="basic_setup",  # Fixed value
+                completion_percentage=25.0,
                 sources_count=campaign.sources_count or 0,
                 intelligence_count=campaign.intelligence_extracted or 0,
                 content_count=campaign.content_generated or 0
