@@ -214,6 +214,12 @@ async def get_campaigns(
         # Convert to response format
         campaign_responses = []
         for campaign in campaigns:
+            # Handle status enum safely
+            try:
+                status_value = campaign.status.value if hasattr(campaign.status, 'value') else str(campaign.status)
+            except:
+                status_value = "draft"  # Default fallback
+            
             campaign_response = CampaignResponse(
                 id=str(campaign.id),
                 title=campaign.title,
@@ -221,7 +227,7 @@ async def get_campaigns(
                 keywords=[],  # Empty for now
                 target_audience=campaign.target_audience,
                 campaign_type="universal",
-                status=campaign.status.value if campaign.status else "draft",
+                status=status_value,
                 tone=campaign.tone,
                 style=campaign.style,
                 created_at=campaign.created_at,
@@ -234,7 +240,7 @@ async def get_campaigns(
             )
             campaign_responses.append(campaign_response)
         
-        return campaign_responses
+        return campaign_responses  # ← YES, this return statement is needed!
         
     except Exception as e:
         logger.error(f"Error getting campaigns: {e}")
