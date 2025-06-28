@@ -14,28 +14,28 @@ from src.models import BaseModel
 
 # ✅ FIXED: Match the actual database enum values
 class CampaignStatus(str, enum.Enum):
-    DRAFT = "draft"
-    IN_PROGRESS = "in_progress" 
-    REVIEW = "review"
-    ACTIVE = "active"
-    COMPLETED = "completed"
-    ARCHIVED = "archived"
+    DRAFT = "DRAFT"
+    IN_PROGRESS = "IN_PROGRESS" 
+    REVIEW = "REVIEW"
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
+    ARCHIVED = "ARCHIVED"
 
 class WorkflowPreference(str, enum.Enum):
-    QUICK = "quick"           # User wants to rush through steps
-    METHODICAL = "methodical" # User wants to take time at each step
-    FLEXIBLE = "flexible"     # User switches between modes
+    QUICK = "QUICK"           # User wants to rush through steps
+    METHODICAL = "METHODICAL" # User wants to take time at each step
+    FLEXIBLE = "FLEXIBLE"     # User switches between modes
 
 class CampaignWorkflowState(str, enum.Enum):
     # User can be at any of these states and move freely between them
-    BASIC_SETUP = "basic_setup"              # Step 1: Campaign created
-    COLLECTING_SOURCES = "collecting_sources" # Step 2: Adding sources (can be ongoing)
-    SOURCES_READY = "sources_ready"          # Step 2: Has sources, ready for analysis
-    ANALYZING_SOURCES = "analyzing_sources"   # Step 3: AI processing (can be ongoing)
-    ANALYSIS_COMPLETE = "analysis_complete"   # Step 3: Intelligence extracted
-    GENERATING_CONTENT = "generating_content" # Step 4: Creating content (can be ongoing)
-    CONTENT_AVAILABLE = "content_available"   # Step 4: Has generated content
-    CAMPAIGN_COMPLETE = "campaign_complete"   # All steps done, can still add more
+    BASIC_SETUP = "BASIC+_SETUP"              # Step 1: Campaign created
+    COLLECTING_SOURCES = "COLLECTING_SOURCES" # Step 2: Adding sources (can be ongoing)
+    SOURCES_READY = "SOURCES_READY"          # Step 2: Has sources, ready for analysis
+    ANALYZING_SOURCES = "ANALYZING_SOURCES"   # Step 3: AI processing (can be ongoing)
+    ANALYSIS_COMPLETE = "ANALYSIS_COMPLETE"   # Step 3: Intelligence extracted
+    GENERATING_CONTENT = "GENERATING_CONTENT" # Step 4: Creating content (can be ongoing)
+    CONTENT_AVAILABLE = "CONTENT_AVAILABLE"   # Step 4: Has generated content
+    CAMPAIGN_COMPLETE = "CAMPAIGN_COMPLETE"   # All steps done, can still add more
 
 class Campaign(BaseModel):
     """Simplified Campaign model - All campaigns are universal"""
