@@ -28,7 +28,7 @@ class WorkflowPreference(str, enum.Enum):
 
 class CampaignWorkflowState(str, enum.Enum):
     # User can be at any of these states and move freely between them
-    BASIC_SETUP = "BASIC+_SETUP"              # Step 1: Campaign created
+    BASIC_SETUP = "BASIC_SETUP"              # Step 1: Campaign created
     COLLECTING_SOURCES = "COLLECTING_SOURCES" # Step 2: Adding sources (can be ongoing)
     SOURCES_READY = "SOURCES_READY"          # Step 2: Has sources, ready for analysis
     ANALYZING_SOURCES = "ANALYZING_SOURCES"   # Step 3: AI processing (can be ongoing)
