@@ -13,18 +13,19 @@ from typing import List, Optional, Dict, Any, Literal
 from src.models import BaseModel
 
 class IntelligenceSourceType(str, enum.Enum):
-    SALES_PAGE = "sales_page"
-    DOCUMENT = "document"
-    AUDIO = "audio"
-    VIDEO = "video"
-    WEBSITE = "website"
-    COMPETITOR_ANALYSIS = "competitor_analysis"
+    SALES_PAGE = "SALES_PAGE"
+    DOCUMENT = "DOCUMENT"
+    VIDEO = "VIDEO"
+    WEBSITE = "WEBSITE"
+    SOCIAL_MEDIA = "SOCIAL_MEDIA"           # ← New
+    COMPETITOR_AD = "COMPETITOR_AD" 
 
 class AnalysisStatus(str, enum.Enum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
 
 class CampaignIntelligence(BaseModel):
     """Store extracted intelligence for campaigns"""
