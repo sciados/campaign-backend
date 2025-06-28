@@ -2,7 +2,7 @@
 Campaign routes - ENHANCED VERSION with Content Management
 """
 
-# from fastapi import APIRouter, Depends, HTTPException, status
+# from fastapi import APIRouter, Depends, HTTPException
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -226,7 +226,7 @@ async def get_campaigns(
     except Exception as e:
         logger.error(f"Error getting campaigns: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve campaigns: {str(e)}"
         )
 
@@ -287,7 +287,7 @@ async def create_campaign(
         error_detail = f"Failed to create campaign: {str(e)}"
         
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=error_detail
         )
 
@@ -311,7 +311,7 @@ async def get_campaign(
         
         if not campaign:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
         
@@ -339,7 +339,7 @@ async def get_campaign(
     except Exception as e:
         logger.error(f"Error getting campaign: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve campaign: {str(e)}"
         )
 
@@ -364,7 +364,7 @@ async def update_campaign(
         
         if not campaign:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
         
@@ -406,7 +406,7 @@ async def update_campaign(
         logger.error(f"Error updating campaign: {e}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update campaign: {str(e)}"
         )
 
@@ -430,7 +430,7 @@ async def delete_campaign(
         
         if not campaign:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
         
@@ -447,7 +447,7 @@ async def delete_campaign(
         logger.error(f"Error deleting campaign: {e}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete campaign: {str(e)}"
         )
 
@@ -549,7 +549,7 @@ async def get_campaign_content_list(
     except Exception as e:
         logger.error(f"Error getting campaign content: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get campaign content: {str(e)}"
         )
 
@@ -629,7 +629,7 @@ async def get_content_detail(
     except Exception as e:
         logger.error(f"Error getting content detail: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get content detail: {str(e)}"
         )
 
@@ -686,7 +686,7 @@ async def update_content(
         logger.error(f"Error updating content: {str(e)}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update content: {str(e)}"
         )
 
@@ -737,7 +737,7 @@ async def delete_content(
         logger.error(f"Error deleting content: {str(e)}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete content: {str(e)}"
         )
 
@@ -787,7 +787,7 @@ async def rate_content(
     except Exception as e:
         logger.error(f"Error rating content: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to rate content: {str(e)}"
         )
 
@@ -837,7 +837,7 @@ async def publish_content(
     except Exception as e:
         logger.error(f"Error publishing content: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to publish content: {str(e)}"
         )
 
@@ -941,7 +941,7 @@ async def bulk_content_action(
         logger.error(f"Error performing bulk action: {str(e)}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to perform bulk action: {str(e)}"
         )
 
@@ -1026,7 +1026,7 @@ async def get_content_stats(
     except Exception as e:
         logger.error(f"Error getting content stats: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get content stats: {str(e)}"
         )
 
@@ -1100,7 +1100,7 @@ async def duplicate_content(
         logger.error(f"Error duplicating content: {str(e)}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to duplicate content: {str(e)}"
         )
 
@@ -1196,7 +1196,7 @@ async def get_dashboard_stats(
     except Exception as e:
         logger.error(f"Error getting dashboard stats: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get dashboard stats: {str(e)}"
         )
 
@@ -1222,7 +1222,7 @@ async def get_campaign_workflow_state(
         
         if not campaign:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
         
@@ -1294,7 +1294,7 @@ async def get_campaign_workflow_state(
     except Exception as e:
         logger.error(f"Error getting workflow state: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get workflow state: {str(e)}"
         )
 
@@ -1317,7 +1317,7 @@ async def set_workflow_preference(
         
         if not campaign:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
         
@@ -1348,7 +1348,7 @@ async def set_workflow_preference(
     except Exception as e:
         logger.error(f"Error setting workflow preference: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to set workflow preference: {str(e)}"
         )
 
@@ -1371,7 +1371,7 @@ async def save_campaign_progress(
         
         if not campaign:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
         
@@ -1400,7 +1400,7 @@ async def save_campaign_progress(
     except Exception as e:
         logger.error(f"Error saving progress: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save progress: {str(e)}"
         )
 
@@ -1426,7 +1426,7 @@ async def get_campaign_intelligence(
         
         if not campaign:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
         
@@ -1473,7 +1473,7 @@ async def get_campaign_intelligence(
     except Exception as e:
         logger.error(f"Error getting campaign intelligence: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get campaign intelligence: {str(e)}"
         )
 
@@ -1520,6 +1520,6 @@ async def get_campaign_stats(
     except Exception as e:
         logger.error(f"Error getting campaign stats: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get campaign stats: {str(e)}"
         )

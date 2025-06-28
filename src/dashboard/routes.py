@@ -1,7 +1,8 @@
 """
 Company dashboard routes for company owners and team members - FIXED VERSION
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from pydantic import BaseModel
@@ -45,7 +46,7 @@ async def get_company_stats(
         
         if not company:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Company not found"
             )
         
@@ -132,7 +133,7 @@ async def get_company_stats(
         except:
             # Ultimate fallback
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to fetch company stats: {str(e)}"
             )
 
@@ -150,7 +151,7 @@ async def get_company_details(
     
     if not company:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Company not found"
         )
     

@@ -26,7 +26,7 @@ async def get_current_user(
     """Get current authenticated user"""
 
     credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
+        status_code=http_status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
@@ -67,7 +67,7 @@ async def get_current_user(
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=http_status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -76,7 +76,7 @@ async def get_current_user(
     except Exception as e:
         logger.error(f"Unexpected error in get_current_user: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication processing error",
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -85,7 +85,7 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
     """Get current active user"""
     if not current_user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
+            status_code=http_status.HTTP_400_BAD_REQUEST, 
             detail="Inactive user"
         )
     return current_user
@@ -94,7 +94,7 @@ async def get_current_admin_user(current_user: User = Depends(get_current_active
     """Get current admin user"""
     if current_user.role != "admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
         )
     return current_user

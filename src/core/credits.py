@@ -2,9 +2,10 @@
 """
 Credit management and tier enforcement system
 """
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from fastapi import HTTPException, status
 from typing import Dict, Any
 from datetime import datetime
 import logging
@@ -137,7 +138,7 @@ class CreditManager:
         
         if not company:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Company not found"
             )
         
@@ -165,7 +166,7 @@ class CreditManager:
             remaining_credits = company.monthly_credits_limit - company.monthly_credits_used
             
             raise HTTPException(
-                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                status_code=http_status.HTTP_402_PAYMENT_REQUIRED,
                 detail={
                     "message": f"Insufficient credits for {operation}",
                     "credits_required": credits_required,
@@ -275,7 +276,7 @@ class CreditManager:
         
         if not company:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Company not found"
             )
         
@@ -306,7 +307,7 @@ class CreditManager:
         
         if not company:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Company not found"
             )
         
@@ -365,7 +366,7 @@ def require_credits(operation: str, credits: int = None):
             
             if not user or not db:
                 raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Credit enforcement failed - missing user or db"
                 )
             
@@ -406,7 +407,7 @@ def require_feature(feature: str):
             
             if not user or not db:
                 raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Feature enforcement failed"
                 )
             
@@ -415,7 +416,7 @@ def require_feature(feature: str):
             
             if not has_access:
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
+                    status_code=http_status.HTTP_403_FORBIDDEN,
                     detail={
                         "message": f"Feature '{feature}' not available in your current tier",
                         "current_tier": user.company.subscription_tier if hasattr(user, 'company') else "unknown",

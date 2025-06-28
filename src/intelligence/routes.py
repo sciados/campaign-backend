@@ -2,7 +2,8 @@
 """
 Intelligence analysis routes - Enhanced with Intelligence Amplifier and Fixed Content Type Routing
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from pydantic import BaseModel, HttpUrl
@@ -284,7 +285,7 @@ async def get_campaign_intelligence(
         if not campaign:
             logger.error(f"❌ Campaign {campaign_id} not found for user {current_user.id}")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
         
@@ -295,7 +296,7 @@ async def get_campaign_intelligence(
     except Exception as e:
         logger.error(f"❌ Error verifying campaign access: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to verify campaign access"
         )
     
@@ -531,7 +532,7 @@ async def analyze_sales_page(
         campaign = campaign_result.scalar_one_or_none()
         if not campaign:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
     except HTTPException:
@@ -539,7 +540,7 @@ async def analyze_sales_page(
     except Exception as e:
         logger.error(f"❌ Error verifying campaign: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to verify campaign access"
         )
     
@@ -564,7 +565,7 @@ async def analyze_sales_page(
         logger.error(f"❌ Error creating intelligence record: {str(e)}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create intelligence record"
         )
     
@@ -843,7 +844,7 @@ async def get_campaign_content_list(
     except Exception as e:
         logger.error(f"Error getting campaign content: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get campaign content: {str(e)}"
         )
 
@@ -923,7 +924,7 @@ async def get_content_detail(
     except Exception as e:
         logger.error(f"Error getting content detail: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get content detail: {str(e)}"
         )
 
@@ -984,7 +985,7 @@ async def update_content(
         logger.error(f"Error updating content: {str(e)}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update content: {str(e)}"
         )
 
@@ -1035,7 +1036,7 @@ async def delete_content(
         logger.error(f"Error deleting content: {str(e)}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete content: {str(e)}"
         )
 
@@ -1085,7 +1086,7 @@ async def rate_content(
     except Exception as e:
         logger.error(f"Error rating content: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to rate content: {str(e)}"
         )
 
@@ -1135,7 +1136,7 @@ async def publish_content(
     except Exception as e:
         logger.error(f"Error publishing content: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to publish content: {str(e)}"
         )
 
@@ -1239,7 +1240,7 @@ async def bulk_content_action(
         logger.error(f"Error performing bulk action: {str(e)}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to perform bulk action: {str(e)}"
         )
 
@@ -1324,7 +1325,7 @@ async def get_content_stats(
     except Exception as e:
         logger.error(f"Error getting content stats: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get content stats: {str(e)}"
         )
 
@@ -1398,6 +1399,6 @@ async def duplicate_content(
         logger.error(f"Error duplicating content: {str(e)}")
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to duplicate content: {str(e)}"
         )

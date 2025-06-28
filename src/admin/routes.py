@@ -1,7 +1,8 @@
 """
 Admin routes for user and company management
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
@@ -28,7 +29,7 @@ async def require_admin(current_user: User = Depends(get_current_user)):
     # This ensures only main admins (like you) have full platform access
     if current_user.role != "admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail="Admin access required. Only platform administrators can access this area."
         )
     return current_user
@@ -257,7 +258,7 @@ async def get_all_companies(
         # Log the error for debugging
         print(f"Error in get_all_companies: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch companies: {str(e)}"
         )
 
@@ -277,7 +278,7 @@ async def get_user_details(
     
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
     
@@ -310,7 +311,7 @@ async def update_user(
     
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
     
@@ -342,7 +343,7 @@ async def update_company_subscription(
     
     if not company:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Company not found"
         )
     
@@ -377,7 +378,7 @@ async def delete_user(
     
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
     
@@ -389,7 +390,7 @@ async def delete_user(
         )
         if owner_count <= 1:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="Cannot delete the last owner of a company"
             )
     
@@ -414,7 +415,7 @@ async def impersonate_user(
     
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
     
@@ -452,7 +453,7 @@ async def get_company_details(
     
     if not company:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Company not found"
         )
     
@@ -494,7 +495,7 @@ async def update_company_details(
     
     if not company:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Company not found"
         )
     
@@ -528,7 +529,7 @@ async def update_user_role(
     # Only allow main admin (role='admin') to change roles
     if admin_user.role != "admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail="Only main admin can change user roles"
         )
     
@@ -536,7 +537,7 @@ async def update_user_role(
     valid_roles = ["admin", "owner", "member", "viewer"]
     if new_role not in valid_roles:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid role. Must be one of: {valid_roles}"
         )
     
@@ -546,7 +547,7 @@ async def update_user_role(
     
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
     
@@ -559,7 +560,7 @@ async def update_user_role(
         
         if admin_count <= 1:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="Cannot remove admin role from the last admin user"
             )
     

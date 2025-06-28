@@ -3,7 +3,8 @@
 Analytics Routes - Advanced analytics and reporting endpoints
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, func
 from typing import Dict, Any, List, Optional
@@ -99,7 +100,7 @@ async def get_top_performing_pages(
     except Exception as e:
         logger.error(f"❌ Top performing pages retrieval failed: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Top performing pages retrieval failed: {str(e)}"
         )
 
@@ -124,7 +125,7 @@ async def get_campaign_performance(
         campaign = await db.get(Campaign, campaign_id)
         if not campaign or campaign.company_id != company.id:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
         
@@ -223,7 +224,7 @@ async def get_campaign_performance(
     except Exception as e:
         logger.error(f"❌ Campaign performance retrieval failed: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Campaign performance retrieval failed: {str(e)}"
         )
 
@@ -248,7 +249,7 @@ async def get_conversion_funnel(
         content = await db.get(GeneratedContent, content_id)
         if not content or content.company_id != company.id or content.content_type != "landing_page":
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Landing page not found"
             )
         
@@ -353,7 +354,7 @@ async def get_conversion_funnel(
     except Exception as e:
         logger.error(f"❌ Conversion funnel analysis failed: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Conversion funnel analysis failed: {str(e)}"
         )
 
@@ -498,6 +499,6 @@ async def get_company_analytics_dashboard(
     except Exception as e:
         logger.error(f"❌ Company dashboard retrieval failed: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Company dashboard retrieval failed: {str(e)}"
         )

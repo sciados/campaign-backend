@@ -4,8 +4,8 @@ import os
 import logging
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4 # Import uuid4 to generate new UUIDs
-
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 
@@ -74,7 +74,7 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
     if existing_user:
         logger.warning(f"Registration attempt for existing email: {user_data.email}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="Email already registered."
         )
 
@@ -153,7 +153,7 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
         await db.rollback() # Rollback in case of error
         logger.exception(f"Unexpected error during user registration for {user_data.email}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred during registration: {str(e)}"
         )
 
@@ -173,7 +173,7 @@ async def login_for_access_token(
     if not user or not verify_password(form_data.password, user.password_hash): # Use user.password_hash
         logger.warning(f"Login attempt failed for email: {form_data.username}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=http_status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -181,7 +181,7 @@ async def login_for_access_token(
     # Check if the user is active (as per user.py model)
     if not user.is_active:
          raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=http_status.HTTP_401_UNAUTHORIZED,
             detail="User account is inactive. Please contact support."
         )
 
@@ -211,13 +211,13 @@ async def login_user_json(user_login: UserLogin, db: AsyncSession = Depends(get_
     if not user or not verify_password(user_login.password, user.password_hash): # Use user.password_hash
         logger.warning(f"JSON login attempt failed for email: {user_login.email}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=http_status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
     
     if not user.is_active:
          raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=http_status.HTTP_401_UNAUTHORIZED,
             detail="User account is inactive. Please contact support."
         )
 
@@ -261,7 +261,7 @@ async def get_user_profile(current_user: User = Depends(get_current_user), db: A
             company = await db.scalar(select(Company).where(Company.id == current_user.company_id))
             if not company:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=http_status.HTTP_404_NOT_FOUND,
                     detail="User company not found"
                 )
 
@@ -288,6 +288,6 @@ async def get_user_profile(current_user: User = Depends(get_current_user), db: A
     except Exception as e:
         logger.exception(f"Error fetching profile for user {current_user.id}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch user profile"
         )

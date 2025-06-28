@@ -3,7 +3,8 @@
 Landing Page Routes - With corrected authentication imports
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, Optional
 import logging
@@ -39,7 +40,7 @@ async def get_user_and_company(
     """Get current user and their company"""
     if not user.company:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="User is not associated with a company"
         )
     return user, user.company
@@ -114,7 +115,7 @@ async def list_landing_pages(
     except Exception as e:
         logger.error(f"❌ Landing page listing failed: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Landing page listing failed: {str(e)}"
         )
 
@@ -137,7 +138,7 @@ if GENERATOR_AVAILABLE:
         
         if not landing_page_generator:
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Landing page generator not available"
             )
         
@@ -147,7 +148,7 @@ if GENERATOR_AVAILABLE:
             
             if not campaign_id:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=http_status.HTTP_400_BAD_REQUEST,
                     detail="campaign_id is required"
                 )
             
@@ -155,7 +156,7 @@ if GENERATOR_AVAILABLE:
             campaign = await db.get(Campaign, campaign_id)
             if not campaign or campaign.company_id != company.id:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=http_status.HTTP_404_NOT_FOUND,
                     detail="Campaign not found"
                 )
             
@@ -226,7 +227,7 @@ if GENERATOR_AVAILABLE:
         except Exception as e:
             logger.error(f"❌ Landing page generation failed: {str(e)}")
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Landing page generation failed: {str(e)}"
             )
 
@@ -235,7 +236,7 @@ else:
     async def generate_landing_page_unavailable():
         """Landing page generation not available"""
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Landing page generation not available - generator not loaded"
         )
 
@@ -255,7 +256,7 @@ if ANALYTICS_AVAILABLE:
             content = await db.get(GeneratedContent, content_id)
             if not content or content.content_type != "landing_page":
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=http_status.HTTP_404_NOT_FOUND,
                     detail="Landing page not found"
                 )
             
@@ -269,7 +270,7 @@ if ANALYTICS_AVAILABLE:
                 event_type = EventType[event_type_str]
             except KeyError:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=http_status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid event_type: {event_type_str}"
                 )
             
@@ -287,7 +288,7 @@ if ANALYTICS_AVAILABLE:
                 return {"success": True, "message": "Event tracked successfully"}
             else:
                 raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to track event"
                 )
             
@@ -296,7 +297,7 @@ if ANALYTICS_AVAILABLE:
         except Exception as e:
             logger.error(f"❌ Event tracking failed: {str(e)}")
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Event tracking failed: {str(e)}"
             )
 
@@ -316,7 +317,7 @@ if ANALYTICS_AVAILABLE:
             content = await db.get(GeneratedContent, content_id)
             if not content or content.company_id != company.id:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=http_status.HTTP_404_NOT_FOUND,
                     detail="Landing page not found"
                 )
             
@@ -346,7 +347,7 @@ if ANALYTICS_AVAILABLE:
         except Exception as e:
             logger.error(f"❌ Analytics retrieval failed: {str(e)}")
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Analytics retrieval failed: {str(e)}"
             )
 
@@ -365,7 +366,7 @@ async def get_landing_page(
         content = await db.get(GeneratedContent, content_id)
         if not content or content.company_id != company.id or content.content_type != "landing_page":
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Landing page not found"
             )
         
@@ -388,6 +389,6 @@ async def get_landing_page(
     except Exception as e:
         logger.error(f"❌ Landing page retrieval failed: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Landing page retrieval failed: {str(e)}"
         )
