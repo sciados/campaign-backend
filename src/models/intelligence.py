@@ -33,9 +33,10 @@ class CampaignIntelligence(BaseModel):
     
     # Basic Information
     source_url = Column(Text)  # URL if from web source
-    source_type = Column(Enum(IntelligenceSourceType), nullable=False)
+    source_type = Column(Enum(IntelligenceSourceType, name='intelligence_source_type'), nullable=False)
     source_title = Column(String(500))
-    analysis_status = Column(Enum(AnalysisStatus), default=AnalysisStatus.PENDING)
+    analysis_status = Column(Enum(AnalysisStatus, name='analysis_status'), default=AnalysisStatus.PENDING)
+    
     
     # Core Intelligence Data (JSONB for flexibility)
     offer_intelligence = Column(JSONB, default={})

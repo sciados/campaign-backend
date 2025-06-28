@@ -48,7 +48,8 @@ class Campaign(BaseModel):
     target_audience = Column(JSONB, default={})
     
     # ✅ FIXED: Use enum values that match database
-    status = Column(Enum(CampaignStatus), default=CampaignStatus.DRAFT)
+    status = Column(Enum(CampaignStatus, name='campaignstatus'), default=CampaignStatus.DRAFT)
+    
     tone = Column(String(100), default="conversational")  # conversational, professional, casual, etc.
     style = Column(String(100), default="modern")  # modern, classic, bold, etc.
     
@@ -56,8 +57,8 @@ class Campaign(BaseModel):
     settings = Column(JSONB, default={})  # Flexible settings storage
     
     # Flexible workflow tracking
-    workflow_state = Column(Enum(CampaignWorkflowState), default=CampaignWorkflowState.BASIC_SETUP)
-    workflow_preference = Column(Enum(WorkflowPreference), default=WorkflowPreference.FLEXIBLE)
+    workflow_state = Column(Enum(CampaignWorkflowState, name='campaignworkflowstate'), default=CampaignWorkflowState.BASIC_SETUP)
+    workflow_preference = Column(Enum(WorkflowPreference, name='workflowpreference'), default=WorkflowPreference.FLEXIBLE)
     
     # Allow users to work on multiple steps simultaneously
     active_steps = Column(JSONB, default=[1])  # Which steps user is currently working on
