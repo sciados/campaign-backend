@@ -64,7 +64,7 @@ class ContentGeneratorFactory:
         
         # Landing Page Generator
         try:
-            from .landing_page_generator import LandingPageGenerator
+            from .landing_page.core.generator import EnhancedLandingPageGenerator as LandingPageGenerator
             self._generators["landing_page"] = LandingPageGenerator()
             logger.info("✅ Landing Page Generator initialized")
         except Exception as e:
