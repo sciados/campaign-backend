@@ -45,7 +45,7 @@ class Campaign(BaseModel):
     title = Column(String(500), nullable=False)
     description = Column(Text)
     keywords = Column(JSONB, default=[])  # List of keywords
-    target_audience = Column(String(1000))
+    target_audience = Column(JSONB, default={})
     
     # ✅ FIXED: Use enum values that match database
     status = Column(Enum(CampaignStatus), default=CampaignStatus.DRAFT)
