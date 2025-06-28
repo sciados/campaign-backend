@@ -2,7 +2,8 @@
 FastAPI dependencies for authentication and database
 """
 
-from fastapi import Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status  # ✅ Fixed import
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
