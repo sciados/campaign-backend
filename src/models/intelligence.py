@@ -70,7 +70,7 @@ class GeneratedContent(BaseModel):
     __tablename__ = "generated_content"
     
     # Content Information
-    content_type = Column(String(100), nullable=False)  # email, social_post, ad_copy, etc.
+    content_type = Column(String(50), nullable=False)  # email, social_post, ad_copy, etc.
     content_title = Column(String(500))
     content_body = Column(Text, nullable=False)
     content_metadata = Column(JSONB, default={})  # Additional content data
