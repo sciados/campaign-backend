@@ -2,9 +2,10 @@
 """
 Intelligence models - Extends existing campaign system with competitive intelligence - FIXED RELATIONSHIPS
 """
-from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean
+from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 import enum
 from datetime import datetime
 from pydantic import BaseModel as PydanticBaseModel, Field
@@ -70,21 +71,24 @@ class GeneratedContent(BaseModel):
     __tablename__ = "generated_content"
     
     # Content Information
-    content_type = Column(String(50), nullable=False)  # email, social_post, ad_copy, etc.
+    content_type = Column(String(50), nullable=False)
     content_title = Column(String(500))
     content_body = Column(Text, nullable=False)
-    content_metadata = Column(JSONB, default={})  # Additional content data
+    content_metadata = Column(JSONB, default={})
     
     # Generation Settings
-    generation_prompt = Column(Text)  # AI prompt used
-    generation_settings = Column(JSONB, default={})  # Tone, style, preferences
-    intelligence_used = Column(JSONB, default={})  # Which intelligence data was used
+    generation_prompt = Column(Text)
+    generation_settings = Column(JSONB, default={})
+    intelligence_used = Column(JSONB, default={})
     
     # Performance Tracking
-    performance_data = Column(JSONB, default={})  # CTR, conversions, etc.
-    user_rating = Column(Integer)  # 1-5 user rating
+    performance_data = Column(JSONB, default={})
+    user_rating = Column(Integer)
     is_published = Column(Boolean, default=False)
-    published_at = Column(String(100))  # Where it was published
+    
+    # ✅ IMPROVED: Use proper timestamp fields
+    published_at = Column(DateTime(timezone=True), nullable=True)  # When published
+    published_to = Column(String(200), nullable=True)  # WHERE published ("Facebook", "Email Campaign", etc.)
     
     # Foreign Keys
     campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=False)
@@ -92,7 +96,7 @@ class GeneratedContent(BaseModel):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
-    # Relationships - Use string references to avoid circular imports
+    # Relationships
     campaign = relationship("Campaign", back_populates="generated_content")
     intelligence_source = relationship("CampaignIntelligence", back_populates="generated_content")
     user = relationship("User", back_populates="generated_content")

@@ -1,14 +1,14 @@
-# src/intelligence/routes.py - ENHANCED WITH AMPLIFIER INTEGRATION AND FIXED CONTENT ROUTING
 """
 Intelligence analysis routes - Enhanced with Intelligence Amplifier and Fixed Content Type Routing
 """
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
-from pydantic import BaseModel, HttpUrl
+from sqlalchemy import update
 from typing import List, Optional, Dict, Any
-import uuid
+from pydantic import BaseModel, HttpUrl
 from datetime import datetime
 import traceback
 import logging
@@ -22,9 +22,9 @@ from src.auth.dependencies import get_current_user
 from src.models.user import User
 from src.models.campaign import Campaign
 from src.models.intelligence import (
-    CampaignIntelligence, 
-    GeneratedContent, 
-    SmartURL, 
+    CampaignIntelligence,
+    GeneratedContent,
+    SmartURL,
     IntelligenceSourceType,
     AnalysisStatus
 )
@@ -41,10 +41,10 @@ except ImportError as e:
 # ✅ FIXED: Import generators with proper routing capability
 try:
     from src.intelligence.generators import (
-        EmailSequenceGenerator, 
+        EmailSequenceGenerator,
         CampaignAngleGenerator,
         SocialMediaGenerator,
-        AdCopyGenerator, 
+        AdCopyGenerator,
         BlogPostGenerator,
         LandingPageGenerator,
         VideoScriptGenerator
@@ -54,32 +54,32 @@ try:
 except ImportError as e:
     logger.warning(f"⚠️ IMPORT WARNING: Some generators not available: {str(e)}")
     GENERATORS_AVAILABLE = False
-    
+
     # Create fallback classes
     class EmailSequenceGenerator:
         async def generate_email_sequence(self, *args, **kwargs):
             return {"error": "Email generator not available", "fallback": True}
-    
+
     class SocialMediaGenerator:
         async def generate_social_posts(self, *args, **kwargs):
             return {"error": "Social media generator not available", "fallback": True}
-    
+
     class AdCopyGenerator:
         async def generate_ad_copy(self, *args, **kwargs):
             return {"error": "Ad copy generator not available", "fallback": True}
-    
+
     class BlogPostGenerator:
         async def generate_blog_post(self, *args, **kwargs):
             return {"error": "Blog post generator not available", "fallback": True}
-    
+
     class LandingPageGenerator:
         async def generate_landing_page(self, *args, **kwargs):
             return {"error": "Landing page generator not available", "fallback": True}
-    
+
     class VideoScriptGenerator:
         async def generate_video_script(self, *args, **kwargs):
             return {"error": "Video script generator not available", "fallback": True}
-    
+
     class CampaignAngleGenerator:
         async def generate_angles(self, *args, **kwargs):
             return {"error": "Campaign angle generator not available", "fallback": True}
@@ -94,7 +94,7 @@ except ImportError as e:
     logger.warning(f"⚠️ AMPLIFIER WARNING: Intelligence Amplifier package not available: {str(e)}")
     logger.warning("⚠️ Check amplifier folder structure and dependencies")
     AMPLIFIER_AVAILABLE = False
-    
+
     # Fallback class if package import fails completely
     class IntelligenceAmplificationService:
         async def process_sources(self, sources, preferences=None):
@@ -134,7 +134,7 @@ async def get_campaign_content_list(
     """✅ NEW: Get list of generated content for a campaign"""
     try:
         logger.info(f"Getting content list for campaign {campaign_id}")
-        
+
         # Verify campaign ownership
         campaign_result = await db.execute(
             select(Campaign).where(
@@ -147,19 +147,19 @@ async def get_campaign_content_list(
         campaign = campaign_result.scalar_one_or_none()
         if not campaign:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        
+
         # Build query for generated content
         query = select(GeneratedContent).where(
             GeneratedContent.campaign_id == campaign_id
         ).order_by(GeneratedContent.created_at.desc())
-        
+
         # Add content type filter if specified
         if content_type:
             query = query.where(GeneratedContent.content_type == content_type)
-        
+
         result = await db.execute(query)
         content_items = result.scalars().all()
-        
+
         # Format response
         content_list = []
         for item in content_items:
@@ -177,7 +177,7 @@ async def get_campaign_content_list(
                 "generation_settings": item.generation_settings or {},
                 "intelligence_used": item.intelligence_used or {}
             }
-            
+
             # Include full content body if requested
             if include_body:
                 content_data["content_body"] = item.content_body
@@ -203,15 +203,15 @@ async def get_campaign_content_list(
                         content_data["content_preview"] = str(parsed_body)[:100] + "..."
                 except:
                     content_data["content_preview"] = "Content available"
-            
+
             content_list.append(content_data)
-        
+
         return {
             "campaign_id": campaign_id,
             "total_content": len(content_list),
             "content_items": content_list
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -231,7 +231,7 @@ async def get_content_detail(
     """✅ NEW: Get detailed content including full body"""
     try:
         logger.info(f"Getting content detail for {content_id} in campaign {campaign_id}")
-        
+
         # Get the content item with campaign verification
         content_result = await db.execute(
             select(GeneratedContent).where(
@@ -243,10 +243,10 @@ async def get_content_detail(
             )
         )
         content_item = content_result.scalar_one_or_none()
-        
+
         if not content_item:
             raise HTTPException(status_code=404, detail="Content not found")
-        
+
         # Parse content body
         parsed_content = {}
         try:
@@ -254,7 +254,7 @@ async def get_content_detail(
                 parsed_content = json.loads(content_item.content_body)
         except json.JSONDecodeError:
             parsed_content = {"raw_content": content_item.content_body}
-        
+
         # Get intelligence source info if available
         intelligence_info = None
         if content_item.intelligence_source_id:
@@ -272,7 +272,7 @@ async def get_content_detail(
                     "confidence_score": intelligence_source.confidence_score,
                     "source_type": intelligence_source.source_type.value if intelligence_source.source_type else None
                 }
-        
+
         return {
             "id": str(content_item.id),
             "campaign_id": campaign_id,
@@ -291,7 +291,7 @@ async def get_content_detail(
             "updated_at": content_item.updated_at.isoformat() if content_item.updated_at else None,
             "intelligence_source": intelligence_info
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -312,7 +312,7 @@ async def update_content(
     """✅ NEW: Update generated content"""
     try:
         logger.info(f"Updating content {content_id} in campaign {campaign_id}")
-        
+
         # Get the content item with verification
         content_result = await db.execute(
             select(GeneratedContent).where(
@@ -324,34 +324,34 @@ async def update_content(
             )
         )
         content_item = content_result.scalar_one_or_none()
-        
+
         if not content_item:
             raise HTTPException(status_code=404, detail="Content not found")
-        
+
         # Update allowed fields
         allowed_fields = [
-            'content_title', 'content_body', 'content_metadata', 
+            'content_title', 'content_body', 'content_metadata',
             'user_rating', 'is_published', 'published_at', 'performance_data'
         ]
-        
+
         for field, value in update_data.items():
             if field in allowed_fields and hasattr(content_item, field):
                 setattr(content_item, field, value)
-        
+
         # Update timestamp
         content_item.updated_at = datetime.utcnow()
-        
+
         await db.commit()
         await db.refresh(content_item)
-        
+
         logger.info(f"Content {content_id} updated successfully")
-        
+
         return {
             "id": str(content_item.id),
             "message": "Content updated successfully",
             "updated_at": content_item.updated_at.isoformat()
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -372,7 +372,7 @@ async def delete_content(
     """✅ NEW: Delete generated content"""
     try:
         logger.info(f"Deleting content {content_id} from campaign {campaign_id}")
-        
+
         # Get the content item with verification
         content_result = await db.execute(
             select(GeneratedContent).where(
@@ -384,25 +384,25 @@ async def delete_content(
             )
         )
         content_item = content_result.scalar_one_or_none()
-        
+
         if not content_item:
             raise HTTPException(status_code=404, detail="Content not found")
-        
+
         # Delete the content
         await db.delete(content_item)
         await db.commit()
-        
+
         # Update campaign counters
         try:
             await update_campaign_counters(campaign_id, db)
             await db.commit()
         except Exception as counter_error:
             logger.warning(f"Failed to update campaign counters: {str(counter_error)}")
-        
+
         logger.info(f"Content {content_id} deleted successfully")
-        
+
         return {"message": "Content deleted successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -424,21 +424,21 @@ async def generate_content_endpoint(
     current_user: User = Depends(get_current_user)
 ):
     """✅ FIXED: Generate content using intelligence data"""
-    
+
     logger.info(f"🎯 Content generation request received")
     logger.info(f"📝 Request data: {request_data}")
-    
+
     try:
         content_type = request_data.get("content_type", "email_sequence")
         campaign_id = request_data.get("campaign_id")
         preferences = request_data.get("preferences", {})
         intelligence_id = request_data.get("intelligence_id")
-        
+
         logger.info(f"🎯 Generating {content_type} for campaign {campaign_id}")
-        
+
         if not campaign_id:
             raise HTTPException(status_code=400, detail="campaign_id is required")
-        
+
         # Get campaign and verify ownership
         campaign_result = await db.execute(
             select(Campaign).where(
@@ -449,12 +449,12 @@ async def generate_content_endpoint(
             )
         )
         campaign = campaign_result.scalar_one_or_none()
-        
+
         if not campaign:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        
+
         logger.info(f"✅ Campaign verified: {campaign.title}")
-        
+
         # Get intelligence data for the campaign
         intelligence_result = await db.execute(
             select(CampaignIntelligence).where(
@@ -462,9 +462,9 @@ async def generate_content_endpoint(
             )
         )
         intelligence_sources = intelligence_result.scalars().all()
-        
+
         logger.info(f"📊 Found {len(intelligence_sources)} intelligence sources")
-        
+
         # Prepare intelligence data for generator
         intelligence_data = {
             "campaign_id": campaign_id,
@@ -477,7 +477,7 @@ async def generate_content_endpoint(
             "brand_intelligence": {},
             "intelligence_sources": []
         }
-        
+
         # Aggregate intelligence data from all sources
         for source in intelligence_sources:
             try:
@@ -493,13 +493,13 @@ async def generate_content_endpoint(
                     "brand_intelligence": source.brand_intelligence or {}
                 }
                 intelligence_data["intelligence_sources"].append(source_data)
-                
+
                 # Merge into aggregate intelligence
                 for intel_type in ["offer_intelligence", "psychology_intelligence", "content_intelligence", "competitive_intelligence", "brand_intelligence"]:
                     source_intel = source_data.get(intel_type, {})
                     if source_intel:
                         current_intel = intelligence_data.get(intel_type, {})
-                        
+
                         # Merge lists and strings intelligently
                         for key, value in source_intel.items():
                             if key in current_intel:
@@ -510,15 +510,15 @@ async def generate_content_endpoint(
                                         current_intel[key] += f" {value}"
                             else:
                                 current_intel[key] = value
-                        
+
                         intelligence_data[intel_type] = current_intel
-                        
+
             except Exception as source_error:
                 logger.warning(f"⚠️ Error processing source {source.id}: {str(source_error)}")
                 continue
-        
+
         logger.info(f"🧠 Intelligence data prepared for {content_type} generation")
-        
+
         # Generate content using the appropriate generator
         if content_type == "email_sequence":
             try:
@@ -529,7 +529,7 @@ async def generate_content_endpoint(
             except ImportError as e:
                 logger.error(f"❌ Email generator import failed: {str(e)}")
                 raise HTTPException(status_code=500, detail="Email generator not available")
-                
+
         elif content_type == "social_media_posts":
             try:
                 from src.intelligence.generators.social_media_generator import SocialMediaGenerator
@@ -539,7 +539,7 @@ async def generate_content_endpoint(
             except ImportError as e:
                 logger.error(f"❌ Social media generator import failed: {str(e)}")
                 raise HTTPException(status_code=500, detail="Social media generator not available")
-                
+
         elif content_type == "ad_copy":
             try:
                 from src.intelligence.generators.ad_copy_generator import AdCopyGenerator
@@ -549,7 +549,7 @@ async def generate_content_endpoint(
             except ImportError as e:
                 logger.error(f"❌ Ad copy generator import failed: {str(e)}")
                 raise HTTPException(status_code=500, detail="Ad copy generator not available")
-                
+
         elif content_type == "blog_post":
             try:
                 from src.intelligence.generators.blog_post_generator import BlogPostGenerator
@@ -559,7 +559,7 @@ async def generate_content_endpoint(
             except ImportError as e:
                 logger.error(f"❌ Blog post generator import failed: {str(e)}")
                 raise HTTPException(status_code=500, detail="Blog post generator not available")
-                
+
         elif content_type == "landing_page":
             try:
                 from src.intelligence.generators.landing_page.core.generator import EnhancedLandingPageGenerator
@@ -569,7 +569,7 @@ async def generate_content_endpoint(
             except ImportError as e:
                 logger.error(f"❌ Landing page generator import failed: {str(e)}")
                 raise HTTPException(status_code=500, detail="Landing page generator not available")
-                
+
         elif content_type == "video_script":
             try:
                 from src.intelligence.generators.video_script_generator import VideoScriptGenerator
@@ -579,19 +579,19 @@ async def generate_content_endpoint(
             except ImportError as e:
                 logger.error(f"❌ Video script generator import failed: {str(e)}")
                 raise HTTPException(status_code=500, detail="Video script generator not available")
-                
+
         else:
             logger.error(f"❌ Unknown content type: {content_type}")
             raise HTTPException(status_code=400, detail=f"Unknown content type: {content_type}")
-        
+
         # Check if generation was successful
         if not result or result.get("error") or result.get("fallback"):
             logger.error(f"❌ Generation failed or returned fallback: {result}")
             raise HTTPException(
-                status_code=500, 
+                status_code=500,
                 detail=result.get("error", "Content generation failed")
             )
-        
+
         # Save generated content to database - FIXED VERSION
         generated_content = GeneratedContent(
             campaign_id=campaign_id,
@@ -606,16 +606,20 @@ async def generate_content_endpoint(
                 "sources_count": len(intelligence_sources),
                 "primary_source_id": str(intelligence_sources[0].id) if intelligence_sources else None,
                 "generation_timestamp": datetime.utcnow().isoformat(),
-                "amplified": any(source.processing_metadata and source.processing_metadata.get("amplification_applied", False) for source in intelligence_sources)
+                "amplified": any(
+                    source.processing_metadata and source.processing_metadata.get("amplification_applied", False)
+                    for source in intelligence_sources
+                )
             },
-            intelligence_source_id=intelligence_sources[0].id if intelligence_sources else None
-            # ✅ CRITICAL: Don't set ANY optional fields - let the database handle them
+            intelligence_source_id=intelligence_sources[0].id if intelligence_sources else None,
+            # ✅ PROPER: Don't set timestamp fields, let them default to NULL
+            is_published=False  # Only set the boolean, not the timestamp
         )
-        
+
         db.add(generated_content)
         await db.commit()
         await db.refresh(generated_content)
-        
+
         # Update campaign counters
         try:
             await update_campaign_counters(campaign_id, db)
@@ -623,9 +627,9 @@ async def generate_content_endpoint(
             logger.info(f"📊 Campaign counters updated")
         except Exception as counter_error:
             logger.warning(f"⚠️ Campaign counter update failed (non-critical): {str(counter_error)}")
-        
+
         logger.info(f"✅ Content generation completed successfully - ID: {generated_content.id}")
-        
+
         return {
             "content_id": str(generated_content.id),
             "content_type": content_type,
@@ -640,7 +644,7 @@ async def generate_content_endpoint(
                 "success": True
             }
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -651,7 +655,6 @@ async def generate_content_endpoint(
             detail=f"Content generation failed: {str(e)}"
         )
 
-
 # ============================================================================
 # CONTENT TYPE DISCOVERY ENDPOINT
 # ============================================================================
@@ -661,7 +664,7 @@ async def get_available_content_types(
     current_user: User = Depends(get_current_user)
 ):
     """Get list of available content types and their capabilities"""
-    
+
     try:
         # Try to use the factory if available
         try:
@@ -674,12 +677,12 @@ async def get_available_content_types(
             factory_available = False
             capabilities = {}
             available_types = []
-        
+
         # Fallback to manual detection
         if not factory_available:
             available_types = []
             capabilities = {}
-            
+
             # Check each generator individually
             generators_to_check = [
                 ("email_sequence", "EmailSequenceGenerator", "src.intelligence.generators.email_generator"),
@@ -689,7 +692,7 @@ async def get_available_content_types(
                 ("landing_page", "EnhancedLandingPageGenerator", "src.intelligence.generators.landing_page.core.generator"),
                 ("video_script", "VideoScriptGenerator", "src.intelligence.generators.video_script_generator"),
             ]
-            
+
             for content_type, class_name, module_path in generators_to_check:
                 try:
                     module = __import__(module_path, fromlist=[class_name])
@@ -704,7 +707,7 @@ async def get_available_content_types(
                         "description": f"Generate {content_type.replace('_', ' ')}",
                         "status": "unavailable"
                     }
-        
+
         return {
             "available_content_types": available_types,
             "total_available": len(available_types),
@@ -712,7 +715,7 @@ async def get_available_content_types(
             "factory_available": factory_available,
             "status": "operational" if available_types else "limited"
         }
-        
+
     except Exception as e:
         logger.error(f"❌ Error getting content types: {str(e)}")
         return {
@@ -762,7 +765,7 @@ class FallbackAnalyzer:
             },
             "brand_intelligence": {
                 "tone_voice": "Unknown",
-                "messaging_style": "Unknown", 
+                "messaging_style": "Unknown",
                 "brand_positioning": "Unknown"
             },
             "campaign_suggestions": [
@@ -804,7 +807,7 @@ async def update_campaign_counters(campaign_id: str, db: AsyncSession):
             )
         )
         sources_count = intelligence_count.scalar() or 0
-        
+
         # Count generated content
         content_count = await db.execute(
             select(func.count(GeneratedContent.id)).where(
@@ -812,7 +815,7 @@ async def update_campaign_counters(campaign_id: str, db: AsyncSession):
             )
         )
         generated_content_count = content_count.scalar() or 0
-        
+
         # Update campaign record
         from sqlalchemy import update
         await db.execute(
@@ -825,10 +828,10 @@ async def update_campaign_counters(campaign_id: str, db: AsyncSession):
                 updated_at=datetime.utcnow()
             )
         )
-        
+
         logger.info(f"📊 Updated campaign counters: {sources_count} sources, {generated_content_count} content")
         return True
-        
+
     except Exception as e:
         logger.error(f"❌ Error updating campaign counters: {str(e)}")
         return False
@@ -875,9 +878,9 @@ async def get_campaign_intelligence(
     db: AsyncSession = Depends(get_db)
 ):
     """✅ FIXED: Get all intelligence sources for a campaign with proper error handling"""
-    
+
     logger.info(f"🔍 Getting ENHANCED intelligence for campaign: {campaign_id}")
-    
+
     try:
         # ✅ STEP 1: Verify campaign access (simple query, no joins)
         campaign_result = await db.execute(
@@ -889,16 +892,16 @@ async def get_campaign_intelligence(
             )
         )
         campaign = campaign_result.scalar_one_or_none()
-        
+
         if not campaign:
             logger.error(f"❌ Campaign {campaign_id} not found for user {current_user.id}")
             raise HTTPException(
                 status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
-        
+
         logger.info(f"✅ Campaign access verified: {campaign.title}")
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -907,39 +910,39 @@ async def get_campaign_intelligence(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to verify campaign access"
         )
-    
+
     try:
         # ✅ STEP 2: Get intelligence sources (FIXED QUERY)
         intelligence_query = select(CampaignIntelligence).where(
             CampaignIntelligence.campaign_id == campaign_id
         ).order_by(CampaignIntelligence.created_at.desc())
-        
+
         intelligence_result = await db.execute(intelligence_query)
         intelligence_sources = intelligence_result.scalars().all()
-        
+
         logger.info(f"✅ Found {len(intelligence_sources)} intelligence sources")
-        
+
     except Exception as e:
         logger.error(f"❌ Error getting intelligence sources: {str(e)}")
         # Return empty instead of failing
         intelligence_sources = []
-    
+
     try:
         # ✅ STEP 3: Get generated content (FIXED QUERY)
         content_query = select(GeneratedContent).where(
             GeneratedContent.campaign_id == campaign_id
         ).order_by(GeneratedContent.created_at.desc())
-        
+
         content_result = await db.execute(content_query)
         generated_content = content_result.scalars().all()
-        
+
         logger.info(f"✅ Found {len(generated_content)} generated content items")
-        
+
     except Exception as e:
         logger.error(f"❌ Error getting generated content: {str(e)}")
         # Return empty instead of failing
         generated_content = []
-    
+
     # ✅ STEP 4: Build response safely (no database operations)
     try:
         # Calculate summary statistics
@@ -948,27 +951,27 @@ async def get_campaign_intelligence(
         avg_confidence = 0.0
         amplified_sources = 0
         total_scientific_enhancements = 0
-        
+
         if intelligence_sources:
             confidence_scores = []
             for source in intelligence_sources:
                 if source.confidence_score is not None:
                     confidence_scores.append(source.confidence_score)
-                
+
                 # Check amplification status
                 amplification_metadata = source.processing_metadata or {}
                 if amplification_metadata.get("amplification_applied", False):
                     amplified_sources += 1
                     total_scientific_enhancements += amplification_metadata.get("scientific_enhancements", 0)
-            
+
             avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
-        
+
         # Convert to response format safely
         intelligence_data = []
         for source in intelligence_sources:
             try:
                 amplification_metadata = source.processing_metadata or {}
-                
+
                 intelligence_data.append({
                     "id": str(source.id),
                     "source_title": source.source_title or "Untitled Source",
@@ -1000,14 +1003,14 @@ async def get_campaign_intelligence(
                 logger.warning(f"⚠️ Error processing intelligence source {source.id}: {str(source_error)}")
                 # Skip problematic sources instead of failing
                 continue
-        
+
         content_data = []
         for content in generated_content:
             try:
                 # Check if content was generated from amplified intelligence
                 intelligence_used = content.intelligence_used or {}
                 is_amplified_content = intelligence_used.get("amplified", False)
-                
+
                 content_data.append({
                     "id": str(content.id),
                     "content_type": content.content_type or "unknown",
@@ -1026,7 +1029,7 @@ async def get_campaign_intelligence(
                 logger.warning(f"⚠️ Error processing content {content.id}: {str(content_error)}")
                 # Skip problematic content instead of failing
                 continue
-        
+
         # ✅ Build final response
         response = {
             "campaign_id": campaign_id,
@@ -1046,15 +1049,15 @@ async def get_campaign_intelligence(
                 }
             }
         }
-        
+
         logger.info(f"✅ Enhanced intelligence response prepared successfully")
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"❌ Error building response: {str(e)}")
         logger.error(f"📍 Response building traceback: {traceback.format_exc()}")
-        
+
         # Return minimal response instead of failing
         return {
             "campaign_id": campaign_id,
@@ -1079,7 +1082,7 @@ async def get_campaign_intelligence(
     except Exception as e:
         logger.error(f"❌ Critical error in get_campaign_intelligence: {str(e)}")
         logger.error(f"📍 Full traceback: {traceback.format_exc()}")
-        
+
         # Always return a valid response to prevent infinite loading
         return {
             "campaign_id": campaign_id,
@@ -1112,9 +1115,9 @@ async def analyze_sales_page(
     db: AsyncSession = Depends(get_db)
 ):
     """✅ ENHANCED: Analyze competitor sales page with AMPLIFIER INTEGRATION"""
-    
+
     logger.info(f"🎯 Starting AMPLIFIED URL analysis for: {str(request.url)}")
-    
+
     # Check credits if system is available
     if CREDITS_AVAILABLE:
         try:
@@ -1126,7 +1129,7 @@ async def analyze_sales_page(
             )
         except Exception as e:
             logger.warning(f"⚠️ Credits check failed but continuing: {str(e)}")
-    
+
     # Verify campaign ownership
     try:
         campaign_result = await db.execute(
@@ -1151,7 +1154,7 @@ async def analyze_sales_page(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to verify campaign access"
         )
-    
+
     # Create intelligence record
     try:
         intelligence = CampaignIntelligence(
@@ -1162,13 +1165,13 @@ async def analyze_sales_page(
             company_id=current_user.company_id,
             analysis_status=AnalysisStatus.PROCESSING
         )
-        
+
         db.add(intelligence)
         await db.commit()
         await db.refresh(intelligence)
-        
+
         logger.info(f"✅ Created intelligence record: {intelligence.id}")
-        
+
     except Exception as e:
         logger.error(f"❌ Error creating intelligence record: {str(e)}")
         await db.rollback()
@@ -1176,7 +1179,7 @@ async def analyze_sales_page(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create intelligence record"
         )
-    
+
     # ✅ ENHANCED: AMPLIFIED ANALYSIS SECTION
     try:
         # STEP 1: Basic Analysis (your existing analyzer)
@@ -1186,27 +1189,27 @@ async def analyze_sales_page(
             analyzer = WebAnalyzer()
         else:
             analyzer = SalesPageAnalyzer()
-        
+
         logger.info(f"🔧 Using analyzer: {type(analyzer).__name__}")
         base_analysis_result = await analyzer.analyze(str(request.url))
-        
+
         logger.info(f"📊 Base analysis completed with confidence: {base_analysis_result.get('confidence_score', 0.0)}")
-        
+
         # STEP 2: AMPLIFICATION (if available)
         if AMPLIFIER_AVAILABLE:
             try:
                 logger.info("🚀 Starting intelligence amplification...")
-                
+
                 # Initialize amplifier
                 amplifier = IntelligenceAmplificationService()
-                
+
                 # Prepare sources for amplification
                 user_sources = [{
                     "type": "url",
                     "url": str(request.url),
                     "analysis_result": base_analysis_result
                 }]
-                
+
                 # Run amplification
                 amplification_result = await amplifier.process_sources(
                     sources=user_sources,
@@ -1216,22 +1219,22 @@ async def analyze_sales_page(
                         "competitive_analysis": True
                     }
                 )
-                
+
                 # Get enriched intelligence
                 enriched_intelligence = amplification_result.get("intelligence_data", base_analysis_result)
                 amplification_summary = amplification_result.get("summary", {})
-                
+
                 # Calculate amplification boost
                 enrichment_metadata = enriched_intelligence.get("enrichment_metadata", {})
                 confidence_boost = enrichment_metadata.get("confidence_boost", 0.0)
                 scientific_support = enriched_intelligence.get("offer_intelligence", {}).get("scientific_support", [])
                 scientific_enhancements = len(scientific_support) if scientific_support else 0
-                
+
                 logger.info(f"✅ Amplification completed - Confidence boost: {confidence_boost:.1%}, Scientific enhancements: {scientific_enhancements}")
-                
+
                 # Use enriched intelligence as final result
                 final_analysis_result = enriched_intelligence
-                
+
                 # Add amplification metadata
                 final_analysis_result["amplification_metadata"] = {
                     "amplification_applied": True,
@@ -1243,7 +1246,7 @@ async def analyze_sales_page(
                     "credibility_score": enrichment_metadata.get("credibility_score", 0.0),
                     "total_enhancements": enrichment_metadata.get("total_enhancements", 0)
                 }
-                
+
             except Exception as amp_error:
                 logger.warning(f"⚠️ Amplification failed, using base analysis: {str(amp_error)}")
                 final_analysis_result = base_analysis_result
@@ -1260,7 +1263,7 @@ async def analyze_sales_page(
                 "amplification_available": False,
                 "note": "Install amplifier dependencies for enhanced analysis"
             }
-        
+
         # STEP 3: Update intelligence record with final results
         intelligence.offer_intelligence = final_analysis_result.get("offer_intelligence", {})
         intelligence.psychology_intelligence = final_analysis_result.get("psychology_intelligence", {})
@@ -1270,10 +1273,10 @@ async def analyze_sales_page(
         intelligence.confidence_score = final_analysis_result.get("confidence_score", 0.0)
         intelligence.source_title = final_analysis_result.get("page_title", "Analyzed Page")
         intelligence.raw_content = final_analysis_result.get("raw_content", "")
-        
+
         # Store amplification metadata
         intelligence.processing_metadata = final_analysis_result.get("amplification_metadata", {})
-        
+
         # Set status based on results
         if ANALYZERS_AVAILABLE and final_analysis_result.get("confidence_score", 0.0) > 0:
             intelligence.analysis_status = AnalysisStatus.COMPLETED
@@ -1283,9 +1286,9 @@ async def analyze_sales_page(
                 "error": final_analysis_result.get("error_message", "Dependencies missing"),
                 "note": final_analysis_result.get("analysis_note", "Install aiohttp, beautifulsoup4, lxml")
             }
-        
+
         await db.commit()
-        
+
         # Update campaign counters (non-critical)
         try:
             await update_campaign_counters(request.campaign_id, db)
@@ -1293,16 +1296,16 @@ async def analyze_sales_page(
             logger.info(f"📊 Campaign counters updated")
         except Exception as counter_error:
             logger.warning(f"⚠️ Campaign counter update failed (non-critical): {str(counter_error)}")
-        
+
         # Extract competitive opportunities (enhanced by amplification)
         competitive_intel = final_analysis_result.get("competitive_intelligence", {})
         competitive_opportunities = []
         if isinstance(competitive_intel.get("opportunities"), list):
             for opp in competitive_intel["opportunities"]:
                 competitive_opportunities.append({"description": str(opp), "priority": "medium"})
-        
+
         campaign_suggestions = final_analysis_result.get("campaign_suggestions", [])
-        
+
         # Add amplification-specific suggestions
         amplification_metadata = final_analysis_result.get("amplification_metadata", {})
         if amplification_metadata.get("amplification_applied"):
@@ -1313,9 +1316,9 @@ async def analyze_sales_page(
             ])
             if amplification_metadata.get("scientific_enhancements", 0) > 0:
                 campaign_suggestions.append(f"✅ {amplification_metadata['scientific_enhancements']} scientific enhancements available")
-        
+
         logger.info(f"✅ AMPLIFIED analysis completed successfully for: {str(request.url)}")
-        
+
         return AnalysisResponse(
             intelligence_id=str(intelligence.id),
             analysis_status=intelligence.analysis_status.value,
@@ -1325,10 +1328,10 @@ async def analyze_sales_page(
             competitive_opportunities=competitive_opportunities,
             campaign_suggestions=campaign_suggestions
         )
-        
+
     except Exception as e:
         logger.error(f"❌ Analysis failed for {str(request.url)}: {str(e)}")
-        
+
         # Update status to failed
         try:
             intelligence.analysis_status = AnalysisStatus.FAILED
@@ -1339,7 +1342,7 @@ async def analyze_sales_page(
             await db.commit()
         except:
             await db.rollback()
-        
+
         # Return a failed analysis instead of raising exception
         return AnalysisResponse(
             intelligence_id=str(intelligence.id),
@@ -1354,5 +1357,3 @@ async def analyze_sales_page(
                 "Try with a different URL"
             ]
         )
-
-# ============================================================================
