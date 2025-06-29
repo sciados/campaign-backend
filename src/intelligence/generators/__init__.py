@@ -274,7 +274,7 @@ def get_package_info() -> dict:
         "supported_content_types": [
             "email_sequence",
             "campaign_angles",
-            "social_media_posts",
+            "social_posts",
             "ad_copy", 
             "blog_post",
             "landing_page",

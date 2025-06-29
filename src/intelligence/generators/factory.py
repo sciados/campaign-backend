@@ -19,7 +19,7 @@ class ContentGeneratorFactory:
         self._generators = {}
         self._generator_registry = {
             "email_sequence": "EmailSequenceGenerator",
-            "social_media_posts": "SocialMediaGenerator", 
+            "social_posts": "SocialMediaGenerator", 
             "ad_copy": "AdCopyGenerator",
             "blog_post": "BlogPostGenerator",
             "landing_page": "LandingPageGenerator",
@@ -41,7 +41,7 @@ class ContentGeneratorFactory:
         # Social Media Generator
         try:
             from .social_media_generator import SocialMediaGenerator
-            self._generators["social_media_posts"] = SocialMediaGenerator()
+            self._generators["social_posts"] = SocialMediaGenerator()
             logger.info("✅ Social Media Generator initialized")
         except Exception as e:
             logger.warning(f"⚠️ Social Media Generator failed to initialize: {str(e)}")
@@ -105,11 +105,11 @@ class ContentGeneratorFactory:
                         "output_format": "email_sequence",
                         "customization": ["length", "uniqueness_id", "angle_selection"]
                     }
-                elif content_type == "social_media_posts":
+                elif content_type == "social_posts":
                     capabilities[content_type] = {
                         "description": "Generate platform-specific social media posts",
                         "features": ["platform_optimization", "hashtag_generation", "engagement_elements"],
-                        "output_format": "social_media_posts",
+                        "output_format": "social_posts",
                         "platforms": ["facebook", "instagram", "twitter", "linkedin", "tiktok"],
                         "customization": ["platform", "count", "tone"]
                     }
@@ -172,7 +172,7 @@ class ContentGeneratorFactory:
             # Route to appropriate generation method
             if content_type == "email_sequence":
                 return await generator.generate_email_sequence(intelligence_data, preferences)
-            elif content_type == "social_media_posts":
+            elif content_type == "social_posts":
                 return await generator.generate_social_posts(intelligence_data, preferences)
             elif content_type == "ad_copy":
                 return await generator.generate_ad_copy(intelligence_data, preferences)
@@ -229,7 +229,7 @@ class ContentGeneratorFactory:
                     "fallback_generated": True
                 }
             ]
-        elif content_type == "social_media_posts":
+        elif content_type == "social_posts":
             fallback_content["content"]["posts"] = [
                 {
                     "post_number": 1,

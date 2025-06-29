@@ -88,7 +88,7 @@ class SocialMediaGenerator:
             posts = self._generate_fallback_social_posts(product_name, platform, post_count)
         
         return {
-            "content_type": "social_media_posts",
+            "content_type": "social_posts",
             "title": f"{product_name} Social Media Content",
             "content": {
                 "posts": posts,
@@ -98,7 +98,7 @@ class SocialMediaGenerator:
             "metadata": {
                 "generated_by": "social_media_ai",
                 "product_name": product_name,
-                "content_type": "social_media_posts",
+                "content_type": "social_posts",
                 "post_count": len(posts),
                 "platform_optimization": True
             }
