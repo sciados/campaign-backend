@@ -1459,10 +1459,21 @@ async def generate_content(
             company_id=current_user.company_id,
             user_id=current_user.id,
             content_type=content_type,
-            content_title=result.get("title", "Generated Content"),
+            content_title=result.get("title", f"Generated {content_type.title()}"),
             content_body=json.dumps(result.get("content", {})),
             content_metadata=result.get("metadata", {}),
-            generation_settings=preferences
+            generation_settings=preferences,
+            intelligence_used={
+                "sources_count": len(intelligence_sources),
+                "primary_source_id": str(intelligence_sources[0].id) if intelligence_sources else None,
+                "generation_timestamp": datetime.utcnow().isoformat(),
+                "amplified": any(source.processing_metadata and source.processing_metadata.get("amplification_applied", False) for source in intelligence_sources)
+            },
+            intelligence_source_id=intelligence_sources[0].id if intelligence_sources else None,
+            # ✅ FIX: Don't set timestamp fields that should auto-populate            
+            is_published=False,   # This is fine as boolean
+            user_rating=None,     # This is fine as NULL integer
+            performance_data={}   # This is fine as JSON
         )
         
         db.add(generated_content)
