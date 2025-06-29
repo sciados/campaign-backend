@@ -81,7 +81,7 @@ async def list_landing_pages(
         query = select(GeneratedContent).where(
             and_(
                 GeneratedContent.company_id == company.id,
-                GeneratedContent.content_type == "landing_page"
+                GeneratedContent.content_type == "LANDING_PAGE"
             )
         ).order_by(GeneratedContent.created_at.desc()).limit(limit).offset(offset)
         

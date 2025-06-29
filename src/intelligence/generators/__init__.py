@@ -47,11 +47,11 @@ except ImportError as e:
 # Social Media Generator
 try:
     from .social_media_generator import SocialMediaGenerator
-    GENERATORS_AVAILABLE["social_media"] = True
+    GENERATORS_AVAILABLE["SOCIAL_POSTS"] = True
     logger.info("✅ Social Media Generator available")
 except ImportError as e:
     logger.warning(f"⚠️ Social Media Generator not available: {str(e)}")
-    GENERATORS_AVAILABLE["social_media"] = False
+    GENERATORS_AVAILABLE["SOCIAL_POSTS"] = False
     
     class SocialMediaGenerator:
         def __init__(self):
@@ -274,10 +274,10 @@ def get_package_info() -> dict:
         "supported_content_types": [
             "email_sequence",
             "campaign_angles",
-            "social_posts",
+            "SOCIAL_POSTS",
             "ad_copy", 
             "blog_post",
-            "landing_page",
+            "LANDING_PAGE",
             "video_script"
         ]
     }

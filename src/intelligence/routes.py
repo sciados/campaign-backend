@@ -530,7 +530,7 @@ async def generate_content_endpoint(
                 logger.error(f"❌ Email generator import failed: {str(e)}")
                 raise HTTPException(status_code=500, detail="Email generator not available")
 
-        elif content_type == "social_posts":
+        elif content_type == "SOCIAL_POSTS":
             try:
                 from src.intelligence.generators.social_media_generator import SocialMediaGenerator
                 generator = SocialMediaGenerator()
@@ -560,7 +560,7 @@ async def generate_content_endpoint(
                 logger.error(f"❌ Blog post generator import failed: {str(e)}")
                 raise HTTPException(status_code=500, detail="Blog post generator not available")
 
-        elif content_type == "landing_page":
+        elif content_type == "LANDING_PAGE":
             try:
                 from src.intelligence.generators.landing_page.core.generator import EnhancedLandingPageGenerator
                 generator = EnhancedLandingPageGenerator()
@@ -686,7 +686,7 @@ async def get_available_content_types(
             # Check each generator individually
             generators_to_check = [
                 ("email_sequence", "EmailSequenceGenerator", "src.intelligence.generators.email_generator"),
-                ("social_posts", "SocialMediaGenerator", "src.intelligence.generators.social_media_generator"),
+                ("SOCIAL_POSTS", "SocialMediaGenerator", "src.intelligence.generators.social_media_generator"),
                 ("ad_copy", "AdCopyGenerator", "src.intelligence.generators.ad_copy_generator"),
                 ("blog_post", "BlogPostGenerator", "src.intelligence.generators.blog_post_generator"),
                 ("landing_page", "EnhancedLandingPageGenerator", "src.intelligence.generators.landing_page.core.generator"),

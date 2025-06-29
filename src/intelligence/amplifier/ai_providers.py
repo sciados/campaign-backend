@@ -30,7 +30,7 @@ def initialize_ai_providers():
                     "blog_posts", 
                     "ad_copy",
                     "sales_pages",
-                    "social_posts"
+                    "SOCIAL_POSTS"
                 ],
                 "cost_per_1k_tokens": 0.03,  # GPT-4 pricing
                 "strengths": [
@@ -106,7 +106,7 @@ def initialize_ai_providers():
                 ],
                 "available": True,
                 "capabilities": [
-                    "social_posts",
+                    "SOCIAL_POSTS",
                     "product_descriptions", 
                     "short_form_content",
                     "high_volume_generation",
@@ -177,7 +177,7 @@ def get_provider_recommendations():
         "optional_providers": {
             "cohere": {
                 "priority": "medium",
-                "use_cases": ["social_posts", "product_descriptions", "high_volume"],
+                "use_cases": ["SOCIAL_POSTS", "product_descriptions", "high_volume"],
                 "setup_url": "https://dashboard.cohere.ai",
                 "cost": "$0.002 per 1K tokens (90% cheaper)",
                 "why": "Extremely cost-effective for high-volume content"

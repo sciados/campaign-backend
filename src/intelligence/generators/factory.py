@@ -19,7 +19,7 @@ class ContentGeneratorFactory:
         self._generators = {}
         self._generator_registry = {
             "email_sequence": "EmailSequenceGenerator",
-            "social_posts": "SocialMediaGenerator", 
+            "SOCIAL_POSTS": "SocialMediaGenerator", 
             "ad_copy": "AdCopyGenerator",
             "blog_post": "BlogPostGenerator",
             "landing_page": "LandingPageGenerator",
@@ -41,7 +41,7 @@ class ContentGeneratorFactory:
         # Social Media Generator
         try:
             from .social_media_generator import SocialMediaGenerator
-            self._generators["social_posts"] = SocialMediaGenerator()
+            self._generators["SOCIAL_POSTS"] = SocialMediaGenerator()
             logger.info("✅ Social Media Generator initialized")
         except Exception as e:
             logger.warning(f"⚠️ Social Media Generator failed to initialize: {str(e)}")
@@ -105,11 +105,11 @@ class ContentGeneratorFactory:
                         "output_format": "email_sequence",
                         "customization": ["length", "uniqueness_id", "angle_selection"]
                     }
-                elif content_type == "social_posts":
+                elif content_type == "SOCIAL_POSTS":
                     capabilities[content_type] = {
                         "description": "Generate platform-specific social media posts",
                         "features": ["platform_optimization", "hashtag_generation", "engagement_elements"],
-                        "output_format": "social_posts",
+                        "output_format": "SOCIAL_POSTS",
                         "platforms": ["facebook", "instagram", "twitter", "linkedin", "tiktok"],
                         "customization": ["platform", "count", "tone"]
                     }
@@ -129,7 +129,7 @@ class ContentGeneratorFactory:
                         "lengths": ["short", "medium", "long"],
                         "customization": ["topic", "length", "tone"]
                     }
-                elif content_type == "landing_page":
+                elif content_type == "LANDING_PAGE":
                     capabilities[content_type] = {
                         "description": "Generate complete HTML landing pages",
                         "features": ["conversion_optimization", "responsive_design", "complete_html"],
@@ -172,13 +172,13 @@ class ContentGeneratorFactory:
             # Route to appropriate generation method
             if content_type == "email_sequence":
                 return await generator.generate_email_sequence(intelligence_data, preferences)
-            elif content_type == "social_posts":
+            elif content_type == "SOCIAL_POSTS":
                 return await generator.generate_social_posts(intelligence_data, preferences)
             elif content_type == "ad_copy":
                 return await generator.generate_ad_copy(intelligence_data, preferences)
             elif content_type == "blog_post":
                 return await generator.generate_blog_post(intelligence_data, preferences)
-            elif content_type == "landing_page":
+            elif content_type == "LANDING_PAGE":
                 return await generator.generate_landing_page(intelligence_data, preferences)
             elif content_type == "video_script":
                 return await generator.generate_video_script(intelligence_data, preferences)
@@ -229,7 +229,7 @@ class ContentGeneratorFactory:
                     "fallback_generated": True
                 }
             ]
-        elif content_type == "social_posts":
+        elif content_type == "SOCIAL_POSTS":
             fallback_content["content"]["posts"] = [
                 {
                     "post_number": 1,
@@ -238,7 +238,7 @@ class ContentGeneratorFactory:
                     "fallback_generated": True
                 }
             ]
-        elif content_type == "landing_page":
+        elif content_type == "LANDING_PAGE":
             fallback_content["content"]["html_code"] = f"""
 <!DOCTYPE html>
 <html>

@@ -44,7 +44,7 @@ async def get_top_performing_pages(
         query = select(GeneratedContent).where(
             and_(
                 GeneratedContent.company_id == company.id,
-                GeneratedContent.content_type == "landing_page",
+                GeneratedContent.content_type == "LANDING_PAGE",
                 GeneratedContent.created_at >= cutoff_date
             )
         ).order_by(desc(GeneratedContent.created_at)).limit(limit * 2)  # Get more to filter
@@ -133,7 +133,7 @@ async def get_campaign_performance(
         query = select(GeneratedContent).where(
             and_(
                 GeneratedContent.campaign_id == campaign_id,
-                GeneratedContent.content_type == "landing_page"
+                GeneratedContent.content_type == "LANDING_PAGE"
             )
         ).order_by(desc(GeneratedContent.created_at))
         
@@ -380,7 +380,7 @@ async def get_company_analytics_dashboard(
         query = select(GeneratedContent).where(
             and_(
                 GeneratedContent.company_id == company.id,
-                GeneratedContent.content_type == "landing_page",
+                GeneratedContent.content_type == "LANDING_PAGE",
                 GeneratedContent.created_at >= cutoff_date
             )
         ).order_by(desc(GeneratedContent.created_at))
