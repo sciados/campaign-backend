@@ -120,6 +120,614 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["intelligence"])
 
 # ============================================================================
+# CONTENT MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@router.get("/{campaign_id}/content")
+async def get_campaign_content_list(
+    campaign_id: str,
+    include_body: bool = False,
+    content_type: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """✅ NEW: Get list of generated content for a campaign"""
+    try:
+        logger.info(f"Getting content list for campaign {campaign_id}")
+        
+        # Verify campaign ownership
+        campaign_result = await db.execute(
+            select(Campaign).where(
+                and_(
+                    Campaign.id == campaign_id,
+                    Campaign.company_id == current_user.company_id
+                )
+            )
+        )
+        campaign = campaign_result.scalar_one_or_none()
+        if not campaign:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        # Build query for generated content
+        query = select(GeneratedContent).where(
+            GeneratedContent.campaign_id == campaign_id
+        ).order_by(GeneratedContent.created_at.desc())
+        
+        # Add content type filter if specified
+        if content_type:
+            query = query.where(GeneratedContent.content_type == content_type)
+        
+        result = await db.execute(query)
+        content_items = result.scalars().all()
+        
+        # Format response
+        content_list = []
+        for item in content_items:
+            content_data = {
+                "id": str(item.id),
+                "content_type": item.content_type,
+                "content_title": item.content_title,
+                "created_at": item.created_at.isoformat() if item.created_at else None,
+                "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+                "user_rating": item.user_rating,
+                "is_published": item.is_published,
+                "published_at": item.published_at,
+                "performance_data": item.performance_data or {},
+                "content_metadata": item.content_metadata or {},
+                "generation_settings": item.generation_settings or {},
+                "intelligence_used": item.intelligence_used or {}
+            }
+            
+            # Include full content body if requested
+            if include_body:
+                content_data["content_body"] = item.content_body
+            else:
+                # Just include a preview
+                try:
+                    parsed_body = json.loads(item.content_body) if item.content_body else {}
+                    if isinstance(parsed_body, dict):
+                        # Extract preview from different content types
+                        preview = ""
+                        if "emails" in parsed_body and parsed_body["emails"]:
+                            preview = f"{len(parsed_body['emails'])} emails"
+                        elif "posts" in parsed_body and parsed_body["posts"]:
+                            preview = f"{len(parsed_body['posts'])} posts"
+                        elif "ads" in parsed_body and parsed_body["ads"]:
+                            preview = f"{len(parsed_body['ads'])} ads"
+                        elif "title" in parsed_body:
+                            preview = parsed_body["title"][:100] + "..."
+                        else:
+                            preview = "Generated content"
+                        content_data["content_preview"] = preview
+                    else:
+                        content_data["content_preview"] = str(parsed_body)[:100] + "..."
+                except:
+                    content_data["content_preview"] = "Content available"
+            
+            content_list.append(content_data)
+        
+        return {
+            "campaign_id": campaign_id,
+            "total_content": len(content_list),
+            "content_items": content_list
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting campaign content: {str(e)}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get campaign content: {str(e)}"
+        )
+
+@router.get("/{campaign_id}/content/{content_id}")
+async def get_content_detail(
+    campaign_id: str,
+    content_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """✅ NEW: Get detailed content including full body"""
+    try:
+        logger.info(f"Getting content detail for {content_id} in campaign {campaign_id}")
+        
+        # Get the content item with campaign verification
+        content_result = await db.execute(
+            select(GeneratedContent).where(
+                and_(
+                    GeneratedContent.id == content_id,
+                    GeneratedContent.campaign_id == campaign_id,
+                    GeneratedContent.company_id == current_user.company_id
+                )
+            )
+        )
+        content_item = content_result.scalar_one_or_none()
+        
+        if not content_item:
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        # Parse content body
+        parsed_content = {}
+        try:
+            if content_item.content_body:
+                parsed_content = json.loads(content_item.content_body)
+        except json.JSONDecodeError:
+            parsed_content = {"raw_content": content_item.content_body}
+        
+        # Get intelligence source info if available
+        intelligence_info = None
+        if content_item.intelligence_source_id:
+            intel_result = await db.execute(
+                select(CampaignIntelligence).where(
+                    CampaignIntelligence.id == content_item.intelligence_source_id
+                )
+            )
+            intelligence_source = intel_result.scalar_one_or_none()
+            if intelligence_source:
+                intelligence_info = {
+                    "id": str(intelligence_source.id),
+                    "source_title": intelligence_source.source_title,
+                    "source_url": intelligence_source.source_url,
+                    "confidence_score": intelligence_source.confidence_score,
+                    "source_type": intelligence_source.source_type.value if intelligence_source.source_type else None
+                }
+        
+        return {
+            "id": str(content_item.id),
+            "campaign_id": campaign_id,
+            "content_type": content_item.content_type,
+            "content_title": content_item.content_title,
+            "content_body": content_item.content_body,
+            "parsed_content": parsed_content,
+            "content_metadata": content_item.content_metadata or {},
+            "generation_settings": content_item.generation_settings or {},
+            "intelligence_used": content_item.intelligence_used or {},
+            "performance_data": content_item.performance_data or {},
+            "user_rating": content_item.user_rating,
+            "is_published": content_item.is_published,
+            "published_at": content_item.published_at,
+            "created_at": content_item.created_at.isoformat() if content_item.created_at else None,
+            "updated_at": content_item.updated_at.isoformat() if content_item.updated_at else None,
+            "intelligence_source": intelligence_info
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting content detail: {str(e)}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get content detail: {str(e)}"
+        )
+
+@router.put("/{campaign_id}/content/{content_id}")
+async def update_content(
+    campaign_id: str,
+    content_id: str,
+    update_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """✅ NEW: Update generated content"""
+    try:
+        logger.info(f"Updating content {content_id} in campaign {campaign_id}")
+        
+        # Get the content item with verification
+        content_result = await db.execute(
+            select(GeneratedContent).where(
+                and_(
+                    GeneratedContent.id == content_id,
+                    GeneratedContent.campaign_id == campaign_id,
+                    GeneratedContent.company_id == current_user.company_id
+                )
+            )
+        )
+        content_item = content_result.scalar_one_or_none()
+        
+        if not content_item:
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        # Update allowed fields
+        allowed_fields = [
+            'content_title', 'content_body', 'content_metadata', 
+            'user_rating', 'is_published', 'published_at', 'performance_data'
+        ]
+        
+        for field, value in update_data.items():
+            if field in allowed_fields and hasattr(content_item, field):
+                setattr(content_item, field, value)
+        
+        # Update timestamp
+        content_item.updated_at = datetime.utcnow()
+        
+        await db.commit()
+        await db.refresh(content_item)
+        
+        logger.info(f"Content {content_id} updated successfully")
+        
+        return {
+            "id": str(content_item.id),
+            "message": "Content updated successfully",
+            "updated_at": content_item.updated_at.isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating content: {str(e)}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update content: {str(e)}"
+        )
+
+@router.delete("/{campaign_id}/content/{content_id}")
+async def delete_content(
+    campaign_id: str,
+    content_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """✅ NEW: Delete generated content"""
+    try:
+        logger.info(f"Deleting content {content_id} from campaign {campaign_id}")
+        
+        # Get the content item with verification
+        content_result = await db.execute(
+            select(GeneratedContent).where(
+                and_(
+                    GeneratedContent.id == content_id,
+                    GeneratedContent.campaign_id == campaign_id,
+                    GeneratedContent.company_id == current_user.company_id
+                )
+            )
+        )
+        content_item = content_result.scalar_one_or_none()
+        
+        if not content_item:
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        # Delete the content
+        await db.delete(content_item)
+        await db.commit()
+        
+        # Update campaign counters
+        try:
+            await update_campaign_counters(campaign_id, db)
+            await db.commit()
+        except Exception as counter_error:
+            logger.warning(f"Failed to update campaign counters: {str(counter_error)}")
+        
+        logger.info(f"Content {content_id} deleted successfully")
+        
+        return {"message": "Content deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting content: {str(e)}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete content: {str(e)}"
+        )
+
+# ============================================================================
+# ✅ FIXED: CONTENT GENERATION ENDPOINT (SINGLE VERSION)
+# ============================================================================
+
+@router.post("/generate-content")
+async def generate_content_endpoint(
+    request_data: Dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """✅ FIXED: Generate content using intelligence data"""
+    
+    logger.info(f"🎯 Content generation request received")
+    logger.info(f"📝 Request data: {request_data}")
+    
+    try:
+        content_type = request_data.get("content_type", "email_sequence")
+        campaign_id = request_data.get("campaign_id")
+        preferences = request_data.get("preferences", {})
+        intelligence_id = request_data.get("intelligence_id")
+        
+        logger.info(f"🎯 Generating {content_type} for campaign {campaign_id}")
+        
+        if not campaign_id:
+            raise HTTPException(status_code=400, detail="campaign_id is required")
+        
+        # Get campaign and verify ownership
+        campaign_result = await db.execute(
+            select(Campaign).where(
+                and_(
+                    Campaign.id == campaign_id,
+                    Campaign.company_id == current_user.company_id
+                )
+            )
+        )
+        campaign = campaign_result.scalar_one_or_none()
+        
+        if not campaign:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        logger.info(f"✅ Campaign verified: {campaign.title}")
+        
+        # Get intelligence data for the campaign
+        intelligence_result = await db.execute(
+            select(CampaignIntelligence).where(
+                CampaignIntelligence.campaign_id == campaign_id
+            )
+        )
+        intelligence_sources = intelligence_result.scalars().all()
+        
+        logger.info(f"📊 Found {len(intelligence_sources)} intelligence sources")
+        
+        # Prepare intelligence data for generator
+        intelligence_data = {
+            "campaign_id": campaign_id,
+            "campaign_name": campaign.title,
+            "target_audience": campaign.target_audience or "health-conscious adults",
+            "offer_intelligence": {},
+            "psychology_intelligence": {},
+            "content_intelligence": {},
+            "competitive_intelligence": {},
+            "brand_intelligence": {},
+            "intelligence_sources": []
+        }
+        
+        # Aggregate intelligence data from all sources
+        for source in intelligence_sources:
+            try:
+                source_data = {
+                    "id": str(source.id),
+                    "source_type": source.source_type.value if source.source_type else "unknown",
+                    "source_url": source.source_url,
+                    "confidence_score": source.confidence_score or 0.0,
+                    "offer_intelligence": source.offer_intelligence or {},
+                    "psychology_intelligence": source.psychology_intelligence or {},
+                    "content_intelligence": source.content_intelligence or {},
+                    "competitive_intelligence": source.competitive_intelligence or {},
+                    "brand_intelligence": source.brand_intelligence or {}
+                }
+                intelligence_data["intelligence_sources"].append(source_data)
+                
+                # Merge into aggregate intelligence
+                for intel_type in ["offer_intelligence", "psychology_intelligence", "content_intelligence", "competitive_intelligence", "brand_intelligence"]:
+                    source_intel = source_data.get(intel_type, {})
+                    if source_intel:
+                        current_intel = intelligence_data.get(intel_type, {})
+                        
+                        # Merge lists and strings intelligently
+                        for key, value in source_intel.items():
+                            if key in current_intel:
+                                if isinstance(value, list) and isinstance(current_intel[key], list):
+                                    current_intel[key].extend(value)
+                                elif isinstance(value, str) and isinstance(current_intel[key], str):
+                                    if value not in current_intel[key]:
+                                        current_intel[key] += f" {value}"
+                            else:
+                                current_intel[key] = value
+                        
+                        intelligence_data[intel_type] = current_intel
+                        
+            except Exception as source_error:
+                logger.warning(f"⚠️ Error processing source {source.id}: {str(source_error)}")
+                continue
+        
+        logger.info(f"🧠 Intelligence data prepared for {content_type} generation")
+        
+        # Generate content using the appropriate generator
+        if content_type == "email_sequence":
+            try:
+                from src.intelligence.generators.email_generator import EmailSequenceGenerator
+                generator = EmailSequenceGenerator()
+                result = await generator.generate_email_sequence(intelligence_data, preferences)
+                logger.info(f"✅ Email sequence generated successfully")
+            except ImportError as e:
+                logger.error(f"❌ Email generator import failed: {str(e)}")
+                raise HTTPException(status_code=500, detail="Email generator not available")
+                
+        elif content_type == "social_media_posts":
+            try:
+                from src.intelligence.generators.social_media_generator import SocialMediaGenerator
+                generator = SocialMediaGenerator()
+                result = await generator.generate_social_posts(intelligence_data, preferences)
+                logger.info(f"✅ Social media posts generated successfully")
+            except ImportError as e:
+                logger.error(f"❌ Social media generator import failed: {str(e)}")
+                raise HTTPException(status_code=500, detail="Social media generator not available")
+                
+        elif content_type == "ad_copy":
+            try:
+                from src.intelligence.generators.ad_copy_generator import AdCopyGenerator
+                generator = AdCopyGenerator()
+                result = await generator.generate_ad_copy(intelligence_data, preferences)
+                logger.info(f"✅ Ad copy generated successfully")
+            except ImportError as e:
+                logger.error(f"❌ Ad copy generator import failed: {str(e)}")
+                raise HTTPException(status_code=500, detail="Ad copy generator not available")
+                
+        elif content_type == "blog_post":
+            try:
+                from src.intelligence.generators.blog_post_generator import BlogPostGenerator
+                generator = BlogPostGenerator()
+                result = await generator.generate_blog_post(intelligence_data, preferences)
+                logger.info(f"✅ Blog post generated successfully")
+            except ImportError as e:
+                logger.error(f"❌ Blog post generator import failed: {str(e)}")
+                raise HTTPException(status_code=500, detail="Blog post generator not available")
+                
+        elif content_type == "landing_page":
+            try:
+                from src.intelligence.generators.landing_page.core.generator import EnhancedLandingPageGenerator
+                generator = EnhancedLandingPageGenerator()
+                result = await generator.generate_landing_page(intelligence_data, preferences)
+                logger.info(f"✅ Landing page generated successfully")
+            except ImportError as e:
+                logger.error(f"❌ Landing page generator import failed: {str(e)}")
+                raise HTTPException(status_code=500, detail="Landing page generator not available")
+                
+        elif content_type == "video_script":
+            try:
+                from src.intelligence.generators.video_script_generator import VideoScriptGenerator
+                generator = VideoScriptGenerator()
+                result = await generator.generate_video_script(intelligence_data, preferences)
+                logger.info(f"✅ Video script generated successfully")
+            except ImportError as e:
+                logger.error(f"❌ Video script generator import failed: {str(e)}")
+                raise HTTPException(status_code=500, detail="Video script generator not available")
+                
+        else:
+            logger.error(f"❌ Unknown content type: {content_type}")
+            raise HTTPException(status_code=400, detail=f"Unknown content type: {content_type}")
+        
+        # Check if generation was successful
+        if not result or result.get("error") or result.get("fallback"):
+            logger.error(f"❌ Generation failed or returned fallback: {result}")
+            raise HTTPException(
+                status_code=500, 
+                detail=result.get("error", "Content generation failed")
+            )
+        
+        # Save generated content to database - FIXED VERSION
+        generated_content = GeneratedContent(
+            campaign_id=campaign_id,
+            company_id=current_user.company_id,
+            user_id=current_user.id,
+            content_type=content_type,
+            content_title=result.get("title", f"Generated {content_type.title()}"),
+            content_body=json.dumps(result.get("content", {})),
+            content_metadata=result.get("metadata", {}),
+            generation_settings=preferences,
+            intelligence_used={
+                "sources_count": len(intelligence_sources),
+                "primary_source_id": str(intelligence_sources[0].id) if intelligence_sources else None,
+                "generation_timestamp": datetime.utcnow().isoformat(),
+                "amplified": any(source.processing_metadata and source.processing_metadata.get("amplification_applied", False) for source in intelligence_sources)
+            },
+            intelligence_source_id=intelligence_sources[0].id if intelligence_sources else None
+            # ✅ CRITICAL: Don't set ANY optional fields - let the database handle them
+        )
+        
+        db.add(generated_content)
+        await db.commit()
+        await db.refresh(generated_content)
+        
+        # Update campaign counters
+        try:
+            await update_campaign_counters(campaign_id, db)
+            await db.commit()
+            logger.info(f"📊 Campaign counters updated")
+        except Exception as counter_error:
+            logger.warning(f"⚠️ Campaign counter update failed (non-critical): {str(counter_error)}")
+        
+        logger.info(f"✅ Content generation completed successfully - ID: {generated_content.id}")
+        
+        return {
+            "content_id": str(generated_content.id),
+            "content_type": content_type,
+            "generated_content": result,
+            "smart_url": None,  # Can be implemented later
+            "performance_predictions": {},  # Can be implemented later
+            "intelligence_sources_used": len(intelligence_sources),
+            "generation_metadata": {
+                "generated_at": generated_content.created_at.isoformat(),
+                "generator_used": f"{content_type}_generator",
+                "fallback_used": False,
+                "success": True
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Content generation failed: {str(e)}")
+        logger.error(f"📍 Full traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Content generation failed: {str(e)}"
+        )
+
+
+# ============================================================================
+# CONTENT TYPE DISCOVERY ENDPOINT
+# ============================================================================
+
+@router.get("/content-types")
+async def get_available_content_types(
+    current_user: User = Depends(get_current_user)
+):
+    """Get list of available content types and their capabilities"""
+    
+    try:
+        # Try to use the factory if available
+        try:
+            from src.intelligence.generators.factory import ContentGeneratorFactory
+            factory = ContentGeneratorFactory()
+            capabilities = factory.get_generator_capabilities()
+            available_types = factory.get_available_generators()
+            factory_available = True
+        except ImportError:
+            factory_available = False
+            capabilities = {}
+            available_types = []
+        
+        # Fallback to manual detection
+        if not factory_available:
+            available_types = []
+            capabilities = {}
+            
+            # Check each generator individually
+            generators_to_check = [
+                ("email_sequence", "EmailSequenceGenerator", "src.intelligence.generators.email_generator"),
+                ("social_media_posts", "SocialMediaGenerator", "src.intelligence.generators.social_media_generator"),
+                ("ad_copy", "AdCopyGenerator", "src.intelligence.generators.ad_copy_generator"),
+                ("blog_post", "BlogPostGenerator", "src.intelligence.generators.blog_post_generator"),
+                ("landing_page", "EnhancedLandingPageGenerator", "src.intelligence.generators.landing_page.core.generator"),
+                ("video_script", "VideoScriptGenerator", "src.intelligence.generators.video_script_generator"),
+            ]
+            
+            for content_type, class_name, module_path in generators_to_check:
+                try:
+                    module = __import__(module_path, fromlist=[class_name])
+                    getattr(module, class_name)
+                    available_types.append(content_type)
+                    capabilities[content_type] = {
+                        "description": f"Generate {content_type.replace('_', ' ')}",
+                        "status": "available"
+                    }
+                except (ImportError, AttributeError):
+                    capabilities[content_type] = {
+                        "description": f"Generate {content_type.replace('_', ' ')}",
+                        "status": "unavailable"
+                    }
+        
+        return {
+            "available_content_types": available_types,
+            "total_available": len(available_types),
+            "capabilities": capabilities,
+            "factory_available": factory_available,
+            "status": "operational" if available_types else "limited"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting content types: {str(e)}")
+        return {
+            "available_content_types": ["email_sequence"],  # Fallback
+            "total_available": 1,
+            "capabilities": {
+                "email_sequence": {
+                    "description": "Generate email sequences",
+                    "status": "fallback"
+                }
+            },
+            "factory_available": False,
+            "status": "fallback",
+            "error": str(e)
+        }
 # FALLBACK CLASSES FOR MISSING DEPENDENCIES
 # ============================================================================
 
@@ -747,1067 +1355,4 @@ async def analyze_sales_page(
             ]
         )
 
-# Continue with existing endpoints...
-# Add the rest of your existing intelligence routes here
-
-@router.get("/{campaign_id}/content")
-async def get_campaign_content_list(
-    campaign_id: str,
-    include_body: bool = False,
-    content_type: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """✅ NEW: Get list of generated content for a campaign"""
-    try:
-        logger.info(f"Getting content list for campaign {campaign_id}")
-        
-        # Verify campaign ownership
-        campaign_result = await db.execute(
-            select(Campaign).where(
-                and_(
-                    Campaign.id == campaign_id,
-                    Campaign.company_id == current_user.company_id
-                )
-            )
-        )
-        campaign = campaign_result.scalar_one_or_none()
-        if not campaign:
-            raise HTTPException(status_code=404, detail="Campaign not found")
-        
-        # Build query for generated content
-        query = select(GeneratedContent).where(
-            GeneratedContent.campaign_id == campaign_id
-        ).order_by(GeneratedContent.created_at.desc())
-        
-        # Add content type filter if specified
-        if content_type:
-            query = query.where(GeneratedContent.content_type == content_type)
-        
-        result = await db.execute(query)
-        content_items = result.scalars().all()
-        
-        # Format response
-        content_list = []
-        for item in content_items:
-            content_data = {
-                "id": str(item.id),
-                "content_type": item.content_type,
-                "content_title": item.content_title,
-                "created_at": item.created_at.isoformat() if item.created_at else None,
-                "updated_at": item.updated_at.isoformat() if item.updated_at else None,
-                "user_rating": item.user_rating,
-                "is_published": item.is_published,
-                "published_at": item.published_at,
-                "performance_data": item.performance_data or {},
-                "content_metadata": item.content_metadata or {},
-                "generation_settings": item.generation_settings or {},
-                "intelligence_used": item.intelligence_used or {}
-            }
-            
-            # Include full content body if requested
-            if include_body:
-                content_data["content_body"] = item.content_body
-            else:
-                # Just include a preview
-                try:
-                    parsed_body = json.loads(item.content_body) if item.content_body else {}
-                    if isinstance(parsed_body, dict):
-                        # Extract preview from different content types
-                        preview = ""
-                        if "emails" in parsed_body and parsed_body["emails"]:
-                            preview = f"{len(parsed_body['emails'])} emails"
-                        elif "posts" in parsed_body and parsed_body["posts"]:
-                            preview = f"{len(parsed_body['posts'])} posts"
-                        elif "ads" in parsed_body and parsed_body["ads"]:
-                            preview = f"{len(parsed_body['ads'])} ads"
-                        elif "title" in parsed_body:
-                            preview = parsed_body["title"][:100] + "..."
-                        else:
-                            preview = "Generated content"
-                        content_data["content_preview"] = preview
-                    else:
-                        content_data["content_preview"] = str(parsed_body)[:100] + "..."
-                except:
-                    content_data["content_preview"] = "Content available"
-            
-            content_list.append(content_data)
-        
-        return {
-            "campaign_id": campaign_id,
-            "total_content": len(content_list),
-            "content_items": content_list
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting campaign content: {str(e)}")
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get campaign content: {str(e)}"
-        )
-
-@router.get("/{campaign_id}/content/{content_id}")
-async def get_content_detail(
-    campaign_id: str,
-    content_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """✅ NEW: Get detailed content including full body"""
-    try:
-        logger.info(f"Getting content detail for {content_id} in campaign {campaign_id}")
-        
-        # Get the content item with campaign verification
-        content_result = await db.execute(
-            select(GeneratedContent).where(
-                and_(
-                    GeneratedContent.id == content_id,
-                    GeneratedContent.campaign_id == campaign_id,
-                    GeneratedContent.company_id == current_user.company_id
-                )
-            )
-        )
-        content_item = content_result.scalar_one_or_none()
-        
-        if not content_item:
-            raise HTTPException(status_code=404, detail="Content not found")
-        
-        # Parse content body
-        parsed_content = {}
-        try:
-            if content_item.content_body:
-                parsed_content = json.loads(content_item.content_body)
-        except json.JSONDecodeError:
-            parsed_content = {"raw_content": content_item.content_body}
-        
-        # Get intelligence source info if available
-        intelligence_info = None
-        if content_item.intelligence_source_id:
-            intel_result = await db.execute(
-                select(CampaignIntelligence).where(
-                    CampaignIntelligence.id == content_item.intelligence_source_id
-                )
-            )
-            intelligence_source = intel_result.scalar_one_or_none()
-            if intelligence_source:
-                intelligence_info = {
-                    "id": str(intelligence_source.id),
-                    "source_title": intelligence_source.source_title,
-                    "source_url": intelligence_source.source_url,
-                    "confidence_score": intelligence_source.confidence_score,
-                    "source_type": intelligence_source.source_type.value if intelligence_source.source_type else None
-                }
-        
-        return {
-            "id": str(content_item.id),
-            "campaign_id": campaign_id,
-            "content_type": content_item.content_type,
-            "content_title": content_item.content_title,
-            "content_body": content_item.content_body,
-            "parsed_content": parsed_content,
-            "content_metadata": content_item.content_metadata or {},
-            "generation_settings": content_item.generation_settings or {},
-            "intelligence_used": content_item.intelligence_used or {},
-            "performance_data": content_item.performance_data or {},
-            "user_rating": content_item.user_rating,
-            "is_published": content_item.is_published,
-            "published_at": content_item.published_at,
-            "created_at": content_item.created_at.isoformat() if content_item.created_at else None,
-            "updated_at": content_item.updated_at.isoformat() if content_item.updated_at else None,
-            "intelligence_source": intelligence_info
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting content detail: {str(e)}")
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get content detail: {str(e)}"
-        )
-
-@router.put("/{campaign_id}/content/{content_id}")
-async def update_content(
-    campaign_id: str,
-    content_id: str,
-    update_data: dict,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """✅ NEW: Update generated content"""
-    try:
-        logger.info(f"Updating content {content_id} in campaign {campaign_id}")
-        
-        # Get the content item with verification
-        content_result = await db.execute(
-            select(GeneratedContent).where(
-                and_(
-                    GeneratedContent.id == content_id,
-                    GeneratedContent.campaign_id == campaign_id,
-                    GeneratedContent.company_id == current_user.company_id
-                )
-            )
-        )
-        content_item = content_result.scalar_one_or_none()
-        
-        if not content_item:
-            raise HTTPException(status_code=404, detail="Content not found")
-        
-        # Update allowed fields
-        allowed_fields = [
-            'content_title', 'content_body', 'content_metadata', 
-            'user_rating', 'is_published', 'published_at', 'performance_data'
-        ]
-        
-        for field, value in update_data.items():
-            if field in allowed_fields and hasattr(content_item, field):
-                setattr(content_item, field, value)
-        
-        # Update timestamp
-        content_item.updated_at = datetime.utcnow()
-        
-        await db.commit()
-        await db.refresh(content_item)
-        
-        logger.info(f"Content {content_id} updated successfully")
-        
-        return {
-            "id": str(content_item.id),
-            "message": "Content updated successfully",
-            "updated_at": content_item.updated_at.isoformat()
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating content: {str(e)}")
-        await db.rollback()
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update content: {str(e)}"
-        )
-
-@router.delete("/{campaign_id}/content/{content_id}")
-async def delete_content(
-    campaign_id: str,
-    content_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """✅ NEW: Delete generated content"""
-    try:
-        logger.info(f"Deleting content {content_id} from campaign {campaign_id}")
-        
-        # Get the content item with verification
-        content_result = await db.execute(
-            select(GeneratedContent).where(
-                and_(
-                    GeneratedContent.id == content_id,
-                    GeneratedContent.campaign_id == campaign_id,
-                    GeneratedContent.company_id == current_user.company_id
-                )
-            )
-        )
-        content_item = content_result.scalar_one_or_none()
-        
-        if not content_item:
-            raise HTTPException(status_code=404, detail="Content not found")
-        
-        # Delete the content
-        await db.delete(content_item)
-        await db.commit()
-        
-        # Update campaign counters
-        try:
-            await update_campaign_counters(campaign_id, db)
-            await db.commit()
-        except Exception as counter_error:
-            logger.warning(f"Failed to update campaign counters: {str(counter_error)}")
-        
-        logger.info(f"Content {content_id} deleted successfully")
-        
-        return {"message": "Content deleted successfully"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting content: {str(e)}")
-        await db.rollback()
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete content: {str(e)}"
-        )
-
-@router.post("/{campaign_id}/content/{content_id}/rate")
-async def rate_content(
-    campaign_id: str,
-    content_id: str,
-    rating_data: dict,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """✅ NEW: Rate generated content (1-5 stars)"""
-    try:
-        rating = rating_data.get("rating")
-        if not rating or not isinstance(rating, int) or rating < 1 or rating > 5:
-            raise HTTPException(status_code=400, detail="Rating must be an integer between 1 and 5")
-        
-        # Get the content item with verification
-        content_result = await db.execute(
-            select(GeneratedContent).where(
-                and_(
-                    GeneratedContent.id == content_id,
-                    GeneratedContent.campaign_id == campaign_id,
-                    GeneratedContent.company_id == current_user.company_id
-                )
-            )
-        )
-        content_item = content_result.scalar_one_or_none()
-        
-        if not content_item:
-            raise HTTPException(status_code=404, detail="Content not found")
-        
-        # Update rating
-        content_item.user_rating = rating
-        content_item.updated_at = datetime.utcnow()
-        
-        await db.commit()
-        
-        return {
-            "id": str(content_item.id),
-            "rating": rating,
-            "message": "Content rated successfully"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error rating content: {str(e)}")
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to rate content: {str(e)}"
-        )
-
-@router.post("/{campaign_id}/content/{content_id}/publish")
-async def publish_content(
-    campaign_id: str,
-    content_id: str,
-    publish_data: dict,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """✅ NEW: Mark content as published"""
-    try:
-        published_at = publish_data.get("published_at", "Manual")
-        
-        # Get the content item with verification
-        content_result = await db.execute(
-            select(GeneratedContent).where(
-                and_(
-                    GeneratedContent.id == content_id,
-                    GeneratedContent.campaign_id == campaign_id,
-                    GeneratedContent.company_id == current_user.company_id
-                )
-            )
-        )
-        content_item = content_result.scalar_one_or_none()
-        
-        if not content_item:
-            raise HTTPException(status_code=404, detail="Content not found")
-        
-        # Mark as published
-        content_item.is_published = True
-        content_item.published_at = published_at
-        content_item.updated_at = datetime.utcnow()
-        
-        await db.commit()
-        
-        return {
-            "id": str(content_item.id),
-            "is_published": True,
-            "published_at": published_at,
-            "message": "Content marked as published"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error publishing content: {str(e)}")
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to publish content: {str(e)}"
-        )
-
-@router.post("/{campaign_id}/content/bulk-action")
-async def bulk_content_action(
-    campaign_id: str,
-    action_data: dict,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """✅ NEW: Perform bulk actions on content (delete, publish, rate)"""
-    try:
-        content_ids = action_data.get("content_ids", [])
-        action = action_data.get("action")  # "delete", "publish", "rate"
-        action_params = action_data.get("params", {})
-        
-        if not content_ids or not action:
-            raise HTTPException(status_code=400, detail="Missing content_ids or action")
-        
-        # Verify campaign ownership
-        campaign_result = await db.execute(
-            select(Campaign).where(
-                and_(
-                    Campaign.id == campaign_id,
-                    Campaign.company_id == current_user.company_id
-                )
-            )
-        )
-        campaign = campaign_result.scalar_one_or_none()
-        if not campaign:
-            raise HTTPException(status_code=404, detail="Campaign not found")
-        
-        # Get content items
-        content_result = await db.execute(
-            select(GeneratedContent).where(
-                and_(
-                    GeneratedContent.id.in_(content_ids),
-                    GeneratedContent.campaign_id == campaign_id,
-                    GeneratedContent.company_id == current_user.company_id
-                )
-            )
-        )
-        content_items = content_result.scalars().all()
-        
-        if not content_items:
-            raise HTTPException(status_code=404, detail="No content found")
-        
-        results = []
-        
-        for content_item in content_items:
-            try:
-                if action == "delete":
-                    await db.delete(content_item)
-                    results.append({"id": str(content_item.id), "action": "deleted", "success": True})
-                    
-                elif action == "publish":
-                    content_item.is_published = True
-                    content_item.published_at = action_params.get("published_at", "Bulk Action")
-                    content_item.updated_at = datetime.utcnow()
-                    results.append({"id": str(content_item.id), "action": "published", "success": True})
-                    
-                elif action == "rate":
-                    rating = action_params.get("rating")
-                    if rating and 1 <= rating <= 5:
-                        content_item.user_rating = rating
-                        content_item.updated_at = datetime.utcnow()
-                        results.append({"id": str(content_item.id), "action": "rated", "rating": rating, "success": True})
-                    else:
-                        results.append({"id": str(content_item.id), "action": "rate", "success": False, "error": "Invalid rating"})
-                        
-                else:
-                    results.append({"id": str(content_item.id), "action": action, "success": False, "error": "Unknown action"})
-                    
-            except Exception as item_error:
-                results.append({"id": str(content_item.id), "action": action, "success": False, "error": str(item_error)})
-        
-        await db.commit()
-        
-        # Update campaign counters if any deletions
-        if action == "delete":
-            try:
-                await update_campaign_counters(campaign_id, db)
-                await db.commit()
-            except Exception as counter_error:
-                logger.warning(f"Failed to update campaign counters: {str(counter_error)}")
-        
-        successful_count = sum(1 for r in results if r["success"])
-        
-        return {
-            "campaign_id": campaign_id,
-            "action": action,
-            "total_items": len(content_ids),
-            "successful": successful_count,
-            "failed": len(content_ids) - successful_count,
-            "results": results
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error performing bulk action: {str(e)}")
-        await db.rollback()
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to perform bulk action: {str(e)}"
-        )
-
-@router.get("/{campaign_id}/content/stats")
-async def get_content_stats(
-    campaign_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """✅ NEW: Get content statistics for a campaign"""
-    try:
-        # Verify campaign ownership
-        campaign_result = await db.execute(
-            select(Campaign).where(
-                and_(
-                    Campaign.id == campaign_id,
-                    Campaign.company_id == current_user.company_id
-                )
-            )
-        )
-        campaign = campaign_result.scalar_one_or_none()
-        if not campaign:
-            raise HTTPException(status_code=404, detail="Campaign not found")
-        
-        # Get content statistics
-        content_result = await db.execute(
-            select(GeneratedContent).where(
-                GeneratedContent.campaign_id == campaign_id
-            )
-        )
-        content_items = content_result.scalars().all()
-        
-        # Calculate stats
-        total_content = len(content_items)
-        published_content = sum(1 for item in content_items if item.is_published)
-        rated_content = sum(1 for item in content_items if item.user_rating)
-        avg_rating = 0.0
-        
-        if rated_content > 0:
-            total_rating = sum(item.user_rating for item in content_items if item.user_rating)
-            avg_rating = total_rating / rated_content
-        
-        # Content by type
-        content_by_type = {}
-        amplified_content = 0
-        
-        for item in content_items:
-            content_type = item.content_type
-            if content_type not in content_by_type:
-                content_by_type[content_type] = 0
-            content_by_type[content_type] += 1
-            
-            # Check if generated from amplified intelligence
-            intelligence_used = item.intelligence_used or {}
-            if intelligence_used.get("amplified", False):
-                amplified_content += 1
-        
-        # Recent content (last 7 days)
-        from datetime import timedelta
-        recent_cutoff = datetime.utcnow() - timedelta(days=7)
-        recent_content = sum(1 for item in content_items if item.created_at and item.created_at >= recent_cutoff)
-        
-        return {
-            "campaign_id": campaign_id,
-            "total_content": total_content,
-            "published_content": published_content,
-            "unpublished_content": total_content - published_content,
-            "rated_content": rated_content,
-            "average_rating": round(avg_rating, 2),
-            "amplified_content": amplified_content,
-            "recent_content": recent_content,
-            "content_by_type": content_by_type,
-            "performance_metrics": {
-                "publication_rate": round((published_content / max(total_content, 1)) * 100, 1),
-                "rating_rate": round((rated_content / max(total_content, 1)) * 100, 1),
-                "amplification_rate": round((amplified_content / max(total_content, 1)) * 100, 1)
-            }
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting content stats: {str(e)}")
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get content stats: {str(e)}"
-        )
-
-@router.post("/{campaign_id}/content/{content_id}/duplicate")
-async def duplicate_content(
-    campaign_id: str,
-    content_id: str,
-    duplicate_data: dict = {},
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """✅ NEW: Duplicate content item"""
-    try:
-        # Get the original content item
-        content_result = await db.execute(
-            select(GeneratedContent).where(
-                and_(
-                    GeneratedContent.id == content_id,
-                    GeneratedContent.campaign_id == campaign_id,
-                    GeneratedContent.company_id == current_user.company_id
-                )
-            )
-        )
-        original_content = content_result.scalar_one_or_none()
-        
-        if not original_content:
-            raise HTTPException(status_code=404, detail="Content not found")
-        
-        # Create duplicate
-        new_title = duplicate_data.get("title", f"{original_content.content_title} (Copy)")
-        
-        duplicate_content = GeneratedContent(
-            content_type=original_content.content_type,
-            content_title=new_title,
-            content_body=original_content.content_body,
-            content_metadata=original_content.content_metadata,
-            generation_settings=original_content.generation_settings,
-            intelligence_used=original_content.intelligence_used,
-            campaign_id=original_content.campaign_id,
-            intelligence_source_id=original_content.intelligence_source_id,
-            user_id=current_user.id,
-            company_id=current_user.company_id,
-            # Reset status fields
-            user_rating=None,
-            is_published=False,
-            published_at=None,
-            performance_data={}
-        )
-        
-        db.add(duplicate_content)
-        await db.commit()
-        await db.refresh(duplicate_content)
-        
-        # Update campaign counters
-        try:
-            await update_campaign_counters(campaign_id, db)
-            await db.commit()
-        except Exception as counter_error:
-            logger.warning(f"Failed to update campaign counters: {str(counter_error)}")
-        
-        return {
-            "id": str(duplicate_content.id),
-            "original_id": content_id,
-            "title": new_title,
-            "message": "Content duplicated successfully"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error duplicating content: {str(e)}")
-        await db.rollback()
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to duplicate content: {str(e)}"
-        )
-    
-    # In src/intelligence/routes.py (or wherever your intelligence routes are)
-
-@router.post("/generate-content")
-async def generate_content(
-    request_data: Dict[str, Any],
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Generate content using intelligence data"""
-    try:
-        content_type = request_data.get("content_type", "email_sequence")
-        campaign_id = request_data.get("campaign_id")
-        preferences = request_data.get("preferences", {})
-        
-        # Get campaign and verify ownership
-        campaign = await db.get(Campaign, campaign_id)
-        if not campaign or campaign.company_id != current_user.company_id:
-            raise HTTPException(status_code=404, detail="Campaign not found")
-        
-        # Get intelligence data for the campaign
-        intelligence_result = await db.execute(
-            select(CampaignIntelligence).where(
-                CampaignIntelligence.campaign_id == campaign_id
-            )
-        )
-        intelligence_sources = intelligence_result.scalars().all()
-        
-        # Prepare intelligence data
-        intelligence_data = {
-            "campaign_id": campaign_id,
-            "campaign_name": campaign.title,
-            "target_audience": campaign.target_audience,
-            "intelligence_sources": [
-                {
-                    "id": str(source.id),
-                    "source_type": source.source_type.value,
-                    "offer_intelligence": source.offer_intelligence,
-                    "psychology_intelligence": source.psychology_intelligence,
-                    "content_intelligence": source.content_intelligence
-                }
-                for source in intelligence_sources
-            ]
-        }
-        
-        # Generate content using the email generator
-        from src.intelligence.generators.email_generator import EmailSequenceGenerator
-        generator = EmailSequenceGenerator()
-        
-        result = await generator.generate_email_sequence(intelligence_data, preferences)
-        
-        # Save generated content to database
-        generated_content = GeneratedContent(
-            campaign_id=campaign_id,
-            company_id=current_user.company_id,
-            user_id=current_user.id,
-            content_type=content_type,
-            content_title=result.get("title", f"Generated {content_type.title()}"),
-            content_body=json.dumps(result.get("content", {})),
-            content_metadata=result.get("metadata", {}),
-            generation_settings=preferences,
-            intelligence_used={
-                "sources_count": len(intelligence_sources),
-                "primary_source_id": str(intelligence_sources[0].id) if intelligence_sources else None,
-                "generation_timestamp": datetime.utcnow().isoformat(),
-                "amplified": any(source.processing_metadata and source.processing_metadata.get("amplification_applied", False) for source in intelligence_sources)
-            },
-            intelligence_source_id=intelligence_sources[0].id if intelligence_sources else None,
-            # ✅ FIX: Don't set timestamp fields that should auto-populate            
-            is_published=False,   # This is fine as boolean
-            user_rating=None,     # This is fine as NULL integer
-            performance_data={}   # This is fine as JSON
-        )
-        
-        db.add(generated_content)
-        await db.commit()
-        await db.refresh(generated_content)
-        
-        return {
-            "content_id": str(generated_content.id),
-            "content_type": content_type,
-            "generated_content": result,
-            "smart_url": None,  # Can be implemented later
-            "performance_predictions": {}  # Can be implemented later
-        }
-        
-    except Exception as e:
-        logger.error(f"Content generation failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Content generation failed: {str(e)}"
-        )
-    
-    # Add this to the END of src/intelligence/routes.py after the existing routes
-
 # ============================================================================
-# ✅ FIXED: CONTENT GENERATION ENDPOINT
-# ============================================================================
-
-@router.post("/generate-content")
-async def generate_content_endpoint(
-    request_data: Dict[str, Any],
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """✅ FIXED: Generate content using intelligence data"""
-    
-    logger.info(f"🎯 Content generation request received")
-    logger.info(f"📝 Request data: {request_data}")
-    
-    try:
-        content_type = request_data.get("content_type", "email_sequence")
-        campaign_id = request_data.get("campaign_id")
-        preferences = request_data.get("preferences", {})
-        intelligence_id = request_data.get("intelligence_id")
-        
-        logger.info(f"🎯 Generating {content_type} for campaign {campaign_id}")
-        
-        if not campaign_id:
-            raise HTTPException(status_code=400, detail="campaign_id is required")
-        
-        # Get campaign and verify ownership
-        campaign_result = await db.execute(
-            select(Campaign).where(
-                and_(
-                    Campaign.id == campaign_id,
-                    Campaign.company_id == current_user.company_id
-                )
-            )
-        )
-        campaign = campaign_result.scalar_one_or_none()
-        
-        if not campaign:
-            raise HTTPException(status_code=404, detail="Campaign not found")
-        
-        logger.info(f"✅ Campaign verified: {campaign.title}")
-        
-        # Get intelligence data for the campaign
-        intelligence_result = await db.execute(
-            select(CampaignIntelligence).where(
-                CampaignIntelligence.campaign_id == campaign_id
-            )
-        )
-        intelligence_sources = intelligence_result.scalars().all()
-        
-        logger.info(f"📊 Found {len(intelligence_sources)} intelligence sources")
-        
-        # Prepare intelligence data for generator
-        intelligence_data = {
-            "campaign_id": campaign_id,
-            "campaign_name": campaign.title,
-            "target_audience": campaign.target_audience or "health-conscious adults",
-            "offer_intelligence": {},
-            "psychology_intelligence": {},
-            "content_intelligence": {},
-            "competitive_intelligence": {},
-            "brand_intelligence": {},
-            "intelligence_sources": []
-        }
-        
-        # Aggregate intelligence data from all sources
-        for source in intelligence_sources:
-            try:
-                source_data = {
-                    "id": str(source.id),
-                    "source_type": source.source_type.value if source.source_type else "unknown",
-                    "source_url": source.source_url,
-                    "confidence_score": source.confidence_score or 0.0,
-                    "offer_intelligence": source.offer_intelligence or {},
-                    "psychology_intelligence": source.psychology_intelligence or {},
-                    "content_intelligence": source.content_intelligence or {},
-                    "competitive_intelligence": source.competitive_intelligence or {},
-                    "brand_intelligence": source.brand_intelligence or {}
-                }
-                intelligence_data["intelligence_sources"].append(source_data)
-                
-                # Merge into aggregate intelligence
-                for intel_type in ["offer_intelligence", "psychology_intelligence", "content_intelligence", "competitive_intelligence", "brand_intelligence"]:
-                    source_intel = source_data.get(intel_type, {})
-                    if source_intel:
-                        current_intel = intelligence_data.get(intel_type, {})
-                        
-                        # Merge lists and strings intelligently
-                        for key, value in source_intel.items():
-                            if key in current_intel:
-                                if isinstance(value, list) and isinstance(current_intel[key], list):
-                                    current_intel[key].extend(value)
-                                elif isinstance(value, str) and isinstance(current_intel[key], str):
-                                    if value not in current_intel[key]:
-                                        current_intel[key] += f" {value}"
-                            else:
-                                current_intel[key] = value
-                        
-                        intelligence_data[intel_type] = current_intel
-                        
-            except Exception as source_error:
-                logger.warning(f"⚠️ Error processing source {source.id}: {str(source_error)}")
-                continue
-        
-        logger.info(f"🧠 Intelligence data prepared for {content_type} generation")
-        
-        # Generate content using the appropriate generator
-        if content_type == "email_sequence":
-            try:
-                from src.intelligence.generators.email_generator import EmailSequenceGenerator
-                generator = EmailSequenceGenerator()
-                result = await generator.generate_email_sequence(intelligence_data, preferences)
-                logger.info(f"✅ Email sequence generated successfully")
-            except ImportError as e:
-                logger.error(f"❌ Email generator import failed: {str(e)}")
-                raise HTTPException(status_code=500, detail="Email generator not available")
-                
-        elif content_type == "social_media_posts":
-            try:
-                from src.intelligence.generators.social_media_generator import SocialMediaGenerator
-                generator = SocialMediaGenerator()
-                result = await generator.generate_social_posts(intelligence_data, preferences)
-                logger.info(f"✅ Social media posts generated successfully")
-            except ImportError as e:
-                logger.error(f"❌ Social media generator import failed: {str(e)}")
-                raise HTTPException(status_code=500, detail="Social media generator not available")
-                
-        elif content_type == "ad_copy":
-            try:
-                from src.intelligence.generators.social_media_generator import AdCopyGenerator
-                generator = AdCopyGenerator()
-                result = await generator.generate_ad_copy(intelligence_data, preferences)
-                logger.info(f"✅ Ad copy generated successfully")
-            except ImportError as e:
-                logger.error(f"❌ Ad copy generator import failed: {str(e)}")
-                raise HTTPException(status_code=500, detail="Ad copy generator not available")
-                
-        elif content_type == "blog_post":
-            try:
-                from src.intelligence.generators.social_media_generator import BlogPostGenerator
-                generator = BlogPostGenerator()
-                result = await generator.generate_blog_post(intelligence_data, preferences)
-                logger.info(f"✅ Blog post generated successfully")
-            except ImportError as e:
-                logger.error(f"❌ Blog post generator import failed: {str(e)}")
-                raise HTTPException(status_code=500, detail="Blog post generator not available")
-                
-        elif content_type == "landing_page":
-            try:
-                from src.intelligence.generators.landing_page.core.generator import EnhancedLandingPageGenerator
-                generator = EnhancedLandingPageGenerator()
-                result = await generator.generate_landing_page(intelligence_data, preferences)
-                logger.info(f"✅ Landing page generated successfully")
-            except ImportError as e:
-                logger.error(f"❌ Landing page generator import failed: {str(e)}")
-                raise HTTPException(status_code=500, detail="Landing page generator not available")
-                
-        elif content_type == "video_script":
-            try:
-                from src.intelligence.generators.video_script_generator import VideoScriptGenerator
-                generator = VideoScriptGenerator()
-                result = await generator.generate_video_script(intelligence_data, preferences)
-                logger.info(f"✅ Video script generated successfully")
-            except ImportError as e:
-                logger.error(f"❌ Video script generator import failed: {str(e)}")
-                raise HTTPException(status_code=500, detail="Video script generator not available")
-                
-        else:
-            logger.error(f"❌ Unknown content type: {content_type}")
-            raise HTTPException(status_code=400, detail=f"Unknown content type: {content_type}")
-        
-        # Check if generation was successful
-        if not result or result.get("error") or result.get("fallback"):
-            logger.error(f"❌ Generation failed or returned fallback: {result}")
-            raise HTTPException(
-                status_code=500, 
-                detail=result.get("error", "Content generation failed")
-            )
-        
-        # Save generated content to database
-        generated_content = GeneratedContent(
-            campaign_id=campaign_id,
-            company_id=current_user.company_id,
-            user_id=current_user.id,
-            content_type=content_type,
-            content_title=result.get("title", f"Generated {content_type.title()}"),
-            content_body=json.dumps(result.get("content", {})),
-            content_metadata=result.get("metadata", {}),
-            generation_settings=preferences,
-            intelligence_used={
-                "sources_count": len(intelligence_sources),
-                "primary_source_id": str(intelligence_sources[0].id) if intelligence_sources else None,
-                "generation_timestamp": datetime.utcnow().isoformat(),
-                "amplified": any(source.processing_metadata and source.processing_metadata.get("amplification_applied", False) for source in intelligence_sources)
-            },
-            intelligence_source_id=intelligence_sources[0].id if intelligence_sources else None
-        )
-        
-        db.add(generated_content)
-        await db.commit()
-        await db.refresh(generated_content)
-        
-        # Update campaign counters
-        try:
-            await update_campaign_counters(campaign_id, db)
-            await db.commit()
-            logger.info(f"📊 Campaign counters updated")
-        except Exception as counter_error:
-            logger.warning(f"⚠️ Campaign counter update failed (non-critical): {str(counter_error)}")
-        
-        logger.info(f"✅ Content generation completed successfully - ID: {generated_content.id}")
-        
-        return {
-            "content_id": str(generated_content.id),
-            "content_type": content_type,
-            "generated_content": result,
-            "smart_url": None,  # Can be implemented later
-            "performance_predictions": {},  # Can be implemented later
-            "intelligence_sources_used": len(intelligence_sources),
-            "generation_metadata": {
-                "generated_at": generated_content.created_at.isoformat(),
-                "generator_used": f"{content_type}_generator",
-                "fallback_used": False,
-                "success": True
-            }
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Content generation failed: {str(e)}")
-        logger.error(f"📍 Full traceback: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Content generation failed: {str(e)}"
-        )
-
-
-# ============================================================================
-# ✅ ADDITIONAL: CONTENT TYPE DISCOVERY ENDPOINT
-# ============================================================================
-
-@router.get("/content-types")
-async def get_available_content_types(
-    current_user: User = Depends(get_current_user)
-):
-    """Get list of available content types and their capabilities"""
-    
-    try:
-        # Try to use the factory if available
-        try:
-            from src.intelligence.generators.factory import ContentGeneratorFactory
-            factory = ContentGeneratorFactory()
-            capabilities = factory.get_generator_capabilities()
-            available_types = factory.get_available_generators()
-            factory_available = True
-        except ImportError:
-            factory_available = False
-            capabilities = {}
-            available_types = []
-        
-        # Fallback to manual detection
-        if not factory_available:
-            available_types = []
-            capabilities = {}
-            
-            # Check each generator individually
-            generators_to_check = [
-                ("email_sequence", "EmailSequenceGenerator", "src.intelligence.generators.email_generator"),
-                ("social_media_posts", "SocialMediaGenerator", "src.intelligence.generators.social_media_generator"),
-                ("ad_copy", "AdCopyGenerator", "src.intelligence.generators.social_media_generator"),
-                ("blog_post", "BlogPostGenerator", "src.intelligence.generators.social_media_generator"),
-                ("landing_page", "EnhancedLandingPageGenerator", "src.intelligence.generators.landing_page.core.generator"),
-                ("video_script", "VideoScriptGenerator", "src.intelligence.generators.video_script_generator"),
-            ]
-            
-            for content_type, class_name, module_path in generators_to_check:
-                try:
-                    module = __import__(module_path, fromlist=[class_name])
-                    getattr(module, class_name)
-                    available_types.append(content_type)
-                    capabilities[content_type] = {
-                        "description": f"Generate {content_type.replace('_', ' ')}",
-                        "status": "available"
-                    }
-                except (ImportError, AttributeError):
-                    capabilities[content_type] = {
-                        "description": f"Generate {content_type.replace('_', ' ')}",
-                        "status": "unavailable"
-                    }
-        
-        return {
-            "available_content_types": available_types,
-            "total_available": len(available_types),
-            "capabilities": capabilities,
-            "factory_available": factory_available,
-            "status": "operational" if available_types else "limited"
-        }
-        
-    except Exception as e:
-        logger.error(f"❌ Error getting content types: {str(e)}")
-        return {
-            "available_content_types": ["email_sequence"],  # Fallback
-            "total_available": 1,
-            "capabilities": {
-                "email_sequence": {
-                    "description": "Generate email sequences",
-                    "status": "fallback"
-                }
-            },
-            "factory_available": False,
-            "status": "fallback",
-            "error": str(e)
-        }
