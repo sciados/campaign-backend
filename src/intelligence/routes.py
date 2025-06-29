@@ -1402,3 +1402,401 @@ async def duplicate_content(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to duplicate content: {str(e)}"
         )
+    
+    # In src/intelligence/routes.py (or wherever your intelligence routes are)
+
+@router.post("/generate-content")
+async def generate_content(
+    request_data: Dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Generate content using intelligence data"""
+    try:
+        content_type = request_data.get("content_type", "email_sequence")
+        campaign_id = request_data.get("campaign_id")
+        preferences = request_data.get("preferences", {})
+        
+        # Get campaign and verify ownership
+        campaign = await db.get(Campaign, campaign_id)
+        if not campaign or campaign.company_id != current_user.company_id:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        # Get intelligence data for the campaign
+        intelligence_result = await db.execute(
+            select(CampaignIntelligence).where(
+                CampaignIntelligence.campaign_id == campaign_id
+            )
+        )
+        intelligence_sources = intelligence_result.scalars().all()
+        
+        # Prepare intelligence data
+        intelligence_data = {
+            "campaign_id": campaign_id,
+            "campaign_name": campaign.title,
+            "target_audience": campaign.target_audience,
+            "intelligence_sources": [
+                {
+                    "id": str(source.id),
+                    "source_type": source.source_type.value,
+                    "offer_intelligence": source.offer_intelligence,
+                    "psychology_intelligence": source.psychology_intelligence,
+                    "content_intelligence": source.content_intelligence
+                }
+                for source in intelligence_sources
+            ]
+        }
+        
+        # Generate content using the email generator
+        from src.intelligence.generators.email_generator import EmailSequenceGenerator
+        generator = EmailSequenceGenerator()
+        
+        result = await generator.generate_email_sequence(intelligence_data, preferences)
+        
+        # Save generated content to database
+        generated_content = GeneratedContent(
+            campaign_id=campaign_id,
+            company_id=current_user.company_id,
+            user_id=current_user.id,
+            content_type=content_type,
+            content_title=result.get("title", "Generated Content"),
+            content_body=json.dumps(result.get("content", {})),
+            content_metadata=result.get("metadata", {}),
+            generation_settings=preferences
+        )
+        
+        db.add(generated_content)
+        await db.commit()
+        await db.refresh(generated_content)
+        
+        return {
+            "content_id": str(generated_content.id),
+            "content_type": content_type,
+            "generated_content": result,
+            "smart_url": None,  # Can be implemented later
+            "performance_predictions": {}  # Can be implemented later
+        }
+        
+    except Exception as e:
+        logger.error(f"Content generation failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Content generation failed: {str(e)}"
+        )
+    
+    # Add this to the END of src/intelligence/routes.py after the existing routes
+
+# ============================================================================
+# ✅ FIXED: CONTENT GENERATION ENDPOINT
+# ============================================================================
+
+@router.post("/generate-content")
+async def generate_content_endpoint(
+    request_data: Dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """✅ FIXED: Generate content using intelligence data"""
+    
+    logger.info(f"🎯 Content generation request received")
+    logger.info(f"📝 Request data: {request_data}")
+    
+    try:
+        content_type = request_data.get("content_type", "email_sequence")
+        campaign_id = request_data.get("campaign_id")
+        preferences = request_data.get("preferences", {})
+        intelligence_id = request_data.get("intelligence_id")
+        
+        logger.info(f"🎯 Generating {content_type} for campaign {campaign_id}")
+        
+        if not campaign_id:
+            raise HTTPException(status_code=400, detail="campaign_id is required")
+        
+        # Get campaign and verify ownership
+        campaign_result = await db.execute(
+            select(Campaign).where(
+                and_(
+                    Campaign.id == campaign_id,
+                    Campaign.company_id == current_user.company_id
+                )
+            )
+        )
+        campaign = campaign_result.scalar_one_or_none()
+        
+        if not campaign:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        logger.info(f"✅ Campaign verified: {campaign.title}")
+        
+        # Get intelligence data for the campaign
+        intelligence_result = await db.execute(
+            select(CampaignIntelligence).where(
+                CampaignIntelligence.campaign_id == campaign_id
+            )
+        )
+        intelligence_sources = intelligence_result.scalars().all()
+        
+        logger.info(f"📊 Found {len(intelligence_sources)} intelligence sources")
+        
+        # Prepare intelligence data for generator
+        intelligence_data = {
+            "campaign_id": campaign_id,
+            "campaign_name": campaign.title,
+            "target_audience": campaign.target_audience or "health-conscious adults",
+            "offer_intelligence": {},
+            "psychology_intelligence": {},
+            "content_intelligence": {},
+            "competitive_intelligence": {},
+            "brand_intelligence": {},
+            "intelligence_sources": []
+        }
+        
+        # Aggregate intelligence data from all sources
+        for source in intelligence_sources:
+            try:
+                source_data = {
+                    "id": str(source.id),
+                    "source_type": source.source_type.value if source.source_type else "unknown",
+                    "source_url": source.source_url,
+                    "confidence_score": source.confidence_score or 0.0,
+                    "offer_intelligence": source.offer_intelligence or {},
+                    "psychology_intelligence": source.psychology_intelligence or {},
+                    "content_intelligence": source.content_intelligence or {},
+                    "competitive_intelligence": source.competitive_intelligence or {},
+                    "brand_intelligence": source.brand_intelligence or {}
+                }
+                intelligence_data["intelligence_sources"].append(source_data)
+                
+                # Merge into aggregate intelligence
+                for intel_type in ["offer_intelligence", "psychology_intelligence", "content_intelligence", "competitive_intelligence", "brand_intelligence"]:
+                    source_intel = source_data.get(intel_type, {})
+                    if source_intel:
+                        current_intel = intelligence_data.get(intel_type, {})
+                        
+                        # Merge lists and strings intelligently
+                        for key, value in source_intel.items():
+                            if key in current_intel:
+                                if isinstance(value, list) and isinstance(current_intel[key], list):
+                                    current_intel[key].extend(value)
+                                elif isinstance(value, str) and isinstance(current_intel[key], str):
+                                    if value not in current_intel[key]:
+                                        current_intel[key] += f" {value}"
+                            else:
+                                current_intel[key] = value
+                        
+                        intelligence_data[intel_type] = current_intel
+                        
+            except Exception as source_error:
+                logger.warning(f"⚠️ Error processing source {source.id}: {str(source_error)}")
+                continue
+        
+        logger.info(f"🧠 Intelligence data prepared for {content_type} generation")
+        
+        # Generate content using the appropriate generator
+        if content_type == "email_sequence":
+            try:
+                from src.intelligence.generators.email_generator import EmailSequenceGenerator
+                generator = EmailSequenceGenerator()
+                result = await generator.generate_email_sequence(intelligence_data, preferences)
+                logger.info(f"✅ Email sequence generated successfully")
+            except ImportError as e:
+                logger.error(f"❌ Email generator import failed: {str(e)}")
+                raise HTTPException(status_code=500, detail="Email generator not available")
+                
+        elif content_type == "social_media_posts":
+            try:
+                from src.intelligence.generators.social_media_generator import SocialMediaGenerator
+                generator = SocialMediaGenerator()
+                result = await generator.generate_social_posts(intelligence_data, preferences)
+                logger.info(f"✅ Social media posts generated successfully")
+            except ImportError as e:
+                logger.error(f"❌ Social media generator import failed: {str(e)}")
+                raise HTTPException(status_code=500, detail="Social media generator not available")
+                
+        elif content_type == "ad_copy":
+            try:
+                from src.intelligence.generators.social_media_generator import AdCopyGenerator
+                generator = AdCopyGenerator()
+                result = await generator.generate_ad_copy(intelligence_data, preferences)
+                logger.info(f"✅ Ad copy generated successfully")
+            except ImportError as e:
+                logger.error(f"❌ Ad copy generator import failed: {str(e)}")
+                raise HTTPException(status_code=500, detail="Ad copy generator not available")
+                
+        elif content_type == "blog_post":
+            try:
+                from src.intelligence.generators.social_media_generator import BlogPostGenerator
+                generator = BlogPostGenerator()
+                result = await generator.generate_blog_post(intelligence_data, preferences)
+                logger.info(f"✅ Blog post generated successfully")
+            except ImportError as e:
+                logger.error(f"❌ Blog post generator import failed: {str(e)}")
+                raise HTTPException(status_code=500, detail="Blog post generator not available")
+                
+        elif content_type == "landing_page":
+            try:
+                from src.intelligence.generators.landing_page.core.generator import EnhancedLandingPageGenerator
+                generator = EnhancedLandingPageGenerator()
+                result = await generator.generate_landing_page(intelligence_data, preferences)
+                logger.info(f"✅ Landing page generated successfully")
+            except ImportError as e:
+                logger.error(f"❌ Landing page generator import failed: {str(e)}")
+                raise HTTPException(status_code=500, detail="Landing page generator not available")
+                
+        elif content_type == "video_script":
+            try:
+                from src.intelligence.generators.video_script_generator import VideoScriptGenerator
+                generator = VideoScriptGenerator()
+                result = await generator.generate_video_script(intelligence_data, preferences)
+                logger.info(f"✅ Video script generated successfully")
+            except ImportError as e:
+                logger.error(f"❌ Video script generator import failed: {str(e)}")
+                raise HTTPException(status_code=500, detail="Video script generator not available")
+                
+        else:
+            logger.error(f"❌ Unknown content type: {content_type}")
+            raise HTTPException(status_code=400, detail=f"Unknown content type: {content_type}")
+        
+        # Check if generation was successful
+        if not result or result.get("error") or result.get("fallback"):
+            logger.error(f"❌ Generation failed or returned fallback: {result}")
+            raise HTTPException(
+                status_code=500, 
+                detail=result.get("error", "Content generation failed")
+            )
+        
+        # Save generated content to database
+        generated_content = GeneratedContent(
+            campaign_id=campaign_id,
+            company_id=current_user.company_id,
+            user_id=current_user.id,
+            content_type=content_type,
+            content_title=result.get("title", f"Generated {content_type.title()}"),
+            content_body=json.dumps(result.get("content", {})),
+            content_metadata=result.get("metadata", {}),
+            generation_settings=preferences,
+            intelligence_used={
+                "sources_count": len(intelligence_sources),
+                "primary_source_id": str(intelligence_sources[0].id) if intelligence_sources else None,
+                "generation_timestamp": datetime.utcnow().isoformat(),
+                "amplified": any(source.processing_metadata and source.processing_metadata.get("amplification_applied", False) for source in intelligence_sources)
+            },
+            intelligence_source_id=intelligence_sources[0].id if intelligence_sources else None
+        )
+        
+        db.add(generated_content)
+        await db.commit()
+        await db.refresh(generated_content)
+        
+        # Update campaign counters
+        try:
+            await update_campaign_counters(campaign_id, db)
+            await db.commit()
+            logger.info(f"📊 Campaign counters updated")
+        except Exception as counter_error:
+            logger.warning(f"⚠️ Campaign counter update failed (non-critical): {str(counter_error)}")
+        
+        logger.info(f"✅ Content generation completed successfully - ID: {generated_content.id}")
+        
+        return {
+            "content_id": str(generated_content.id),
+            "content_type": content_type,
+            "generated_content": result,
+            "smart_url": None,  # Can be implemented later
+            "performance_predictions": {},  # Can be implemented later
+            "intelligence_sources_used": len(intelligence_sources),
+            "generation_metadata": {
+                "generated_at": generated_content.created_at.isoformat(),
+                "generator_used": f"{content_type}_generator",
+                "fallback_used": False,
+                "success": True
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Content generation failed: {str(e)}")
+        logger.error(f"📍 Full traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Content generation failed: {str(e)}"
+        )
+
+
+# ============================================================================
+# ✅ ADDITIONAL: CONTENT TYPE DISCOVERY ENDPOINT
+# ============================================================================
+
+@router.get("/content-types")
+async def get_available_content_types(
+    current_user: User = Depends(get_current_user)
+):
+    """Get list of available content types and their capabilities"""
+    
+    try:
+        # Try to use the factory if available
+        try:
+            from src.intelligence.generators.factory import ContentGeneratorFactory
+            factory = ContentGeneratorFactory()
+            capabilities = factory.get_generator_capabilities()
+            available_types = factory.get_available_generators()
+            factory_available = True
+        except ImportError:
+            factory_available = False
+            capabilities = {}
+            available_types = []
+        
+        # Fallback to manual detection
+        if not factory_available:
+            available_types = []
+            capabilities = {}
+            
+            # Check each generator individually
+            generators_to_check = [
+                ("email_sequence", "EmailSequenceGenerator", "src.intelligence.generators.email_generator"),
+                ("social_media_posts", "SocialMediaGenerator", "src.intelligence.generators.social_media_generator"),
+                ("ad_copy", "AdCopyGenerator", "src.intelligence.generators.social_media_generator"),
+                ("blog_post", "BlogPostGenerator", "src.intelligence.generators.social_media_generator"),
+                ("landing_page", "EnhancedLandingPageGenerator", "src.intelligence.generators.landing_page.core.generator"),
+                ("video_script", "VideoScriptGenerator", "src.intelligence.generators.video_script_generator"),
+            ]
+            
+            for content_type, class_name, module_path in generators_to_check:
+                try:
+                    module = __import__(module_path, fromlist=[class_name])
+                    getattr(module, class_name)
+                    available_types.append(content_type)
+                    capabilities[content_type] = {
+                        "description": f"Generate {content_type.replace('_', ' ')}",
+                        "status": "available"
+                    }
+                except (ImportError, AttributeError):
+                    capabilities[content_type] = {
+                        "description": f"Generate {content_type.replace('_', ' ')}",
+                        "status": "unavailable"
+                    }
+        
+        return {
+            "available_content_types": available_types,
+            "total_available": len(available_types),
+            "capabilities": capabilities,
+            "factory_available": factory_available,
+            "status": "operational" if available_types else "limited"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting content types: {str(e)}")
+        return {
+            "available_content_types": ["email_sequence"],  # Fallback
+            "total_available": 1,
+            "capabilities": {
+                "email_sequence": {
+                    "description": "Generate email sequences",
+                    "status": "fallback"
+                }
+            },
+            "factory_available": False,
+            "status": "fallback",
+            "error": str(e)
+        }
