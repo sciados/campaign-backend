@@ -776,7 +776,46 @@ async def debug_test_scraping():
             "target_site_accessible": results.get("https://www.hepatoburn.com/", {}).get("success", False),
             "network_available": any(r.get("success", False) for r in results.values())
         }
-    }    
+    } 
+
+@router.get("/debug/test-full-analyzer")
+async def debug_test_full_analyzer():
+    """Test the complete analyzer chain"""
+    try:
+        from src.intelligence.analyzers import SalesPageAnalyzer
+        
+        analyzer = SalesPageAnalyzer()
+        url = "https://www.hepatoburn.com/"
+        
+        # Test the full analysis
+        result = await analyzer.analyze(url)
+        
+        return {
+            "analyzer_class": type(analyzer).__name__,
+            "test_url": url,
+            "analysis_results": {
+                "confidence_score": result.get('confidence_score', 0),
+                "page_title": result.get('page_title', 'None'),
+                "product_name": result.get('product_name', 'None'),
+                "raw_content_length": len(result.get('raw_content', '')),
+                "raw_content_preview": result.get('raw_content', '')[:500] + "..." if result.get('raw_content') else "EMPTY",
+                "has_products": len(result.get('offer_intelligence', {}).get('products', [])),
+                "has_pricing": len(result.get('offer_intelligence', {}).get('pricing', [])),
+                "has_error": 'error' in result,
+                "error_message": result.get('error', None),
+                "analysis_note": result.get('analysis_note', None)
+            },
+            "full_result_keys": list(result.keys()),
+            "success": result.get('confidence_score', 0) > 0
+        }
+        
+    except Exception as e:
+        import traceback
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "success": False
+        } 
 
 
 # FALLBACK CLASSES FOR MISSING DEPENDENCIES
