@@ -730,6 +730,55 @@ async def get_available_content_types(
             "status": "fallback",
             "error": str(e)
         }
+
+# ============================================================================
+# DEBUG ENDPOINTS
+# ============================================================================
+
+@router.get("/debug/test-scraping")
+async def debug_test_scraping():
+    """Debug the actual scraping process"""
+    import aiohttp
+    
+    test_urls = [
+        "https://httpbin.org/html",           # Simple test page
+        "https://example.com",                # Basic page
+        "https://www.hepatoburn.com/",        # Target site
+    ]
+    
+    results = {}
+    
+    for url in test_urls:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                    content = await response.text()
+                    results[url] = {
+                        "status": response.status,
+                        "content_length": len(content),
+                        "success": response.status == 200,
+                        "title_found": "<title>" in content.lower(),
+                        "error": None
+                    }
+        except Exception as e:
+            results[url] = {
+                "status": None,
+                "content_length": 0,
+                "success": False,
+                "title_found": False,
+                "error": str(e)
+            }
+    
+    return {
+        "scraping_test_results": results,
+        "summary": {
+            "basic_http_working": results.get("https://httpbin.org/html", {}).get("success", False),
+            "target_site_accessible": results.get("https://www.hepatoburn.com/", {}).get("success", False),
+            "network_available": any(r.get("success", False) for r in results.values())
+        }
+    }    
+
+
 # FALLBACK CLASSES FOR MISSING DEPENDENCIES
 # ============================================================================
 
