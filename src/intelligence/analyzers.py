@@ -22,7 +22,8 @@ from urllib3.util.retry import Retry
 # Initialize logger
 logger = logging.getLogger(__name__)
 
-# Import product extractor with proper error handling
+# Import product extractor
+# with proper error handling
 try:
     from src.intelligence.extractors.product_extractor import ProductNameExtractor, extract_product_name
     PRODUCT_EXTRACTOR_AVAILABLE = True
