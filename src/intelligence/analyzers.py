@@ -16,6 +16,8 @@ import uuid
 from datetime import datetime
 import os
 
+logger = logging.getLogger(__name__)
+
 # ✅ CRITICAL FIX: Import the product extractor
 try:
     from src.intelligence.extractors.product_extractor import ProductNameExtractor, extract_product_name
@@ -73,8 +75,6 @@ except ImportError:
             
             # Final fallback
             return "Product"
-
-logger = logging.getLogger(__name__)
 
 class SalesPageAnalyzer:
     """Analyze competitor sales pages for offers, psychology, and opportunities - FIXED VERSION"""
