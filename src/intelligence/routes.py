@@ -29,10 +29,10 @@ from src.models.intelligence import (
     AnalysisStatus
 )
 
-# ✅ ENHANCED: Safe import handling for analyzers
+# ✅ FIXED: Import analyzers using proper package structure
 try:
-    from src.intelligence.analyzers import SalesPageAnalyzer, DocumentAnalyzer, WebAnalyzer, EnhancedSalesPageAnalyzer, VSLAnalyzer
-    ANALYZERS_AVAILABLE = True
+    from src.intelligence import SalesPageAnalyzer, DocumentAnalyzer, WebAnalyzer, EnhancedSalesPageAnalyzer, VSLAnalyzer, INTELLIGENCE_AVAILABLE
+    ANALYZERS_AVAILABLE = INTELLIGENCE_AVAILABLE
     logger.info("✅ SUCCESS: All intelligence analyzers imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ IMPORT WARNING: Analyzers not available: {str(e)}")
@@ -116,7 +116,6 @@ except ImportError:
     async def check_and_consume_credits(*args, **kwargs):
         pass
 
-logger = logging.getLogger(__name__)
 router = APIRouter(tags=["intelligence"])
 
 # ============================================================================
