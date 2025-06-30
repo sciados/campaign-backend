@@ -78,7 +78,7 @@ class SalesPageAnalyzer:
         except Exception as e:
             logger.error(f"Sales page analysis failed for {url}: {str(e)}")
             # Return a fallback response instead of raising
-            return self._error_fallback_analysis(url, str(e))
+            
     
     # ✅ ADD: Advanced product name extraction method
     async def _extract_product_name(self, page_content: Dict[str, str], structured_content: Dict[str, Any]) -> str:
