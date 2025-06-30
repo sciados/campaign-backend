@@ -584,13 +584,15 @@ class SalesPageAnalyzer:
         """Clean extracted text"""
         if not text:
             return ""
-        
-        # Remove extra whitespace
+    
+    # Remove extra whitespace
         text = re.sub(r'\s+', ' ', text).strip()
-        
-        # Remove common artifacts
+    
+    # Remove common artifacts
         text = re.sub(r'^(and|or|but|the|a|an)\s+', '', text, flags=re.IGNORECASE)
-        text = re.sub(r'\s+(and|or|but')
+        text = re.sub(r'\s+(and|or|but)$', '', text, flags=re.IGNORECASE)
+    
+        return text
     
     def _identify_content_sections(self, content: str) -> Dict[str, str]:
         """Identify key sections of sales page content"""
