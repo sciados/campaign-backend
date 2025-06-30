@@ -13,7 +13,7 @@ from src.campaigns.routes import router as campaigns_router
 from src.dashboard.routes import router as dashboard_router
 from src.intelligence.routes import router as intelligence_router
 from src.admin.routes import router as admin_router
-from src.intelligence.test_routes import router as test_router
+from src.intelligence.routes import router as intelligence_router
 
 # ✅ NEW: Import landing page and analytics routes
 from src.intelligence.generators.landing_page.routes import router as landing_pages_router
@@ -40,7 +40,7 @@ app = FastAPI(
     description="AI-powered marketing campaign intelligence platform with landing page generation",
     version="1.0.0"
 )
-app.include_router(test_router)
+app.include_router(intelligence_router, prefix="/intelligence") 
 
 # ✅ FIXED: Better CORS configuration with multiple origins
 allowed_origins = [
