@@ -280,7 +280,7 @@ class SalesPageAnalyzer:
             "product_types": product_types,
             "target_audience": target_audience,
             "usage_instructions": usage_instructions,
-            "extraction_confidence": self._calculate_extraction_confidence(benefits, features, ingredients)
+            "extraction_confidence": 0.5 # self._calculate_extraction_confidence(benefits, features, ingredients)
         }
     
     def _extract_product_benefits(self, content: str) -> List[str]:
@@ -1161,16 +1161,16 @@ class VSLAnalyzer:
     
     def _calculate_extraction_confidence(self, benefits: List, features: List, ingredients: List) -> float:
         """Calculate confidence in product extraction"""
-        
+    
         confidence = 0.3  # Base confidence
-        
+    
         if benefits:
             confidence += min(len(benefits) * 0.05, 0.3)
         if features:
             confidence += min(len(features) * 0.05, 0.25)
         if ingredients:
             confidence += min(len(ingredients) * 0.03, 0.15)
-        
+    
         return min(confidence, 1.0)
     
     def _identify_content_sections(self, content: str) -> Dict[str, str]:
