@@ -20,9 +20,59 @@ import os
 try:
     from src.intelligence.extractors.product_extractor import ProductNameExtractor, extract_product_name
     PRODUCT_EXTRACTOR_AVAILABLE = True
+    logger.info("✅ Product extractor imported successfully")
 except ImportError:
     PRODUCT_EXTRACTOR_AVAILABLE = False
-    print("⚠️ Product extractor not found. Product names will default to 'Product'.")
+    logger.warning("⚠️ Product extractor not found. Creating fallback extractor.")
+    
+            # ✅ FALLBACK: Simple product extractor built-in
+    class ProductNameExtractor:
+        """Fallback product name extractor"""
+        
+        def extract_product_name(self, content: str, page_title: str = None) -> str:
+            """Simple fallback product name extraction"""
+            
+            # Simple patterns for product names
+            simple_patterns = [
+                r'Join\s+The\s+Thousands\s+Who\s+Rave\s+About\s+([A-Z][a-zA-Z]+)',
+                r'Feel\s+The\s+Difference\s+([A-Z][a-zA-Z]+)\s+May\s+Make',
+                r'Get\s+([A-Z][a-zA-Z]+)\s+(?:today|now|here)',
+                r'Try\s+([A-Z][a-zA-Z]+)\s+(?:today|now|here)',
+                r'([A-Z][a-zA-Z]+)\s+helps?\s+support',
+                r'([A-Z][a-zA-Z]+)\s+is\s+a\s+(?:natural|powerful|effective)',
+                r'(?:with|using)\s+([A-Z][a-zA-Z]+)\s+you',
+                r'([A-Z][a-zA-Z]+)\s+(?:contains|features|provides)',
+                r'discover\s+([A-Z][a-zA-Z]+)',
+                r'introducing\s+([A-Z][a-zA-Z]+)'
+            ]
+            
+            # Check title first
+            if page_title:
+                title_words = page_title.split()
+                for word in title_words:
+                    if len(word) > 3 and word[0].isupper() and word.lower() not in ['the', 'and', 'for', 'with']:
+                        return word
+            
+            # Check patterns in content
+            for pattern in simple_patterns:
+                match = re.search(pattern, content, re.IGNORECASE)
+                if match:
+                    candidate = match.group(1).strip()
+                    if len(candidate) > 3 and candidate.lower() not in ['the', 'this', 'that', 'many', 'some']:
+                        return candidate
+            
+            # Frequency-based fallback
+            words = re.findall(r'\b[A-Z][a-zA-Z]{3,}\b', content)
+            if words:
+                from collections import Counter
+                word_counts = Counter(words)
+                # Get most frequent capitalized word that appears at least twice
+                for word, count in word_counts.most_common(10):
+                    if count >= 2 and word.lower() not in ['the', 'this', 'that', 'many', 'some', 'click', 'here']:
+                        return word
+            
+            # Final fallback
+            return "Product"
 
 logger = logging.getLogger(__name__)
 
@@ -84,28 +134,48 @@ class SalesPageAnalyzer:
     async def _extract_product_name(self, page_content: Dict[str, str], structured_content: Dict[str, Any]) -> str:
         """✅ CRITICAL FIX: Extract product name using dedicated extractor"""
         
-        if not self.product_extractor:
-            logger.warning("⚠️ Product extractor not available, using fallback detection")
-            return self._fallback_product_detection(page_content["content"])
-        
         try:
-            # Use the dedicated product extractor
-            product_name = self.product_extractor.extract_product_name(
-                content=page_content["content"],
-                page_title=page_content["title"]
-            )
+            if PRODUCT_EXTRACTOR_AVAILABLE:
+                # Use the full extractor
+                extractor = ProductNameExtractor()
+                product_name = extractor.extract_product_name(
+                    content=page_content["content"],
+                    page_title=page_content["title"]
+                )
+            else:
+                # Use simple fallback function
+                product_name = extract_product_name(
+                    content=page_content["content"],
+                    page_title=page_content["title"]
+                )
             
             # Validate result
             if product_name and product_name != "Product":
                 logger.info(f"✅ Product name successfully extracted: '{product_name}'")
                 return product_name
             else:
-                logger.warning("⚠️ Product extractor returned generic name, trying fallback")
-                return self._fallback_product_detection(page_content["content"])
+                logger.warning("⚠️ Product extractor returned generic name, trying simple fallback")
+                return self._simple_product_detection(page_content["content"])
                 
         except Exception as e:
             logger.error(f"❌ Product extraction failed: {str(e)}")
-            return self._fallback_product_detection(page_content["content"])
+            return self._simple_product_detection(page_content["content"])
+    
+    def _simple_product_detection(self, content: str) -> str:
+        """Simplest possible product name detection"""
+        
+        # Just look for capitalized words that appear multiple times
+        words = re.findall(r'\b[A-Z][a-zA-Z]{4,}\b', content)
+        if words:
+            from collections import Counter
+            word_counts = Counter(words)
+            for word, count in word_counts.most_common(5):
+                if count >= 2 and word.lower() not in ['the', 'this', 'that', 'click', 'here', 'get', 'buy']:
+                    logger.info(f"🔍 Simple detection found: '{word}'")
+                    return word
+        
+        logger.warning("⚠️ No product name detected, using 'Product'")
+        return "Product"
     
     def _fallback_product_detection(self, content: str) -> str:
         """Fallback product name detection when extractor is not available"""
@@ -118,6 +188,10 @@ class SalesPageAnalyzer:
             r'Try\s+([A-Z][a-zA-Z]+)\s+(?:today|now|here)',
             r'([A-Z][a-zA-Z]+)\s+helps?\s+support',
             r'([A-Z][a-zA-Z]+)\s+is\s+a\s+(?:natural|powerful|effective)',
+            r'(?:with|using)\s+([A-Z][a-zA-Z]+)\s+(?:you|users|customers)',
+            r'([A-Z][a-zA-Z]+)\s+(?:contains|features|provides)',
+            r'discover\s+([A-Z][a-zA-Z]+)',
+            r'introducing\s+([A-Z][a-zA-Z]+)'
         ]
         
         for pattern in simple_patterns:
@@ -127,6 +201,16 @@ class SalesPageAnalyzer:
                 if candidate and len(candidate) > 3 and candidate not in ['The', 'This', 'That', 'Many', 'Some']:
                     logger.info(f"🔍 Fallback detection found: '{candidate}'")
                     return candidate
+        
+        # Frequency-based fallback
+        words = re.findall(r'\b[A-Z][a-zA-Z]{3,}\b', content)
+        if words:
+            from collections import Counter
+            word_counts = Counter(words)
+            for word, count in word_counts.most_common(5):
+                if count >= 2 and word.lower() not in ['the', 'this', 'that', 'many', 'some', 'click', 'here']:
+                    logger.info(f"🔍 Frequency fallback found: '{word}'")
+                    return word
         
         # If nothing found, return generic
         logger.warning("⚠️ No product name detected, using 'Product'")
@@ -276,7 +360,8 @@ class SalesPageAnalyzer:
             "word_count": len(content.split()),
             "content_sections": self._identify_content_sections(content)
         }
-        # ✅ ENHANCED: Extract health claims
+    
+    # ✅ ENHANCED: Extract health claims
         health_claims = self._extract_health_claims(content)
         
         # ✅ ENHANCED: Extract ingredients mentions

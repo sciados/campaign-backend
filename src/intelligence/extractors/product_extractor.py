@@ -1,151 +1,177 @@
 # src/intelligence/extractors/product_extractor.py
-
+"""
+Product Name Extraction Engine - Clean version without duplication
+🎯 CRITICAL FIX: Properly extract product names from sales pages
+"""
 import re
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from collections import Counter
 
 logger = logging.getLogger(__name__)
 
 class ProductNameExtractor:
     """Extract product names from sales page content"""
-
+    
     def __init__(self):
-        # Example initializations (replace with actual patterns/words as needed)
-        self.product_patterns = [r'\b([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\b']
-        self.exclude_words = set(['the', 'and', 'with', 'for', 'from', 'this', 'that', 'your', 'our', 'best', 'new', 'sale', 'offer'])
-        self.niche_indicators = {'fitness': ['fit', 'gym', 'muscle'], 'beauty': ['skin', 'glow', 'cream']}
-        self.benefit_keywords = ['boost', 'improve', 'enhance', 'support', 'increase']
-
-        # Precompile patterns/lists if desired for performance
+        # Universal product name patterns
+        self.product_patterns = [
+            r'(?:try|get|use|discover|introducing|meet)\s+([A-Z][a-zA-Z]+)',
+            r'([A-Z][a-zA-Z]+)\s+(?:helps|supports|provides|delivers)',
+            r'(?:^|\n)([A-Z][a-zA-Z]+)\s*[:-]',
+            r'([A-Z][a-zA-Z]+)\s*[™®©]',
+            r'"([A-Z][a-zA-Z]+)"',
+            r'([A-Z][a-zA-Z]+)\s+is\s+(?:a|an|the)',
+            r'([A-Z][a-zA-Z]+)\s+(?:contains|features|includes)',
+            r'(?:with|using)\s+([A-Z][a-zA-Z]+)\s+you'
+        ]
+        
+        # Words to exclude
+        self.exclude_words = {
+            'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+            'this', 'that', 'these', 'those', 'is', 'are', 'was', 'were', 'be', 'been',
+            'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
+            'may', 'might', 'can', 'must', 'shall', 'it', 'he', 'she', 'they', 'we', 'you',
+            'here', 'there', 'where', 'when', 'why', 'how', 'what', 'which', 'who',
+            'discover', 'learn', 'find', 'get', 'buy', 'order', 'try', 'start',
+            'click', 'visit', 'see', 'watch', 'read', 'download', 'access'
+        }
 
     def extract_product_name(self, content: str, page_title: str = None) -> str:
+        """Extract product name from content"""
+        
         logger.info("🔍 Starting product name extraction...")
-        cleaned = self._clean_content(content)
-
-        candidates: List[str] = []
-        candidates.extend(self._extract_by_patterns(cleaned))
+        
+        candidates = []
+        
+        # Method 1: Pattern-based extraction
+        for pattern in self.product_patterns:
+            matches = re.findall(pattern, content, re.IGNORECASE | re.MULTILINE)
+            for match in matches:
+                if isinstance(match, tuple):
+                    match = match[0]
+                
+                cleaned = self._clean_candidate(match)
+                if cleaned and self._is_valid_candidate(cleaned):
+                    candidates.append(cleaned)
+        
+        # Method 2: Title-based extraction
         if page_title:
-            candidates.extend(self._extract_from_title(page_title))
-        candidates.extend(self._extract_by_context(cleaned))
-        candidates.extend(self._extract_by_frequency(cleaned))
-
-        best = self._rank_candidates(candidates, cleaned)
-        logger.info(f"🎯 Product name extraction result: '{best}' "
-                    f"(from {len(candidates)} candidates)")
-        return best
-
-    def _clean_content(self, content: str) -> str:
-        txt = re.sub(r'\s+', ' ', content)
-        noise = [
-            r'click\s+here\s+to\s+\w+',
-            r'order\s+now\s+for\s+\$\d+',
-            r'buy\s+\d+\s+get\s+\d+\s+free',
-            r'limited\s+time\s+offer',
-            r'\$\d+(?:\.\d{2})?\s+(?:value|price|cost)'
-        ]
-        for p in noise:
-            txt = re.sub(p, '', txt, flags=re.IGNORECASE)
-        return txt.strip()
-
-    def _extract_by_patterns(self, content: str) -> List[str]:
-        candidates = []
-        for pat in self.product_patterns:
-            for m in re.findall(pat, content, re.IGNORECASE | re.MULTILINE):
-                match = m[0] if isinstance(m, tuple) else m
-                c = self._clean_candidate(match)
-                if c and self._is_valid_candidate(c):
-                    def _extract_from_title(self, title: str) -> List[str]:
-        # Dummy implementation for now
-                        candidates = []
-        # Example: extract capitalized words from title
-        for m in re.findall(r'\b([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\b', title):
-            def _extract_by_context(self, content: str) -> List[str]:
-        # Dummy implementation for now
-                candidates = []
-        logger.info(f"🎯 Context extraction found {len(candidates)} candidates")
-        return candidates
-    def _extract_by_frequency(self, content: str) -> List[str]:
-        # Dummy implementation for now
-        candidates = []
-        logger.info(f"📊 Frequency extraction found {len(candidates)} candidates")
-        return candidates
-        logger.info(f"📰 Title extraction found {len(candidates)} candidates")
-        return candidates
-
-    def _extract_by_context(self, content: str) -> List[str]:
-        # benefit_context_patterns + niche-specific patterns
-        logger.info(f"🎯 Context extraction found {len(candidates)} candidates")
-        return candidates
-
-    def _extract_by_frequency(self, content: str) -> List[str]:
-        logger.info(f"📊 Frequency extraction found {len(candidates)} candidates")
-        return candidates
+            title_words = page_title.split()
+            for word in title_words:
+                cleaned = self._clean_candidate(word)
+                if cleaned and self._is_valid_candidate(cleaned) and len(cleaned) > 3:
+                    candidates.append(cleaned)
+        
+        # Method 3: Frequency-based extraction
+        words = re.findall(r'\b[A-Z][a-zA-Z]{3,}\b', content)
+        if words:
+            word_counts = Counter(words)
+            for word, count in word_counts.items():
+                if count >= 2:
+                    cleaned = self._clean_candidate(word)
+                    if cleaned and self._is_valid_candidate(cleaned):
+                        for _ in range(min(count, 3)):
+                            candidates.append(cleaned)
+        
+        # Rank and return best candidate
+        best_candidate = self._rank_candidates(candidates, content)
+        
+        logger.info(f"🎯 Product name extraction result: '{best_candidate}'")
+        return best_candidate
 
     def _clean_candidate(self, candidate: str) -> str:
-        candidate = re.sub(r'[^\w\s]', '', candidate).strip().title()
+        """Clean a candidate product name"""
+        if not candidate:
+            return ""
+        
+        candidate = re.sub(r'[^\w\s]', '', candidate)
+        candidate = re.sub(r'\s+', ' ', candidate).strip()
+        candidate = candidate.title()
+        
         return candidate
 
     def _is_valid_candidate(self, candidate: str) -> bool:
-        if len(candidate) < 3 or not candidate[0].isupper():
+        """Check if a candidate is a valid product name"""
+        
+        if not candidate or len(candidate) < 3:
             return False
-        if any(w in self.exclude_words for w in candidate.lower().split()):
+        
+        if not candidate[0].isupper():
             return False
-
+        
+        words = candidate.lower().split()
+        if any(word in self.exclude_words for word in words):
+            return False
+        
+        if not re.search(r'[a-zA-Z]', candidate):
+            return False
+        
         candidate_lower = candidate.lower()
-        positive = 0
-        if re.search(r'[a-z][A-Z]', candidate):
-            positive += 2
-        if any(kw in candidate_lower for kws in self.niche_indicators.values() for kw in kws):
-            positive += 1
-        if 6 <= len(candidate) <= 15:
-            positive += 1
-        if any(candidate_lower.endswith(suf) for suf in ['max','pro','plus','elite','ultra','prime','boost','force','x','fx']):
-            # score = scores[cand]  # Not used, so commented out
-
-            return positive >= 1
+        
+        # Check for non-product patterns
+        if re.match(r'^\d+$', candidate_lower):
+            return False
+        if candidate_lower.startswith(('the ', 'click ', 'buy ', 'get ', 'here ', 'this ', 'that ')):
+            return False
+        
+        # Must have some positive indicators
+        positive_score = 0
+        
+        if re.search(r'[a-z][A-Z]', candidate):  # CamelCase
+            positive_score += 2
+        
+        if 4 <= len(candidate) <= 15:
+            positive_score += 1
+        
+        return positive_score >= 1
 
     def _rank_candidates(self, candidates: List[str], content: str) -> str:
+        """Rank candidates and return the best one"""
+        
         if not candidates:
-            logger.warning("⚠️ No product name candidates found, using fallback")
             return "Product"
+        
+        candidate_scores = Counter(candidates)
+        
+        # Add bonus scores
+        for candidate in candidate_scores:
+            score = candidate_scores[candidate]
+            
+            # Bonus for length
+            if 6 <= len(candidate) <= 12:
+                candidate_scores[candidate] = score + 1
+            
+            # Bonus for frequency in content
+            content_mentions = len(re.findall(re.escape(candidate), content, re.IGNORECASE))
+            if content_mentions >= 3:
+                candidate_scores[candidate] = score + content_mentions
+        
+        best_candidate = candidate_scores.most_common(1)[0][0]
+        return best_candidate
 
-        scores = Counter(candidates)
-        niche = self._detect_niche(content)
 
-        for cand in list(scores):
-            score = scores[cand]
-            if niche and any(kw in cand.lower() for kw in self.niche_indicators.get(niche, [])):
-                scores[cand] += 3
-            if re.search(r'[a-z][A-Z]', cand):
-                def extract_product_details(self, content: str, product_name: str) -> Dict[str, Any]:
-        # Stub implementation to avoid unused parameter errors
-                    return {}
+# Convenience function
+def extract_product_name(content: str, page_title: str = None) -> str:
+    """Quick function to extract product name from content"""
+    extractor = ProductNameExtractor()
+    return extractor.extract_product_name(content, page_title)
+
+
+# Test function
+def test_aquasculpt_extraction():
+    """Test the extraction with AquaSculpt content"""
+    test_content = """
+    Join The Thousands Who Rave About AquaSculpt
+    Feel The Difference AquaSculpt May Make!
+    Get AquaSculpt today and see results.
+    AquaSculpt helps support liver function naturally.
+    """
     
-    # Static method and test function should be outside the class
-    @staticmethod
-    def extract_product_name(content: str, page_title: str = None) -> str:
-        return ProductNameExtractor().extract_product_name(content, page_title)
-    
-    def test_aquasculpt_extraction() -> bool:
-        test_content = """AquaSculpt is the revolutionary new way to tone your body. AquaSculpt uses water resistance to help you sculpt muscles fast. Order AquaSculpt today!"""
-        result = ProductNameExtractor().extract_product_name(test_content)
-        print(result)
-        return result == 'AquaSculpt'
-    
-    if __name__ == "__main__":
-        success = test_aquasculpt_extraction()
-        print(f"Success: {success}")
-        def extract_product_name(content: str, page_title: str = None) -> str:
-            return ProductNameExtractor().extract_product_name(content, page_title)
-    
-    # Test function and script entry point should be outside the class
-    def test_aquasculpt_extraction() -> bool:
-        test_content = """..."""  # same
-        result = ProductNameExtractor.extract_product_name(test_content)
-        print(result)
-        return result == 'AquaSculpt'
-    
-    if __name__ == "__main__":
-        success = test_aquasculpt_extraction()
-        print(f"Success: {success}")
+    result = extract_product_name(test_content)
+    print(f"Test result: '{result}' (Expected: 'AquaSculpt')")
+    return result == 'AquaSculpt'
+
+
+if __name__ == "__main__":
+    test_aquasculpt_extraction()
