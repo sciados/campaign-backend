@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # Try to import analyzers with fallback handling
 try:
-    from src.intelligence import (
+    from src.intelligence.analyzers import (
         SalesPageAnalyzer, 
         DocumentAnalyzer, 
         WebAnalyzer, 
