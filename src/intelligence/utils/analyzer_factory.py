@@ -8,21 +8,22 @@ from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
-# Try to import analyzers with fallback handling
+# ✅ IMPORT ONLY THE CLASSES AND SET THE VARIABLE:
 try:
     from src.intelligence.analyzers import (
         SalesPageAnalyzer, 
         DocumentAnalyzer, 
         WebAnalyzer, 
         EnhancedSalesPageAnalyzer, 
-        VSLAnalyzer,
-        INTELLIGENCE_AVAILABLE
+        VSLAnalyzer
     )
-    ANALYZERS_AVAILABLE = INTELLIGENCE_AVAILABLE
+    ANALYZERS_AVAILABLE = True  # ← Set this ourselves
+    INTELLIGENCE_AVAILABLE = True  # ← Set this ourselves
     logger.info("✅ SUCCESS: All intelligence analyzers imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ IMPORT WARNING: Analyzers not available: {str(e)}")
     ANALYZERS_AVAILABLE = False
+    INTELLIGENCE_AVAILABLE = False
 
 
 class FallbackAnalyzer:
