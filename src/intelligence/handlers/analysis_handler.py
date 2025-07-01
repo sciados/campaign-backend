@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-
+from typing import Dict, Any, Optional, List  # ← Add List here
 from src.models.user import User
 from src.models.campaign import Campaign
 from src.models.intelligence import (
@@ -132,8 +132,8 @@ class AnalysisHandler:
         try:
             logger.info("🚀 Starting intelligence amplification...")
             
-            # Set up AI providers (you may need to adjust this based on your config)
-            ai_providers = []  # This should be populated from your AI service configuration
+            # ✅ FIX: Set up AI providers properly from your analyzer
+            ai_providers = self._get_ai_providers_from_analyzer()
             
             # Set up preferences
             preferences = {
@@ -221,6 +221,108 @@ class AnalysisHandler:
                 "error_type": type(amp_error).__name__
             }
             return base_analysis
+    
+    def _get_ai_providers_from_analyzer(self) -> List[Dict[str, Any]]:
+        """Extract AI providers from analyzer in the format expected by enhancement modules"""
+        
+        from ..utils.analyzer_factory import get_analyzer
+        import os
+        
+        providers = []
+        
+        try:
+            # Get analyzer instance to access AI clients
+            analyzer = get_analyzer("sales_page")
+            
+            # OpenAI provider
+            if hasattr(analyzer, 'openai_client') and analyzer.openai_client:
+                providers.append({
+                    "name": "openai",
+                    "available": True,
+                    "client": analyzer.openai_client
+                })
+                logger.info("✅ OpenAI provider added to enhancement system")
+            
+            # Claude provider
+            if hasattr(analyzer, 'claude_client') and analyzer.claude_client:
+                providers.append({
+                    "name": "anthropic", 
+                    "available": True,
+                    "client": analyzer.claude_client
+                })
+                logger.info("✅ Claude provider added to enhancement system")
+            
+            # Cohere provider
+            if hasattr(analyzer, 'cohere_client') and analyzer.cohere_client:
+                providers.append({
+                    "name": "cohere",
+                    "available": True, 
+                    "client": analyzer.cohere_client
+                })
+                logger.info("✅ Cohere provider added to enhancement system")
+            
+            logger.info(f"🔧 Prepared {len(providers)} AI providers for enhancement modules")
+            return providers
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to get AI providers from analyzer: {str(e)}")
+            
+            # Fallback: Try to create providers directly
+            return self._create_ai_providers_fallback()
+    
+    def _create_ai_providers_fallback(self) -> List[Dict[str, Any]]:
+        """Fallback method to create AI providers directly"""
+        
+        import os
+        providers = []
+        
+        try:
+            # OpenAI
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if openai_key:
+                import openai
+                openai_client = openai.AsyncOpenAI(api_key=openai_key)
+                providers.append({
+                    "name": "openai",
+                    "available": True,
+                    "client": openai_client
+                })
+                logger.info("✅ Created OpenAI provider directly")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to create OpenAI provider: {str(e)}")
+        
+        try:
+            # Claude
+            claude_key = os.getenv("ANTHROPIC_API_KEY")
+            if claude_key:
+                import anthropic
+                claude_client = anthropic.AsyncAnthropic(api_key=claude_key)
+                providers.append({
+                    "name": "anthropic",
+                    "available": True,
+                    "client": claude_client
+                })
+                logger.info("✅ Created Claude provider directly")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to create Claude provider: {str(e)}")
+        
+        try:
+            # Cohere
+            cohere_key = os.getenv("COHERE_API_KEY")
+            if cohere_key:
+                import cohere
+                cohere_client = cohere.AsyncClient(api_key=cohere_key)
+                providers.append({
+                    "name": "cohere",
+                    "available": True,
+                    "client": cohere_client
+                })
+                logger.info("✅ Created Cohere provider directly")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to create Cohere provider: {str(e)}")
+        
+        logger.info(f"🔧 Created {len(providers)} AI providers via fallback method")
+        return providers
     
     async def _store_analysis_results(
         self, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]
