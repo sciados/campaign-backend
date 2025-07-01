@@ -17,7 +17,43 @@ class EmotionalTransformationEnhancer:
         self.available_provider = self._get_best_provider()
         
     def _get_best_provider(self) -> Optional[Dict]:
-        """Get the best available AI provider for emotional analysis"""
+        """Get the best available AI provider - prefer OpenAI for stability"""
+    
+    # Prefer OpenAI first (working perfectly)
+        for provider in self.ai_providers:
+            if provider.get("name") == "openai" and provider.get("available"):
+                logger.info("🚀 Using OpenAI for enhancement")
+            return provider
+    
+    # Fallback to Cohere second
+        for provider in self.ai_providers:
+            if provider.get("name") == "cohere" and provider.get("available"):
+                logger.info("💫 Using Cohere for enhancement") 
+            return provider
+    
+    # Fallback to Claude third (has API issues currently)
+        for provider in self.ai_providers:
+            if provider.get("name") == "anthropic" and provider.get("available"):
+                logger.info("🤖 Using Claude for enhancement")
+            return provider
+    
+        logger.warning("⚠️ No AI providers available for enhancement")
+        return None
+        
+        # Prefer OpenAI for content and messaging
+        for provider in self.ai_providers:
+            if provider.get("name") == "openai" and provider.get("available"):
+                logger.info("📝 Using OpenAI for content enhancement")
+                return provider
+        
+        # Fallback to Anthropic Claude
+        for provider in self.ai_providers:
+            if provider.get("name") == "anthropic" and provider.get("available"):
+                logger.info("📝 Using Anthropic Claude for content enhancement")
+                return provider
+        
+        logger.warning("⚠️ No AI providers available for content enhancement")
+        return None
         
         # Prefer Anthropic Claude for psychological and emotional analysis
         for provider in self.ai_providers:
