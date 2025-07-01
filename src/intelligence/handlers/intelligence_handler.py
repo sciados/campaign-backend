@@ -23,7 +23,14 @@ from ..utils.campaign_helpers import (
     get_content_summary,
     update_campaign_counters
 )
-from ..utils.amplifier_service import AmplificationManager
+# from ..utils.amplifier_service import AmplificationManager
+
+from ..amplifier.enhancement import (
+    identify_opportunities,
+    generate_enhancements,
+    create_enriched_intelligence
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +41,7 @@ class IntelligenceHandler:
     def __init__(self, db: AsyncSession, user: User):
         self.db = db
         self.user = user
-        self.amplification_manager = AmplificationManager()
+        # self.amplification_manager = AmplificationManager()
     
     async def get_campaign_intelligence(self, campaign_id: str) -> Dict[str, Any]:
         """Get all intelligence sources for a campaign with proper error handling"""
