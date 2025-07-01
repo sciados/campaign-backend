@@ -20,8 +20,15 @@ from src.models.intelligence import (
 )
 from ..utils.intelligence_validation import ensure_intelligence_structure, validate_intelligence_section
 from ..utils.analyzer_factory import get_analyzer
-from ..utils.amplifier_service import get_amplifier_service
+
+# NEW - using enhancement.py directly  
+from src.intelligence.amplifier.enhancement import (
+    identify_opportunities,
+    generate_enhancements, 
+    create_enriched_intelligence
+)
 from ..utils.campaign_helpers import update_campaign_counters
+
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +41,7 @@ class AnalysisHandler:
     
     async def analyze_url(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Enhanced URL analysis with amplifier integration
+        Enhanced URL analysis with direct amplifier integration
         Main business logic extracted from routes.py
         """
         logger.info(f"🎯 Starting AMPLIFIED URL analysis for: {request_data.get('url')}")
@@ -120,70 +127,98 @@ class AnalysisHandler:
     async def _perform_amplification(
         self, url: str, base_analysis: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Perform intelligence amplification if available"""
-        amplifier = get_amplifier_service()
-        
-        if not amplifier:
-            logger.info("📝 Amplifier not available, using base analysis")
-            base_analysis["amplification_metadata"] = {
-                "amplification_applied": False,
-                "amplification_available": False,
-                "note": "Install amplifier dependencies for enhanced analysis"
-            }
-            return base_analysis
+        """Perform intelligence amplification using direct enhancement functions"""
         
         try:
             logger.info("🚀 Starting intelligence amplification...")
             
-            # Prepare sources for amplification
-            user_sources = [{
-                "type": "url",
-                "url": url,
-                "analysis_result": base_analysis
-            }]
+            # Set up AI providers (you may need to adjust this based on your config)
+            ai_providers = []  # This should be populated from your AI service configuration
             
-            # Run amplification
-            amplification_result = await amplifier.process_sources(
-                sources=user_sources,
-                preferences={
-                    "enhance_scientific_backing": True,
-                    "boost_credibility": True,
-                    "competitive_analysis": True
-                }
+            # Set up preferences
+            preferences = {
+                "enhance_scientific_backing": True,
+                "boost_credibility": True,
+                "competitive_analysis": True,
+                "psychological_depth": "medium",
+                "content_optimization": True
+            }
+            
+            # STEP 1: Identify opportunities
+            logger.info("🔍 Identifying enhancement opportunities...")
+            opportunities = await identify_opportunities(
+                base_intel=base_analysis,
+                preferences=preferences,
+                providers=ai_providers
             )
             
-            # Get enriched intelligence
-            enriched_intelligence = amplification_result.get("intelligence_data", base_analysis)
-            amplification_summary = amplification_result.get("summary", {})
+            opportunities_count = opportunities.get("opportunity_metadata", {}).get("total_opportunities", 0)
+            logger.info(f"✅ Identified {opportunities_count} enhancement opportunities")
             
-            # Calculate amplification metrics
+            # STEP 2: Generate enhancements
+            logger.info("🚀 Generating AI-powered enhancements...")
+            enhancements = await generate_enhancements(
+                base_intel=base_analysis,
+                opportunities=opportunities,
+                providers=ai_providers
+            )
+            
+            enhancement_metadata = enhancements.get("enhancement_metadata", {})
+            total_enhancements = enhancement_metadata.get("total_enhancements", 0)
+            confidence_boost = enhancement_metadata.get("confidence_boost", 0.0)
+            
+            logger.info(f"✅ Generated {total_enhancements} enhancements with {confidence_boost:.1%} confidence boost")
+            
+            # STEP 3: Create enriched intelligence
+            logger.info("✨ Creating enriched intelligence...")
+            enriched_intelligence = create_enriched_intelligence(
+                base_intel=base_analysis,
+                enhancements=enhancements
+            )
+            
+            # Add amplification metadata for backward compatibility
             enrichment_metadata = enriched_intelligence.get("enrichment_metadata", {})
-            confidence_boost = enrichment_metadata.get("confidence_boost", 0.0)
-            scientific_support = enriched_intelligence.get("offer_intelligence", {}).get("scientific_support", [])
-            scientific_enhancements = len(scientific_support) if scientific_support else 0
             
-            logger.info(f"✅ Amplification completed - Confidence boost: {confidence_boost:.1%}, Scientific enhancements: {scientific_enhancements}")
-            
-            # Add amplification metadata
             enriched_intelligence["amplification_metadata"] = {
                 "amplification_applied": True,
+                "amplification_method": "direct_enhancement_functions",
+                "opportunities_identified": opportunities_count,
+                "total_enhancements": total_enhancements,
                 "confidence_boost": confidence_boost,
-                "scientific_enhancements": scientific_enhancements,
-                "amplification_summary": amplification_summary,
                 "base_confidence": base_analysis.get("confidence_score", 0.0),
                 "amplified_confidence": enriched_intelligence.get("confidence_score", 0.0),
-                "credibility_score": enrichment_metadata.get("credibility_score", 0.0),
-                "total_enhancements": enrichment_metadata.get("total_enhancements", 0)
+                "credibility_score": enhancement_metadata.get("credibility_score", 0.0),
+                "enhancement_quality": enhancement_metadata.get("enhancement_quality", "unknown"),
+                "modules_successful": enhancement_metadata.get("modules_successful", []),
+                "scientific_enhancements": len(enhancements.get("scientific_validation", {})) if enhancements.get("scientific_validation") else 0,
+                "system_architecture": "direct_modular_enhancement",
+                "amplification_timestamp": datetime.utcnow().isoformat()
             }
+            
+            logger.info(f"✅ Amplification completed successfully - Final confidence: {enriched_intelligence.get('confidence_score', 0.0):.2f}")
             
             return enriched_intelligence
             
+        except ImportError as import_error:
+            logger.warning(f"⚠️ Enhancement modules not available: {str(import_error)}")
+            base_analysis["amplification_metadata"] = {
+                "amplification_applied": False,
+                "amplification_available": False,
+                "amplification_error": f"Enhancement modules not installed: {str(import_error)}",
+                "note": "Install amplifier dependencies for enhanced analysis",
+                "fallback_to_base": True
+            }
+            return base_analysis
+            
         except Exception as amp_error:
             logger.warning(f"⚠️ Amplification failed, using base analysis: {str(amp_error)}")
+            logger.debug(f"Amplification error details: {traceback.format_exc()}")
+            
             base_analysis["amplification_metadata"] = {
                 "amplification_applied": False,
                 "amplification_error": str(amp_error),
-                "fallback_to_base": True
+                "fallback_to_base": True,
+                "error_type": type(amp_error).__name__
             }
             return base_analysis
     
@@ -308,8 +343,18 @@ class AnalysisHandler:
                 "✅ Use enhanced credibility positioning",
                 "✅ Apply competitive intelligence insights"
             ])
-            if amplification_metadata.get("scientific_enhancements", 0) > 0:
-                campaign_suggestions.append(f"✅ {amplification_metadata['scientific_enhancements']} scientific enhancements available")
+            
+            scientific_enhancements = amplification_metadata.get("scientific_enhancements", 0)
+            if scientific_enhancements > 0:
+                campaign_suggestions.append(f"✅ {scientific_enhancements} scientific enhancements available")
+            
+            total_enhancements = amplification_metadata.get("total_enhancements", 0)
+            if total_enhancements > 0:
+                campaign_suggestions.append(f"✅ {total_enhancements} total intelligence enhancements applied")
+                
+            enhancement_quality = amplification_metadata.get("enhancement_quality", "unknown")
+            if enhancement_quality in ["excellent", "good"]:
+                campaign_suggestions.append(f"✅ High-quality enhancement achieved ({enhancement_quality})")
 
         return {
             "intelligence_id": str(intelligence.id),
