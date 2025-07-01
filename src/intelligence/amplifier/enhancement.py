@@ -1,7 +1,7 @@
-# src/intelligence/amplifier/enhancement.py - PRODUCTION ENHANCEMENT ALGORITHMS
+# src/intelligence/amplifier/enhancement.py - REFACTORED MODULAR SYSTEM
 """
-Production Enhancement Algorithms - Scientific Backing & Competitive Intelligence
-🚀 UPGRADE: Rich enhancement algorithms with research validation and market positioning
+Refactored Enhancement System - All AI modules in enhancements folder
+Each intelligence category has its own dedicated AI enhancement module
 """
 import asyncio
 import logging
@@ -11,576 +11,502 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# Import all AI enhancement modules
+try:
+    from .enhancements.scientific_enhancer import ScientificIntelligenceEnhancer
+    from .enhancements.market_enhancer import MarketIntelligenceEnhancer
+    from .enhancements.credibility_enhancer import CredibilityIntelligenceEnhancer
+    from .enhancements.content_enhancer import ContentIntelligenceEnhancer
+    from .enhancements.emotional_enhancer import EmotionalTransformationEnhancer
+    from .enhancements.authority_enhancer import ScientificAuthorityEnhancer
+    
+    ENHANCEMENT_MODULES_AVAILABLE = True
+    logger.info("✅ All AI enhancement modules imported successfully")
+    
+except ImportError as e:
+    ENHANCEMENT_MODULES_AVAILABLE = False
+    logger.warning(f"⚠️ AI enhancement modules not available: {str(e)}")
+
 # ============================================================================
-# CORE ENHANCEMENT FUNCTIONS (Enhanced from basic versions)
+# CORE ENHANCEMENT FUNCTIONS (Enhanced with modular AI system)
 # ============================================================================
 
 async def identify_opportunities(base_intel: Dict, preferences: Dict, providers: List) -> Dict[str, Any]:
     """
-    PRODUCTION: Identify enhancement opportunities with scientific backing focus
-    
-    Analyzes intelligence for opportunities to add:
-    - Scientific validation
-    - Research credibility 
-    - Competitive positioning
-    - Market authority
+    REFACTORED: Identify enhancement opportunities using modular AI system
     """
+    logger.info("🔍 Identifying enhancement opportunities with modular AI system...")
     
-    logger.info("🔍 Identifying PRODUCTION enhancement opportunities...")
+    if not ENHANCEMENT_MODULES_AVAILABLE:
+        return _fallback_identify_opportunities(base_intel)
     
-    opportunities = {
-        "scientific_validation": [],
-        "credibility_enhancement": [], 
-        "competitive_positioning": [],
-        "market_authority": [],
-        "health_claim_validation": []
-    }
-    
-    # Analyze offer intelligence for scientific opportunities
-    offer_intel = base_intel.get("offer_intelligence", {})
-    if offer_intel:
-        opportunities["scientific_validation"].extend(
-            await _identify_scientific_validation_opportunities(offer_intel)
-        )
-        opportunities["health_claim_validation"].extend(
-            await _identify_health_claim_opportunities(offer_intel)
-        )
-    
-    # Analyze competitive intelligence for positioning opportunities
-    comp_intel = base_intel.get("competitive_intelligence", {})
-    if comp_intel:
-        opportunities["competitive_positioning"].extend(
-            await _identify_competitive_positioning_opportunities(comp_intel)
-        )
-    
-    # Analyze overall confidence for credibility opportunities
-    confidence_score = base_intel.get("confidence_score", 0.0)
-    if confidence_score < 0.8:
-        opportunities["credibility_enhancement"].extend(
-            await _identify_credibility_enhancement_opportunities(base_intel, confidence_score)
-        )
-    
-    # Market authority opportunities
-    opportunities["market_authority"].extend(
-        await _identify_market_authority_opportunities(base_intel)
-    )
-    
-    # Add metadata
-    total_opportunities = sum(len(opp_list) for opp_list in opportunities.values())
-    
-    result = {
-        **opportunities,
-        "opportunity_metadata": {
-            "total_opportunities": total_opportunities,
-            "priority_areas": _prioritize_opportunities(opportunities),
-            "enhancement_potential": "high" if total_opportunities > 5 else "medium" if total_opportunities > 2 else "low",
-            "identified_at": datetime.utcnow().isoformat()
+    try:
+        # Initialize all enhancement modules
+        enhancers = _initialize_enhancement_modules(providers)
+        
+        # Identify opportunities across all modules
+        opportunities = {
+            "scientific_validation": [],
+            "credibility_enhancement": [],
+            "competitive_positioning": [],
+            "market_authority": [],
+            "content_optimization": [],
+            "emotional_transformation": []
         }
-    }
-    
-    logger.info(f"✅ Identified {total_opportunities} enhancement opportunities")
-    return result
+        
+        # Extract product information
+        product_data = _extract_product_data(base_intel)
+        
+        # Run opportunity identification across all modules in parallel
+        opportunity_tasks = []
+        
+        if enhancers.get("scientific"):
+            opportunity_tasks.append(
+                _identify_scientific_opportunities(enhancers["scientific"], product_data, base_intel)
+            )
+        
+        if enhancers.get("market"):
+            opportunity_tasks.append(
+                _identify_market_opportunities(enhancers["market"], product_data, base_intel)
+            )
+        
+        if enhancers.get("credibility"):
+            opportunity_tasks.append(
+                _identify_credibility_opportunities(enhancers["credibility"], product_data, base_intel)
+            )
+        
+        if enhancers.get("content"):
+            opportunity_tasks.append(
+                _identify_content_opportunities(enhancers["content"], product_data, base_intel)
+            )
+        
+        if enhancers.get("emotional"):
+            opportunity_tasks.append(
+                _identify_emotional_opportunities(enhancers["emotional"], product_data, base_intel)
+            )
+        
+        if enhancers.get("authority"):
+            opportunity_tasks.append(
+                _identify_authority_opportunities(enhancers["authority"], product_data, base_intel)
+            )
+        
+        # Execute all opportunity identification tasks
+        logger.info("⚡ Running opportunity identification across all AI modules...")
+        opportunity_results = await asyncio.gather(*opportunity_tasks, return_exceptions=True)
+        
+        # Process results
+        for i, result in enumerate(opportunity_results):
+            if isinstance(result, Exception):
+                logger.error(f"❌ Module {i} opportunity identification failed: {str(result)}")
+                continue
+            
+            # Merge opportunities from each module
+            for key, value in result.items():
+                if key in opportunities and isinstance(value, list):
+                    opportunities[key].extend(value)
+        
+        # Add metadata
+        total_opportunities = sum(len(opp_list) for opp_list in opportunities.values())
+        
+        result = {
+            **opportunities,
+            "opportunity_metadata": {
+                "total_opportunities": total_opportunities,
+                "modules_used": len([r for r in opportunity_results if not isinstance(r, Exception)]),
+                "priority_areas": _prioritize_opportunities(opportunities),
+                "enhancement_potential": "high" if total_opportunities > 15 else "medium" if total_opportunities > 8 else "low",
+                "identified_at": datetime.utcnow().isoformat(),
+                "system_version": "modular_ai_2.0"
+            }
+        }
+        
+        logger.info(f"✅ Identified {total_opportunities} opportunities across all AI modules")
+        return result
+        
+    except Exception as e:
+        logger.error(f"❌ AI opportunity identification failed: {str(e)}")
+        return _fallback_identify_opportunities(base_intel)
 
 async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers: List) -> Dict[str, Any]:
     """
-    PRODUCTION: Generate scientific backing and credibility enhancements
-    
-    Creates research-backed enhancements for:
-    - Health claim validation
-    - Scientific credibility
-    - Competitive advantages
-    - Market positioning
+    REFACTORED: Generate AI-powered enhancements using all modular enhancement systems
     """
+    logger.info("🚀 Generating AI-powered enhancements with modular system...")
     
-    logger.info("🚀 Generating PRODUCTION enhancements with scientific backing...")
+    if not ENHANCEMENT_MODULES_AVAILABLE:
+        return _fallback_generate_enhancements(base_intel, opportunities)
     
-    enhancements = {
-        "scientific_validation": [],
-        "credibility_boosters": [],
-        "competitive_advantages": [],
-        "research_support": [],
-        "market_positioning": []
-    }
-    
-    # Generate scientific validation enhancements
-    scientific_opportunities = opportunities.get("scientific_validation", [])
-    for opp in scientific_opportunities:
-        enhancement = await _generate_scientific_validation_enhancement(opp, base_intel)
-        enhancements["scientific_validation"].append(enhancement)
-    
-    # Generate credibility boosters
-    credibility_opportunities = opportunities.get("credibility_enhancement", [])
-    for opp in credibility_opportunities:
-        enhancement = await _generate_credibility_enhancement(opp, base_intel)
-        enhancements["credibility_boosters"].append(enhancement)
-    
-    # Generate competitive advantages
-    competitive_opportunities = opportunities.get("competitive_positioning", [])
-    for opp in competitive_opportunities:
-        enhancement = await _generate_competitive_advantage(opp, base_intel)
-        enhancements["competitive_advantages"].append(enhancement)
-    
-    # Generate research support
-    enhancements["research_support"] = await _generate_research_support(base_intel)
-    
-    # Generate market positioning enhancements
-    authority_opportunities = opportunities.get("market_authority", [])
-    for opp in authority_opportunities:
-        enhancement = await _generate_market_positioning_enhancement(opp, base_intel)
-        enhancements["market_positioning"].append(enhancement)
-    
-    # Calculate enhancement metadata
-    total_enhancements = sum(len(enh_list) for enh_list in enhancements.values())
-    confidence_boost = _calculate_confidence_boost(enhancements, base_intel)
-    credibility_score = _calculate_credibility_score(enhancements, base_intel)
-    
-    enhancement_metadata = {
-        "total_enhancements": total_enhancements,
-        "confidence_boost": confidence_boost,
-        "credibility_score": credibility_score,
-        "scientific_validation_count": len(enhancements["scientific_validation"]),
-        "research_support_count": len(enhancements["research_support"]),
-        "competitive_advantages_count": len(enhancements["competitive_advantages"]),
-        "enhancement_quality": "high" if total_enhancements > 10 else "medium" if total_enhancements > 5 else "fair",
-        "enhanced_at": datetime.utcnow().isoformat(),
-        "enhancement_version": "production_1.0"
-    }
-    
-    result = {
-        **enhancements,
-        "enhancement_metadata": enhancement_metadata
-    }
-    
-    logger.info(f"✅ Generated {total_enhancements} production enhancements - Confidence boost: {confidence_boost:.1%}")
-    return result
+    try:
+        # Initialize all enhancement modules
+        enhancers = _initialize_enhancement_modules(providers)
+        
+        # Extract product information
+        product_data = _extract_product_data(base_intel)
+        
+        # Run all enhancement modules in parallel for maximum efficiency
+        enhancement_tasks = []
+        
+        # Scientific Intelligence Enhancement
+        if enhancers.get("scientific"):
+            enhancement_tasks.append(
+                enhancers["scientific"].generate_scientific_intelligence(product_data, base_intel)
+            )
+        
+        # Market Intelligence Enhancement
+        if enhancers.get("market"):
+            enhancement_tasks.append(
+                enhancers["market"].generate_market_intelligence(product_data, base_intel)
+            )
+        
+        # Credibility Intelligence Enhancement
+        if enhancers.get("credibility"):
+            enhancement_tasks.append(
+                enhancers["credibility"].generate_credibility_intelligence(product_data, base_intel)
+            )
+        
+        # Content Intelligence Enhancement
+        if enhancers.get("content"):
+            enhancement_tasks.append(
+                enhancers["content"].generate_content_intelligence(product_data, base_intel)
+            )
+        
+        # Emotional Transformation Enhancement
+        if enhancers.get("emotional"):
+            enhancement_tasks.append(
+                enhancers["emotional"].generate_emotional_transformation_intelligence(product_data, base_intel)
+            )
+        
+        # Scientific Authority Enhancement
+        if enhancers.get("authority"):
+            enhancement_tasks.append(
+                enhancers["authority"].generate_scientific_authority_intelligence(product_data, base_intel)
+            )
+        
+        # Execute all enhancement tasks in parallel
+        logger.info("⚡ Running all AI enhancement modules in parallel...")
+        enhancement_results = await asyncio.gather(*enhancement_tasks, return_exceptions=True)
+        
+        # Process results and handle any errors
+        enhancements = {
+            "scientific_validation": {},
+            "credibility_boosters": {},
+            "competitive_advantages": {},
+            "research_support": {},
+            "market_positioning": {},
+            "content_optimization": {},
+            "emotional_transformation": {},
+            "authority_establishment": {}
+        }
+        
+        enhancement_names = [
+            "scientific_validation",
+            "market_positioning", 
+            "credibility_boosters",
+            "content_optimization",
+            "emotional_transformation",
+            "authority_establishment"
+        ]
+        
+        successful_modules = []
+        
+        for i, result in enumerate(enhancement_results):
+            if isinstance(result, Exception):
+                logger.error(f"❌ Enhancement module {i} failed: {str(result)}")
+                continue
+            
+            if i < len(enhancement_names):
+                enhancements[enhancement_names[i]] = result
+                successful_modules.append(enhancement_names[i])
+        
+        # Calculate enhancement metadata
+        total_enhancements = sum(
+            len(result) if isinstance(result, (list, dict)) else 1 
+            for result in enhancements.values() 
+            if result
+        )
+        
+        confidence_boost = _calculate_confidence_boost(enhancements, base_intel)
+        credibility_score = _calculate_credibility_score(enhancements, base_intel)
+        
+        enhancement_metadata = {
+            "total_enhancements": total_enhancements,
+            "confidence_boost": confidence_boost,
+            "credibility_score": credibility_score,
+            "modules_successful": successful_modules,
+            "modules_failed": len(enhancement_results) - len(successful_modules),
+            "enhancement_quality": "excellent" if len(successful_modules) >= 5 else "good" if len(successful_modules) >= 3 else "basic",
+            "enhanced_at": datetime.utcnow().isoformat(),
+            "enhancement_version": "modular_ai_2.0",
+            "ai_providers_used": _get_providers_used(enhancers),
+            "parallel_processing": True,
+            "system_architecture": "modular_enhancement_modules"
+        }
+        
+        result = {
+            **enhancements,
+            "enhancement_metadata": enhancement_metadata
+        }
+        
+        logger.info(f"✅ Generated {total_enhancements} enhancements across {len(successful_modules)} modules - Confidence boost: {confidence_boost:.1%}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"❌ AI enhancement generation failed: {str(e)}")
+        return _fallback_generate_enhancements(base_intel, opportunities)
 
 def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[str, Any]:
     """
-    PRODUCTION: Create enriched intelligence with scientific backing
-    
-    Integrates enhancements into intelligence structure with:
-    - Scientific validation
-    - Research credibility
-    - Competitive positioning
-    - Enhanced confidence scores
+    REFACTORED: Create enriched intelligence with all modular AI enhancements
     """
-    
-    logger.info("✨ Creating PRODUCTION enriched intelligence...")
+    logger.info("✨ Creating enriched intelligence with modular AI system...")
     
     # Start with base intelligence
     enriched = base_intel.copy()
     
-    # Enhance offer intelligence with scientific backing
-    if "offer_intelligence" not in enriched:
-        enriched["offer_intelligence"] = {}
-    
-    # Add scientific support
-    enriched["offer_intelligence"]["scientific_support"] = enhancements.get("research_support", [])
-    enriched["offer_intelligence"]["validated_claims"] = enhancements.get("scientific_validation", [])
-    
-    # Add credibility boosters to psychology intelligence
-    if "psychology_intelligence" not in enriched:
-        enriched["psychology_intelligence"] = {}
-    
-    enriched["psychology_intelligence"]["credibility_indicators"] = [
-        booster.get("indicator", "") for booster in enhancements.get("credibility_boosters", [])
-    ]
-    
-    # Enhance competitive intelligence
-    if "competitive_intelligence" not in enriched:
-        enriched["competitive_intelligence"] = {}
-    
-    enriched["competitive_intelligence"]["scientific_advantages"] = [
-        adv.get("advantage", "") for adv in enhancements.get("competitive_advantages", [])
-    ]
-    enriched["competitive_intelligence"]["market_positioning"] = enhancements.get("market_positioning", [])
-    
-    # Add new credibility intelligence section
-    enriched["credibility_intelligence"] = {
-        "trust_indicators": [
-            booster.get("trust_indicator", "") for booster in enhancements.get("credibility_boosters", [])
-        ],
-        "authority_signals": [
-            pos.get("authority_signal", "") for pos in enhancements.get("market_positioning", [])
-        ],
-        "scientific_credibility": {
-            "research_backing": len(enhancements.get("research_support", [])),
-            "validated_claims": len(enhancements.get("scientific_validation", [])),
-            "credibility_score": enhancements.get("enhancement_metadata", {}).get("credibility_score", 0.0)
-        }
+    # Map AI enhancements to intelligence categories
+    intelligence_mapping = {
+        "scientific_intelligence": enhancements.get("scientific_validation", {}),
+        "market_intelligence": enhancements.get("market_positioning", {}),
+        "credibility_intelligence": enhancements.get("credibility_boosters", {}),
+        "content_intelligence": enhancements.get("content_optimization", {}),
+        "emotional_transformation_intelligence": enhancements.get("emotional_transformation", {}),
+        "scientific_authority_intelligence": enhancements.get("authority_establishment", {})
     }
     
-    # Update confidence score
+    # Add all AI-generated intelligence categories
+    for intel_category, enhancement_data in intelligence_mapping.items():
+        if enhancement_data:
+            enriched[intel_category] = enhancement_data
+        else:
+            # Ensure category exists even if empty
+            enriched[intel_category] = _get_fallback_category_data(intel_category)
+    
+    # Update confidence score based on enhancements
     original_confidence = base_intel.get("confidence_score", 0.0)
-    confidence_boost = enhancements.get("enhancement_metadata", {}).get("confidence_boost", 0.0)
+    enhancement_metadata = enhancements.get("enhancement_metadata", {})
+    confidence_boost = enhancement_metadata.get("confidence_boost", 0.0)
+    
     enriched["confidence_score"] = min(original_confidence + confidence_boost, 1.0)
     
-    # Add enrichment metadata
-    enriched["enrichment_metadata"] = enhancements.get("enhancement_metadata", {})
-    enriched["enrichment_metadata"]["original_confidence"] = original_confidence
-    enriched["enrichment_metadata"]["amplification_applied"] = True
+    # Add comprehensive enrichment metadata
+    enriched["enrichment_metadata"] = {
+        **enhancement_metadata,
+        "original_confidence": original_confidence,
+        "amplification_applied": True,
+        "intelligence_categories_populated": len([cat for cat, data in intelligence_mapping.items() if data]),
+        "total_intelligence_categories": len(intelligence_mapping),
+        "system_architecture": "modular_ai_enhancement",
+        "category_completion_rate": len([cat for cat, data in intelligence_mapping.items() if data]) / len(intelligence_mapping),
+        "enrichment_timestamp": datetime.utcnow().isoformat()
+    }
     
-    logger.info(f"✅ Enriched intelligence created - Confidence: {original_confidence:.1%} → {enriched['confidence_score']:.1%}")
+    logger.info(f"✅ Enriched intelligence created - Categories populated: {len([cat for cat, data in intelligence_mapping.items() if data])}/6")
     return enriched
 
 # ============================================================================
-# SCIENTIFIC VALIDATION FUNCTIONS
+# MODULAR SYSTEM HELPER FUNCTIONS
 # ============================================================================
 
-async def _identify_scientific_validation_opportunities(offer_intel: Dict) -> List[str]:
-    """Identify opportunities for scientific validation"""
+def _initialize_enhancement_modules(providers: List[Dict]) -> Dict[str, Any]:
+    """Initialize all AI enhancement modules"""
     
-    opportunities = []
+    enhancers = {}
     
-    # Check for health-related claims
-    health_keywords = ["liver", "weight", "fat", "metabolism", "energy", "detox", "cleanse"]
+    try:
+        enhancers["scientific"] = ScientificIntelligenceEnhancer(providers)
+        logger.info("✅ Scientific enhancement module initialized")
+    except Exception as e:
+        logger.error(f"❌ Scientific enhancer initialization failed: {str(e)}")
     
-    # Check value propositions
-    value_props = offer_intel.get("value_propositions", [])
-    for prop in value_props:
-        prop_str = str(prop).lower()
-        for keyword in health_keywords:
-            if keyword in prop_str:
-                opportunities.append(f"Add scientific validation for {keyword} claims")
-                break
+    try:
+        enhancers["market"] = MarketIntelligenceEnhancer(providers)
+        logger.info("✅ Market enhancement module initialized")
+    except Exception as e:
+        logger.error(f"❌ Market enhancer initialization failed: {str(e)}")
     
-    # Check insights
-    insights = offer_intel.get("insights", [])
-    for insight in insights:
-        insight_str = str(insight).lower()
-        if any(keyword in insight_str for keyword in health_keywords):
-            opportunities.append("Validate health claims with clinical research")
-            break
+    try:
+        enhancers["credibility"] = CredibilityIntelligenceEnhancer(providers)
+        logger.info("✅ Credibility enhancement module initialized")
+    except Exception as e:
+        logger.error(f"❌ Credibility enhancer initialization failed: {str(e)}")
     
-    # Generic opportunities
-    if value_props or insights:
-        opportunities.extend([
-            "Add peer-reviewed research support",
-            "Include clinical study references",
-            "Enhance with scientific terminology"
-        ])
+    try:
+        enhancers["content"] = ContentIntelligenceEnhancer(providers)
+        logger.info("✅ Content enhancement module initialized")
+    except Exception as e:
+        logger.error(f"❌ Content enhancer initialization failed: {str(e)}")
     
-    return list(set(opportunities))  # Remove duplicates
+    try:
+        enhancers["emotional"] = EmotionalTransformationEnhancer(providers)
+        logger.info("✅ Emotional enhancement module initialized")
+    except Exception as e:
+        logger.error(f"❌ Emotional enhancer initialization failed: {str(e)}")
+    
+    try:
+        enhancers["authority"] = ScientificAuthorityEnhancer(providers)
+        logger.info("✅ Authority enhancement module initialized")
+    except Exception as e:
+        logger.error(f"❌ Authority enhancer initialization failed: {str(e)}")
+    
+    logger.info(f"🚀 Initialized {len(enhancers)} enhancement modules")
+    return enhancers
 
-async def _identify_health_claim_opportunities(offer_intel: Dict) -> List[str]:
-    """Identify specific health claim validation opportunities"""
+def _extract_product_data(base_intel: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract product data for AI enhancement modules"""
     
-    opportunities = []
-    
-    # Liver health opportunities
-    content_str = str(offer_intel).lower()
-    if "liver" in content_str or "hepato" in content_str:
-        opportunities.extend([
-            "Validate liver function improvement claims",
-            "Add research on liver detoxification",
-            "Include clinical liver health studies"
-        ])
-    
-    # Weight management opportunities
-    if any(term in content_str for term in ["weight", "fat", "burn", "metabolism"]):
-        opportunities.extend([
-            "Validate weight management claims with research",
-            "Add metabolic enhancement studies",
-            "Include fat burning mechanism research"
-        ])
-    
-    # Energy and wellness opportunities
-    if any(term in content_str for term in ["energy", "vitality", "wellness"]):
-        opportunities.extend([
-            "Add energy enhancement research",
-            "Include wellness outcome studies"
-        ])
-    
-    return opportunities
+    return {
+        "product_name": base_intel.get("product_name", "Product"),
+        "source_url": base_intel.get("source_url", ""),
+        "page_title": base_intel.get("page_title", ""),
+        "confidence_score": base_intel.get("confidence_score", 0.0),
+        "analysis_timestamp": base_intel.get("analysis_timestamp", datetime.utcnow().isoformat())
+    }
 
-async def _identify_competitive_positioning_opportunities(comp_intel: Dict) -> List[str]:
-    """Identify competitive positioning enhancement opportunities"""
+async def _identify_scientific_opportunities(enhancer, product_data: Dict, base_intel: Dict) -> Dict[str, List[str]]:
+    """Identify scientific enhancement opportunities"""
     
-    opportunities = []
-    
-    # Existing opportunities enhancement
-    existing_opportunities = comp_intel.get("opportunities", [])
-    if existing_opportunities:
+    try:
+        # Check for health claims that need scientific backing
+        offer_intel = base_intel.get("offer_intelligence", {})
+        value_props = offer_intel.get("value_propositions", [])
+        
+        opportunities = []
+        
+        # Look for health-related claims
+        for prop in value_props:
+            if any(health_term in str(prop).lower() for health_term in ["health", "liver", "weight", "energy", "metabolism"]):
+                opportunities.append(f"Add scientific validation for: {prop}")
+        
+        # Add general scientific opportunities
         opportunities.extend([
-            "Enhance competitive advantages with scientific backing",
-            "Position as research-backed alternative",
-            "Differentiate through clinical validation"
+            "Generate clinical research backing",
+            "Develop ingredient safety profiles",
+            "Create mechanism of action explanations",
+            "Add peer-reviewed study references"
         ])
-    
-    # Market gaps
-    gaps = comp_intel.get("gaps", [])
-    if gaps:
-        opportunities.extend([
-            "Fill market gaps with evidence-based positioning",
-            "Create scientific authority in underserved areas"
-        ])
-    
-    # Generic competitive opportunities
-    opportunities.extend([
-        "Develop scientific competitive moat",
-        "Position as premium research-backed solution",
-        "Create evidence-based market differentiation"
-    ])
-    
-    return opportunities
+        
+        return {"scientific_validation": opportunities}
+        
+    except Exception as e:
+        logger.error(f"❌ Scientific opportunity identification failed: {str(e)}")
+        return {"scientific_validation": ["Scientific enhancement available"]}
 
-async def _identify_credibility_enhancement_opportunities(base_intel: Dict, confidence_score: float) -> List[str]:
+async def _identify_market_opportunities(enhancer, product_data: Dict, base_intel: Dict) -> Dict[str, List[str]]:
+    """Identify market enhancement opportunities"""
+    
+    try:
+        competitive_intel = base_intel.get("competitive_intelligence", {})
+        
+        opportunities = [
+            "Generate comprehensive market analysis",
+            "Develop competitive positioning strategy",
+            "Create pricing optimization insights",
+            "Build target market profiles",
+            "Identify market gaps and opportunities"
+        ]
+        
+        return {"competitive_positioning": opportunities}
+        
+    except Exception as e:
+        logger.error(f"❌ Market opportunity identification failed: {str(e)}")
+        return {"competitive_positioning": ["Market analysis enhancement available"]}
+
+async def _identify_credibility_opportunities(enhancer, product_data: Dict, base_intel: Dict) -> Dict[str, List[str]]:
     """Identify credibility enhancement opportunities"""
     
-    opportunities = []
-    
-    # Based on confidence level
-    if confidence_score < 0.5:
-        opportunities.extend([
-            "Major credibility enhancement needed",
-            "Add comprehensive scientific backing",
-            "Establish authority through research"
-        ])
-    elif confidence_score < 0.7:
-        opportunities.extend([
-            "Moderate credibility enhancement",
-            "Add selective scientific support",
-            "Enhance trust indicators"
-        ])
-    else:
-        opportunities.extend([
-            "Fine-tune credibility positioning",
-            "Add premium authority signals"
-        ])
-    
-    # Content-based opportunities
-    offer_intel = base_intel.get("offer_intelligence", {})
-    if offer_intel and not offer_intel.get("guarantees"):
-        opportunities.append("Add trust-building guarantees and assurances")
-    
-    return opportunities
-
-async def _identify_market_authority_opportunities(base_intel: Dict) -> List[str]:
-    """Identify market authority building opportunities"""
-    
-    opportunities = [
-        "Establish scientific thought leadership",
-        "Build research-based authority",
-        "Create evidence-driven market position",
-        "Develop clinical expertise positioning",
-        "Enhance with professional credibility"
-    ]
-    
-    # Industry-specific opportunities
-    content_str = str(base_intel).lower()
-    if "health" in content_str or "supplement" in content_str:
-        opportunities.extend([
-            "Establish health industry authority",
-            "Build supplement science credibility",
-            "Position as wellness research leader"
-        ])
-    
-    return opportunities
-
-# ============================================================================
-# ENHANCEMENT GENERATION FUNCTIONS
-# ============================================================================
-
-async def _generate_scientific_validation_enhancement(opportunity: str, base_intel: Dict) -> Dict[str, Any]:
-    """Generate scientific validation enhancement"""
-    
-    enhancement = {
-        "opportunity": opportunity,
-        "validation_type": "scientific_research",
-        "research_support": [],
-        "credibility_boost": 0.15,
-        "implementation": "Add to content as scientific backing"
-    }
-    
-    # Specific validation based on opportunity
-    if "liver" in opportunity.lower():
-        enhancement["research_support"] = [
-            "Clinical studies demonstrate liver function optimization",
-            "Research validates liver detoxification enhancement",
-            "Peer-reviewed studies confirm liver health benefits"
+    try:
+        confidence_score = base_intel.get("confidence_score", 0.0)
+        
+        opportunities = [
+            "Generate trust indicators and signals",
+            "Develop authority and expertise markers",
+            "Create social proof enhancement",
+            "Build reputation factors analysis",
+            "Establish credibility scoring system"
         ]
-    elif "weight" in opportunity.lower():
-        enhancement["research_support"] = [
-            "Meta-analysis supports weight management efficacy",
-            "Clinical trials validate metabolic enhancement",
-            "Research confirms sustainable weight loss support"
+        
+        if confidence_score < 0.8:
+            opportunities.append("Boost overall credibility score")
+        
+        return {"credibility_enhancement": opportunities}
+        
+    except Exception as e:
+        logger.error(f"❌ Credibility opportunity identification failed: {str(e)}")
+        return {"credibility_enhancement": ["Credibility enhancement available"]}
+
+async def _identify_content_opportunities(enhancer, product_data: Dict, base_intel: Dict) -> Dict[str, List[str]]:
+    """Identify content enhancement opportunities"""
+    
+    try:
+        content_intel = base_intel.get("content_intelligence", {})
+        
+        opportunities = [
+            "Enhance key messaging with AI insights",
+            "Amplify social proof elements",
+            "Develop success story frameworks",
+            "Create content hierarchy optimization",
+            "Generate engagement-focused messaging"
         ]
-    elif "metabolism" in opportunity.lower():
-        enhancement["research_support"] = [
-            "Studies validate metabolic pathway optimization",
-            "Research confirms metabolic rate enhancement",
-            "Clinical evidence supports metabolic health"
+        
+        return {"content_optimization": opportunities}
+        
+    except Exception as e:
+        logger.error(f"❌ Content opportunity identification failed: {str(e)}")
+        return {"content_optimization": ["Content enhancement available"]}
+
+async def _identify_emotional_opportunities(enhancer, product_data: Dict, base_intel: Dict) -> Dict[str, List[str]]:
+    """Identify emotional transformation opportunities"""
+    
+    try:
+        psych_intel = base_intel.get("psychology_intelligence", {})
+        
+        opportunities = [
+            "Map customer emotional journey",
+            "Identify psychological triggers",
+            "Develop emotional value propositions",
+            "Create transformation narratives",
+            "Build emotional engagement strategies"
         ]
-    else:
-        # Generic scientific support
-        enhancement["research_support"] = [
-            "Clinical research validates health benefits",
-            "Scientific studies confirm efficacy",
-            "Peer-reviewed research supports claims"
+        
+        return {"emotional_transformation": opportunities}
+        
+    except Exception as e:
+        logger.error(f"❌ Emotional opportunity identification failed: {str(e)}")
+        return {"emotional_transformation": ["Emotional enhancement available"]}
+
+async def _identify_authority_opportunities(enhancer, product_data: Dict, base_intel: Dict) -> Dict[str, List[str]]:
+    """Identify scientific authority opportunities"""
+    
+    try:
+        opportunities = [
+            "Establish scientific research validation",
+            "Build professional authority markers",
+            "Create expertise demonstration content",
+            "Develop industry recognition signals",
+            "Generate thought leadership positioning"
         ]
-    
-    return enhancement
-
-async def _generate_credibility_enhancement(opportunity: str, base_intel: Dict) -> Dict[str, Any]:
-    """Generate credibility enhancement"""
-    
-    enhancement = {
-        "opportunity": opportunity,
-        "enhancement_type": "credibility_boost",
-        "trust_indicator": "",
-        "authority_signal": "",
-        "credibility_increase": 0.12,
-        "implementation": "Integrate into messaging"
-    }
-    
-    # Specific credibility enhancements
-    if "major" in opportunity.lower():
-        enhancement.update({
-            "trust_indicator": "Comprehensive scientific validation",
-            "authority_signal": "Research-backed health expertise",
-            "credibility_increase": 0.20
-        })
-    elif "moderate" in opportunity.lower():
-        enhancement.update({
-            "trust_indicator": "Clinical study support", 
-            "authority_signal": "Evidence-based approach",
-            "credibility_increase": 0.15
-        })
-    else:
-        enhancement.update({
-            "trust_indicator": "Scientific research foundation",
-            "authority_signal": "Professional health credibility",
-            "credibility_increase": 0.10
-        })
-    
-    return enhancement
-
-async def _generate_competitive_advantage(opportunity: str, base_intel: Dict) -> Dict[str, Any]:
-    """Generate competitive advantage enhancement"""
-    
-    enhancement = {
-        "opportunity": opportunity,
-        "advantage_type": "scientific_differentiation",
-        "advantage": "",
-        "positioning": "",
-        "market_impact": 0.18,
-        "implementation": "Use in competitive positioning"
-    }
-    
-    # Specific competitive advantages
-    if "scientific backing" in opportunity.lower():
-        enhancement.update({
-            "advantage": "Research-validated vs competitor claims",
-            "positioning": "Premium scientific credibility leader",
-            "market_impact": 0.25
-        })
-    elif "research-backed" in opportunity.lower():
-        enhancement.update({
-            "advantage": "Clinical study validation advantage",
-            "positioning": "Evidence-based market authority",
-            "market_impact": 0.20
-        })
-    elif "evidence-based" in opportunity.lower():
-        enhancement.update({
-            "advantage": "Scientific methodology differentiation",
-            "positioning": "Research-driven health solutions",
-            "market_impact": 0.18
-        })
-    else:
-        enhancement.update({
-            "advantage": "Scientific authority positioning",
-            "positioning": "Research-backed market leader",
-            "market_impact": 0.15
-        })
-    
-    return enhancement
-
-async def _generate_research_support(base_intel: Dict) -> List[str]:
-    """Generate comprehensive research support statements"""
-    
-    research_support = [
-        "Clinical studies validate comprehensive health optimization",
-        "Research confirms natural metabolic enhancement benefits",
-        "Peer-reviewed studies support liver function improvement",
-        "Scientific literature validates weight management approach",
-        "Evidence-based research confirms safety and efficacy"
-    ]
-    
-    # Content-specific research support
-    content_str = str(base_intel).lower()
-    
-    if "liver" in content_str:
-        research_support.extend([
-            "Hepatology research validates liver optimization protocols",
-            "Clinical hepatology studies confirm function enhancement"
-        ])
-    
-    if "weight" in content_str:
-        research_support.extend([
-            "Obesity research validates natural weight management",
-            "Metabolic studies confirm sustainable fat loss support"
-        ])
-    
-    return research_support
-
-async def _generate_market_positioning_enhancement(opportunity: str, base_intel: Dict) -> Dict[str, Any]:
-    """Generate market positioning enhancement"""
-    
-    enhancement = {
-        "opportunity": opportunity,
-        "positioning_type": "authority_building",
-        "authority_signal": "",
-        "market_position": "",
-        "credibility_boost": 0.10,
-        "implementation": "Use in brand positioning"
-    }
-    
-    # Specific positioning enhancements
-    if "thought leadership" in opportunity.lower():
-        enhancement.update({
-            "authority_signal": "Scientific thought leadership in health",
-            "market_position": "Research-driven health innovation leader",
-            "credibility_boost": 0.18
-        })
-    elif "research-based" in opportunity.lower():
-        enhancement.update({
-            "authority_signal": "Research-based health expertise",
-            "market_position": "Evidence-driven wellness authority",
-            "credibility_boost": 0.15
-        })
-    elif "clinical expertise" in opportunity.lower():
-        enhancement.update({
-            "authority_signal": "Clinical health expertise",
-            "market_position": "Professional health solution provider",
-            "credibility_boost": 0.14
-        })
-    else:
-        enhancement.update({
-            "authority_signal": "Scientific health authority",
-            "market_position": "Research-backed health leader",
-            "credibility_boost": 0.12
-        })
-    
-    return enhancement
-
-# ============================================================================
-# UTILITY FUNCTIONS FOR ENHANCEMENT CALCULATION
-# ============================================================================
+        
+        return {"market_authority": opportunities}
+        
+    except Exception as e:
+        logger.error(f"❌ Authority opportunity identification failed: {str(e)}")
+        return {"market_authority": ["Authority enhancement available"]}
 
 def _prioritize_opportunities(opportunities: Dict[str, List]) -> List[str]:
     """Prioritize enhancement opportunities by impact"""
     
     priority_map = {
-        "scientific_validation": 5,  # Highest priority
-        "health_claim_validation": 4,
-        "credibility_enhancement": 3,
-        "competitive_positioning": 2,
+        "scientific_validation": 5,      # Highest priority
+        "credibility_enhancement": 4,
+        "competitive_positioning": 3,
+        "content_optimization": 2,
+        "emotional_transformation": 1,
         "market_authority": 1
     }
     
     priorities = []
     for opp_type, opp_list in opportunities.items():
-        if opp_list:  # Only include types with opportunities
+        if opp_list:
             priority = priority_map.get(opp_type, 0)
             priorities.append((priority, opp_type, len(opp_list)))
     
@@ -590,349 +516,119 @@ def _prioritize_opportunities(opportunities: Dict[str, List]) -> List[str]:
     return [f"{opp_type} ({count} opportunities)" for _, opp_type, count in priorities]
 
 def _calculate_confidence_boost(enhancements: Dict, base_intel: Dict) -> float:
-    """Calculate total confidence boost from enhancements"""
+    """Calculate total confidence boost from all enhancements"""
     
     total_boost = 0.0
     
-    # Scientific validation boost
-    scientific_enhancements = enhancements.get("scientific_validation", [])
-    for enhancement in scientific_enhancements:
-        total_boost += enhancement.get("credibility_boost", 0.0)
-    
-    # Credibility booster boost
-    credibility_enhancements = enhancements.get("credibility_boosters", [])
-    for enhancement in credibility_enhancements:
-        total_boost += enhancement.get("credibility_increase", 0.0)
-    
-    # Competitive advantage boost
-    competitive_enhancements = enhancements.get("competitive_advantages", [])
-    for enhancement in competitive_enhancements:
-        total_boost += enhancement.get("market_impact", 0.0) * 0.5  # Scale down market impact
-    
-    # Market positioning boost
-    positioning_enhancements = enhancements.get("market_positioning", [])
-    for enhancement in positioning_enhancements:
-        total_boost += enhancement.get("credibility_boost", 0.0)
+    # Count enhancements across all modules
+    for enhancement_type, enhancement_data in enhancements.items():
+        if isinstance(enhancement_data, dict) and enhancement_data:
+            total_boost += 0.05  # 5% boost per populated category
+        elif isinstance(enhancement_data, list) and enhancement_data:
+            total_boost += min(len(enhancement_data) * 0.02, 0.10)  # Up to 10% per category
     
     # Cap the boost to prevent unrealistic scores
     return min(total_boost, 0.35)  # Maximum 35% boost
 
 def _calculate_credibility_score(enhancements: Dict, base_intel: Dict) -> float:
-    """Calculate overall credibility score from enhancements"""
+    """Calculate overall credibility score from all enhancements"""
     
     base_confidence = base_intel.get("confidence_score", 0.0)
     confidence_boost = _calculate_confidence_boost(enhancements, base_intel)
     
-    # Base credibility from confidence
-    base_credibility = base_confidence * 0.7  # Scale down base
-    
-    # Enhancement-based credibility
-    enhancement_credibility = 0.0
-    
-    # Scientific validation credibility
-    scientific_count = len(enhancements.get("scientific_validation", []))
-    enhancement_credibility += min(scientific_count * 0.08, 0.25)  # Up to 25% from scientific validation
-    
-    # Research support credibility
-    research_count = len(enhancements.get("research_support", []))
-    enhancement_credibility += min(research_count * 0.02, 0.10)  # Up to 10% from research support
-    
-    # Credibility boosters
-    credibility_count = len(enhancements.get("credibility_boosters", []))
-    enhancement_credibility += min(credibility_count * 0.05, 0.15)  # Up to 15% from credibility boosters
-    
-    # Total credibility score
-    total_credibility = min(base_credibility + enhancement_credibility, 1.0)
-    
-    return total_credibility
-
-# ============================================================================
-# ADVANCED ENHANCEMENT FUNCTIONS (NEW IN PRODUCTION)
-# ============================================================================
-
-async def apply_scientific_backing(intelligence_data: Dict, preferences: Dict = None) -> Dict[str, Any]:
-    """Apply scientific backing to intelligence data"""
-    
-    if preferences is None:
-        preferences = {}
-    
-    logger.info("🔬 Applying scientific backing to intelligence...")
-    
-    # Extract health claims for validation
-    health_claims = _extract_health_claims_for_validation(intelligence_data)
-    
-    # Generate scientific backing for each claim
-    scientific_backing = {}
-    for claim_type, claims in health_claims.items():
-        scientific_backing[claim_type] = []
-        for claim in claims:
-            backing = await _generate_scientific_backing_for_claim(claim, claim_type)
-            scientific_backing[claim_type].append(backing)
-    
-    # Calculate scientific credibility score
-    credibility_metrics = _calculate_scientific_credibility(scientific_backing)
-    
-    return {
-        "scientific_backing": scientific_backing,
-        "credibility_metrics": credibility_metrics,
-        "validation_timestamp": datetime.utcnow().isoformat()
-    }
-
-def _extract_health_claims_for_validation(intelligence_data: Dict) -> Dict[str, List[str]]:
-    """Extract health claims that need scientific validation"""
-    
-    health_claims = {
-        "liver_health": [],
-        "weight_management": [],
-        "metabolic_enhancement": [],
-        "energy_optimization": [],
-        "detoxification": []
-    }
-    
-    # Extract from offer intelligence
-    offer_intel = intelligence_data.get("offer_intelligence", {})
-    content_str = str(offer_intel).lower()
-    
-    # Liver health claims
-    if "liver" in content_str or "hepato" in content_str:
-        health_claims["liver_health"].extend([
-            "Supports healthy liver function",
-            "Promotes liver detoxification",
-            "Enhances liver metabolic processes"
-        ])
-    
-    # Weight management claims
-    if any(term in content_str for term in ["weight", "fat", "burn", "slim"]):
-        health_claims["weight_management"].extend([
-            "Supports healthy weight management",
-            "Promotes natural fat metabolism",
-            "Enhances metabolic efficiency"
-        ])
-    
-    # Metabolic enhancement claims
-    if "metabolism" in content_str or "metabolic" in content_str:
-        health_claims["metabolic_enhancement"].extend([
-            "Boosts metabolic function",
-            "Enhances metabolic pathways",
-            "Supports optimal metabolism"
-        ])
-    
-    # Energy optimization claims
-    if "energy" in content_str or "vitality" in content_str:
-        health_claims["energy_optimization"].extend([
-            "Increases natural energy levels",
-            "Supports sustained vitality",
-            "Enhances cellular energy production"
-        ])
-    
-    # Detoxification claims
-    if any(term in content_str for term in ["detox", "cleanse", "purify"]):
-        health_claims["detoxification"].extend([
-            "Supports natural detoxification",
-            "Promotes cellular cleansing",
-            "Enhances elimination processes"
-        ])
-    
-    return health_claims
-
-async def _generate_scientific_backing_for_claim(claim: str, claim_type: str) -> Dict[str, Any]:
-    """Generate scientific backing for a specific health claim"""
-    
-    backing = {
-        "original_claim": claim,
-        "claim_type": claim_type,
-        "research_support": [],
-        "scientific_terminology": [],
-        "credibility_score": 0.0
-    }
-    
-    # Generate research support based on claim type
-    if claim_type == "liver_health":
-        backing["research_support"] = [
-            "Clinical studies demonstrate liver function optimization benefits",
-            "Hepatology research validates liver health enhancement protocols",
-            "Peer-reviewed studies confirm liver detoxification support efficacy"
-        ]
-        backing["scientific_terminology"] = [
-            "hepatocyte function", "liver enzyme optimization", "hepatic detoxification pathways"
-        ]
-        backing["credibility_score"] = 0.85
-        
-    elif claim_type == "weight_management":
-        backing["research_support"] = [
-            "Meta-analysis confirms natural weight management efficacy",
-            "Clinical trials validate metabolic enhancement for weight control",
-            "Research supports sustainable fat metabolism improvement"
-        ]
-        backing["scientific_terminology"] = [
-            "lipolysis", "thermogenesis", "metabolic rate enhancement"
-        ]
-        backing["credibility_score"] = 0.82
-        
-    elif claim_type == "metabolic_enhancement":
-        backing["research_support"] = [
-            "Metabolic studies validate pathway optimization",
-            "Research confirms metabolic efficiency enhancement",
-            "Clinical evidence supports metabolic function improvement"
-        ]
-        backing["scientific_terminology"] = [
-            "metabolic pathways", "cellular respiration", "mitochondrial function"
-        ]
-        backing["credibility_score"] = 0.80
-        
-    elif claim_type == "energy_optimization":
-        backing["research_support"] = [
-            "Studies validate natural energy enhancement mechanisms",
-            "Research confirms cellular energy production support",
-            "Clinical trials demonstrate sustained energy improvement"
-        ]
-        backing["scientific_terminology"] = [
-            "ATP production", "cellular energy metabolism", "mitochondrial efficiency"
-        ]
-        backing["credibility_score"] = 0.78
-        
-    elif claim_type == "detoxification":
-        backing["research_support"] = [
-            "Research validates natural detoxification support",
-            "Studies confirm cellular cleansing mechanisms",
-            "Clinical evidence supports elimination pathway enhancement"
-        ]
-        backing["scientific_terminology"] = [
-            "phase I/II detoxification", "hepatic conjugation", "elimination pathways"
-        ]
-        backing["credibility_score"] = 0.83
-        
-    else:
-        # Generic scientific backing
-        backing["research_support"] = [
-            "Clinical research validates health benefits",
-            "Scientific studies confirm efficacy and safety",
-            "Peer-reviewed research supports health claims"
-        ]
-        backing["scientific_terminology"] = [
-            "clinical efficacy", "bioavailability", "therapeutic potential"
-        ]
-        backing["credibility_score"] = 0.75
-    
-    return backing
-
-def _calculate_scientific_credibility(scientific_backing: Dict) -> Dict[str, Any]:
-    """Calculate overall scientific credibility metrics"""
-    
-    total_claims = 0
-    total_credibility = 0.0
-    claim_types = len(scientific_backing)
-    
-    for claim_type, backings in scientific_backing.items():
-        for backing in backings:
-            total_claims += 1
-            total_credibility += backing.get("credibility_score", 0.0)
-    
-    avg_credibility = total_credibility / max(total_claims, 1)
-    
-    return {
-        "average_credibility_score": round(avg_credibility, 3),
-        "total_validated_claims": total_claims,
-        "claim_categories": claim_types,
-        "credibility_level": "high" if avg_credibility > 0.8 else "medium" if avg_credibility > 0.6 else "fair",
-        "research_depth": "comprehensive" if total_claims > 8 else "moderate" if total_claims > 4 else "basic"
-    }
-
-async def calculate_credibility_score(intelligence_data: Dict, enhancements: Dict) -> float:
-    """Calculate enhanced credibility score"""
-    
-    base_confidence = intelligence_data.get("confidence_score", 0.0)
-    
-    # Scientific validation boost
-    scientific_enhancements = len(enhancements.get("scientific_validation", []))
-    scientific_boost = min(scientific_enhancements * 0.08, 0.25)
-    
-    # Research support boost  
-    research_support = len(enhancements.get("research_support", []))
-    research_boost = min(research_support * 0.02, 0.10)
-    
-    # Credibility indicators boost
-    credibility_indicators = len(enhancements.get("credibility_boosters", []))
-    credibility_boost = min(credibility_indicators * 0.05, 0.15)
-    
-    # Total credibility score
-    enhanced_credibility = min(
-        base_confidence + scientific_boost + research_boost + credibility_boost,
-        1.0
-    )
+    # Enhanced credibility calculation
+    enhanced_credibility = min(base_confidence + confidence_boost, 1.0)
     
     return enhanced_credibility
 
-async def enhance_competitive_positioning(intelligence_data: Dict, preferences: Dict = None) -> Dict[str, Any]:
-    """Enhance competitive positioning with scientific advantages"""
+def _get_providers_used(enhancers: Dict[str, Any]) -> List[str]:
+    """Get list of AI providers used across all enhancers"""
     
-    if preferences is None:
-        preferences = {}
+    providers_used = set()
     
-    logger.info("⚔️ Enhancing competitive positioning with scientific advantages...")
+    for enhancer_name, enhancer in enhancers.items():
+        if hasattr(enhancer, 'available_provider') and enhancer.available_provider:
+            provider_name = enhancer.available_provider.get("name", "unknown")
+            providers_used.add(provider_name)
     
-    # Extract existing competitive intelligence
-    comp_intel = intelligence_data.get("competitive_intelligence", {})
+    return list(providers_used)
+
+def _get_fallback_category_data(category: str) -> Dict[str, Any]:
+    """Get fallback data for intelligence categories"""
     
-    # Generate scientific competitive advantages
-    scientific_advantages = [
-        "Research-validated approach vs unsubstantiated competitor claims",
-        "Clinical study backing vs testimonial-only evidence",
-        "Scientific methodology vs marketing-heavy positioning",
-        "Evidence-based credibility vs generic health promises",
-        "Peer-reviewed research foundation vs unsupported assertions"
-    ]
+    fallback_data = {
+        "scientific_intelligence": {
+            "scientific_backing": ["General health and wellness support"],
+            "research_quality_score": 0.5
+        },
+        "market_intelligence": {
+            "market_analysis": {"market_size": {"current_estimate": "Growing market"}},
+            "market_intelligence_score": 0.5
+        },
+        "credibility_intelligence": {
+            "trust_indicators": {"trust_building_elements": ["Quality assurance"]},
+            "overall_credibility_score": 0.6
+        },
+        "content_intelligence": {
+            "key_messages": ["Quality health solution"],
+            "content_structure": "Standard content"
+        },
+        "emotional_transformation_intelligence": {
+            "emotional_journey": {"current_state": ["Seeking health solutions"]},
+            "transformation_confidence": 0.5
+        },
+        "scientific_authority_intelligence": {
+            "research_validation": {"evidence_strength": "Basic validation"},
+            "authority_score": 0.6
+        }
+    }
     
-    # Generate market positioning advantages
-    market_advantages = [
-        "Premium scientific authority positioning",
-        "Research-backed efficacy differentiation",
-        "Clinical validation competitive moat",
-        "Evidence-based trustworthiness leadership",
-        "Scientific expertise market positioning"
-    ]
-    
-    # Identify competitive gaps to fill
-    competitive_gaps = [
-        "Lack of scientific validation in competitor marketing",
-        "Missing clinical research references in market",
-        "Opportunity for evidence-based positioning leadership",
-        "Gap in peer-reviewed research utilization",
-        "Absence of scientific methodology emphasis"
-    ]
-    
-    # Calculate competitive advantage score
-    advantage_score = _calculate_competitive_advantage_score(
-        scientific_advantages, market_advantages, comp_intel
-    )
+    return fallback_data.get(category, {"status": "Enhancement not available"})
+
+# ============================================================================
+# FALLBACK FUNCTIONS
+# ============================================================================
+
+def _fallback_identify_opportunities(base_intel: Dict) -> Dict[str, Any]:
+    """Fallback opportunity identification when AI modules unavailable"""
     
     return {
-        "scientific_advantages": scientific_advantages,
-        "market_positioning_advantages": market_advantages,
-        "competitive_gaps_identified": competitive_gaps,
-        "advantage_score": advantage_score,
-        "positioning_strategy": "premium_scientific_authority",
-        "enhancement_timestamp": datetime.utcnow().isoformat()
+        "scientific_validation": ["AI scientific enhancement not available"],
+        "credibility_enhancement": ["AI credibility enhancement not available"], 
+        "competitive_positioning": ["AI market enhancement not available"],
+        "market_authority": ["AI authority enhancement not available"],
+        "content_optimization": ["AI content enhancement not available"],
+        "emotional_transformation": ["AI emotional enhancement not available"],
+        "opportunity_metadata": {
+            "total_opportunities": 6,
+            "priority_areas": ["Install AI enhancement modules"],
+            "enhancement_potential": "requires_ai_modules",
+            "identified_at": datetime.utcnow().isoformat(),
+            "system_version": "fallback"
+        }
     }
 
-def _calculate_competitive_advantage_score(
-    scientific_advantages: List[str], 
-    market_advantages: List[str], 
-    existing_comp_intel: Dict
-) -> float:
-    """Calculate competitive advantage score"""
+def _fallback_generate_enhancements(base_intel: Dict, opportunities: Dict) -> Dict[str, Any]:
+    """Fallback enhancement generation when AI modules unavailable"""
     
-    # Base score from scientific advantages
-    scientific_score = min(len(scientific_advantages) * 0.15, 0.75)
-    
-    # Market positioning score
-    market_score = min(len(market_advantages) * 0.10, 0.50)
-    
-    # Existing intelligence bonus
-    existing_opportunities = len(existing_comp_intel.get("opportunities", []))
-    existing_bonus = min(existing_opportunities * 0.05, 0.25)
-    
-    # Total advantage score
-    total_score = min(scientific_score + market_score + existing_bonus, 1.0)
-    
-    return round(total_score, 3)
+    return {
+        "scientific_validation": {"note": "AI scientific enhancement not available"},
+        "credibility_boosters": {"note": "AI credibility enhancement not available"},
+        "competitive_advantages": {"note": "AI market enhancement not available"},
+        "research_support": {"note": "AI research enhancement not available"},
+        "market_positioning": {"note": "AI positioning enhancement not available"},
+        "content_optimization": {"note": "AI content enhancement not available"},
+        "emotional_transformation": {"note": "AI emotional enhancement not available"},
+        "authority_establishment": {"note": "AI authority enhancement not available"},
+        "enhancement_metadata": {
+            "total_enhancements": 0,
+            "confidence_boost": 0.0,
+            "credibility_score": base_intel.get("confidence_score", 0.6),
+            "modules_successful": [],
+            "modules_failed": 6,
+            "enhancement_quality": "fallback",
+            "enhanced_at": datetime.utcnow().isoformat(),
+            "enhancement_version": "fallback",
+            "fallback_reason": "AI enhancement modules not available"
+        }
+    }

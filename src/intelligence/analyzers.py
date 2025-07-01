@@ -1514,3 +1514,6 @@ class VSLAnalyzer:
             "offer_mentions": [],
             "call_to_actions": []
         }
+    # At the end of src/intelligence/analyzers.py:
+
+ANALYZERS_AVAILABLE = True
