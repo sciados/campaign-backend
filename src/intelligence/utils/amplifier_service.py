@@ -10,15 +10,15 @@ logger = logging.getLogger(__name__)
 
 # Try to import amplifier with fallback handling
 try:
-    from src.intelligence.amplifier import (
-        IntelligenceAmplificationService, 
-        is_amplifier_available, 
-        get_amplifier_status
+    from src.intelligence.amplifier.enhancement import (
+        generate_enhancements,
+        create_enriched_intelligence,
+        identify_opportunities
     )
-    AMPLIFIER_AVAILABLE = is_amplifier_available()
-    logger.info(f"✅ SUCCESS: Intelligence Amplifier imported - Status: {get_amplifier_status()['status']}")
+    AMPLIFIER_AVAILABLE = True
+    logger.info("✅ SUCCESS: Modular Intelligence Amplifier imported")
 except ImportError as e:
-    logger.warning(f"⚠️ AMPLIFIER WARNING: Intelligence Amplifier package not available: {str(e)}")
+    logger.warning(f"⚠️ AMPLIFIER WARNING: Modular amplifier not available: {str(e)}")
     AMPLIFIER_AVAILABLE = False
 
 
@@ -36,11 +36,11 @@ class FallbackAmplificationService:
         }
 
 
-def get_amplifier_service() -> Optional[object]:
-    """Get amplifier service instance or None if not available"""
-    if not AMPLIFIER_AVAILABLE:
-        logger.warning("⚠️ Amplifier service not available - using fallback")
-        return None
+def get_amplifier_service():
+    """Get amplifier service - now handled directly in enhancement.py"""
+    if AMPLIFIER_AVAILABLE:
+        return True  # Just return True since enhancement.py handles everything
+    return None
     
     try:
         return IntelligenceAmplificationService()
