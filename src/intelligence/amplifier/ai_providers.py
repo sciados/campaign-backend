@@ -1,7 +1,7 @@
-# src/intelligence/amplifier/ai_providers.py - ENHANCED WITH CLAUDE SUPPORT
+# src/intelligence/amplifier/ai_providers.py - ENHANCED WITH DEBUG LOGGING
 """
 AI Provider initialization for Intelligence Amplifier and Content Generation
-✅ ENHANCED: Added Anthropic Claude support alongside OpenAI
+✅ ENHANCED: Added Anthropic Claude support alongside OpenAI + Debug Logging
 """
 import os
 import logging
@@ -13,16 +13,33 @@ def initialize_ai_providers():
     
     providers = []
     
+    logger.info("🚀 STARTING AI PROVIDER INITIALIZATION...")
+    
     # ============================================================================
     # OPENAI GPT PROVIDER
     # ============================================================================
+    logger.info("🔍 Checking OpenAI provider...")
     try:
         import openai
+        logger.info(f"✅ OpenAI library imported successfully (version: {openai.__version__})")
+        
         api_key = os.getenv("OPENAI_API_KEY")
+        logger.info(f"🔑 OpenAI API key present: {bool(api_key)}")
+        
         if api_key:
-            providers.append({
+            logger.info(f"🔑 OpenAI key length: {len(api_key)} characters")
+            logger.info(f"🔑 OpenAI key format: {api_key[:10]}...")
+            
+            if not api_key.startswith("sk-"):
+                logger.warning(f"⚠️ OpenAI key doesn't start with 'sk-' (starts with: {api_key[:10]})")
+            
+            # Test client creation
+            client = openai.AsyncOpenAI(api_key=api_key)
+            logger.info("✅ OpenAI client created successfully")
+            
+            provider = {
                 "name": "openai",
-                "client": openai.AsyncOpenAI(api_key=api_key),
+                "client": client,
                 "models": ["gpt-4", "gpt-3.5-turbo"],
                 "available": True,
                 "capabilities": [
@@ -32,31 +49,50 @@ def initialize_ai_providers():
                     "sales_pages",
                     "SOCIAL_POSTS"
                 ],
-                "cost_per_1k_tokens": 0.03,  # GPT-4 pricing
+                "cost_per_1k_tokens": 0.03,
                 "strengths": [
                     "High-quality content generation",
                     "Complex reasoning and analysis",
                     "Creative writing capabilities"
                 ]
-            })
-            logger.info("✅ OpenAI provider initialized successfully")
+            }
+            providers.append(provider)
+            logger.info("✅ OpenAI provider successfully added to providers list")
         else:
             logger.warning("⚠️ OPENAI_API_KEY not found in environment variables")
-    except ImportError:
-        logger.error("❌ OpenAI library not installed. Run: pip install openai")
+    except ImportError as e:
+        logger.error(f"❌ OpenAI library not installed: {str(e)}")
     except Exception as e:
         logger.error(f"❌ OpenAI initialization failed: {str(e)}")
+        logger.error(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
     
     # ============================================================================
     # ANTHROPIC CLAUDE PROVIDER  
     # ============================================================================
+    logger.info("🔍 Checking Anthropic provider...")
     try:
         import anthropic
+        logger.info(f"✅ Anthropic library imported successfully (version: {anthropic.__version__})")
+        
         api_key = os.getenv("ANTHROPIC_API_KEY")
+        logger.info(f"🔑 Anthropic API key present: {bool(api_key)}")
+        
         if api_key:
-            providers.append({
+            logger.info(f"🔑 Anthropic key length: {len(api_key)} characters")
+            logger.info(f"🔑 Anthropic key format: {api_key[:15]}...")
+            
+            if not api_key.startswith("sk-ant-"):
+                logger.warning(f"⚠️ Anthropic key doesn't start with 'sk-ant-' (starts with: {api_key[:15]})")
+            
+            # Test client creation
+            client = anthropic.AsyncAnthropic(api_key=api_key)
+            logger.info("✅ Anthropic client created successfully")
+            
+            provider = {
                 "name": "anthropic",
-                "client": anthropic.AsyncAnthropic(api_key=api_key),
+                "client": client,
                 "models": [
                     "claude-3-5-sonnet-20241022",  # Latest and best
                     "claude-3-sonnet-20240229",    # Fallback
@@ -71,7 +107,7 @@ def initialize_ai_providers():
                     "webinar_content",
                     "sales_pages"
                 ],
-                "cost_per_1k_tokens": 0.015,  # Claude 3.5 Sonnet pricing (50% cheaper than GPT-4)
+                "cost_per_1k_tokens": 0.015,
                 "strengths": [
                     "Excellent long-form content",
                     "Scientific and technical writing", 
@@ -79,26 +115,41 @@ def initialize_ai_providers():
                     "Superior reasoning capabilities",
                     "Cost-effective for long content"
                 ]
-            })
-            logger.info("✅ Anthropic Claude provider initialized successfully")
+            }
+            providers.append(provider)
+            logger.info("✅ Anthropic provider successfully added to providers list")
         else:
             logger.warning("⚠️ ANTHROPIC_API_KEY not found in environment variables")
-    except ImportError:
-        logger.warning("⚠️ Anthropic library not installed. Run: pip install anthropic")
-        logger.info("💡 Claude would provide excellent long-form content and scientific writing")
+    except ImportError as e:
+        logger.warning(f"⚠️ Anthropic library not installed: {str(e)}")
+        logger.info("💡 Run: pip install anthropic")
     except Exception as e:
         logger.error(f"❌ Anthropic initialization failed: {str(e)}")
+        logger.error(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
     
     # ============================================================================
     # COHERE PROVIDER (OPTIONAL - HIGH VOLUME, LOW COST)
     # ============================================================================
+    logger.info("🔍 Checking Cohere provider...")
     try:
         import cohere
+        logger.info("✅ Cohere library imported successfully")
+        
         api_key = os.getenv("COHERE_API_KEY")
+        logger.info(f"🔑 Cohere API key present: {bool(api_key)}")
+        
         if api_key:
-            providers.append({
+            logger.info(f"🔑 Cohere key length: {len(api_key)} characters")
+            
+            # Test client creation
+            client = cohere.AsyncClient(api_key=api_key)
+            logger.info("✅ Cohere client created successfully")
+            
+            provider = {
                 "name": "cohere",
-                "client": cohere.AsyncClient(api_key=api_key),
+                "client": client,
                 "models": [
                     "command",         # Best quality
                     "command-light",   # Faster and cheaper
@@ -112,32 +163,43 @@ def initialize_ai_providers():
                     "high_volume_generation",
                     "summarization"
                 ],
-                "cost_per_1k_tokens": 0.002,  # Very cost-effective
+                "cost_per_1k_tokens": 0.002,
                 "strengths": [
                     "Extremely cost-effective",
                     "Fast generation",
                     "Good for high-volume content",
                     "Excellent for social media"
                 ]
-            })
-            logger.info("✅ Cohere provider initialized successfully")
+            }
+            providers.append(provider)
+            logger.info("✅ Cohere provider successfully added to providers list")
         else:
             logger.info("💡 COHERE_API_KEY not found - Cohere provides very cost-effective content generation")
-    except ImportError:
-        logger.info("💡 Cohere library not installed. Run: pip install cohere")
-        logger.info("💡 Cohere would provide cost-effective social media and product descriptions")
+    except ImportError as e:
+        logger.info(f"💡 Cohere library not installed: {str(e)}")
+        logger.info("💡 Run: pip install cohere")
     except Exception as e:
-        logger.warning(f"⚠️ Cohere initialization failed: {str(e)}")
+        logger.error(f"❌ Cohere initialization failed: {str(e)}")
+        logger.error(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
     
     # ============================================================================
-    # PROVIDER SUMMARY AND RECOMMENDATIONS
+    # FINAL RESULTS AND SUMMARY
     # ============================================================================
+    
+    logger.info(f"📊 PROVIDERS INITIALIZATION COMPLETE")
+    logger.info(f"📊 Total providers initialized: {len(providers)}")
+    logger.info(f"📋 Provider names: {[p['name'] for p in providers]}")
     
     if providers:
-        logger.info(f"🚀 Initialized {len(providers)} AI provider(s): {[p['name'] for p in providers]}")
+        logger.info(f"🚀 SUCCESS: Initialized {len(providers)} AI provider(s)")
         
         # Log provider recommendations
         provider_names = [p['name'] for p in providers]
+        
+        for provider in providers:
+            logger.info(f"   ✅ {provider['name']}: {len(provider['models'])} models available")
         
         if 'openai' in provider_names and 'anthropic' in provider_names:
             logger.info("🎯 OPTIMAL SETUP: OpenAI + Claude provides excellent redundancy and capabilities")
@@ -148,11 +210,29 @@ def initialize_ai_providers():
         
         if 'cohere' not in provider_names:
             logger.info("💡 OPTIMIZATION: Consider adding Cohere for 90% cost savings on social media content")
+            
+        # Log what enhancement modules will receive
+        logger.info(f"🔗 Enhancement modules will receive {len(providers)} providers:")
+        for provider in providers:
+            logger.info(f"   🔗 {provider['name']}: Available with {len(provider.get('capabilities', []))} capabilities")
+            
     else:
-        logger.error("❌ NO AI PROVIDERS AVAILABLE - Content generation will use emergency fallback")
-        logger.error("🔧 Add at least OPENAI_API_KEY or ANTHROPIC_API_KEY to environment variables")
+        logger.error("❌ CRITICAL: NO AI PROVIDERS AVAILABLE!")
+        logger.error("🔧 Enhancement modules will receive empty providers list")
+        logger.error("🔧 This will cause fallback to mock data with unrealistic confidence scores")
+        logger.error("🔧 Check environment variables and API key formats above")
+        
+        # Debug environment variables
+        logger.error("🔍 Environment variable debug:")
+        for var in ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "COHERE_API_KEY"]:
+            value = os.getenv(var)
+            if value:
+                logger.error(f"   🔍 {var}: Present (length: {len(value)}, starts: {value[:8]})")
+            else:
+                logger.error(f"   🔍 {var}: Missing")
     
     return providers
+
 
 def get_provider_recommendations():
     """Get recommendations for AI provider setup"""
@@ -190,6 +270,7 @@ def get_provider_recommendations():
         }
     }
 
+
 def check_provider_availability():
     """Check which providers are available and provide setup guidance"""
     
@@ -223,3 +304,12 @@ def check_provider_availability():
         status["recommendations"].append("✅ EXCELLENT: Multiple providers ensure reliability and optimization")
     
     return status
+
+
+# Add direct test capability
+if __name__ == "__main__":
+    print("🔍 TESTING AI PROVIDER INITIALIZATION DIRECTLY...")
+    providers = initialize_ai_providers()
+    print(f"\n📊 FINAL RESULT: {len(providers)} providers")
+    for provider in providers:
+        print(f"   ✅ {provider['name']}: {provider.get('available', False)}")
