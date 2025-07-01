@@ -628,7 +628,7 @@ class PerformanceCalculator:
     ) -> float:
         """Calculate confidence in the prediction"""
         
-        confidence = 0.5  # Base confidence
+        confidence = 0.1  # Base confidence
         
         # Intelligence data quality
         intelligence_confidence = intelligence_data.get('confidence_score', 0.5)
