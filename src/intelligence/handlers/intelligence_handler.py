@@ -202,12 +202,19 @@ class IntelligenceHandler:
                 enhancements=enhancements
             )
             
-            # Update the intelligence source with enriched data
+            # 🔥 FIXED: Update the intelligence source with enriched data INCLUDING the missing AI columns
             intelligence_source.offer_intelligence = enriched_intelligence.get("offer_intelligence", {})
             intelligence_source.psychology_intelligence = enriched_intelligence.get("psychology_intelligence", {})
             intelligence_source.content_intelligence = enriched_intelligence.get("content_intelligence", {})
             intelligence_source.competitive_intelligence = enriched_intelligence.get("competitive_intelligence", {})
             intelligence_source.brand_intelligence = enriched_intelligence.get("brand_intelligence", {})
+            
+            # 🔥 ADD THE MISSING AI ENHANCEMENT COLUMNS - This fixes the empty columns!
+            intelligence_source.scientific_intelligence = enriched_intelligence.get("scientific_intelligence", {})
+            intelligence_source.credibility_intelligence = enriched_intelligence.get("credibility_intelligence", {})
+            intelligence_source.market_intelligence = enriched_intelligence.get("market_intelligence", {})
+            intelligence_source.emotional_transformation_intelligence = enriched_intelligence.get("emotional_transformation_intelligence", {})
+            intelligence_source.scientific_authority_intelligence = enriched_intelligence.get("scientific_authority_intelligence", {})
             
             # Update confidence score if improved
             new_confidence = enriched_intelligence.get("confidence_score", intelligence_source.confidence_score)
@@ -231,7 +238,20 @@ class IntelligenceHandler:
                 "scientific_enhancements": len(enhancements.get("scientific_validation", {})) if enhancements.get("scientific_validation") else 0,
                 "amplified_at": datetime.utcnow().isoformat(),
                 "amplification_preferences": preferences,
-                "system_architecture": "direct_modular_enhancement"
+                "system_architecture": "direct_modular_enhancement",
+                # 🔥 ADD: Track which AI intelligence categories were populated
+                "intelligence_categories_stored": {
+                    "scientific_intelligence": len(enriched_intelligence.get("scientific_intelligence", {})),
+                    "credibility_intelligence": len(enriched_intelligence.get("credibility_intelligence", {})),
+                    "market_intelligence": len(enriched_intelligence.get("market_intelligence", {})),
+                    "emotional_transformation_intelligence": len(enriched_intelligence.get("emotional_transformation_intelligence", {})),
+                    "scientific_authority_intelligence": len(enriched_intelligence.get("scientific_authority_intelligence", {})),
+                    "brand_intelligence": len(enriched_intelligence.get("brand_intelligence", {})),
+                    "offer_intelligence": len(enriched_intelligence.get("offer_intelligence", {})),
+                    "content_intelligence": len(enriched_intelligence.get("content_intelligence", {})),
+                    "psychology_intelligence": len(enriched_intelligence.get("psychology_intelligence", {})),
+                    "competitive_intelligence": len(enriched_intelligence.get("competitive_intelligence", {}))
+                }
             }
             
             intelligence_source.processing_metadata = {
@@ -243,6 +263,7 @@ class IntelligenceHandler:
             await self.db.refresh(intelligence_source)
             
             logger.info(f"✅ Intelligence source amplified successfully - Final confidence: {new_confidence:.2f}")
+            logger.info(f"📊 AI Categories populated: {len([k for k, v in amplification_metadata['intelligence_categories_stored'].items() if v > 0])}/10")
             
             return {
                 "intelligence_id": str(intelligence_source.id),
@@ -252,6 +273,7 @@ class IntelligenceHandler:
                 "total_enhancements": total_enhancements,
                 "scientific_enhancements": amplification_metadata["scientific_enhancements"],
                 "enhancement_quality": enhancement_metadata.get("enhancement_quality", "unknown"),
+                "ai_categories_populated": len([k for k, v in amplification_metadata['intelligence_categories_stored'].items() if v > 0]),
                 "message": "Intelligence source amplified successfully using direct enhancement functions"
             }
             
@@ -386,6 +408,7 @@ class IntelligenceHandler:
             intelligence_data = []
             amplified_sources = 0
             total_scientific_enhancements = 0
+            ai_categories_populated = 0
             
             for source in intelligence_sources:
                 try:
@@ -394,6 +417,18 @@ class IntelligenceHandler:
                     if amplification_metadata.get("amplification_applied", False):
                         amplified_sources += 1
                         total_scientific_enhancements += amplification_metadata.get("scientific_enhancements", 0)
+                        
+                        # Count AI categories that have data
+                        categories_with_data = 0
+                        ai_categories = ["scientific_intelligence", "credibility_intelligence", "market_intelligence", 
+                                       "emotional_transformation_intelligence", "scientific_authority_intelligence"]
+                        
+                        for category in ai_categories:
+                            category_data = getattr(source, category, {})
+                            if category_data and len(category_data) > 0:
+                                categories_with_data += 1
+                        
+                        ai_categories_populated += categories_with_data
                     
                     intelligence_data.append({
                         "id": str(source.id),
@@ -405,11 +440,21 @@ class IntelligenceHandler:
                         "analysis_status": source.analysis_status.value if source.analysis_status else "unknown",
                         "created_at": source.created_at.isoformat() if source.created_at else None,
                         "updated_at": source.updated_at.isoformat() if source.updated_at else None,
+                        
+                        # Original intelligence categories
                         "offer_intelligence": source.offer_intelligence or {},
                         "psychology_intelligence": source.psychology_intelligence or {},
                         "content_intelligence": source.content_intelligence or {},
                         "competitive_intelligence": source.competitive_intelligence or {},
                         "brand_intelligence": source.brand_intelligence or {},
+                        
+                        # 🔥 NEW: Include AI-enhanced intelligence categories
+                        "scientific_intelligence": getattr(source, 'scientific_intelligence', {}) or {},
+                        "credibility_intelligence": getattr(source, 'credibility_intelligence', {}) or {},
+                        "market_intelligence": getattr(source, 'market_intelligence', {}) or {},
+                        "emotional_transformation_intelligence": getattr(source, 'emotional_transformation_intelligence', {}) or {},
+                        "scientific_authority_intelligence": getattr(source, 'scientific_authority_intelligence', {}) or {},
+                        
                         "amplification_status": {
                             "is_amplified": amplification_metadata.get("amplification_applied", False),
                             "confidence_boost": amplification_metadata.get("confidence_boost", 0.0),
@@ -418,7 +463,8 @@ class IntelligenceHandler:
                             "amplified_at": amplification_metadata.get("amplified_at"),
                             "amplification_available": self.enhancement_available,
                             "enhancement_quality": amplification_metadata.get("enhancement_quality", "unknown"),
-                            "amplification_method": amplification_metadata.get("amplification_method", "unknown")
+                            "amplification_method": amplification_metadata.get("amplification_method", "unknown"),
+                            "ai_categories_populated": categories_with_data if amplification_metadata.get("amplification_applied", False) else 0
                         }
                     })
                 except Exception as source_error:
@@ -470,9 +516,11 @@ class IntelligenceHandler:
                         "sources_amplified": amplified_sources,
                         "sources_available_for_amplification": total_intelligence - amplified_sources,
                         "total_scientific_enhancements": total_scientific_enhancements,
+                        "ai_categories_populated_total": ai_categories_populated,
                         "amplification_available": self.enhancement_available,
                         "amplification_coverage": f"{amplified_sources}/{total_intelligence}" if total_intelligence > 0 else "0/0",
-                        "system_architecture": "direct_modular_enhancement"
+                        "system_architecture": "direct_modular_enhancement",
+                        "ai_enhancement_status": "✅ All 6 AI categories available" if self.enhancement_available else "❌ AI enhancement unavailable"
                     }
                 }
             }

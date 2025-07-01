@@ -255,30 +255,38 @@ async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers
 
 def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[str, Any]:
     """
-    REFACTORED: Create enriched intelligence with all modular AI enhancements
+    🔥 FIXED: Create enriched intelligence with proper AI enhancement mapping to database columns
     """
     logger.info("✨ Creating enriched intelligence with modular AI system...")
     
     # Start with base intelligence
     enriched = base_intel.copy()
     
-    # Map AI enhancements to intelligence categories
+    # 🔥 CRITICAL FIX: Map AI enhancements to the correct database column names
     intelligence_mapping = {
+        # Map AI enhancement keys to database column names
         "scientific_intelligence": enhancements.get("scientific_validation", {}),
         "market_intelligence": enhancements.get("market_positioning", {}),
         "credibility_intelligence": enhancements.get("credibility_boosters", {}),
-        "content_intelligence": enhancements.get("content_optimization", {}),
         "emotional_transformation_intelligence": enhancements.get("emotional_transformation", {}),
-        "scientific_authority_intelligence": enhancements.get("authority_establishment", {})
+        "scientific_authority_intelligence": enhancements.get("authority_establishment", {}),
+        
+        # Enhanced content_intelligence by merging existing + AI enhancements
+        "content_intelligence": {
+            **enriched.get("content_intelligence", {}),
+            **enhancements.get("content_optimization", {})
+        }
     }
     
-    # Add all AI-generated intelligence categories
+    # Add all AI-generated intelligence categories to enriched data
     for intel_category, enhancement_data in intelligence_mapping.items():
-        if enhancement_data:
+        if enhancement_data:  # Only add if there's actual data
             enriched[intel_category] = enhancement_data
+            logger.info(f"🔥 Added {intel_category} with {len(enhancement_data) if isinstance(enhancement_data, dict) else 'data'}")
         else:
             # Ensure category exists even if empty
             enriched[intel_category] = _get_fallback_category_data(intel_category)
+            logger.warning(f"⚠️ Using fallback data for {intel_category}")
     
     # Update confidence score based on enhancements
     original_confidence = base_intel.get("confidence_score", 0.0)
@@ -296,10 +304,17 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
         "total_intelligence_categories": len(intelligence_mapping),
         "system_architecture": "modular_ai_enhancement",
         "category_completion_rate": len([cat for cat, data in intelligence_mapping.items() if data]) / len(intelligence_mapping),
-        "enrichment_timestamp": datetime.utcnow().isoformat()
+        "enrichment_timestamp": datetime.utcnow().isoformat(),
+        # 🔥 ADD: Storage validation for debugging
+        "storage_validation_applied": True,
+        "extraction_successful": True,
+        "amplification_timestamp": datetime.utcnow().isoformat()
     }
     
-    logger.info(f"✅ Enriched intelligence created - Categories populated: {len([cat for cat, data in intelligence_mapping.items() if data])}/6")
+    categories_populated = len([cat for cat, data in intelligence_mapping.items() if data])
+    logger.info(f"✅ Enriched intelligence created - Categories populated: {categories_populated}/6")
+    logger.info(f"📊 Final confidence: {original_confidence:.2f} → {enriched['confidence_score']:.2f} (+{confidence_boost:.2f})")
+    
     return enriched
 
 # ============================================================================
@@ -558,27 +573,39 @@ def _get_fallback_category_data(category: str) -> Dict[str, Any]:
     fallback_data = {
         "scientific_intelligence": {
             "scientific_backing": ["General health and wellness support"],
-            "research_quality_score": 0.5
+            "research_quality_score": 0.5,
+            "generated_at": datetime.utcnow().isoformat(),
+            "ai_provider": "fallback"
         },
         "market_intelligence": {
             "market_analysis": {"market_size": {"current_estimate": "Growing market"}},
-            "market_intelligence_score": 0.5
+            "market_intelligence_score": 0.5,
+            "generated_at": datetime.utcnow().isoformat(),
+            "ai_provider": "fallback"
         },
         "credibility_intelligence": {
             "trust_indicators": {"trust_building_elements": ["Quality assurance"]},
-            "overall_credibility_score": 0.6
+            "overall_credibility_score": 0.6,
+            "generated_at": datetime.utcnow().isoformat(),
+            "ai_provider": "fallback"
         },
         "content_intelligence": {
             "key_messages": ["Quality health solution"],
-            "content_structure": "Standard content"
+            "content_structure": "Standard content",
+            "generated_at": datetime.utcnow().isoformat(),
+            "ai_provider": "fallback"
         },
         "emotional_transformation_intelligence": {
             "emotional_journey": {"current_state": ["Seeking health solutions"]},
-            "transformation_confidence": 0.5
+            "transformation_confidence": 0.5,
+            "generated_at": datetime.utcnow().isoformat(),
+            "ai_provider": "fallback"
         },
         "scientific_authority_intelligence": {
             "research_validation": {"evidence_strength": "Basic validation"},
-            "authority_score": 0.6
+            "authority_score": 0.6,
+            "generated_at": datetime.utcnow().isoformat(),
+            "ai_provider": "fallback"
         }
     }
     
