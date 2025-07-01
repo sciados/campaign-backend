@@ -23,13 +23,17 @@ from ..utils.campaign_helpers import (
     get_content_summary,
     update_campaign_counters
 )
-# from ..utils.amplifier_service import AmplificationManager
 
-from ..amplifier.enhancement import (
-    identify_opportunities,
-    generate_enhancements,
-    create_enriched_intelligence
-)
+# NEW - using enhancement.py directly  
+try:
+    from ..amplifier.enhancement import (
+        identify_opportunities,
+        generate_enhancements,
+        create_enriched_intelligence
+    )
+    ENHANCEMENT_FUNCTIONS_AVAILABLE = True
+except ImportError:
+    ENHANCEMENT_FUNCTIONS_AVAILABLE = False
 
 
 logger = logging.getLogger(__name__)
@@ -41,7 +45,7 @@ class IntelligenceHandler:
     def __init__(self, db: AsyncSession, user: User):
         self.db = db
         self.user = user
-        # self.amplification_manager = AmplificationManager()
+        self.enhancement_available = ENHANCEMENT_FUNCTIONS_AVAILABLE
     
     async def get_campaign_intelligence(self, campaign_id: str) -> Dict[str, Any]:
         """Get all intelligence sources for a campaign with proper error handling"""
@@ -113,7 +117,10 @@ class IntelligenceHandler:
     async def amplify_intelligence_source(
         self, campaign_id: str, intelligence_id: str, preferences: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Amplify an existing intelligence source"""
+        """Amplify an existing intelligence source using direct enhancement functions"""
+        
+        if not self.enhancement_available:
+            raise ValueError("Enhancement functions not available. Install amplifier dependencies.")
         
         # Verify campaign access
         campaign = await get_campaign_with_verification(
@@ -137,50 +144,141 @@ class IntelligenceHandler:
         if not intelligence_source:
             raise ValueError("Intelligence source not found")
         
-        # Prepare data for amplification
-        source_data = {
-            "offer_intelligence": intelligence_source.offer_intelligence or {},
-            "psychology_intelligence": intelligence_source.psychology_intelligence or {},
-            "content_intelligence": intelligence_source.content_intelligence or {},
-            "competitive_intelligence": intelligence_source.competitive_intelligence or {},
-            "brand_intelligence": intelligence_source.brand_intelligence or {},
-            "source_url": intelligence_source.source_url,
-            "confidence_score": intelligence_source.confidence_score or 0.0
-        }
-        
-        # Amplify the data
-        amplified_data = await self.amplification_manager.amplify_source(source_data, preferences)
-        
-        # Update the intelligence source with amplified data
-        intelligence_source.offer_intelligence = amplified_data.get("offer_intelligence", {})
-        intelligence_source.psychology_intelligence = amplified_data.get("psychology_intelligence", {})
-        intelligence_source.content_intelligence = amplified_data.get("content_intelligence", {})
-        intelligence_source.competitive_intelligence = amplified_data.get("competitive_intelligence", {})
-        intelligence_source.brand_intelligence = amplified_data.get("brand_intelligence", {})
-        
-        # Update confidence score if improved
-        new_confidence = amplified_data.get("confidence_score", intelligence_source.confidence_score)
-        if new_confidence > intelligence_source.confidence_score:
-            intelligence_source.confidence_score = new_confidence
-        
-        # Update processing metadata
-        amplification_metadata = amplified_data.get("amplification_metadata", {})
-        intelligence_source.processing_metadata = {
-            **(intelligence_source.processing_metadata or {}),
-            **amplification_metadata,
-            "amplified_at": datetime.utcnow().isoformat(),
-            "amplification_preferences": preferences
-        }
-        
-        await self.db.commit()
-        await self.db.refresh(intelligence_source)
-        
-        return {
-            "intelligence_id": str(intelligence_source.id),
-            "amplification_applied": amplification_metadata.get("amplification_applied", False),
-            "confidence_boost": amplification_metadata.get("confidence_boost", 0.0),
-            "message": "Intelligence source amplified successfully"
-        }
+        try:
+            # Prepare data for amplification
+            base_intel = {
+                "offer_intelligence": intelligence_source.offer_intelligence or {},
+                "psychology_intelligence": intelligence_source.psychology_intelligence or {},
+                "content_intelligence": intelligence_source.content_intelligence or {},
+                "competitive_intelligence": intelligence_source.competitive_intelligence or {},
+                "brand_intelligence": intelligence_source.brand_intelligence or {},
+                "source_url": intelligence_source.source_url,
+                "confidence_score": intelligence_source.confidence_score or 0.0,
+                "page_title": intelligence_source.source_title or "",
+                "product_name": intelligence_source.source_title or "Unknown Product"
+            }
+            
+            # Set up AI providers (you may need to adjust this based on your config)
+            ai_providers = []  # This should be populated from your AI service configuration
+            
+            # Set default preferences if not provided
+            if not preferences:
+                preferences = {
+                    "enhance_scientific_backing": True,
+                    "boost_credibility": True,
+                    "competitive_analysis": True,
+                    "psychological_depth": "medium",
+                    "content_optimization": True
+                }
+            
+            logger.info(f"🚀 Starting amplification for intelligence source: {intelligence_id}")
+            
+            # STEP 1: Identify opportunities
+            opportunities = await identify_opportunities(
+                base_intel=base_intel,
+                preferences=preferences,
+                providers=ai_providers
+            )
+            
+            opportunities_count = opportunities.get("opportunity_metadata", {}).get("total_opportunities", 0)
+            logger.info(f"🔍 Identified {opportunities_count} enhancement opportunities")
+            
+            # STEP 2: Generate enhancements
+            enhancements = await generate_enhancements(
+                base_intel=base_intel,
+                opportunities=opportunities,
+                providers=ai_providers
+            )
+            
+            enhancement_metadata = enhancements.get("enhancement_metadata", {})
+            total_enhancements = enhancement_metadata.get("total_enhancements", 0)
+            confidence_boost = enhancement_metadata.get("confidence_boost", 0.0)
+            
+            logger.info(f"✨ Generated {total_enhancements} enhancements with {confidence_boost:.1%} confidence boost")
+            
+            # STEP 3: Create enriched intelligence
+            enriched_intelligence = create_enriched_intelligence(
+                base_intel=base_intel,
+                enhancements=enhancements
+            )
+            
+            # Update the intelligence source with enriched data
+            intelligence_source.offer_intelligence = enriched_intelligence.get("offer_intelligence", {})
+            intelligence_source.psychology_intelligence = enriched_intelligence.get("psychology_intelligence", {})
+            intelligence_source.content_intelligence = enriched_intelligence.get("content_intelligence", {})
+            intelligence_source.competitive_intelligence = enriched_intelligence.get("competitive_intelligence", {})
+            intelligence_source.brand_intelligence = enriched_intelligence.get("brand_intelligence", {})
+            
+            # Update confidence score if improved
+            new_confidence = enriched_intelligence.get("confidence_score", intelligence_source.confidence_score)
+            if new_confidence > intelligence_source.confidence_score:
+                intelligence_source.confidence_score = new_confidence
+            
+            # Update processing metadata
+            enrichment_metadata = enriched_intelligence.get("enrichment_metadata", {})
+            
+            amplification_metadata = {
+                "amplification_applied": True,
+                "amplification_method": "direct_enhancement_functions",
+                "opportunities_identified": opportunities_count,
+                "total_enhancements": total_enhancements,
+                "confidence_boost": confidence_boost,
+                "base_confidence": base_intel.get("confidence_score", 0.0),
+                "amplified_confidence": new_confidence,
+                "credibility_score": enhancement_metadata.get("credibility_score", 0.0),
+                "enhancement_quality": enhancement_metadata.get("enhancement_quality", "unknown"),
+                "modules_successful": enhancement_metadata.get("modules_successful", []),
+                "scientific_enhancements": len(enhancements.get("scientific_validation", {})) if enhancements.get("scientific_validation") else 0,
+                "amplified_at": datetime.utcnow().isoformat(),
+                "amplification_preferences": preferences,
+                "system_architecture": "direct_modular_enhancement"
+            }
+            
+            intelligence_source.processing_metadata = {
+                **(intelligence_source.processing_metadata or {}),
+                **amplification_metadata
+            }
+            
+            await self.db.commit()
+            await self.db.refresh(intelligence_source)
+            
+            logger.info(f"✅ Intelligence source amplified successfully - Final confidence: {new_confidence:.2f}")
+            
+            return {
+                "intelligence_id": str(intelligence_source.id),
+                "amplification_applied": True,
+                "confidence_boost": confidence_boost,
+                "opportunities_identified": opportunities_count,
+                "total_enhancements": total_enhancements,
+                "scientific_enhancements": amplification_metadata["scientific_enhancements"],
+                "enhancement_quality": enhancement_metadata.get("enhancement_quality", "unknown"),
+                "message": "Intelligence source amplified successfully using direct enhancement functions"
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Amplification failed for intelligence source {intelligence_id}: {str(e)}")
+            
+            # Update processing metadata with error info
+            error_metadata = {
+                "amplification_applied": False,
+                "amplification_error": str(e),
+                "amplification_attempted_at": datetime.utcnow().isoformat(),
+                "fallback_to_base": True
+            }
+            
+            intelligence_source.processing_metadata = {
+                **(intelligence_source.processing_metadata or {}),
+                **error_metadata
+            }
+            
+            await self.db.commit()
+            
+            return {
+                "intelligence_id": str(intelligence_source.id),
+                "amplification_applied": False,
+                "error": str(e),
+                "message": "Amplification failed, but intelligence source preserved"
+            }
     
     async def get_campaign_statistics(self, campaign_id: str) -> Dict[str, Any]:
         """Get detailed statistics for a campaign"""
@@ -318,7 +416,9 @@ class IntelligenceHandler:
                             "scientific_enhancements": amplification_metadata.get("scientific_enhancements", 0),
                             "credibility_score": amplification_metadata.get("credibility_score", 0.0),
                             "amplified_at": amplification_metadata.get("amplified_at"),
-                            "amplification_available": self.amplification_manager.available
+                            "amplification_available": self.enhancement_available,
+                            "enhancement_quality": amplification_metadata.get("enhancement_quality", "unknown"),
+                            "amplification_method": amplification_metadata.get("amplification_method", "unknown")
                         }
                     })
                 except Exception as source_error:
@@ -370,8 +470,9 @@ class IntelligenceHandler:
                         "sources_amplified": amplified_sources,
                         "sources_available_for_amplification": total_intelligence - amplified_sources,
                         "total_scientific_enhancements": total_scientific_enhancements,
-                        "amplification_available": self.amplification_manager.available,
-                        "amplification_coverage": f"{amplified_sources}/{total_intelligence}" if total_intelligence > 0 else "0/0"
+                        "amplification_available": self.enhancement_available,
+                        "amplification_coverage": f"{amplified_sources}/{total_intelligence}" if total_intelligence > 0 else "0/0",
+                        "system_architecture": "direct_modular_enhancement"
                     }
                 }
             }
@@ -394,8 +495,9 @@ class IntelligenceHandler:
                     "sources_amplified": 0,
                     "sources_available_for_amplification": 0,
                     "total_scientific_enhancements": 0,
-                    "amplification_available": self.amplification_manager.available,
-                    "amplification_coverage": "0/0"
+                    "amplification_available": self.enhancement_available,
+                    "amplification_coverage": "0/0",
+                    "system_architecture": "direct_modular_enhancement"
                 }
             },
             "error": "Failed to load intelligence data",

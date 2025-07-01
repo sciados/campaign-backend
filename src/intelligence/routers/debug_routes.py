@@ -12,9 +12,51 @@ from src.core.database import get_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
 from ..utils.analyzer_factory import test_analyzer_functionality
-from ..utils.amplifier_service import get_amplifier_status
+
+# Check if enhancement functions are available
+try:
+    from ..amplifier.enhancement import (
+        identify_opportunities,
+        generate_enhancements,
+        create_enriched_intelligence
+    )
+    ENHANCEMENT_FUNCTIONS_AVAILABLE = True
+except ImportError:
+    ENHANCEMENT_FUNCTIONS_AVAILABLE = False
 
 router = APIRouter()
+
+def get_amplifier_status():
+    """Get amplifier system status"""
+    if not ENHANCEMENT_FUNCTIONS_AVAILABLE:
+        return {
+            "status": "unavailable",
+            "available": False,
+            "error": "Enhancement dependencies not installed",
+            "capabilities": {},
+            "recommendations": [
+                "Install amplifier dependencies",
+                "Check amplifier package configuration"
+            ]
+        }
+    
+    return {
+        "status": "available",
+        "available": True,
+        "capabilities": {
+            "direct_enhancement_functions": True,
+            "scientific_enhancement": True,
+            "credibility_boost": True,
+            "competitive_analysis": True,
+            "content_optimization": True
+        },
+        "architecture": "direct_modular_enhancement",
+        "functions_available": [
+            "identify_opportunities",
+            "generate_enhancements", 
+            "create_enriched_intelligence"
+        ]
+    }
 
 @router.get("/test-scraping")
 async def debug_test_scraping():
@@ -238,6 +280,79 @@ async def debug_test_full_analyzer():
             "error": str(e),
             "traceback": traceback.format_exc(),
             "success": False
+        }
+
+@router.get("/test-enhancement-functions")
+async def debug_test_enhancement_functions():
+    """Test the direct enhancement functions"""
+    
+    if not ENHANCEMENT_FUNCTIONS_AVAILABLE:
+        return {
+            "enhancement_functions_available": False,
+            "error": "Enhancement functions not available",
+            "recommendation": "Install amplifier dependencies"
+        }
+    
+    try:
+        # Create mock data to test enhancement functions
+        mock_base_intel = {
+            "product_name": "Test Product",
+            "confidence_score": 0.7,
+            "offer_intelligence": {
+                "products": ["Main product"],
+                "value_propositions": ["Health benefit"]
+            },
+            "psychology_intelligence": {
+                "emotional_triggers": ["Health concern"],
+                "target_audience": "Health-conscious individuals"
+            }
+        }
+        
+        mock_preferences = {
+            "enhance_scientific_backing": True,
+            "boost_credibility": True,
+            "competitive_analysis": True
+        }
+        
+        # Test each function
+        opportunities = await identify_opportunities(
+            base_intel=mock_base_intel,
+            preferences=mock_preferences,
+            providers=[]
+        )
+        
+        enhancements = await generate_enhancements(
+            base_intel=mock_base_intel,
+            opportunities=opportunities,
+            providers=[]
+        )
+        
+        enriched = create_enriched_intelligence(
+            base_intel=mock_base_intel,
+            enhancements=enhancements
+        )
+        
+        return {
+            "enhancement_functions_available": True,
+            "test_results": {
+                "opportunities_identified": opportunities.get("opportunity_metadata", {}).get("total_opportunities", 0),
+                "enhancements_generated": enhancements.get("enhancement_metadata", {}).get("total_enhancements", 0),
+                "enrichment_successful": enriched.get("confidence_score", 0) > 0,
+                "enrichment_metadata": enriched.get("enrichment_metadata", {})
+            },
+            "functions_tested": [
+                "identify_opportunities",
+                "generate_enhancements",
+                "create_enriched_intelligence"
+            ]
+        }
+        
+    except Exception as e:
+        return {
+            "enhancement_functions_available": True,
+            "test_failed": True,
+            "error": str(e),
+            "traceback": traceback.format_exc()
         }
 
 @router.get("/system-status")

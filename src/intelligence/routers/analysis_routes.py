@@ -23,7 +23,50 @@ except ImportError:
     async def check_and_consume_credits(*args, **kwargs):
         pass
 
+# Check if enhancement functions are available
+try:
+    from ..amplifier.enhancement import (
+        identify_opportunities,
+        generate_enhancements,
+        create_enriched_intelligence
+    )
+    ENHANCEMENT_FUNCTIONS_AVAILABLE = True
+except ImportError:
+    ENHANCEMENT_FUNCTIONS_AVAILABLE = False
+
 router = APIRouter()
+
+def get_amplifier_status():
+    """Get amplifier system status"""
+    if not ENHANCEMENT_FUNCTIONS_AVAILABLE:
+        return {
+            "status": "unavailable",
+            "available": False,
+            "error": "Enhancement dependencies not installed",
+            "capabilities": {},
+            "recommendations": [
+                "Install amplifier dependencies",
+                "Check amplifier package configuration"
+            ]
+        }
+    
+    return {
+        "status": "available",
+        "available": True,
+        "capabilities": {
+            "direct_enhancement_functions": True,
+            "scientific_enhancement": True,
+            "credibility_boost": True,
+            "competitive_analysis": True,
+            "content_optimization": True
+        },
+        "architecture": "direct_modular_enhancement",
+        "functions_available": [
+            "identify_opportunities",
+            "generate_enhancements", 
+            "create_enriched_intelligence"
+        ]
+    }
 
 @router.post("/url", response_model=AnalysisResponse)
 async def analyze_url(
@@ -77,7 +120,6 @@ async def get_analysis_status(
 ):
     """Get analysis system status"""
     from ..utils.analyzer_factory import test_analyzer_functionality, get_available_analyzers
-    from ..utils.amplifier_service import get_amplifier_status
     
     analyzer_status = test_analyzer_functionality()
     available_analyzers = get_available_analyzers()
@@ -121,5 +163,14 @@ async def get_analysis_capabilities(
             "PDF",
             "DOC",
             "TXT"
-        ]
+        ],
+        "enhancement_system": {
+            "available": ENHANCEMENT_FUNCTIONS_AVAILABLE,
+            "architecture": "direct_modular_enhancement" if ENHANCEMENT_FUNCTIONS_AVAILABLE else "not_available",
+            "functions": [
+                "identify_opportunities",
+                "generate_enhancements", 
+                "create_enriched_intelligence"
+            ] if ENHANCEMENT_FUNCTIONS_AVAILABLE else []
+        }
     }
