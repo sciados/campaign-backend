@@ -1,6 +1,5 @@
 # src/intelligence/amplifier/enhancement.py - REFACTORED MODULAR SYSTEM
 """
-Refactored Enhancement System - All AI modules in enhancements folder
 Each intelligence category has its own dedicated AI enhancement module
 """
 import asyncio

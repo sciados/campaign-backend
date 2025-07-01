@@ -1,6 +1,5 @@
 # src/intelligence/amplifier/enhancements/scientific_enhancer.py
 """
-Scientific Intelligence Enhancement Module
 Generates comprehensive scientific backing for health claims using AI
 """
 import logging

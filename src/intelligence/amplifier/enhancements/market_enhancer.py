@@ -1,6 +1,5 @@
 # src/intelligence/amplifier/enhancements/market_enhancer.py
 """
-Market Intelligence Enhancement Module
 Generates comprehensive market analysis and competitive intelligence using AI
 """
 import logging

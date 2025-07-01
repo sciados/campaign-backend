@@ -1,6 +1,5 @@
 # src/intelligence/amplifier/enhancements/authority_enhancer.py
 """
-Scientific Authority Enhancement Module
 Generates scientific authority and expertise positioning using AI
 """
 import logging

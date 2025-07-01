@@ -1,6 +1,5 @@
 # src/intelligence/amplifier/enhancements/content_enhancer.py
 """
-Content Intelligence Enhancement Module
 Generates enhanced content intelligence using AI
 """
 import logging

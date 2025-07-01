@@ -1,6 +1,5 @@
 # src/intelligence/amplifier/enhancements/credibility_enhancer.py
 """
-Credibility Intelligence Enhancement Module
 Generates comprehensive credibility and authority signals using AI
 """
 import logging

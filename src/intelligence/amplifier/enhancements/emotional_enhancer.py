@@ -1,6 +1,5 @@
 # src/intelligence/amplifier/enhancements/emotional_enhancer.py
 """
-Emotional Transformation Enhancement Module
 Generates emotional journey mapping and psychological insights using AI
 """
 import logging
