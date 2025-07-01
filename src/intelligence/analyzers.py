@@ -16,6 +16,8 @@ import uuid
 from datetime import datetime
 import os
 
+import intelligence
+
 logger = logging.getLogger(__name__)
 
 # ✅ ADD: Import product extractor with error handling
@@ -78,7 +80,7 @@ class SalesPageAnalyzer:
         except Exception as e:
             logger.error(f"Sales page analysis failed for {url}: {str(e)}")
             # Return a fallback response instead of raising
-            
+            return self._error_fallback_analysis(url, str(e))
     
     # ✅ ADD: Advanced product name extraction method
     async def _extract_product_name(self, page_content: Dict[str, str], structured_content: Dict[str, Any]) -> str:
@@ -862,102 +864,104 @@ class SalesPageAnalyzer:
         
         return parsed_data
     
-    # Replace the _calculate_confidence_score method in analyzers.py (around line 848)
+    def _calculate_confidence_score(self, intelligence: Dict[str, Any], structured_content: Dict[str, Any]) -> float:
+        """Calculate realistic confidence score based on data richness"""
 
-def _calculate_confidence_score(self, intelligence: Dict[str, Any], structured_content: Dict[str, Any]) -> float:
-    """Calculate realistic confidence score based on data richness"""
-    
-    score = 0.1  # Lower base score (10% instead of 30%)
-    
-    # Offer intelligence scoring (max 0.2)
-    offer_intel = intelligence.get("offer_intelligence", {})
-    if offer_intel.get("products"):
-        score += 0.05  # Reduced from 0.1
-    if offer_intel.get("pricing"):
-        score += 0.05  # Reduced from 0.1
-    if offer_intel.get("value_propositions"):
-        score += 0.05  # Reduced from 0.1
-    if offer_intel.get("guarantees"):
-        score += 0.03
-    if offer_intel.get("bonuses"):
-        score += 0.02
-    
-    # Psychology intelligence scoring (max 0.15)
-    psych_intel = intelligence.get("psychology_intelligence", {})
-    if psych_intel.get("emotional_triggers"):
-        score += 0.05  # Reduced from 0.1
-    if psych_intel.get("pain_points"):
-        score += 0.05  # Reduced from 0.1
-    if psych_intel.get("target_audience") and psych_intel["target_audience"] != "General audience":
-        score += 0.03
-    if psych_intel.get("persuasion_techniques"):
-        score += 0.02
-    
-    # Content intelligence scoring (max 0.15)
-    content_intel = intelligence.get("content_intelligence", {})
-    if content_intel.get("key_messages"):
-        score += 0.05  # Reduced from 0.1
-    if content_intel.get("social_proof"):
-        score += 0.04  # Reduced from 0.05
-    if content_intel.get("success_stories"):
-        score += 0.03
-    if content_intel.get("content_structure") and "sales page" in content_intel["content_structure"]:
-        score += 0.03
-    
-    # Competitive intelligence scoring (max 0.1)
-    comp_intel = intelligence.get("competitive_intelligence", {})
-    if comp_intel.get("opportunities"):
-        score += 0.04  # Reduced from 0.1
-    if comp_intel.get("advantages"):
-        score += 0.03  # Reduced from 0.05
-    if comp_intel.get("positioning") and comp_intel["positioning"] != "Standard approach":
-        score += 0.03
-    
-    # Brand intelligence scoring (max 0.1)
-    brand_intel = intelligence.get("brand_intelligence", {})
-    if brand_intel.get("tone_voice") and brand_intel["tone_voice"] != "Professional":
-        score += 0.03  # Reduced from 0.05
-    if brand_intel.get("messaging_style") and brand_intel["messaging_style"] != "Direct":
-        score += 0.03  # Reduced from 0.05
-    if brand_intel.get("brand_positioning") and brand_intel["brand_positioning"] != "Market competitor":
-        score += 0.04
-    
-    # Structured content quality bonus (max 0.15)
-    if structured_content.get("word_count", 0) > 1000:
-        score += 0.05  # Good content length
-    if structured_content.get("word_count", 0) > 500:
-        score += 0.02  # Decent content length
-    
-    if structured_content.get("social_proof_elements"):
-        score += 0.03  # Reduced from 0.05
-    if structured_content.get("pricing_mentions"):
-        score += 0.03  # Reduced from 0.05
-    if structured_content.get("guarantees_offered"):
-        score += 0.02
-    
-    # Quality multiplier based on completeness
-    categories_populated = sum(1 for category in [
-        intelligence.get("offer_intelligence", {}),
-        intelligence.get("psychology_intelligence", {}),
-        intelligence.get("content_intelligence", {}),
-        intelligence.get("competitive_intelligence", {}),
-        intelligence.get("brand_intelligence", {})
-    ] if category)
-    
-    completeness_bonus = (categories_populated / 5) * 0.1
-    score += completeness_bonus
-    
-    # Apply realism cap - max confidence should be 85% for automated analysis
-    final_score = min(score, 0.85)  # Cap at 85% instead of 100%
-    
-    # Add some variability for testing (remove this in production)
-    import random
-    variability = (random.random() - 0.5) * 0.1  # ±5% randomness
-    final_score = max(0.1, min(final_score + variability, 0.85))
-    
-    logger.info(f"📊 Confidence calculation: base={score:.2f}, final={final_score:.2f} ({final_score*100:.1f}%)")
-    
-    return final_score
+        score = 0.3  # Lower base score (30% instead of 10%)
+
+        # Offer intelligence scoring (max 0.2)
+        offer_intel = intelligence.get("offer_intelligence", {})
+        if offer_intel.get("products"):
+            score += 0.05  # Reduced from 0.1
+        if offer_intel.get("pricing"):
+            score += 0.05  # Reduced from 0.1
+        if offer_intel.get("value_propositions"):
+            score += 0.05  # Reduced from 0.1
+        if offer_intel.get("guarantees"):
+            score += 0.03
+        if offer_intel.get("bonuses"):
+            score += 0.02
+
+        # Psychology intelligence scoring (max 0.15)
+        psych_intel = intelligence.get("psychology_intelligence", {})
+        if psych_intel.get("emotional_triggers"):
+            score += 0.05  # Reduced from 0.1
+        if psych_intel.get("pain_points"):
+            score += 0.05  # Reduced from 0.1
+        if psych_intel.get("target_audience") and psych_intel["target_audience"] != "General audience":
+            score += 0.03
+        if psych_intel.get("persuasion_techniques"):
+            score += 0.02
+
+        # Content intelligence scoring (max 0.15)
+        content_intel = intelligence.get("content_intelligence", {})
+        if content_intel.get("key_messages"):
+            score += 0.05  # Reduced from 0.1
+        if content_intel.get("social_proof"):
+            score += 0.04  # Reduced from 0.05
+        if content_intel.get("success_stories"):
+            score += 0.03
+        if content_intel.get("content_structure") and "sales page" in content_intel["content_structure"]:
+            score += 0.03
+
+        # Competitive intelligence scoring (max 0.1)
+        comp_intel = intelligence.get("competitive_intelligence", {})
+        if comp_intel.get("opportunities"):
+            score += 0.04  # Reduced from 0.1
+        if comp_intel.get("advantages"):
+            score += 0.03  # Reduced from 0.05
+        if comp_intel.get("positioning") and comp_intel["positioning"] != "Standard approach":
+            score += 0.03
+
+        # Brand intelligence scoring (max 0.1)
+        brand_intel = intelligence.get("brand_intelligence", {})
+        if brand_intel.get("tone_voice") and brand_intel["tone_voice"] != "Professional":
+            score += 0.03  # Reduced from 0.05
+        if brand_intel.get("messaging_style") and brand_intel["messaging_style"] != "Direct":
+            score += 0.03  # Reduced from 0.05
+        if brand_intel.get("brand_positioning") and brand_intel["brand_positioning"] != "Market competitor":
+            score += 0.04
+
+        # Structured content quality bonus (max 0.15)
+        if structured_content.get("word_count", 0) > 1000:
+            score += 0.05  # Good content length
+        if structured_content.get("word_count", 0) > 500:
+            score += 0.02  # Decent content length
+
+        if structured_content.get("social_proof_elements"):
+            score += 0.03  # Reduced from 0.05
+        if structured_content.get("pricing_mentions"):
+            score += 0.03  # Reduced from 0.05
+        if structured_content.get("guarantees_offered"):
+            score += 0.02
+
+        # Quality multiplier based on completeness
+        categories_populated = sum(
+            1
+            for category in [
+                intelligence.get("offer_intelligence", {}),
+                intelligence.get("psychology_intelligence", {}),
+                intelligence.get("content_intelligence", {}),
+                intelligence.get("competitive_intelligence", {}),
+                intelligence.get("brand_intelligence", {}),
+            ]
+            if category
+        )
+
+        completeness_bonus = (categories_populated / 5) * 0.1
+        score += completeness_bonus
+
+        # Apply realism cap - max confidence should be 85% for automated analysis
+        final_score = min(score, 0.85)  # Cap at 85% instead of 100%
+
+        # Add some variability for testing (remove this in production)
+        import random
+        variability = (random.random() - 0.5) * 0.1  # ±5% randomness
+        final_score = max(0.1, min(final_score + variability, 0.85))
+
+        logger.info(f"📊 Confidence calculation: base={score:.2f}, final={final_score:.2f} ({final_score*100:.1f}%)")
+
+        return final_score
     
     # ✅ FIXED: COMPREHENSIVE FALLBACK ANALYSIS
     def _fallback_analysis(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
@@ -1415,6 +1419,7 @@ class EnhancedSalesPageAnalyzer(SalesPageAnalyzer):
             ]
         }
     
+    
     def _detect_video_content(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
         """Basic video content detection"""
         
@@ -1560,4 +1565,4 @@ class VSLAnalyzer:
         }
     # At the end of src/intelligence/analyzers.py:
 
-ANALYZERS_AVAILABLE = True
+    # ANALYZERS_AVAILABLE = True
