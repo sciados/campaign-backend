@@ -33,13 +33,84 @@ class SalesPageAnalyzer:
     """Analyze competitor sales pages for offers, psychology, and opportunities"""
     
     def __init__(self):
+        # 🔍 COMPREHENSIVE AI PROVIDER DEBUG
+        print("🤖 Checking ALL AI providers...")
+        logger.info("🤖 Starting AI provider initialization checks")
+        
         # Initialize OpenAI client if API key is available
-        api_key = os.getenv("OPENAI_API_KEY")
-        if api_key:
-            self.openai_client = openai.AsyncOpenAI(api_key=api_key)
+        openai_key = os.getenv("OPENAI_API_KEY")
+        print(f"🔑 OpenAI API Key check:")
+        print(f"   - Key exists: {openai_key is not None}")
+        print(f"   - Key length: {len(openai_key) if openai_key else 0}")
+        print(f"   - Key prefix: {openai_key[:10] if openai_key else 'None'}...")
+        
+        if openai_key:
+            self.openai_client = openai.AsyncOpenAI(api_key=openai_key)
+            print("✅ OpenAI client initialized")
+            logger.info("✅ OpenAI client initialized successfully")
         else:
             self.openai_client = None
-            logger.warning("OpenAI API key not found. AI analysis will be limited.")
+            print("❌ OpenAI client NOT initialized")
+            logger.warning("❌ OpenAI API key not found")
+        
+        # Initialize Claude/Anthropic client
+        claude_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
+        print(f"🔑 Claude API Key check:")
+        print(f"   - Key exists: {claude_key is not None}")
+        print(f"   - Key length: {len(claude_key) if claude_key else 0}")
+        print(f"   - Key prefix: {claude_key[:10] if claude_key else 'None'}...")
+        
+        if claude_key:
+            try:
+                # Assuming you're using the anthropic library
+                import anthropic
+                self.claude_client = anthropic.AsyncAnthropic(api_key=claude_key)
+                print("✅ Claude client initialized")
+                logger.info("✅ Claude client initialized successfully")
+            except ImportError:
+                self.claude_client = None
+                print("❌ Claude library not installed")
+                logger.warning("❌ Anthropic library not found")
+        else:
+            self.claude_client = None
+            print("❌ Claude client NOT initialized")
+            logger.warning("❌ Claude API key not found")
+        
+        # Initialize Cohere client
+        cohere_key = os.getenv("COHERE_API_KEY")
+        print(f"🔑 Cohere API Key check:")
+        print(f"   - Key exists: {cohere_key is not None}")
+        print(f"   - Key length: {len(cohere_key) if cohere_key else 0}")
+        print(f"   - Key prefix: {cohere_key[:10] if cohere_key else 'None'}...")
+        
+        if cohere_key:
+            try:
+                import cohere
+                self.cohere_client = cohere.AsyncClient(api_key=cohere_key)
+                print("✅ Cohere client initialized")
+                logger.info("✅ Cohere client initialized successfully")
+            except ImportError:
+                self.cohere_client = None
+                print("❌ Cohere library not installed")
+                logger.warning("❌ Cohere library not found")
+        else:
+            self.cohere_client = None
+            print("❌ Cohere client NOT initialized")
+            logger.warning("❌ Cohere API key not found")
+        
+        # Summary
+        ai_providers_available = sum([
+            self.openai_client is not None,
+            getattr(self, 'claude_client', None) is not None,
+            getattr(self, 'cohere_client', None) is not None
+        ])
+        
+        print(f"📊 AI Provider Summary: {ai_providers_available}/3 providers available")
+        logger.info(f"📊 AI Provider Summary: {ai_providers_available}/3 providers initialized")
+        
+        if ai_providers_available == 0:
+            print("🚨 WARNING: NO AI providers available - will use basic fallback only!")
+            logger.error("🚨 No AI providers initialized - analysis will be limited to pattern matching")
         
         # ✅ ADD: Initialize product extractor
         if PRODUCT_EXTRACTOR_AVAILABLE:
@@ -67,13 +138,8 @@ class SalesPageAnalyzer:
             product_name = await self._extract_product_name(page_content, structured_content)
             logger.info(f"🎯 Product name extracted: '{product_name}'")
             
-            # Step 3: AI-powered intelligence extraction (if available)
-            if self.openai_client:
-                intelligence = await self._extract_intelligence(structured_content, url, product_name)
-                logger.info("AI intelligence extraction completed")
-            else:
-                intelligence = self._fallback_analysis(structured_content, url, product_name)
-                logger.info("Using fallback analysis (no OpenAI key)")
+            # Step 3: AI-powered intelligence extraction with provider rotation
+            intelligence = await self._extract_intelligence_with_rotation(structured_content, url, product_name)
             
             return intelligence
             
@@ -633,6 +699,65 @@ class SalesPageAnalyzer:
                 sections[section_name] = match.group(1).strip()[:500]  # Limit length
         
         return sections
+    
+    # ✅ NEW: AI PROVIDER ROTATION METHOD
+    async def _extract_intelligence_with_rotation(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
+        """Try multiple AI providers in sequence for robust intelligence extraction"""
+        
+        providers_tried = []
+        
+        # Try OpenAI first
+        if self.openai_client:
+            try:
+                logger.info("🤖 Trying OpenAI for intelligence extraction...")
+                intelligence = await self._extract_intelligence_openai(structured_content, url, product_name)
+                logger.info("✅ OpenAI intelligence extraction successful")
+                return intelligence
+            except Exception as e:
+                providers_tried.append("OpenAI")
+                logger.warning(f"❌ OpenAI failed: {str(e)}")
+        
+        # Try Claude second
+        if getattr(self, 'claude_client', None):
+            try:
+                logger.info("🤖 Trying Claude for intelligence extraction...")
+                intelligence = await self._extract_intelligence_claude(structured_content, url, product_name)
+                logger.info("✅ Claude intelligence extraction successful")
+                return intelligence
+            except Exception as e:
+                providers_tried.append("Claude")
+                logger.warning(f"❌ Claude failed: {str(e)}")
+        
+        # Try Cohere third
+        if getattr(self, 'cohere_client', None):
+            try:
+                logger.info("🤖 Trying Cohere for intelligence extraction...")
+                intelligence = await self._extract_intelligence_cohere(structured_content, url, product_name)
+                logger.info("✅ Cohere intelligence extraction successful")
+                return intelligence
+            except Exception as e:
+                providers_tried.append("Cohere")
+                logger.warning(f"❌ Cohere failed: {str(e)}")
+        
+        # All AI providers failed, use fallback
+        logger.warning(f"🚨 All AI providers failed ({', '.join(providers_tried)}), using pattern matching fallback")
+        return self._fallback_analysis(structured_content, url, product_name)
+    
+    async def _extract_intelligence_openai(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
+        """OpenAI-specific intelligence extraction (existing method renamed)"""
+        return await self._extract_intelligence(structured_content, url, product_name)
+    
+    async def _extract_intelligence_claude(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
+        """Claude-specific intelligence extraction"""
+        # TODO: Implement Claude analysis
+        logger.info("Claude analysis not yet implemented, using fallback")
+        return self._fallback_analysis(structured_content, url, product_name)
+    
+    async def _extract_intelligence_cohere(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
+        """Cohere-specific intelligence extraction"""
+        # TODO: Implement Cohere analysis
+        logger.info("Cohere analysis not yet implemented, using fallback")
+        return self._fallback_analysis(structured_content, url, product_name)
     
     # ✅ FIXED: COMPLETE AI INTELLIGENCE EXTRACTION
     async def _extract_intelligence(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
