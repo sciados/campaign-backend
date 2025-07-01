@@ -19,27 +19,28 @@ class CredibilityIntelligenceEnhancer:
         
     def _get_best_provider(self) -> Optional[Dict]:
         """Get the best available AI provider - prefer OpenAI for stability"""
-    
-    # Prefer OpenAI first (working perfectly)
+        
+        # Prefer OpenAI first (working perfectly)
         for provider in self.ai_providers:
             if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("🚀 Using OpenAI for enhancement")
-            return provider
-    
-    # Fallback to Cohere second
+                logger.info("🚀 Using OpenAI for scientific enhancement")
+                return provider
+        
+        # Fallback to Cohere second
         for provider in self.ai_providers:
             if provider.get("name") == "cohere" and provider.get("available"):
-                logger.info("💫 Using Cohere for enhancement") 
-            return provider
-    
-    # Fallback to Claude third (has API issues currently)
+                logger.info("💫 Using Cohere for scientific enhancement") 
+                return provider
+        
+        # Fallback to Claude third (has API issues currently)
         for provider in self.ai_providers:
             if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("🤖 Using Claude for enhancement")
-            return provider
-    
-        logger.warning("⚠️ No AI providers available for enhancement")
+                logger.info("🤖 Using Claude for scientific enhancement")
+                return provider
+        
+        logger.warning("⚠️ No AI providers available for scientific enhancement")
         return None
+
         
         # Prefer OpenAI for content and messaging
         for provider in self.ai_providers:

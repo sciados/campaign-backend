@@ -19,54 +19,23 @@ class ScientificIntelligenceEnhancer:
         
     def _get_best_provider(self) -> Optional[Dict]:
         """Get the best available AI provider - prefer OpenAI for stability"""
-    
-    # Prefer OpenAI first (working perfectly)
+        
+        # Prefer OpenAI first (working perfectly)
         for provider in self.ai_providers:
             if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("🚀 Using OpenAI for enhancement")
-            return provider
-    
-    # Fallback to Cohere second
+                logger.info("🚀 Using OpenAI for scientific enhancement")
+                return provider
+        
+        # Fallback to Cohere second
         for provider in self.ai_providers:
             if provider.get("name") == "cohere" and provider.get("available"):
-                logger.info("💫 Using Cohere for enhancement") 
-            return provider
-    
-    # Fallback to Claude third (has API issues currently)
-        for provider in self.ai_providers:
-            if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("🤖 Using Claude for enhancement")
-            return provider
-    
-        logger.warning("⚠️ No AI providers available for enhancement")
-        return None
-        
-        # Prefer OpenAI for content and messaging
-        for provider in self.ai_providers:
-            if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("📝 Using OpenAI for content enhancement")
+                logger.info("💫 Using Cohere for scientific enhancement") 
                 return provider
         
-        # Fallback to Anthropic Claude
+        # Fallback to Claude third (has API issues currently)
         for provider in self.ai_providers:
             if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("📝 Using Anthropic Claude for content enhancement")
-                return provider
-        
-        logger.warning("⚠️ No AI providers available for content enhancement")
-        return None
-
-        
-        # Prefer Anthropic Claude for scientific writing
-        for provider in self.ai_providers:
-            if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("🔬 Using Anthropic Claude for scientific enhancement")
-                return provider
-        
-        # Fallback to OpenAI
-        for provider in self.ai_providers:
-            if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("🔬 Using OpenAI for scientific enhancement")
+                logger.info("🤖 Using Claude for scientific enhancement")
                 return provider
         
         logger.warning("⚠️ No AI providers available for scientific enhancement")
@@ -334,21 +303,7 @@ class ScientificIntelligenceEnhancer:
     async def _call_ai_provider(self, prompt: str) -> Any:
         """Call the available AI provider"""
         
-        if self.available_provider["name"] == "anthropic":
-            response = await self.available_provider["client"].messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=2000,
-                temperature=0.3,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            return response.content[0].text
-            
-        elif self.available_provider["name"] == "openai":
+        if self.available_provider["name"] == "openai":
             response = await self.available_provider["client"].chat.completions.create(
                 model="gpt-4",
                 messages=[
@@ -365,6 +320,29 @@ class ScientificIntelligenceEnhancer:
                 max_tokens=2000
             )
             return response.choices[0].message.content
+            
+        elif self.available_provider["name"] == "anthropic":
+            response = await self.available_provider["client"].messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=2000,
+                temperature=0.3,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+            return response.content[0].text
+        
+        elif self.available_provider["name"] == "cohere":
+            response = await self.available_provider["client"].chat(
+                model="command-r-plus",
+                message=prompt,
+                temperature=0.3,
+                max_tokens=2000
+            )
+            return response.text
         
         else:
             raise Exception("No supported AI provider available")
