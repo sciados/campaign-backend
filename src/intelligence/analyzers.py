@@ -1419,7 +1419,6 @@ class EnhancedSalesPageAnalyzer(SalesPageAnalyzer):
             ]
         }
     
-    
     def _detect_video_content(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
         """Basic video content detection"""
         
@@ -1563,6 +1562,6 @@ class VSLAnalyzer:
             "offer_mentions": [],
             "call_to_actions": []
         }
-    # At the end of src/intelligence/analyzers.py:
 
-    # ANALYZERS_AVAILABLE = True
+# At the end of src/intelligence/analyzers.py:
+ANALYZERS_AVAILABLE = True
