@@ -360,12 +360,20 @@ class AnalysisHandler:
             ai_market = enhanced_analysis.get("market_intelligence", {})
             ai_emotional = enhanced_analysis.get("emotional_transformation_intelligence", {})
             ai_authority = enhanced_analysis.get("scientific_authority_intelligence", {})
-            
+
             intelligence.scientific_intelligence = ai_scientific
             intelligence.credibility_intelligence = ai_credibility
             intelligence.market_intelligence = ai_market
             intelligence.emotional_transformation_intelligence = ai_emotional
             intelligence.scientific_authority_intelligence = ai_authority
+
+            # 🔥 FORCE SQLAlchemy to track changes to AI columns
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(intelligence, 'scientific_intelligence')
+            flag_modified(intelligence, 'credibility_intelligence')
+            flag_modified(intelligence, 'market_intelligence')
+            flag_modified(intelligence, 'emotional_transformation_intelligence')
+            flag_modified(intelligence, 'scientific_authority_intelligence')
             
             # Log what AI data we're storing
             ai_data_stored = {
