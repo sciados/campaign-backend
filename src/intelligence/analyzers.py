@@ -16,7 +16,6 @@ import uuid
 from datetime import datetime
 import os
 
-import intelligence
 
 logger = logging.getLogger(__name__)
 
