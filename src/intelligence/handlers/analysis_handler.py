@@ -2,15 +2,17 @@
 File: src/intelligence/handlers/analysis_handler.py
 Analysis Handler - Contains URL analysis business logic
 Extracted from routes.py to improve maintainability
+FIXED VERSION with comprehensive AI intelligence storage debugging
 """
 import uuid
 import logging
 import traceback
+import json
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from sqlalchemy.orm.attributes import flag_modified  # Add this import
+from sqlalchemy.orm.attributes import flag_modified
 from src.models.user import User
 from src.models.campaign import Campaign
 from src.models.intelligence import (
@@ -31,6 +33,250 @@ from ..utils.campaign_helpers import update_campaign_counters
 
 
 logger = logging.getLogger(__name__)
+
+
+class AIIntelligenceStorageHandler:
+    """Dedicated handler for AI intelligence storage with comprehensive debugging"""
+    
+    def __init__(self, intelligence_record, db_session):
+        self.intelligence = intelligence_record
+        self.db = db_session
+    
+    async def store_ai_intelligence_with_debug(self, enhanced_analysis: Dict[str, Any]):
+        """Store AI intelligence with detailed debugging and validation"""
+        
+        logger.info("🔍 DEBUGGING AI INTELLIGENCE STORAGE")
+        logger.info("=" * 60)
+        
+        # 1. VERIFY SOURCE DATA EXISTS
+        logger.info("📋 Step 1: Verifying source data structure...")
+        self._debug_source_data(enhanced_analysis)
+        
+        # 2. EXTRACT AND VALIDATE EACH AI CATEGORY
+        logger.info("📋 Step 2: Extracting AI categories...")
+        ai_data = self._extract_ai_categories(enhanced_analysis)
+        
+        # 3. VALIDATE EXTRACTED DATA
+        logger.info("📋 Step 3: Validating extracted data...")
+        self._validate_ai_data(ai_data)
+        
+        # 4. STORE WITH EXPLICIT VALIDATION
+        logger.info("📋 Step 4: Storing to database...")
+        await self._store_with_validation(ai_data)
+        
+        # 5. VERIFY STORAGE SUCCESS
+        logger.info("📋 Step 5: Verifying storage...")
+        verification_results = await self._verify_storage()
+        
+        logger.info("=" * 60)
+        logger.info("✅ AI INTELLIGENCE STORAGE COMPLETED")
+        
+        return verification_results
+    
+    def _debug_source_data(self, enhanced_analysis: Dict[str, Any]):
+        """Debug the source data structure"""
+        
+        logger.info(f"🔍 Enhanced analysis keys: {list(enhanced_analysis.keys())}")
+        
+        # Check for AI intelligence keys
+        ai_keys = [
+            'scientific_intelligence',
+            'credibility_intelligence', 
+            'market_intelligence',
+            'emotional_transformation_intelligence',
+            'scientific_authority_intelligence'
+        ]
+        
+        for key in ai_keys:
+            if key in enhanced_analysis:
+                data = enhanced_analysis[key]
+                logger.info(f"✅ {key}: {type(data)} with {len(data) if isinstance(data, dict) else 'N/A'} items")
+                
+                # Log first few items for inspection
+                if isinstance(data, dict) and data:
+                    sample_keys = list(data.keys())[:3]
+                    logger.info(f"   Sample keys: {sample_keys}")
+                    for sample_key in sample_keys[:1]:  # Just show one sample
+                        sample_value = data[sample_key]
+                        logger.info(f"   {sample_key}: {str(sample_value)[:100]}...")
+                else:
+                    logger.warning(f"   ⚠️ {key} is empty or not a dict: {data}")
+            else:
+                logger.error(f"❌ {key}: NOT FOUND in enhanced_analysis")
+    
+    def _extract_ai_categories(self, enhanced_analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract AI categories with proper error handling"""
+        
+        ai_data = {}
+        
+        # Define extraction mapping
+        extractions = {
+            'scientific_intelligence': 'scientific_intelligence',
+            'credibility_intelligence': 'credibility_intelligence',
+            'market_intelligence': 'market_intelligence', 
+            'emotional_transformation_intelligence': 'emotional_transformation_intelligence',
+            'scientific_authority_intelligence': 'scientific_authority_intelligence'
+        }
+        
+        for db_column, source_key in extractions.items():
+            try:
+                source_data = enhanced_analysis.get(source_key, {})
+                
+                if isinstance(source_data, dict) and source_data:
+                    ai_data[db_column] = source_data
+                    logger.info(f"✅ Extracted {db_column}: {len(source_data)} items")
+                else:
+                    ai_data[db_column] = {}
+                    logger.warning(f"⚠️ {db_column}: No valid data found (got {type(source_data)})")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error extracting {db_column}: {str(e)}")
+                ai_data[db_column] = {}
+        
+        return ai_data
+    
+    def _validate_ai_data(self, ai_data: Dict[str, Any]):
+        """Validate the extracted AI data"""
+        
+        total_items = 0
+        empty_categories = []
+        
+        for category, data in ai_data.items():
+            if isinstance(data, dict) and data:
+                item_count = len(data)
+                total_items += item_count
+                logger.info(f"✅ {category}: {item_count} items validated")
+            else:
+                empty_categories.append(category)
+                logger.warning(f"⚠️ {category}: Empty or invalid")
+        
+        logger.info(f"📊 VALIDATION SUMMARY:")
+        logger.info(f"   Total AI items: {total_items}")
+        logger.info(f"   Empty categories: {len(empty_categories)}")
+        if empty_categories:
+            logger.warning(f"   Empty: {empty_categories}")
+    
+    async def _store_with_validation(self, ai_data: Dict[str, Any]):
+        """Store AI data with explicit validation and error handling"""
+        
+        storage_success = {}
+        
+        # Store each category individually with detailed error handling
+        for category, data in ai_data.items():
+            try:
+                logger.info(f"🔄 Storing {category}...")
+                
+                # Set the attribute
+                setattr(self.intelligence, category, data)
+                
+                # Verify it was set
+                stored_value = getattr(self.intelligence, category)
+                if stored_value == data:
+                    logger.info(f"✅ {category}: Successfully set ({len(data)} items)")
+                    storage_success[category] = True
+                else:
+                    logger.error(f"❌ {category}: Value mismatch after setting")
+                    storage_success[category] = False
+                
+                # Flag as modified for SQLAlchemy
+                flag_modified(self.intelligence, category)
+                logger.info(f"✅ {category}: Flagged as modified")
+                
+            except Exception as e:
+                logger.error(f"❌ Error storing {category}: {str(e)}")
+                storage_success[category] = False
+        
+        # Log storage summary
+        successful_categories = sum(storage_success.values())
+        logger.info(f"📊 STORAGE SUMMARY: {successful_categories}/{len(ai_data)} categories stored successfully")
+        
+        # Commit changes
+        try:
+            await self.db.commit()
+            logger.info("✅ Database commit successful")
+        except Exception as commit_error:
+            logger.error(f"❌ Database commit failed: {str(commit_error)}")
+            await self.db.rollback()
+            raise
+    
+    async def _verify_storage(self):
+        """Verify that data was actually stored in the database"""
+        
+        try:
+            # Refresh the object from database
+            await self.db.refresh(self.intelligence)
+            
+            # Check each AI column
+            ai_columns = [
+                'scientific_intelligence',
+                'credibility_intelligence', 
+                'market_intelligence',
+                'emotional_transformation_intelligence',
+                'scientific_authority_intelligence'
+            ]
+            
+            verification_results = {}
+            
+            for column in ai_columns:
+                stored_data = getattr(self.intelligence, column, {})
+                if isinstance(stored_data, dict) and stored_data:
+                    verification_results[column] = len(stored_data)
+                    logger.info(f"✅ {column}: {len(stored_data)} items verified in database")
+                else:
+                    verification_results[column] = 0
+                    logger.warning(f"⚠️ {column}: Empty in database")
+            
+            total_verified = sum(verification_results.values())
+            logger.info(f"📊 VERIFICATION SUMMARY: {total_verified} total AI items verified in database")
+            
+            return verification_results
+            
+        except Exception as e:
+            logger.error(f"❌ Verification failed: {str(e)}")
+            return {}
+
+
+def diagnose_amplification_output(enhanced_analysis: Dict[str, Any]):
+    """Diagnostic function to understand what's happening to your AI data"""
+    
+    logger.info("🔍 AMPLIFICATION OUTPUT DIAGNOSIS")
+    logger.info("=" * 50)
+    
+    # Check top-level structure
+    logger.info(f"Top-level keys: {list(enhanced_analysis.keys())}")
+    
+    # Look for AI intelligence data
+    ai_keys = [
+        'scientific_intelligence',
+        'credibility_intelligence',
+        'market_intelligence', 
+        'emotional_transformation_intelligence',
+        'scientific_authority_intelligence'
+    ]
+    
+    logger.info("📊 AI Intelligence Categories:")
+    for key in ai_keys:
+        if key in enhanced_analysis:
+            data = enhanced_analysis[key]
+            logger.info(f"  ✅ {key}: {type(data)} - {len(data) if isinstance(data, dict) else 'Not a dict'}")
+            
+            if isinstance(data, dict) and data:
+                sample_key = list(data.keys())[0]
+                sample_value = data[sample_key]
+                logger.info(f"     Sample: {sample_key} = {str(sample_value)[:80]}...")
+        else:
+            logger.info(f"  ❌ {key}: MISSING")
+    
+    # Check amplification metadata
+    if 'amplification_metadata' in enhanced_analysis:
+        amp_meta = enhanced_analysis['amplification_metadata']
+        logger.info(f"🚀 Amplification Metadata:")
+        logger.info(f"  Applied: {amp_meta.get('amplification_applied', 'Unknown')}")
+        logger.info(f"  Total enhancements: {amp_meta.get('total_enhancements', 'Unknown')}")
+        logger.info(f"  Confidence boost: {amp_meta.get('confidence_boost', 'Unknown')}")
+    
+    logger.info("=" * 50)
+
 
 class AnalysisHandler:
     """Handle URL analysis operations"""
@@ -193,6 +439,10 @@ class AnalysisHandler:
                 enhancements=enhancements
             )
             
+            # 🔍 NEW: Diagnose the amplification output
+            logger.info("🔍 POST-AMPLIFICATION DIAGNOSIS")
+            diagnose_amplification_output(enriched_intelligence)
+            
             # Add amplification metadata for backward compatibility
             enrichment_metadata = enriched_intelligence.get("enrichment_metadata", {})
             
@@ -344,7 +594,7 @@ class AnalysisHandler:
     async def _store_analysis_results(
         self, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]
     ):
-        """Store analysis results with proper validation"""
+        """Store analysis results with proper validation and comprehensive AI debugging"""
         try:
             # ✅ CRITICAL: Ensure intelligence structure is complete
             enhanced_analysis = ensure_intelligence_structure(analysis_result)
@@ -357,7 +607,7 @@ class AnalysisHandler:
             brand_intel = validate_intelligence_section(enhanced_analysis.get("brand_intelligence", {}))
 
             # ✅ CRITICAL: Log what we're storing
-            logger.info(f"📊 Storing intelligence data:")
+            logger.info(f"📊 Storing base intelligence data:")
             logger.info(f"   - offer_intelligence: {len(offer_intel)} keys")
             logger.info(f"   - psychology_intelligence: {len(psychology_intel)} keys") 
             logger.info(f"   - content_intelligence: {len(content_intel)} keys")
@@ -371,116 +621,12 @@ class AnalysisHandler:
             intelligence.competitive_intelligence = competitive_intel
             intelligence.brand_intelligence = brand_intel
             
-            # 🔥 CRITICAL FIX: Store AI-enhanced intelligence in dedicated columns with detailed error handling
-            ai_scientific = {}
-            ai_credibility = {}
-            ai_market = {}
-            ai_emotional = {}
-            ai_authority = {}
+            logger.info(f"✅ Base intelligence stored successfully")
             
-            try:
-                logger.info("🔍 DEBUG: Starting AI data storage...")
-                
-                ai_scientific = enhanced_analysis.get("scientific_intelligence", {})
-                ai_credibility = enhanced_analysis.get("credibility_intelligence", {})
-                ai_market = enhanced_analysis.get("market_intelligence", {})
-                ai_emotional = enhanced_analysis.get("emotional_transformation_intelligence", {})
-                ai_authority = enhanced_analysis.get("scientific_authority_intelligence", {})
-                
-                logger.info(f"🔍 AI data extracted - scientific: {len(ai_scientific) if ai_scientific else 0} items")
-                logger.info(f"🔍 AI data extracted - credibility: {len(ai_credibility) if ai_credibility else 0} items")
-                logger.info(f"🔍 AI data extracted - market: {len(ai_market) if ai_market else 0} items")
-                logger.info(f"🔍 AI data extracted - emotional: {len(ai_emotional) if ai_emotional else 0} items")
-                logger.info(f"🔍 AI data extracted - authority: {len(ai_authority) if ai_authority else 0} items")
-                
-                # Store each AI column individually with error handling
-                try:
-                    intelligence.scientific_intelligence = ai_scientific
-                    logger.info(f"✅ Set scientific_intelligence: {len(ai_scientific)} items")
-                except Exception as e:
-                    logger.error(f"❌ Failed to set scientific_intelligence: {str(e)}")
-                
-                try:
-                    intelligence.credibility_intelligence = ai_credibility
-                    logger.info(f"✅ Set credibility_intelligence: {len(ai_credibility)} items")
-                except Exception as e:
-                    logger.error(f"❌ Failed to set credibility_intelligence: {str(e)}")
-                
-                try:
-                    intelligence.market_intelligence = ai_market
-                    logger.info(f"✅ Set market_intelligence: {len(ai_market)} items")
-                except Exception as e:
-                    logger.error(f"❌ Failed to set market_intelligence: {str(e)}")
-                
-                try:
-                    intelligence.emotional_transformation_intelligence = ai_emotional
-                    logger.info(f"✅ Set emotional_transformation_intelligence: {len(ai_emotional)} items")
-                except Exception as e:
-                    logger.error(f"❌ Failed to set emotional_transformation_intelligence: {str(e)}")
-                
-                try:
-                    intelligence.scientific_authority_intelligence = ai_authority
-                    logger.info(f"✅ Set scientific_authority_intelligence: {len(ai_authority)} items")
-                except Exception as e:
-                    logger.error(f"❌ Failed to set scientific_authority_intelligence: {str(e)}")
-                
-                # Try to flag modified for SQLAlchemy tracking
-                try:
-                    flag_modified(intelligence, 'scientific_intelligence')
-                    flag_modified(intelligence, 'credibility_intelligence')
-                    flag_modified(intelligence, 'market_intelligence')
-                    flag_modified(intelligence, 'emotional_transformation_intelligence')
-                    flag_modified(intelligence, 'scientific_authority_intelligence')
-                    logger.info("✅ Successfully flagged AI columns as modified")
-                except Exception as flag_error:
-                    logger.error(f"❌ Failed to flag columns as modified: {str(flag_error)}")
-                    # Try alternative approach - force update by setting to None first
-                    try:
-                        logger.info("🔄 Trying alternative approach to force SQLAlchemy update...")
-                        # Force SQLAlchemy to detect changes by setting to None first, then back
-                        temp_scientific = intelligence.scientific_intelligence
-                        temp_credibility = intelligence.credibility_intelligence  
-                        temp_market = intelligence.market_intelligence
-                        temp_emotional = intelligence.emotional_transformation_intelligence
-                        temp_authority = intelligence.scientific_authority_intelligence
-                        
-                        intelligence.scientific_intelligence = None
-                        intelligence.credibility_intelligence = None
-                        intelligence.market_intelligence = None
-                        intelligence.emotional_transformation_intelligence = None
-                        intelligence.scientific_authority_intelligence = None
-                        
-                        # Now set back to the actual values
-                        intelligence.scientific_intelligence = temp_scientific
-                        intelligence.credibility_intelligence = temp_credibility
-                        intelligence.market_intelligence = temp_market
-                        intelligence.emotional_transformation_intelligence = temp_emotional
-                        intelligence.scientific_authority_intelligence = temp_authority
-                        
-                        logger.info("✅ Alternative approach completed - forced SQLAlchemy to detect changes")
-                    except Exception as alt_error:
-                        logger.error(f"❌ Alternative approach also failed: {str(alt_error)}")
-                
-                logger.info("🎯 AI data storage completed successfully")
-                
-            except Exception as ai_storage_error:
-                logger.error(f"❌ Critical error in AI data storage: {str(ai_storage_error)}")
-                logger.error(f"❌ Error type: {type(ai_storage_error).__name__}")
-                import traceback
-                logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-                # Continue with base intelligence only
-            
-            # Log what AI data we're storing (integrated above)
-            ai_data_stored = {
-                "scientific_intelligence": len(ai_scientific) if ai_scientific else 0,
-                "credibility_intelligence": len(ai_credibility) if ai_credibility else 0,
-                "market_intelligence": len(ai_market) if ai_market else 0,
-                "emotional_transformation_intelligence": len(ai_emotional) if ai_emotional else 0,
-                "scientific_authority_intelligence": len(ai_authority) if ai_authority else 0
-            }
-            
-            total_ai_categories = sum(1 for size in ai_data_stored.values() if size > 0)
-            logger.info(f"🎯 TOTAL AI CATEGORIES WITH DATA: {total_ai_categories}/5")
+            # 🔥 NEW: Use dedicated AI storage handler with comprehensive debugging
+            logger.info("🚀 Starting AI intelligence storage with debug handler...")
+            ai_storage_handler = AIIntelligenceStorageHandler(intelligence, self.db)
+            verification_results = await ai_storage_handler.store_ai_intelligence_with_debug(enhanced_analysis)
             
             # Store metadata
             intelligence.confidence_score = enhanced_analysis.get("confidence_score", 0.0)
@@ -498,6 +644,7 @@ class AnalysisHandler:
                 "product_name": enhanced_analysis.get("product_name", "Unknown"),
                 "analysis_timestamp": datetime.utcnow().isoformat(),
                 "storage_validation_applied": True,
+                "ai_storage_debug_applied": True,  # New flag
                 "intelligence_categories_stored": {
                     "offer_intelligence": len(offer_intel),
                     "psychology_intelligence": len(psychology_intel),
@@ -505,31 +652,37 @@ class AnalysisHandler:
                     "competitive_intelligence": len(competitive_intel), 
                     "brand_intelligence": len(brand_intel)
                 },
-                "ai_intelligence_categories_stored": ai_data_stored,
-                "total_ai_categories_stored": total_ai_categories
+                "ai_intelligence_verification": verification_results,
+                "total_ai_categories_verified": sum(1 for count in verification_results.values() if count > 0) if verification_results else 0
             })
             
             intelligence.processing_metadata = processing_metadata
 
             # Set analysis status
+            total_ai_verified = sum(verification_results.values()) if verification_results else 0
             if enhanced_analysis.get("confidence_score", 0.0) > 0:
                 intelligence.analysis_status = AnalysisStatus.COMPLETED
-                logger.info(f"✅ Analysis completed successfully with {total_ai_categories}/5 AI categories populated")
+                logger.info(f"✅ Analysis completed successfully with {total_ai_verified} total AI items verified")
             else:
                 intelligence.analysis_status = AnalysisStatus.FAILED
                 logger.warning(f"⚠️ Analysis completed with zero confidence")
 
-            # Commit to database
+            # Final commit
             await self.db.commit()
-            logger.info(f"💾 Intelligence data saved to database with {total_ai_categories}/5 AI categories populated")
+            logger.info(f"💾 Intelligence data saved to database with {len(verification_results) if verification_results else 0}/5 AI categories populated")
 
         except Exception as storage_error:
             logger.error(f"❌ Error storing intelligence data: {str(storage_error)}")
+            logger.error(f"❌ Storage error type: {type(storage_error).__name__}")
+            logger.error(f"❌ Storage traceback: {traceback.format_exc()}")
+            
             # Set failed status but continue
             intelligence.analysis_status = AnalysisStatus.FAILED
             intelligence.processing_metadata = {
                 "storage_error": str(storage_error),
-                "partial_analysis": True
+                "error_type": type(storage_error).__name__,
+                "partial_analysis": True,
+                "storage_traceback": traceback.format_exc()
             }
             await self.db.commit()
     
@@ -615,3 +768,174 @@ class AnalysisHandler:
                 "Try with a different URL"
             ]
         }
+
+
+# DIAGNOSTIC UTILITIES - Add these functions for debugging
+
+def quick_ai_data_test(enhanced_analysis: Dict[str, Any]):
+    """Quick test to see what's in your enhanced_analysis before storage"""
+    
+    logger.info("🧪 QUICK AI DATA TEST")
+    logger.info("-" * 30)
+    
+    # Test each expected AI intelligence category
+    test_categories = [
+        'scientific_intelligence',
+        'credibility_intelligence',
+        'market_intelligence',
+        'emotional_transformation_intelligence', 
+        'scientific_authority_intelligence'
+    ]
+    
+    for category in test_categories:
+        if category in enhanced_analysis:
+            data = enhanced_analysis[category]
+            logger.info(f"✅ {category}: {type(data)} with {len(data) if hasattr(data, '__len__') else 'no len'}")
+            
+            # Log actual content
+            if isinstance(data, dict):
+                logger.info(f"   Dict keys: {list(data.keys())[:3]}")
+                if data:
+                    first_key = list(data.keys())[0]
+                    first_value = data[first_key]
+                    logger.info(f"   First item: {first_key} = {str(first_value)[:50]}...")
+            elif isinstance(data, list):
+                logger.info(f"   List length: {len(data)}")
+                if data:
+                    logger.info(f"   First item: {str(data[0])[:50]}...")
+            else:
+                logger.info(f"   Value: {str(data)[:50]}...")
+        else:
+            logger.error(f"❌ {category}: NOT FOUND")
+    
+    logger.info("-" * 30)
+
+
+def force_test_ai_data(enhanced_analysis: Dict[str, Any]) -> Dict[str, Any]:
+    """Force populate AI intelligence data for testing purposes"""
+    
+    logger.info("🔧 FORCE POPULATING AI DATA FOR TESTING")
+    
+    test_data = {
+        "test_enhancement_1": "This is a test scientific enhancement",
+        "test_enhancement_2": "This validates the storage mechanism",
+        "test_enhancement_3": "AI intelligence should now be visible",
+        "confidence_boost": 0.25,
+        "enhancement_source": "forced_test_data"
+    }
+    
+    ai_categories = [
+        'scientific_intelligence',
+        'credibility_intelligence',
+        'market_intelligence',
+        'emotional_transformation_intelligence',
+        'scientific_authority_intelligence'
+    ]
+    
+    for category in ai_categories:
+        if category not in enhanced_analysis or not enhanced_analysis[category]:
+            enhanced_analysis[category] = test_data.copy()
+            enhanced_analysis[category]["category"] = category
+            enhanced_analysis[category]["test_timestamp"] = datetime.utcnow().isoformat()
+            logger.info(f"✅ Force populated {category} with test data")
+        else:
+            logger.info(f"✅ {category} already has data, skipping")
+    
+    return enhanced_analysis
+
+
+def validate_enhancement_output(enhancements: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate that the enhancement process is returning the expected structure"""
+    
+    logger.info("🔍 VALIDATING ENHANCEMENT OUTPUT STRUCTURE")
+    logger.info("=" * 40)
+    
+    expected_categories = [
+        'scientific_validation',
+        'credibility_boosters',
+        'market_positioning',
+        'content_optimization',
+        'emotional_transformation',
+        'authority_establishment'
+    ]
+    
+    # Check if enhancements contains the expected structure
+    for category in expected_categories:
+        if category in enhancements:
+            data = enhancements[category]
+            logger.info(f"✅ {category}: {type(data)} with {len(data) if isinstance(data, (dict, list)) else 'unknown'} items")
+        else:
+            logger.warning(f"⚠️ {category}: Missing from enhancements")
+    
+    # Check enhancement metadata
+    if 'enhancement_metadata' in enhancements:
+        metadata = enhancements['enhancement_metadata']
+        logger.info(f"📊 Enhancement Metadata:")
+        for key, value in metadata.items():
+            logger.info(f"   {key}: {value}")
+    else:
+        logger.warning(f"⚠️ enhancement_metadata: Missing")
+    
+    logger.info("=" * 40)
+    
+    return enhancements
+
+
+# EMERGENCY FALLBACK STORAGE METHOD
+
+async def emergency_ai_storage_fallback(
+    intelligence: CampaignIntelligence, 
+    enhanced_analysis: Dict[str, Any],
+    db_session: AsyncSession
+):
+    """Emergency fallback method for AI intelligence storage"""
+    
+    logger.info("🚨 EMERGENCY AI STORAGE FALLBACK ACTIVATED")
+    
+    try:
+        # Create a consolidated AI intelligence object
+        consolidated_ai_data = {}
+        
+        ai_categories = [
+            'scientific_intelligence',
+            'credibility_intelligence',
+            'market_intelligence',
+            'emotional_transformation_intelligence',
+            'scientific_authority_intelligence'
+        ]
+        
+        for category in ai_categories:
+            data = enhanced_analysis.get(category, {})
+            if isinstance(data, dict) and data:
+                consolidated_ai_data[category] = data
+                logger.info(f"✅ Consolidated {category}: {len(data)} items")
+            else:
+                consolidated_ai_data[category] = {"fallback_note": f"No data available for {category}"}
+                logger.warning(f"⚠️ No data for {category}, using fallback")
+        
+        # Store consolidated data in processing_metadata as backup
+        current_metadata = intelligence.processing_metadata or {}
+        current_metadata["emergency_ai_backup"] = consolidated_ai_data
+        current_metadata["emergency_storage_applied"] = True
+        current_metadata["emergency_timestamp"] = datetime.utcnow().isoformat()
+        
+        intelligence.processing_metadata = current_metadata
+        
+        # Also try to store in individual columns one more time
+        for category in ai_categories:
+            if category in consolidated_ai_data:
+                try:
+                    setattr(intelligence, category, consolidated_ai_data[category])
+                    flag_modified(intelligence, category)
+                    logger.info(f"✅ Emergency storage: {category} set")
+                except Exception as e:
+                    logger.error(f"❌ Emergency storage failed for {category}: {str(e)}")
+        
+        await db_session.commit()
+        logger.info("✅ Emergency fallback storage completed")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Emergency fallback storage failed: {str(e)}")
+        return False
