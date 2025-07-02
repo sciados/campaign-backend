@@ -1,4 +1,4 @@
-# src/intelligence/amplifier/enhancement.py - REFACTORED MODULAR SYSTEM
+# src/intelligence/amplifier/enhancement.py - FINAL CLEAN VERSION
 """
 Each intelligence category has its own dedicated AI enhancement module
 """
@@ -7,8 +7,6 @@ import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import json
-
-from intelligence.amplifier import enhancements
 
 logger = logging.getLogger(__name__)
 
@@ -145,104 +143,7 @@ async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers
         product_data = _extract_product_data(base_intel)
         
         # Run all enhancement modules in parallel for maximum efficiency
-        enhancement_names = [
-            "scientific_validation",
-            "market_positioning", 
-            "credibility_boosters",
-            "content_optimization",
-            "emotional_transformation",
-            "authority_establishment"
-        ]
-        
-        successful_modules = []
         enhancement_tasks = []
-
-        # Scientific Intelligence Enhancement
-        if enhancers.get("scientific"):
-            enhancement_tasks.append(
-                enhancers["scientific"].generate_scientific_intelligence(product_data, base_intel)
-            )
-
-        # Market Intelligence Enhancement
-        if enhancers.get("market"):
-            enhancement_tasks.append(
-                enhancers["market"].generate_market_intelligence(product_data, base_intel)
-            )
-
-        # Credibility Intelligence Enhancement
-        if enhancers.get("credibility"):
-            enhancement_tasks.append(
-                enhancers["credibility"].generate_credibility_intelligence(product_data, base_intel)
-            )
-
-        # Content Intelligence Enhancement
-        if enhancers.get("content"):
-            enhancement_tasks.append(
-                enhancers["content"].generate_content_intelligence(product_data, base_intel)
-            )
-
-        # Emotional Transformation Enhancement
-        if enhancers.get("emotional"):
-            enhancement_tasks.append(
-                enhancers["emotional"].generate_emotional_transformation_intelligence(product_data, base_intel)
-            )
-
-        # Scientific Authority Enhancement
-        if enhancers.get("authority"):
-            enhancement_tasks.append(
-                enhancers["authority"].generate_scientific_authority_intelligence(product_data, base_intel)
-            )
-
-        # Execute all enhancement tasks in parallel
-        logger.info("⚡ Running all AI enhancement modules in parallel...")
-        enhancement_results = await asyncio.gather(*enhancement_tasks, return_exceptions=True)
-
-        enhancements = {}
-
-        for i, result in enumerate(enhancement_results):
-            if isinstance(result, Exception):
-                logger.error(f"❌ Enhancement module {i} failed: {str(result)}")
-                continue
-
-            if i < len(enhancement_names):
-                enhancements[enhancement_names[i]] = result
-                successful_modules.append(enhancement_names[i])
-
-        # Calculate enhancement metadata
-        total_enhancements = sum(
-            len(result) if isinstance(result, (list, dict)) else 1 
-            for result in enhancements.values() 
-            if result
-        )
-
-        confidence_boost = _calculate_confidence_boost(enhancements, base_intel)
-        credibility_score = _calculate_credibility_score(enhancements, base_intel)
-
-        enhancement_metadata = {
-            "total_enhancements": total_enhancements,
-            "confidence_boost": confidence_boost,
-            "credibility_score": credibility_score,
-            "modules_successful": successful_modules,
-            "modules_failed": len(enhancement_results) - len(successful_modules),
-            "enhancement_quality": "excellent" if len(successful_modules) >= 5 else "good" if len(successful_modules) >= 3 else "basic",
-            "enhanced_at": datetime.utcnow().isoformat(),
-            "enhancement_version": "modular_ai_2.0",
-            "ai_providers_used": _get_providers_used(enhancers),
-            "parallel_processing": True,
-            "system_architecture": "modular_enhancement_modules"
-        }
-
-        result = {
-            **enhancements,
-            "enhancement_metadata": enhancement_metadata
-        }
-
-        logger.info(f"✅ Generated {total_enhancements} enhancements across {len(successful_modules)} modules - Confidence boost: {confidence_boost:.1%}")
-        return result
-        
-    except Exception as e:
-        logger.error(f"❌ AI enhancement generation failed: {str(e)}")
-        return _fallback_generate_enhancements(base_intel, opportunities)
         
         # Scientific Intelligence Enhancement
         if enhancers.get("scientific"):
@@ -296,25 +197,89 @@ async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers
             "authority_establishment": {}
         }
         
-        enhancement_# Fixed create_enriched_intelligence function in enhancement.py
+        enhancement_names = [
+            "scientific_validation",
+            "market_positioning", 
+            "credibility_boosters",
+            "content_optimization",
+            "emotional_transformation",
+            "authority_establishment"
+        ]
+        
+        successful_modules = []
+        
+        for i, result in enumerate(enhancement_results):
+            if isinstance(result, Exception):
+                logger.error(f"❌ Enhancement module {i} failed: {str(result)}")
+                continue
+            
+            if i < len(enhancement_names):
+                enhancements[enhancement_names[i]] = result
+                successful_modules.append(enhancement_names[i])
+        
+        # Calculate enhancement metadata
+        total_enhancements = sum(
+            len(result) if isinstance(result, (list, dict)) else 1 
+            for result in enhancements.values() 
+            if result
+        )
+        
+        confidence_boost = _calculate_confidence_boost(enhancements, base_intel)
+        credibility_score = _calculate_credibility_score(enhancements, base_intel)
+        
+        enhancement_metadata = {
+            "total_enhancements": total_enhancements,
+            "confidence_boost": confidence_boost,
+            "credibility_score": credibility_score,
+            "modules_successful": successful_modules,
+            "modules_failed": len(enhancement_results) - len(successful_modules),
+            "enhancement_quality": "excellent" if len(successful_modules) >= 5 else "good" if len(successful_modules) >= 3 else "basic",
+            "enhanced_at": datetime.utcnow().isoformat(),
+            "enhancement_version": "modular_ai_2.0",
+            "ai_providers_used": _get_providers_used(enhancers),
+            "parallel_processing": True,
+            "system_architecture": "modular_enhancement_modules"
+        }
+        
+        result = {
+            **enhancements,
+            "enhancement_metadata": enhancement_metadata
+        }
+        
+        logger.info(f"✅ Generated {total_enhancements} enhancements across {len(successful_modules)} modules - Confidence boost: {confidence_boost:.1%}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"❌ AI enhancement generation failed: {str(e)}")
+        return _fallback_generate_enhancements(base_intel, opportunities)
 
 def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[str, Any]:
     """
-    🔥 FIXED: Create enriched intelligence with proper AI enhancement mapping to database columns
+    🔥 DEBUG VERSION: Create enriched intelligence with detailed logging to trace data flow
     """
     logger.info("✨ Creating enriched intelligence with modular AI system...")
     
+    # 🔍 DEBUG: Log what we're receiving
+    logger.info(f"📊 INPUT - Base intel keys: {list(base_intel.keys())}")
+    logger.info(f"📊 INPUT - Enhancements keys: {list(enhancements.keys())}")
+    
+    # Log enhancement data details
+    for key, value in enhancements.items():
+        if key != "enhancement_metadata":
+            logger.info(f"🔍 Enhancement '{key}': Type={type(value)}, Length={len(value) if isinstance(value, (dict, list)) else 'N/A'}")
+            if isinstance(value, dict) and value:
+                logger.info(f"   └── Sample keys: {list(value.keys())[:5]}")
+    
     # Start with base intelligence
     enriched = base_intel.copy()
-    
-    # 🔥 CRITICAL FIX: Ensure enhancements are properly structured
-    logger.info(f"📊 Processing enhancements: {list(enhancements.keys())}")
     
     # 🔥 ENHANCED: Map AI enhancements to the correct database column names with validation
     intelligence_mapping = {}
     
     # Scientific Intelligence
     scientific_enhancement = enhancements.get("scientific_validation", {})
+    logger.info(f"🔬 Scientific enhancement received: {type(scientific_enhancement)}, {len(scientific_enhancement) if isinstance(scientific_enhancement, (dict, list)) else 'N/A'}")
+    
     if scientific_enhancement and len(scientific_enhancement) > 0:
         intelligence_mapping["scientific_intelligence"] = {
             **scientific_enhancement,
@@ -322,10 +287,14 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
             "ai_provider": "enhanced",
             "enhancement_applied": True
         }
-        logger.info(f"✅ Mapped scientific_intelligence: {len(scientific_enhancement)} items")
+        logger.info(f"✅ MAPPED scientific_intelligence: {len(scientific_enhancement)} items")
+    else:
+        logger.warning(f"⚠️ Scientific enhancement is empty or None: {scientific_enhancement}")
     
     # Market Intelligence  
     market_enhancement = enhancements.get("market_positioning", {})
+    logger.info(f"📈 Market enhancement received: {type(market_enhancement)}, {len(market_enhancement) if isinstance(market_enhancement, (dict, list)) else 'N/A'}")
+    
     if market_enhancement and len(market_enhancement) > 0:
         intelligence_mapping["market_intelligence"] = {
             **market_enhancement,
@@ -333,10 +302,14 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
             "ai_provider": "enhanced",
             "enhancement_applied": True
         }
-        logger.info(f"✅ Mapped market_intelligence: {len(market_enhancement)} items")
+        logger.info(f"✅ MAPPED market_intelligence: {len(market_enhancement)} items")
+    else:
+        logger.warning(f"⚠️ Market enhancement is empty or None: {market_enhancement}")
     
     # Credibility Intelligence
     credibility_enhancement = enhancements.get("credibility_boosters", {})
+    logger.info(f"🏆 Credibility enhancement received: {type(credibility_enhancement)}, {len(credibility_enhancement) if isinstance(credibility_enhancement, (dict, list)) else 'N/A'}")
+    
     if credibility_enhancement and len(credibility_enhancement) > 0:
         intelligence_mapping["credibility_intelligence"] = {
             **credibility_enhancement,
@@ -344,10 +317,14 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
             "ai_provider": "enhanced", 
             "enhancement_applied": True
         }
-        logger.info(f"✅ Mapped credibility_intelligence: {len(credibility_enhancement)} items")
+        logger.info(f"✅ MAPPED credibility_intelligence: {len(credibility_enhancement)} items")
+    else:
+        logger.warning(f"⚠️ Credibility enhancement is empty or None: {credibility_enhancement}")
     
     # Emotional Transformation Intelligence
     emotional_enhancement = enhancements.get("emotional_transformation", {})
+    logger.info(f"💭 Emotional enhancement received: {type(emotional_enhancement)}, {len(emotional_enhancement) if isinstance(emotional_enhancement, (dict, list)) else 'N/A'}")
+    
     if emotional_enhancement and len(emotional_enhancement) > 0:
         intelligence_mapping["emotional_transformation_intelligence"] = {
             **emotional_enhancement,
@@ -355,10 +332,14 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
             "ai_provider": "enhanced",
             "enhancement_applied": True
         }
-        logger.info(f"✅ Mapped emotional_transformation_intelligence: {len(emotional_enhancement)} items")
+        logger.info(f"✅ MAPPED emotional_transformation_intelligence: {len(emotional_enhancement)} items")
+    else:
+        logger.warning(f"⚠️ Emotional enhancement is empty or None: {emotional_enhancement}")
     
     # Scientific Authority Intelligence
     authority_enhancement = enhancements.get("authority_establishment", {})
+    logger.info(f"🎓 Authority enhancement received: {type(authority_enhancement)}, {len(authority_enhancement) if isinstance(authority_enhancement, (dict, list)) else 'N/A'}")
+    
     if authority_enhancement and len(authority_enhancement) > 0:
         intelligence_mapping["scientific_authority_intelligence"] = {
             **authority_enhancement,
@@ -366,11 +347,15 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
             "ai_provider": "enhanced",
             "enhancement_applied": True
         }
-        logger.info(f"✅ Mapped scientific_authority_intelligence: {len(authority_enhancement)} items")
+        logger.info(f"✅ MAPPED scientific_authority_intelligence: {len(authority_enhancement)} items")
+    else:
+        logger.warning(f"⚠️ Authority enhancement is empty or None: {authority_enhancement}")
     
     # Enhanced content_intelligence by merging existing + AI enhancements
     content_enhancement = enhancements.get("content_optimization", {})
     existing_content = enriched.get("content_intelligence", {})
+    logger.info(f"📝 Content enhancement received: {type(content_enhancement)}, {len(content_enhancement) if isinstance(content_enhancement, (dict, list)) else 'N/A'}")
+    
     if content_enhancement and len(content_enhancement) > 0:
         intelligence_mapping["content_intelligence"] = {
             **existing_content,
@@ -378,9 +363,16 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
             "enhanced_at": datetime.utcnow().isoformat(),
             "ai_enhancement_applied": True
         }
-        logger.info(f"✅ Enhanced content_intelligence: {len(content_enhancement)} new items")
+        logger.info(f"✅ ENHANCED content_intelligence: {len(content_enhancement)} new items")
     else:
         intelligence_mapping["content_intelligence"] = existing_content
+        logger.warning(f"⚠️ Content enhancement is empty, using existing: {len(existing_content)} items")
+    
+    # 🔍 DEBUG: Log mapping results
+    logger.info(f"🗺️ MAPPING RESULTS:")
+    for category, data in intelligence_mapping.items():
+        has_data = data and len(data) > 0
+        logger.info(f"   {category}: {'✅ HAS DATA' if has_data else '❌ EMPTY'} ({len(data) if isinstance(data, (dict, list)) else 'N/A'} items)")
     
     # 🔥 ADD: Validate and add all AI-generated intelligence categories to enriched data
     categories_added = 0
@@ -388,10 +380,23 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
         if enhancement_data and len(enhancement_data) > 0:
             enriched[intel_category] = enhancement_data
             categories_added += 1
-            logger.info(f"🔥 Added {intel_category} with {len(enhancement_data) if isinstance(enhancement_data, dict) else 'data'}")
+            logger.info(f"🔥 ADDED {intel_category} to enriched data with {len(enhancement_data)} items")
         else:
-            # 🔥 IMPORTANT: Don't add empty categories - let the handler provide fallbacks
-            logger.warning(f"⚠️ Skipping empty {intel_category}")
+            logger.warning(f"⚠️ SKIPPING empty {intel_category}")
+    
+    # 🔍 DEBUG: Log what we're returning
+    logger.info(f"📤 OUTPUT - Enriched data keys: {list(enriched.keys())}")
+    logger.info(f"📤 OUTPUT - Categories added: {categories_added}/6")
+    
+    # Check if AI intelligence categories are in the enriched data
+    ai_categories = ["scientific_intelligence", "credibility_intelligence", "market_intelligence", 
+                    "emotional_transformation_intelligence", "scientific_authority_intelligence"]
+    
+    for category in ai_categories:
+        if category in enriched:
+            logger.info(f"✅ {category} is in enriched data: {len(enriched[category])} items")
+        else:
+            logger.error(f"❌ {category} is MISSING from enriched data")
     
     # Update confidence score based on enhancements
     original_confidence = base_intel.get("confidence_score", 0.0)
@@ -408,21 +413,22 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
         "intelligence_categories_populated": categories_added,
         "total_intelligence_categories": len(intelligence_mapping),
         "system_architecture": "modular_ai_enhancement",
-        "category_completion_rate": categories_added / len(intelligence_mapping),
+        "category_completion_rate": categories_added / len(intelligence_mapping) if len(intelligence_mapping) > 0 else 0,
         "enrichment_timestamp": datetime.utcnow().isoformat(),
+        
+        # 🔥 DEBUG: Add detailed debugging info
+        "debug_info": {
+            "enhancement_keys_received": list(enhancements.keys()),
+            "mapping_attempted": list(intelligence_mapping.keys()),
+            "categories_with_data": [cat for cat, data in intelligence_mapping.items() if data and len(data) > 0],
+            "categories_without_data": [cat for cat, data in intelligence_mapping.items() if not data or len(data) == 0],
+            "enhancement_types": {key: type(value).__name__ for key, value in enhancements.items()}
+        },
         
         # 🔥 ADD: Storage validation for debugging
         "storage_validation_applied": True,
         "extraction_successful": True,
-        "amplification_timestamp": datetime.utcnow().isoformat(),
-        
-        # 🔥 ADD: Detailed mapping verification
-        "mapping_verification": {
-            "categories_with_data": [cat for cat, data in intelligence_mapping.items() if data and len(data) > 0],
-            "categories_mapped": list(intelligence_mapping.keys()),
-            "enhancement_keys": list(enhancements.keys()),
-            "mapping_successful": categories_added > 0
-        }
+        "amplification_timestamp": datetime.utcnow().isoformat()
     }
     
     logger.info(f"✅ Enriched intelligence created - Categories populated: {categories_added}/6")
