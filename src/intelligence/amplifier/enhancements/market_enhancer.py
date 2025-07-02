@@ -23,22 +23,22 @@ class MarketIntelligenceEnhancer:
         # Prefer OpenAI first (working perfectly)
         for provider in self.ai_providers:
             if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("🚀 Using OpenAI for scientific enhancement")
+                logger.info("🚀 Using OpenAI for market enhancement")
                 return provider
         
         # Fallback to Cohere second
         for provider in self.ai_providers:
             if provider.get("name") == "cohere" and provider.get("available"):
-                logger.info("💫 Using Cohere for scientific enhancement") 
+                logger.info("💫 Using Cohere for market enhancement") 
                 return provider
         
         # Fallback to Claude third (has API issues currently)
         for provider in self.ai_providers:
             if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("🤖 Using Claude for scientific enhancement")
+                logger.info("🤖 Using Claude for market enhancement")
                 return provider
         
-        logger.warning("⚠️ No AI providers available for scientific enhancement")
+        logger.warning("⚠️ No AI providers available for market enhancement")
         return None
 
         
