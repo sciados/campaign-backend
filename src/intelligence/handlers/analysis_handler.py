@@ -355,6 +355,12 @@ class AnalysisHandler:
             intelligence.brand_intelligence = brand_intel
             
             # 🔥 CRITICAL FIX: Store AI-enhanced intelligence in dedicated columns with detailed error handling
+            ai_scientific = {}
+            ai_credibility = {}
+            ai_market = {}
+            ai_emotional = {}
+            ai_authority = {}
+            
             try:
                 logger.info("🔍 DEBUG: Starting AI data storage...")
                 
@@ -365,6 +371,10 @@ class AnalysisHandler:
                 ai_authority = enhanced_analysis.get("scientific_authority_intelligence", {})
                 
                 logger.info(f"🔍 AI data extracted - scientific: {len(ai_scientific) if ai_scientific else 0} items")
+                logger.info(f"🔍 AI data extracted - credibility: {len(ai_credibility) if ai_credibility else 0} items")
+                logger.info(f"🔍 AI data extracted - market: {len(ai_market) if ai_market else 0} items")
+                logger.info(f"🔍 AI data extracted - emotional: {len(ai_emotional) if ai_emotional else 0} items")
+                logger.info(f"🔍 AI data extracted - authority: {len(ai_authority) if ai_authority else 0} items")
                 
                 # Store each AI column individually with error handling
                 try:
@@ -409,6 +419,8 @@ class AnalysisHandler:
                 except Exception as flag_error:
                     logger.error(f"❌ Failed to flag columns as modified: {str(flag_error)}")
                 
+                logger.info("🎯 AI data storage completed successfully")
+                
             except Exception as ai_storage_error:
                 logger.error(f"❌ Critical error in AI data storage: {str(ai_storage_error)}")
                 logger.error(f"❌ Error type: {type(ai_storage_error).__name__}")
@@ -418,11 +430,11 @@ class AnalysisHandler:
             
             # Log what AI data we're storing (integrated above)
             ai_data_stored = {
-                "scientific_intelligence": len(ai_scientific) if 'ai_scientific' in locals() and ai_scientific else 0,
-                "credibility_intelligence": len(ai_credibility) if 'ai_credibility' in locals() and ai_credibility else 0,
-                "market_intelligence": len(ai_market) if 'ai_market' in locals() and ai_market else 0,
-                "emotional_transformation_intelligence": len(ai_emotional) if 'ai_emotional' in locals() and ai_emotional else 0,
-                "scientific_authority_intelligence": len(ai_authority) if 'ai_authority' in locals() and ai_authority else 0
+                "scientific_intelligence": len(ai_scientific) if ai_scientific else 0,
+                "credibility_intelligence": len(ai_credibility) if ai_credibility else 0,
+                "market_intelligence": len(ai_market) if ai_market else 0,
+                "emotional_transformation_intelligence": len(ai_emotional) if ai_emotional else 0,
+                "scientific_authority_intelligence": len(ai_authority) if ai_authority else 0
             }
             
             total_ai_categories = sum(1 for size in ai_data_stored.values() if size > 0)
