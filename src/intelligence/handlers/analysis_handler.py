@@ -347,12 +347,45 @@ class AnalysisHandler:
             logger.info(f"   - competitive_intelligence: {len(competitive_intel)} keys")
             logger.info(f"   - brand_intelligence: {len(brand_intel)} keys")
 
-            # Store validated intelligence data
+            # Store validated base intelligence data
             intelligence.offer_intelligence = offer_intel
             intelligence.psychology_intelligence = psychology_intel
             intelligence.content_intelligence = content_intel
             intelligence.competitive_intelligence = competitive_intel
             intelligence.brand_intelligence = brand_intel
+            
+            # 🔥 CRITICAL FIX: Store AI-enhanced intelligence in dedicated columns
+            ai_scientific = enhanced_analysis.get("scientific_intelligence", {})
+            ai_credibility = enhanced_analysis.get("credibility_intelligence", {})
+            ai_market = enhanced_analysis.get("market_intelligence", {})
+            ai_emotional = enhanced_analysis.get("emotional_transformation_intelligence", {})
+            ai_authority = enhanced_analysis.get("scientific_authority_intelligence", {})
+            
+            intelligence.scientific_intelligence = ai_scientific
+            intelligence.credibility_intelligence = ai_credibility
+            intelligence.market_intelligence = ai_market
+            intelligence.emotional_transformation_intelligence = ai_emotional
+            intelligence.scientific_authority_intelligence = ai_authority
+            
+            # Log what AI data we're storing
+            ai_data_stored = {
+                "scientific_intelligence": len(ai_scientific) if ai_scientific else 0,
+                "credibility_intelligence": len(ai_credibility) if ai_credibility else 0,
+                "market_intelligence": len(ai_market) if ai_market else 0,
+                "emotional_transformation_intelligence": len(ai_emotional) if ai_emotional else 0,
+                "scientific_authority_intelligence": len(ai_authority) if ai_authority else 0
+            }
+            
+            logger.info(f"🔥 STORING AI-ENHANCED DATA:")
+            total_ai_categories = 0
+            for col, size in ai_data_stored.items():
+                if size > 0:
+                    logger.info(f"   ✅ {col}: {size} items")
+                    total_ai_categories += 1
+                else:
+                    logger.warning(f"   ❌ {col}: EMPTY")
+            
+            logger.info(f"🎯 TOTAL AI CATEGORIES STORED: {total_ai_categories}/5")
             
             # Store metadata
             intelligence.confidence_score = enhanced_analysis.get("confidence_score", 0.0)
@@ -376,7 +409,9 @@ class AnalysisHandler:
                     "content_intelligence": len(content_intel),
                     "competitive_intelligence": len(competitive_intel), 
                     "brand_intelligence": len(brand_intel)
-                }
+                },
+                "ai_intelligence_categories_stored": ai_data_stored,
+                "total_ai_categories_stored": total_ai_categories
             })
             
             intelligence.processing_metadata = processing_metadata
@@ -384,14 +419,14 @@ class AnalysisHandler:
             # Set analysis status
             if enhanced_analysis.get("confidence_score", 0.0) > 0:
                 intelligence.analysis_status = AnalysisStatus.COMPLETED
-                logger.info(f"✅ Analysis completed successfully with all intelligence categories")
+                logger.info(f"✅ Analysis completed successfully with {total_ai_categories}/5 AI categories populated")
             else:
                 intelligence.analysis_status = AnalysisStatus.FAILED
                 logger.warning(f"⚠️ Analysis completed with zero confidence")
 
             # Commit to database
             await self.db.commit()
-            logger.info(f"💾 Intelligence data saved to database with all categories populated")
+            logger.info(f"💾 Intelligence data saved to database with {total_ai_categories}/5 AI categories populated")
 
         except Exception as storage_error:
             logger.error(f"❌ Error storing intelligence data: {str(storage_error)}")
