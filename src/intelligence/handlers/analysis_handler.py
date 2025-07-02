@@ -65,8 +65,25 @@ class AnalysisHandler:
                 url, base_analysis_result
             )
             
-            # STEP 3: Store results
-            await self._store_analysis_results(intelligence, final_analysis_result)
+            # STEP 3: Store results with error handling
+            try:
+                logger.info("🔄 About to store analysis results...")
+                await self._store_analysis_results(intelligence, final_analysis_result)
+                logger.info("✅ Successfully stored analysis results")
+            except Exception as storage_error:
+                logger.error(f"❌ Failed to store analysis results: {str(storage_error)}")
+                logger.error(f"❌ Storage error type: {type(storage_error).__name__}")
+                import traceback
+                logger.error(f"❌ Storage traceback: {traceback.format_exc()}")
+                
+                # Set failed status
+                intelligence.analysis_status = AnalysisStatus.FAILED
+                intelligence.processing_metadata = {
+                    "storage_error": str(storage_error),
+                    "error_type": type(storage_error).__name__,
+                    "partial_analysis": True
+                }
+                await self.db.commit()
             
             # STEP 4: Update campaign counters
             await self._update_campaign_counters(campaign_id)
