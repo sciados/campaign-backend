@@ -1,7 +1,6 @@
 """
 File: src/intelligence/handlers/intelligence_handler.py
 Intelligence Handler - Intelligence data management operations
-Supporting the management routes
 """
 import logging
 import json
