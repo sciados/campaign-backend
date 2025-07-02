@@ -7,10 +7,10 @@ import uuid
 import logging
 import traceback
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from typing import Dict, Any, Optional, List  # ← Add List here
+from sqlalchemy.orm.attributes import flag_modified  # Add this import
 from src.models.user import User
 from src.models.campaign import Campaign
 from src.models.intelligence import (
@@ -426,7 +426,6 @@ class AnalysisHandler:
                 
                 # Try to flag modified for SQLAlchemy tracking
                 try:
-                    from sqlalchemy.orm.attributes import flag_modified
                     flag_modified(intelligence, 'scientific_intelligence')
                     flag_modified(intelligence, 'credibility_intelligence')
                     flag_modified(intelligence, 'market_intelligence')
@@ -435,6 +434,32 @@ class AnalysisHandler:
                     logger.info("✅ Successfully flagged AI columns as modified")
                 except Exception as flag_error:
                     logger.error(f"❌ Failed to flag columns as modified: {str(flag_error)}")
+                    # Try alternative approach - force update by setting to None first
+                    try:
+                        logger.info("🔄 Trying alternative approach to force SQLAlchemy update...")
+                        # Force SQLAlchemy to detect changes by setting to None first, then back
+                        temp_scientific = intelligence.scientific_intelligence
+                        temp_credibility = intelligence.credibility_intelligence  
+                        temp_market = intelligence.market_intelligence
+                        temp_emotional = intelligence.emotional_transformation_intelligence
+                        temp_authority = intelligence.scientific_authority_intelligence
+                        
+                        intelligence.scientific_intelligence = None
+                        intelligence.credibility_intelligence = None
+                        intelligence.market_intelligence = None
+                        intelligence.emotional_transformation_intelligence = None
+                        intelligence.scientific_authority_intelligence = None
+                        
+                        # Now set back to the actual values
+                        intelligence.scientific_intelligence = temp_scientific
+                        intelligence.credibility_intelligence = temp_credibility
+                        intelligence.market_intelligence = temp_market
+                        intelligence.emotional_transformation_intelligence = temp_emotional
+                        intelligence.scientific_authority_intelligence = temp_authority
+                        
+                        logger.info("✅ Alternative approach completed - forced SQLAlchemy to detect changes")
+                    except Exception as alt_error:
+                        logger.error(f"❌ Alternative approach also failed: {str(alt_error)}")
                 
                 logger.info("🎯 AI data storage completed successfully")
                 
