@@ -354,46 +354,79 @@ class AnalysisHandler:
             intelligence.competitive_intelligence = competitive_intel
             intelligence.brand_intelligence = brand_intel
             
-            # 🔥 CRITICAL FIX: Store AI-enhanced intelligence in dedicated columns
-            ai_scientific = enhanced_analysis.get("scientific_intelligence", {})
-            ai_credibility = enhanced_analysis.get("credibility_intelligence", {})
-            ai_market = enhanced_analysis.get("market_intelligence", {})
-            ai_emotional = enhanced_analysis.get("emotional_transformation_intelligence", {})
-            ai_authority = enhanced_analysis.get("scientific_authority_intelligence", {})
-
-            intelligence.scientific_intelligence = ai_scientific
-            intelligence.credibility_intelligence = ai_credibility
-            intelligence.market_intelligence = ai_market
-            intelligence.emotional_transformation_intelligence = ai_emotional
-            intelligence.scientific_authority_intelligence = ai_authority
-
-            # 🔥 FORCE SQLAlchemy to track changes to AI columns
-            from sqlalchemy.orm.attributes import flag_modified
-            flag_modified(intelligence, 'scientific_intelligence')
-            flag_modified(intelligence, 'credibility_intelligence')
-            flag_modified(intelligence, 'market_intelligence')
-            flag_modified(intelligence, 'emotional_transformation_intelligence')
-            flag_modified(intelligence, 'scientific_authority_intelligence')
+            # 🔥 CRITICAL FIX: Store AI-enhanced intelligence in dedicated columns with detailed error handling
+            try:
+                logger.info("🔍 DEBUG: Starting AI data storage...")
+                
+                ai_scientific = enhanced_analysis.get("scientific_intelligence", {})
+                ai_credibility = enhanced_analysis.get("credibility_intelligence", {})
+                ai_market = enhanced_analysis.get("market_intelligence", {})
+                ai_emotional = enhanced_analysis.get("emotional_transformation_intelligence", {})
+                ai_authority = enhanced_analysis.get("scientific_authority_intelligence", {})
+                
+                logger.info(f"🔍 AI data extracted - scientific: {len(ai_scientific) if ai_scientific else 0} items")
+                
+                # Store each AI column individually with error handling
+                try:
+                    intelligence.scientific_intelligence = ai_scientific
+                    logger.info(f"✅ Set scientific_intelligence: {len(ai_scientific)} items")
+                except Exception as e:
+                    logger.error(f"❌ Failed to set scientific_intelligence: {str(e)}")
+                
+                try:
+                    intelligence.credibility_intelligence = ai_credibility
+                    logger.info(f"✅ Set credibility_intelligence: {len(ai_credibility)} items")
+                except Exception as e:
+                    logger.error(f"❌ Failed to set credibility_intelligence: {str(e)}")
+                
+                try:
+                    intelligence.market_intelligence = ai_market
+                    logger.info(f"✅ Set market_intelligence: {len(ai_market)} items")
+                except Exception as e:
+                    logger.error(f"❌ Failed to set market_intelligence: {str(e)}")
+                
+                try:
+                    intelligence.emotional_transformation_intelligence = ai_emotional
+                    logger.info(f"✅ Set emotional_transformation_intelligence: {len(ai_emotional)} items")
+                except Exception as e:
+                    logger.error(f"❌ Failed to set emotional_transformation_intelligence: {str(e)}")
+                
+                try:
+                    intelligence.scientific_authority_intelligence = ai_authority
+                    logger.info(f"✅ Set scientific_authority_intelligence: {len(ai_authority)} items")
+                except Exception as e:
+                    logger.error(f"❌ Failed to set scientific_authority_intelligence: {str(e)}")
+                
+                # Try to flag modified for SQLAlchemy tracking
+                try:
+                    from sqlalchemy.orm.attributes import flag_modified
+                    flag_modified(intelligence, 'scientific_intelligence')
+                    flag_modified(intelligence, 'credibility_intelligence')
+                    flag_modified(intelligence, 'market_intelligence')
+                    flag_modified(intelligence, 'emotional_transformation_intelligence')
+                    flag_modified(intelligence, 'scientific_authority_intelligence')
+                    logger.info("✅ Successfully flagged AI columns as modified")
+                except Exception as flag_error:
+                    logger.error(f"❌ Failed to flag columns as modified: {str(flag_error)}")
+                
+            except Exception as ai_storage_error:
+                logger.error(f"❌ Critical error in AI data storage: {str(ai_storage_error)}")
+                logger.error(f"❌ Error type: {type(ai_storage_error).__name__}")
+                import traceback
+                logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+                # Continue with base intelligence only
             
-            # Log what AI data we're storing
+            # Log what AI data we're storing (integrated above)
             ai_data_stored = {
-                "scientific_intelligence": len(ai_scientific) if ai_scientific else 0,
-                "credibility_intelligence": len(ai_credibility) if ai_credibility else 0,
-                "market_intelligence": len(ai_market) if ai_market else 0,
-                "emotional_transformation_intelligence": len(ai_emotional) if ai_emotional else 0,
-                "scientific_authority_intelligence": len(ai_authority) if ai_authority else 0
+                "scientific_intelligence": len(ai_scientific) if 'ai_scientific' in locals() and ai_scientific else 0,
+                "credibility_intelligence": len(ai_credibility) if 'ai_credibility' in locals() and ai_credibility else 0,
+                "market_intelligence": len(ai_market) if 'ai_market' in locals() and ai_market else 0,
+                "emotional_transformation_intelligence": len(ai_emotional) if 'ai_emotional' in locals() and ai_emotional else 0,
+                "scientific_authority_intelligence": len(ai_authority) if 'ai_authority' in locals() and ai_authority else 0
             }
             
-            logger.info(f"🔥 STORING AI-ENHANCED DATA:")
-            total_ai_categories = 0
-            for col, size in ai_data_stored.items():
-                if size > 0:
-                    logger.info(f"   ✅ {col}: {size} items")
-                    total_ai_categories += 1
-                else:
-                    logger.warning(f"   ❌ {col}: EMPTY")
-            
-            logger.info(f"🎯 TOTAL AI CATEGORIES STORED: {total_ai_categories}/5")
+            total_ai_categories = sum(1 for size in ai_data_stored.values() if size > 0)
+            logger.info(f"🎯 TOTAL AI CATEGORIES WITH DATA: {total_ai_categories}/5")
             
             # Store metadata
             intelligence.confidence_score = enhanced_analysis.get("confidence_score", 0.0)
