@@ -1,8 +1,9 @@
-# src/intelligence/utils/tiered_ai_provider.py
+# FIXED: src/intelligence/utils/tiered_ai_provider.py
 """
 Tiered AI Provider System
 Default: Ultra-cheap providers (Groq, Together AI)
 Premium: High-quality providers (Claude, OpenAI) for future paid tiers
+FIXED: TieredProviderConfig attribute access issue
 """
 import os
 import logging
@@ -43,6 +44,12 @@ class TieredProviderConfig:
     rate_limit_rpm: int
     available: bool = False
     client: Any = None
+    
+    # 🔥 FIXED: Add 'tier' property to fix attribute access
+    @property
+    def tier(self) -> ProviderTier:
+        """Alias for provider_tier to maintain compatibility"""
+        return self.provider_tier
 
 class TieredAIProviderManager:
     """
@@ -300,7 +307,7 @@ class TieredAIProviderManager:
             
             provider.available = True
             
-            # Log with tier information
+            # 🔥 FIXED: Use provider.provider_tier instead of provider.tier
             tier_emoji = {
                 ProviderTier.ULTRA_CHEAP: "💎",
                 ProviderTier.BUDGET: "💰",
@@ -308,7 +315,7 @@ class TieredAIProviderManager:
                 ProviderTier.PREMIUM: "👑"
             }
             
-            logger.info(f"✅ {provider.name}: {tier_emoji[provider.tier]} {provider.tier.value} (${provider.cost_per_1k_tokens:.5f}/1K, {provider.quality_score:.0f}/100)")
+            logger.info(f"✅ {provider.name}: {tier_emoji[provider.provider_tier]} {provider.provider_tier.value} (${provider.cost_per_1k_tokens:.5f}/1K, {provider.quality_score:.0f}/100)")
             return True
             
         except Exception as e:
@@ -319,6 +326,27 @@ class TieredAIProviderManager:
         """Get available providers for a specific tier"""
         tier = tier or self.service_tier
         return [p for p in self.available_providers if tier in p.available_in_tiers]
+    
+    def get_available_providers(self, tier: ServiceTier = None) -> List[Dict[str, Any]]:
+        """Get available providers formatted for enhancers"""
+        tier = tier or self.service_tier
+        providers = self.get_providers_for_tier(tier)
+        
+        # Convert to format expected by enhancers
+        formatted_providers = []
+        for provider in providers:
+            formatted_providers.append({
+                "name": provider.name,
+                "available": provider.available,
+                "client": provider.client,
+                "priority": provider.priority,
+                "cost_per_1k_tokens": provider.cost_per_1k_tokens,
+                "quality_score": provider.quality_score,
+                "provider_tier": provider.provider_tier.value,
+                "speed_rating": provider.speed_rating
+            })
+        
+        return formatted_providers
     
     def upgrade_tier(self, new_tier: ServiceTier):
         """Upgrade to a higher service tier"""
@@ -362,7 +390,8 @@ class TieredAIProviderManager:
             "primary_provider": self.current_provider.name if self.current_provider else None,
             "total_requests": self.cost_tracking["total_requests"],
             "total_cost": self.cost_tracking["total_cost"],
-            "cost_savings_vs_openai": self.cost_tracking["cost_savings_vs_openai"]
+            "cost_savings_vs_openai": self.cost_tracking["cost_savings_vs_openai"],
+            "average_quality_score": self.current_provider.quality_score if self.current_provider else 0
         }
         
         # Add tier comparison
@@ -403,7 +432,8 @@ def set_default_service_tier(tier: ServiceTier = ServiceTier.FREE):
 async def make_tiered_ai_request(
     prompt: str,
     max_tokens: int = 1000,
-    service_tier: ServiceTier = ServiceTier.FREE
+    service_tier: ServiceTier = ServiceTier.FREE,
+    temperature: float = 0.3
 ) -> Dict[str, Any]:
     """Make AI request using tiered provider system"""
     
@@ -430,6 +460,7 @@ async def make_tiered_ai_request(
             response = await provider.client.chat.completions.create(
                 model=provider.model_name,
                 max_tokens=max_tokens,
+                temperature=temperature,
                 messages=[{"role": "user", "content": prompt}]
             )
             content = response.choices[0].message.content
@@ -438,6 +469,7 @@ async def make_tiered_ai_request(
             response = await provider.client.chat.completions.create(
                 model=provider.model_name,
                 max_tokens=max_tokens,
+                temperature=temperature,
                 messages=[{"role": "user", "content": prompt}]
             )
             content = response.choices[0].message.content
@@ -446,6 +478,7 @@ async def make_tiered_ai_request(
             response = await provider.client.messages.create(
                 model=provider.model_name,
                 max_tokens=max_tokens,
+                temperature=temperature,
                 messages=[{"role": "user", "content": prompt}]
             )
             content = response.content[0].text
@@ -454,6 +487,7 @@ async def make_tiered_ai_request(
             response = await provider.client.generate(
                 prompt=prompt,
                 max_tokens=max_tokens,
+                temperature=temperature,
                 model=provider.model_name
             )
             content = response.generations[0].text
@@ -474,9 +508,25 @@ async def make_tiered_ai_request(
         fallback_providers = [p for p in manager.available_providers if p != provider]
         if fallback_providers:
             logger.info(f"🔄 Trying fallback: {fallback_providers[0].name}")
-            # Recursive call with fallback would go here
+            # Update current provider to fallback
+            manager.current_provider = fallback_providers[0]
+            # Recursive call with fallback
+            return await make_tiered_ai_request(prompt, max_tokens, service_tier, temperature)
         
         raise
+
+def get_cost_summary() -> Dict[str, Any]:
+    """Get cost summary from global manager"""
+    global _global_tiered_manager
+    
+    if _global_tiered_manager:
+        return _global_tiered_manager.get_cost_summary_by_tier()
+    else:
+        return {
+            "error": "No tiered manager initialized",
+            "estimated_savings": 0.0,
+            "savings_percentage": 0.0
+        }
 
 def log_tier_comparison():
     """Log a comparison of all service tiers"""
