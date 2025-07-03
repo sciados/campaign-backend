@@ -421,7 +421,7 @@ class EmotionalTransformationEnhancer:
         try:
             if provider_name == "groq":
                 response = await client.chat.completions.create(
-                    model="llama-3.1-70b-versatile",  # Best Groq model for emotional content
+                    model="llama-3.3-70b-versatile",  # Best Groq model for emotional content
                     messages=[
                         {
                             "role": "system",

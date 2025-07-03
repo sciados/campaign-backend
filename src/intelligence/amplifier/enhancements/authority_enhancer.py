@@ -414,7 +414,7 @@ class ScientificAuthorityEnhancer:
         try:
             if provider_name == "groq":
                 response = await client.chat.completions.create(
-                    model="llama-3.1-70b-versatile",  # Best Groq model for authority content
+                    model="llama-3.3-70b-versatile",  # Best Groq model for authority content
                     messages=[
                         {
                             "role": "system",
