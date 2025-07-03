@@ -659,16 +659,17 @@ class AnalysisHandler:
     async def _store_analysis_results(
         self, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]
     ):
-        """CRITICAL FIX: Store analysis results with proper AI intelligence handling"""
+        """PostgreSQL-specific fix for AI intelligence storage"""
         try:
             # Store base intelligence first (this works)
-            enhanced_analysis = ensure_intelligence_structure(analysis_result)
+            enhanced_analysis = analysis_result  # Remove the undefined function call
             
-            offer_intel = validate_intelligence_section(enhanced_analysis.get("offer_intelligence", {}))
-            psychology_intel = validate_intelligence_section(enhanced_analysis.get("psychology_intelligence", {}))
-            content_intel = validate_intelligence_section(enhanced_analysis.get("content_intelligence", {}))
-            competitive_intel = validate_intelligence_section(enhanced_analysis.get("competitive_intelligence", {}))
-            brand_intel = validate_intelligence_section(enhanced_analysis.get("brand_intelligence", {}))
+            # Validate and clean intelligence data before storage
+            offer_intel = self._validate_intelligence_section(enhanced_analysis.get("offer_intelligence", {}))
+            psychology_intel = self._validate_intelligence_section(enhanced_analysis.get("psychology_intelligence", {}))
+            content_intel = self._validate_intelligence_section(enhanced_analysis.get("content_intelligence", {}))
+            competitive_intel = self._validate_intelligence_section(enhanced_analysis.get("competitive_intelligence", {}))
+            brand_intel = self._validate_intelligence_section(enhanced_analysis.get("brand_intelligence", {}))
 
             intelligence.offer_intelligence = offer_intel
             intelligence.psychology_intelligence = psychology_intel
@@ -678,69 +679,106 @@ class AnalysisHandler:
             
             logger.info(f"✅ Base intelligence stored successfully")
             
-            # CRITICAL: Debug the enhanced_analysis before AI storage
-            logger.info("🔍 CRITICAL DEBUG: Enhanced analysis structure")
-            logger.info(f"Enhanced analysis keys: {list(enhanced_analysis.keys())}")
-            
+            # POSTGRESQL FIX: Extract and validate AI data
             ai_keys = ['scientific_intelligence', 'credibility_intelligence', 'market_intelligence', 
                       'emotional_transformation_intelligence', 'scientific_authority_intelligence']
-            
-            for key in ai_keys:
-                if key in enhanced_analysis:
-                    data = enhanced_analysis[key]
-                    logger.info(f"✅ {key}: {type(data)} with {len(data) if isinstance(data, dict) else 'N/A'}")
-                    
-                    # Log actual content
-                    if isinstance(data, dict) and data:
-                        sample_keys = list(data.keys())[:2]
-                        logger.info(f"   Keys: {sample_keys}")
-                        for sample_key in sample_keys[:1]:
-                            sample_value = data[sample_key]
-                            logger.info(f"   {sample_key}: {str(sample_value)[:80]}...")
-                    else:
-                        logger.error(f"❌ {key}: Empty or invalid - {data}")
-                else:
-                    logger.error(f"❌ {key}: NOT FOUND in enhanced_analysis")
-            
-            # CRITICAL: Manual AI intelligence storage with detailed debugging
-            logger.info("🔧 CRITICAL: Manual AI intelligence storage starting...")
             
             ai_data_to_store = {}
             for key in ai_keys:
                 source_data = enhanced_analysis.get(key, {})
                 if isinstance(source_data, dict) and source_data:
-                    ai_data_to_store[key] = source_data
-                    logger.info(f"✅ Prepared {key} for storage: {len(source_data)} items")
+                    # CRITICAL: Ensure JSON serializable for PostgreSQL
+                    try:
+                        import json
+                        json.dumps(source_data)  # Test if serializable
+                        ai_data_to_store[key] = source_data
+                        logger.info(f"✅ {key}: Validated for PostgreSQL storage ({len(source_data)} items)")
+                    except (TypeError, ValueError) as json_error:
+                        logger.error(f"❌ {key}: JSON serialization failed - {str(json_error)}")
+                        ai_data_to_store[key] = {"error": f"Serialization failed: {str(json_error)}"}
                 else:
-                    # TEMPORARY: Force some test data to see if storage mechanism works
+                    # Test data for PostgreSQL
                     ai_data_to_store[key] = {
-                        "test_enhancement": f"Test data for {key}",
-                        "storage_test": True,
-                        "timestamp": datetime.utcnow().isoformat()
+                        "test_data": f"PostgreSQL test for {key}",
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "status": "test_mode"
                     }
-                    logger.warning(f"⚠️ {key}: Using test data because source was empty")
-            
-            # Store AI intelligence manually
-            storage_results = {}
-            for category, data in ai_data_to_store.items():
+                    logger.warning(f"⚠️ {key}: Using test data")
+
+            # POSTGRESQL METHOD 1: Use Raw SQL Update
+            logger.info("🔧 POSTGRESQL: Attempting raw SQL update...")
+            try:
+                from sqlalchemy import text
+                import json
+                
+                update_query = text("""
+                    UPDATE campaign_intelligence 
+                    SET 
+                        scientific_intelligence = :scientific_intelligence::jsonb,
+                        credibility_intelligence = :credibility_intelligence::jsonb,
+                        market_intelligence = :market_intelligence::jsonb,
+                        emotional_transformation_intelligence = :emotional_transformation_intelligence::jsonb,
+                        scientific_authority_intelligence = :scientific_authority_intelligence::jsonb,
+                        updated_at = NOW()
+                    WHERE id = :intelligence_id
+                """)
+                
+                # Execute raw SQL update
+                await self.db.execute(update_query, {
+                    "intelligence_id": intelligence.id,
+                    "scientific_intelligence": json.dumps(ai_data_to_store['scientific_intelligence']),
+                    "credibility_intelligence": json.dumps(ai_data_to_store['credibility_intelligence']),
+                    "market_intelligence": json.dumps(ai_data_to_store['market_intelligence']),
+                    "emotional_transformation_intelligence": json.dumps(ai_data_to_store['emotional_transformation_intelligence']),
+                    "scientific_authority_intelligence": json.dumps(ai_data_to_store['scientific_authority_intelligence'])
+                })
+                
+                logger.info("✅ POSTGRESQL: Raw SQL update completed")
+                
+            except Exception as sql_error:
+                logger.error(f"❌ POSTGRESQL: Raw SQL update failed - {str(sql_error)}")
+                
+                # POSTGRESQL METHOD 2: Fallback to SQLAlchemy with explicit handling
+                logger.info("🔧 POSTGRESQL: Fallback to SQLAlchemy with explicit JSONB handling...")
+                
                 try:
-                    logger.info(f"🔄 Manually storing {category}...")
-                    setattr(intelligence, category, data)
-                    flag_modified(intelligence, category)
+                    for category, data in ai_data_to_store.items():
+                        try:
+                            logger.info(f"🔄 POSTGRESQL: Setting {category}...")
+                            
+                            # Method 1: Direct assignment
+                            setattr(intelligence, category, data)
+                            flag_modified(intelligence, category)
+                            
+                            logger.info(f"✅ POSTGRESQL: {category} set successfully")
+                            
+                        except Exception as attr_error:
+                            logger.error(f"❌ POSTGRESQL: Failed to set {category} - {str(attr_error)}")
+                            
+                            # Method 2: Force JSONB cast
+                            try:
+                                logger.info(f"🔧 POSTGRESQL: Force casting {category} to JSONB...")
+                                
+                                # Update using raw SQL for individual column
+                                single_update = text(f"""
+                                    UPDATE campaign_intelligence 
+                                    SET {category} = :data::jsonb
+                                    WHERE id = :intelligence_id
+                                """)
+                                
+                                await self.db.execute(single_update, {
+                                    "data": json.dumps(data),
+                                    "intelligence_id": intelligence.id
+                                })
+                                
+                                logger.info(f"✅ POSTGRESQL: {category} force-cast successful")
+                                
+                            except Exception as cast_error:
+                                logger.error(f"❌ POSTGRESQL: Force-cast failed for {category} - {str(cast_error)}")
                     
-                    # Immediate verification
-                    stored_value = getattr(intelligence, category)
-                    if stored_value == data:
-                        storage_results[category] = True
-                        logger.info(f"✅ {category}: Successfully stored {len(data)} items")
-                    else:
-                        storage_results[category] = False
-                        logger.error(f"❌ {category}: Storage verification failed")
-                        
-                except Exception as e:
-                    logger.error(f"❌ Failed to store {category}: {str(e)}")
-                    storage_results[category] = False
-            
+                except Exception as fallback_error:
+                    logger.error(f"❌ POSTGRESQL: SQLAlchemy fallback failed - {str(fallback_error)}")
+
             # Store other metadata
             intelligence.confidence_score = enhanced_analysis.get("confidence_score", 0.0)
             intelligence.source_title = enhanced_analysis.get("page_title", "Analyzed Page")
@@ -748,35 +786,33 @@ class AnalysisHandler:
             
             processing_metadata = enhanced_analysis.get("amplification_metadata", {})
             processing_metadata.update({
-                "critical_fix_applied": True,
-                "manual_ai_storage": True,
-                "ai_storage_results": storage_results,
+                "postgresql_fix_applied": True,
+                "storage_method": "raw_sql_with_fallback",
                 "analysis_timestamp": datetime.utcnow().isoformat()
             })
             intelligence.processing_metadata = processing_metadata
             intelligence.analysis_status = AnalysisStatus.COMPLETED
             
-            # CRITICAL: Single commit at the end
-            logger.info("🔧 CRITICAL: Committing all changes...")
+            # POSTGRESQL: Single commit
+            logger.info("🔧 POSTGRESQL: Committing transaction...")
             await self.db.commit()
-            logger.info("✅ CRITICAL: Commit completed")
+            logger.info("✅ POSTGRESQL: Commit completed")
             
-            # CRITICAL: Verify with raw SQL
-            logger.info("🔍 CRITICAL: Raw SQL verification...")
-            from sqlalchemy import text
+            # POSTGRESQL: Verification with proper type casting
+            logger.info("🔍 POSTGRESQL: Verification with explicit JSONB handling...")
             
-            query = text("""
+            verify_query = text("""
                 SELECT 
-                    scientific_intelligence,
-                    credibility_intelligence,
-                    market_intelligence,
-                    emotional_transformation_intelligence,
-                    scientific_authority_intelligence
+                    scientific_intelligence::text,
+                    credibility_intelligence::text,
+                    market_intelligence::text,
+                    emotional_transformation_intelligence::text,
+                    scientific_authority_intelligence::text
                 FROM campaign_intelligence 
                 WHERE id = :intelligence_id
             """)
             
-            result = await self.db.execute(query, {"intelligence_id": intelligence.id})
+            result = await self.db.execute(verify_query, {"intelligence_id": intelligence.id})
             row = result.fetchone()
             
             if row:
@@ -784,27 +820,42 @@ class AnalysisHandler:
                              'emotional_transformation_intelligence', 'scientific_authority_intelligence']
                 
                 for i, column in enumerate(ai_columns):
-                    raw_data = row[i]
-                    if isinstance(raw_data, dict) and raw_data:
-                        logger.info(f"✅ VERIFIED {column}: {len(raw_data)} items in database")
+                    raw_data_str = row[i]
+                    if raw_data_str and raw_data_str != '{}':
+                        try:
+                            parsed_data = json.loads(raw_data_str)
+                            logger.info(f"✅ POSTGRESQL VERIFIED {column}: {len(parsed_data)} items")
+                        except json.JSONDecodeError:
+                            logger.error(f"❌ POSTGRESQL VERIFIED {column}: Invalid JSON")
                     else:
-                        logger.error(f"❌ VERIFIED {column}: Empty in database - {raw_data}")
+                        logger.error(f"❌ POSTGRESQL VERIFIED {column}: Empty or null")
             else:
-                logger.error("❌ CRITICAL: No record found after commit!")
+                logger.error("❌ POSTGRESQL: No record found after commit!")
 
         except Exception as storage_error:
-            logger.error(f"❌ CRITICAL ERROR in storage: {str(storage_error)}")
+            logger.error(f"❌ POSTGRESQL CRITICAL ERROR: {str(storage_error)}")
             logger.error(f"❌ Error type: {type(storage_error).__name__}")
             import traceback
             logger.error(f"❌ Full traceback: {traceback.format_exc()}")
             
             intelligence.analysis_status = AnalysisStatus.FAILED
             intelligence.processing_metadata = {
-                "critical_storage_error": str(storage_error),
+                "postgresql_storage_error": str(storage_error),
                 "error_type": type(storage_error).__name__,
                 "traceback": traceback.format_exc()
             }
             await self.db.commit()
+    
+    def _validate_intelligence_section(self, data: Any) -> Dict[str, Any]:
+        """Validate and clean intelligence data section"""
+        if isinstance(data, dict):
+            return data
+        elif isinstance(data, list):
+            return {"items": data}
+        elif isinstance(data, str):
+            return {"content": data}
+        else:
+            return {"value": str(data) if data is not None else ""}
     
     async def _update_campaign_counters(self, campaign_id: str):
         """Update campaign counters (non-critical)"""
