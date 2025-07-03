@@ -72,7 +72,7 @@ class TieredAIProviderManager:
     
     def _initialize_tiered_providers(self):
         """Initialize providers optimized for ultra-cheap default tier"""
-        
+
         # TIER 1: ULTRA-CHEAP (DEFAULT for FREE/STANDARD users)
         groq_config = TieredProviderConfig(
             name="groq",
@@ -84,11 +84,15 @@ class TieredAIProviderManager:
             available_in_tiers=[ServiceTier.FREE, ServiceTier.STANDARD, ServiceTier.PREMIUM, ServiceTier.ENTERPRISE],
             api_key_env="GROQ_API_KEY",
             client_class="groq.AsyncGroq",
-            model_name="llama-3.1-70b-versatile",
+            # model_name="llama-3.3-70b-specdec",
+            model_name="llama-3.3-70b-versatile",  # 🔥 UPDATED: Was llama-3.1-70b-versatile
             max_tokens=32000,
             rate_limit_rpm=30
         )
-        
+
+        # Alternative: Use the ultra-fast speculative decoding version
+        # model_name="llama-3.3-70b-specdec",  # 6x faster version
+
         together_config = TieredProviderConfig(
             name="together",
             priority=2,
@@ -99,11 +103,11 @@ class TieredAIProviderManager:
             available_in_tiers=[ServiceTier.FREE, ServiceTier.STANDARD, ServiceTier.PREMIUM, ServiceTier.ENTERPRISE],
             api_key_env="TOGETHER_API_KEY",
             client_class="openai.AsyncOpenAI",
-            model_name="meta-llama/Llama-3-70b-chat-hf",
+            model_name="meta-llama/Llama-3.1-70B-Instruct-Turbo",  # Together AI model
             max_tokens=32000,
             rate_limit_rpm=100
         )
-        
+
         deepseek_config = TieredProviderConfig(
             name="deepseek",
             priority=3,
@@ -114,11 +118,10 @@ class TieredAIProviderManager:
             available_in_tiers=[ServiceTier.FREE, ServiceTier.STANDARD, ServiceTier.PREMIUM, ServiceTier.ENTERPRISE],
             api_key_env="DEEPSEEK_API_KEY",
             client_class="openai.AsyncOpenAI",
-            model_name="deepseek-chat",
+            model_name="deepseek-chat",  # Deepseek model
             max_tokens=16000,
             rate_limit_rpm=60
         )
-        
         # TIER 2: BUDGET (Available for STANDARD+ users)
         fireworks_config = TieredProviderConfig(
             name="fireworks",
