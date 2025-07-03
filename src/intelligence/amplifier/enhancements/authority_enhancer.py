@@ -1,6 +1,7 @@
 # src/intelligence/amplifier/enhancements/authority_enhancer.py
 """
-Generates scientific authority and expertise positioning using AI
+Generates scientific authority and expertise positioning using ULTRA-CHEAP AI providers
+UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -10,93 +11,163 @@ import json
 logger = logging.getLogger(__name__)
 
 class ScientificAuthorityEnhancer:
-    """Generate scientific authority intelligence and expertise positioning"""
+    """Generate scientific authority intelligence and expertise positioning using ultra-cheap AI"""
     
     def __init__(self, ai_providers: List[Dict]):
         self.ai_providers = ai_providers
-        self.available_provider = self._get_best_provider()
+        self.available_provider = self._get_ultra_cheap_provider()
         
-    def _get_best_provider(self) -> Optional[Dict]:
-        """Get the best available AI provider - prefer Claude for stability"""
+        # Log the ultra-cheap optimization status
+        if self.available_provider:
+            provider_name = self.available_provider.get("name", "unknown")
+            cost_per_1k = self.available_provider.get("cost_per_1k_tokens", 0)
+            quality_score = self.available_provider.get("quality_score", 0)
+            
+            logger.info(f"🚀 Authority Enhancer using ULTRA-CHEAP provider: {provider_name}")
+            logger.info(f"💰 Cost: ${cost_per_1k:.5f}/1K tokens (vs $0.030 OpenAI)")
+            logger.info(f"🎯 Quality: {quality_score}/100")
+            
+            # Calculate savings
+            openai_cost = 0.030
+            if cost_per_1k > 0:
+                savings_pct = ((openai_cost - cost_per_1k) / openai_cost) * 100
+                logger.info(f"💎 SAVINGS: {savings_pct:.1f}% cost reduction!")
+        else:
+            logger.warning("⚠️ No ultra-cheap AI providers available for Authority Enhancement")
         
-        # Prefer Claude first (has API issues currently)
-        for provider in self.ai_providers:
-            if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("🤖 Using Claude for authority enhancement")
-                return provider
-                
-        # Fallback to Cohere second
-        for provider in self.ai_providers:
-            if provider.get("name") == "cohere" and provider.get("available"):
-                logger.info("💫 Using Cohere for authority enhancement") 
-                return provider
+    def _get_ultra_cheap_provider(self) -> Optional[Dict]:
+        """Get the best ultra-cheap AI provider using tiered system priority"""
         
-        # Fallback to OpenAI last (working perfectly)
-        for provider in self.ai_providers:
-            if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("🚀 Using OpenAI for authority enhancement")
-                return provider        
+        if not self.ai_providers:
+            logger.warning("⚠️ No AI providers available for authority enhancement")
+            return None
         
-        logger.warning("⚠️ No AI providers available for authority enhancement")
-        return None
+        # Sort by priority (lowest first = cheapest/fastest)
+        sorted_providers = sorted(
+            [p for p in self.ai_providers if p.get("available", False)],
+            key=lambda x: x.get("priority", 999)
+        )
+        
+        if not sorted_providers:
+            logger.warning("⚠️ No available AI providers for authority enhancement")
+            return None
+        
+        # Use the highest priority (cheapest) provider
+        selected_provider = sorted_providers[0]
+        
+        provider_name = selected_provider.get("name", "unknown")
+        cost = selected_provider.get("cost_per_1k_tokens", 0)
+        quality = selected_provider.get("quality_score", 0)
+        
+        logger.info(f"✅ Selected ultra-cheap provider for authority enhancement:")
+        logger.info(f"   Provider: {provider_name}")
+        logger.info(f"   Cost: ${cost:.5f}/1K tokens")
+        logger.info(f"   Quality: {quality}/100")
+        logger.info(f"   Priority: {selected_provider.get('priority', 'unknown')}")
+        
+        return selected_provider
     
     async def generate_scientific_authority_intelligence(
         self, 
         product_data: Dict[str, Any], 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate comprehensive scientific authority intelligence"""
+        """Generate comprehensive scientific authority intelligence using ultra-cheap AI"""
         
         if not self.available_provider:
+            logger.warning("🚨 No ultra-cheap providers available, using fallback")
             return self._generate_fallback_authority_intelligence(product_data)
         
         try:
+            # Log cost optimization start
+            provider_name = self.available_provider.get("name", "unknown")
+            logger.info(f"🎓 Starting authority intelligence generation with {provider_name}")
+            
             # Extract product information
             product_name = product_data.get("product_name", "Product")
             
-            # Generate research validation framework
+            # Generate research validation framework using ultra-cheap AI
             research_validation = await self._generate_research_validation_framework(product_name, base_intelligence)
             
-            # Generate professional authority markers
+            # Generate professional authority markers using ultra-cheap AI
             professional_authority = await self._generate_professional_authority_markers(product_name, base_intelligence)
             
-            # Generate expertise demonstration content
+            # Generate expertise demonstration using ultra-cheap AI
             expertise_demonstration = await self._generate_expertise_demonstration(product_name, base_intelligence)
             
-            # Generate thought leadership positioning
+            # Generate thought leadership positioning using ultra-cheap AI
             thought_leadership = await self._generate_thought_leadership_positioning(product_name, base_intelligence)
             
-            # Generate scientific credibility framework
+            # Generate scientific credibility framework using ultra-cheap AI
             scientific_credibility = await self._generate_scientific_credibility_framework(product_name, base_intelligence)
             
-            # Compile scientific authority intelligence
+            # Calculate authority strength score
+            authority_strength = self._calculate_authority_strength_score(
+                research_validation, professional_authority, expertise_demonstration
+            )
+            
+            # Compile scientific authority intelligence with ultra-cheap metadata
             authority_intelligence = {
                 "research_validation_framework": research_validation,
                 "professional_authority_markers": professional_authority,
                 "expertise_demonstration": expertise_demonstration,
                 "thought_leadership_positioning": thought_leadership,
                 "scientific_credibility_framework": scientific_credibility,
-                "authority_strength_score": self._calculate_authority_strength_score(
-                    research_validation, professional_authority, expertise_demonstration
-                ),
+                "authority_strength_score": authority_strength,
                 "generated_at": datetime.utcnow().isoformat(),
-                "ai_provider": self.available_provider.get("name"),
-                "enhancement_confidence": 0.89
+                "ai_provider": provider_name,
+                "enhancement_confidence": 0.89,
+                "ultra_cheap_optimization": {
+                    "provider_used": provider_name,
+                    "cost_per_1k_tokens": self.available_provider.get("cost_per_1k_tokens", 0),
+                    "quality_score": self.available_provider.get("quality_score", 0),
+                    "provider_tier": self.available_provider.get("provider_tier", "unknown"),
+                    "estimated_cost_savings_vs_openai": self._calculate_cost_savings(),
+                    "speed_rating": self.available_provider.get("speed_rating", 0)
+                }
             }
             
-            logger.info(f"✅ Generated scientific authority intelligence for {product_name}")
+            # Log successful generation with cost data
+            total_items = (
+                len(research_validation) + 
+                len(professional_authority) + 
+                len(expertise_demonstration) +
+                len(thought_leadership) +
+                len(scientific_credibility)
+            )
+            
+            logger.info(f"✅ Authority intelligence generated using {provider_name}")
+            logger.info(f"📊 Generated {total_items} authority items")
+            logger.info(f"💰 Cost optimization: {self._calculate_cost_savings():.1f}% savings")
+            
             return authority_intelligence
             
         except Exception as e:
-            logger.error(f"❌ Scientific authority intelligence generation failed: {str(e)}")
+            logger.error(f"❌ Ultra-cheap authority intelligence generation failed: {str(e)}")
+            logger.info("🔄 Falling back to static authority intelligence")
             return self._generate_fallback_authority_intelligence(product_data)
+    
+    def _calculate_cost_savings(self) -> float:
+        """Calculate cost savings percentage vs OpenAI"""
+        try:
+            openai_cost = 0.030  # OpenAI GPT-4 cost per 1K tokens
+            provider_cost = self.available_provider.get("cost_per_1k_tokens", openai_cost)
+            
+            if provider_cost >= openai_cost:
+                return 0.0
+            
+            savings_pct = ((openai_cost - provider_cost) / openai_cost) * 100
+            return min(savings_pct, 99.9)  # Cap at 99.9%
+            
+        except Exception:
+            return 0.0
     
     async def _generate_research_validation_framework(
         self, 
         product_name: str, 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate research validation framework"""
+        """Generate research validation framework using ultra-cheap AI"""
         
         # Extract any existing scientific intelligence
         scientific_intel = base_intelligence.get("scientific_intelligence", {})
@@ -125,12 +196,15 @@ class ScientificAuthorityEnhancer:
         """
         
         try:
-            research_validation = await self._call_ai_provider(prompt)
+            logger.info(f"🔬 Generating research validation with {self.available_provider.get('name')}")
+            research_validation = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(research_validation, str):
                 research_validation = json.loads(research_validation)
             
-            return research_validation if isinstance(research_validation, dict) else {}
+            result = research_validation if isinstance(research_validation, dict) else {}
+            logger.info(f"✅ Generated research validation with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Research validation framework generation failed: {str(e)}")
@@ -141,7 +215,7 @@ class ScientificAuthorityEnhancer:
         product_name: str, 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate professional authority markers"""
+        """Generate professional authority markers using ultra-cheap AI"""
         
         credibility_intel = base_intelligence.get("credibility_intelligence", {})
         
@@ -171,12 +245,15 @@ class ScientificAuthorityEnhancer:
         """
         
         try:
-            professional_authority = await self._call_ai_provider(prompt)
+            logger.info(f"🏆 Generating professional authority with {self.available_provider.get('name')}")
+            professional_authority = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(professional_authority, str):
                 professional_authority = json.loads(professional_authority)
             
-            return professional_authority if isinstance(professional_authority, dict) else {}
+            result = professional_authority if isinstance(professional_authority, dict) else {}
+            logger.info(f"✅ Generated professional authority with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Professional authority markers generation failed: {str(e)}")
@@ -187,7 +264,7 @@ class ScientificAuthorityEnhancer:
         product_name: str, 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate expertise demonstration strategies"""
+        """Generate expertise demonstration strategies using ultra-cheap AI"""
         
         prompt = f"""
         As an expertise communication specialist, develop demonstration strategies for "{product_name}".
@@ -213,12 +290,15 @@ class ScientificAuthorityEnhancer:
         """
         
         try:
-            expertise_demonstration = await self._call_ai_provider(prompt)
+            logger.info(f"🎯 Generating expertise demonstration with {self.available_provider.get('name')}")
+            expertise_demonstration = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(expertise_demonstration, str):
                 expertise_demonstration = json.loads(expertise_demonstration)
             
-            return expertise_demonstration if isinstance(expertise_demonstration, dict) else {}
+            result = expertise_demonstration if isinstance(expertise_demonstration, dict) else {}
+            logger.info(f"✅ Generated expertise demonstration with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Expertise demonstration generation failed: {str(e)}")
@@ -229,7 +309,7 @@ class ScientificAuthorityEnhancer:
         product_name: str, 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate thought leadership positioning"""
+        """Generate thought leadership positioning using ultra-cheap AI"""
         
         market_intel = base_intelligence.get("market_intelligence", {})
         
@@ -259,12 +339,15 @@ class ScientificAuthorityEnhancer:
         """
         
         try:
-            thought_leadership = await self._call_ai_provider(prompt)
+            logger.info(f"💡 Generating thought leadership with {self.available_provider.get('name')}")
+            thought_leadership = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(thought_leadership, str):
                 thought_leadership = json.loads(thought_leadership)
             
-            return thought_leadership if isinstance(thought_leadership, dict) else {}
+            result = thought_leadership if isinstance(thought_leadership, dict) else {}
+            logger.info(f"✅ Generated thought leadership with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Thought leadership positioning generation failed: {str(e)}")
@@ -275,7 +358,7 @@ class ScientificAuthorityEnhancer:
         product_name: str, 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate scientific credibility framework"""
+        """Generate scientific credibility framework using ultra-cheap AI"""
         
         prompt = f"""
         As a scientific credibility expert, develop credibility framework for "{product_name}".
@@ -301,54 +384,135 @@ class ScientificAuthorityEnhancer:
         """
         
         try:
-            scientific_credibility = await self._call_ai_provider(prompt)
+            logger.info(f"🔒 Generating scientific credibility with {self.available_provider.get('name')}")
+            scientific_credibility = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(scientific_credibility, str):
                 scientific_credibility = json.loads(scientific_credibility)
             
-            return scientific_credibility if isinstance(scientific_credibility, dict) else {}
+            result = scientific_credibility if isinstance(scientific_credibility, dict) else {}
+            logger.info(f"✅ Generated scientific credibility with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Scientific credibility framework generation failed: {str(e)}")
             return self._fallback_scientific_credibility_framework()
     
-    async def _call_ai_provider(self, prompt: str) -> Any:
-        """Call the available AI provider"""
+    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
+        """Call the ultra-cheap AI provider with optimized settings"""
         
-        if self.available_provider["name"] == "anthropic":
-            response = await self.available_provider["client"].messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=2000,
-                temperature=0.3,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            return response.content[0].text
+        provider_name = self.available_provider["name"]
+        client = self.available_provider["client"]
+        
+        # Log the call for cost tracking
+        estimated_tokens = len(prompt.split()) * 1.3  # Rough estimate
+        cost_per_1k = self.available_provider.get("cost_per_1k_tokens", 0)
+        estimated_cost = (estimated_tokens / 1000) * cost_per_1k
+        
+        logger.info(f"💰 AI Call: {provider_name} | ~{estimated_tokens:.0f} tokens | ~${estimated_cost:.6f}")
+        
+        try:
+            if provider_name == "groq":
+                response = await client.chat.completions.create(
+                    model="llama-3.1-70b-versatile",  # Best Groq model for authority content
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a scientific authority expert providing strategic insights. Always respond with valid JSON when requested. Be concise but comprehensive."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.3,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+                
+            elif provider_name == "together":
+                response = await client.chat.completions.create(
+                    model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",  # Best Together AI model
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a scientific authority expert providing strategic insights. Always respond with valid JSON when requested. Be concise but comprehensive."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.3,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+                
+            elif provider_name == "deepseek":
+                response = await client.chat.completions.create(
+                    model="deepseek-chat",  # Deepseek's main model
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a scientific authority expert providing strategic insights. Always respond with valid JSON when requested. Be concise but comprehensive."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.3,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+                
+            elif provider_name == "anthropic":
+                response = await client.messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=2000,
+                    temperature=0.3,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                )
+                return response.content[0].text
             
-        elif self.available_provider["name"] == "openai":
-            response = await self.available_provider["client"].chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a scientific authority expert providing strategic insights. Always respond with valid JSON when requested."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=0.3,
-                max_tokens=2000
-            )
-            return response.choices[0].message.content
-        
-        else:
-            raise Exception("No supported AI provider available")
+            elif provider_name == "cohere":
+                response = await client.chat(
+                    model="command-r-plus",
+                    message=prompt,
+                    temperature=0.3,
+                    max_tokens=2000
+                )
+                return response.text
+                
+            elif provider_name == "openai":
+                response = await client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a scientific authority expert providing strategic insights. Always respond with valid JSON when requested."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.3,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+            
+            else:
+                raise Exception(f"Unsupported ultra-cheap provider: {provider_name}")
+                
+        except Exception as e:
+            logger.error(f"❌ Ultra-cheap AI call failed for {provider_name}: {str(e)}")
+            raise
     
     def _calculate_authority_strength_score(
         self, 
@@ -374,9 +538,9 @@ class ScientificAuthorityEnhancer:
         
         return min(score, 1.0)
     
-    # Fallback methods
+    # Fallback methods (updated with ultra-cheap metadata)
     def _generate_fallback_authority_intelligence(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate fallback authority intelligence"""
+        """Generate fallback authority intelligence with ultra-cheap metadata"""
         
         product_name = product_data.get("product_name", "Product")
         
@@ -389,7 +553,15 @@ class ScientificAuthorityEnhancer:
             "authority_strength_score": 0.78,
             "generated_at": datetime.utcnow().isoformat(),
             "ai_provider": "fallback",
-            "enhancement_confidence": 0.78
+            "enhancement_confidence": 0.78,
+            "ultra_cheap_optimization": {
+                "provider_used": "fallback_static",
+                "cost_per_1k_tokens": 0.0,
+                "quality_score": 78,
+                "provider_tier": "fallback",
+                "estimated_cost_savings_vs_openai": 100.0,
+                "fallback_reason": "No ultra-cheap providers available"
+            }
         }
     
     def _fallback_research_validation_framework(self) -> Dict[str, Any]:

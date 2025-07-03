@@ -1,6 +1,7 @@
 # src/intelligence/amplifier/enhancements/emotional_enhancer.py
 """
-Generates emotional journey mapping and psychological insights using AI
+Generates emotional journey mapping and psychological insights using ULTRA-CHEAP AI providers
+UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -10,88 +11,158 @@ import json
 logger = logging.getLogger(__name__)
 
 class EmotionalTransformationEnhancer:
-    """Generate emotional transformation intelligence and customer journey mapping"""
+    """Generate emotional transformation intelligence and customer journey mapping using ultra-cheap AI"""
     
     def __init__(self, ai_providers: List[Dict]):
         self.ai_providers = ai_providers
-        self.available_provider = self._get_best_provider()
+        self.available_provider = self._get_ultra_cheap_provider()
         
-    def _get_best_provider(self) -> Optional[Dict]:
-        """Get the best available AI provider - prefer Claude for stability"""
+        # Log the ultra-cheap optimization status
+        if self.available_provider:
+            provider_name = self.available_provider.get("name", "unknown")
+            cost_per_1k = self.available_provider.get("cost_per_1k_tokens", 0)
+            quality_score = self.available_provider.get("quality_score", 0)
+            
+            logger.info(f"🚀 Emotional Enhancer using ULTRA-CHEAP provider: {provider_name}")
+            logger.info(f"💰 Cost: ${cost_per_1k:.5f}/1K tokens (vs $0.030 OpenAI)")
+            logger.info(f"🎯 Quality: {quality_score}/100")
+            
+            # Calculate savings
+            openai_cost = 0.030
+            if cost_per_1k > 0:
+                savings_pct = ((openai_cost - cost_per_1k) / openai_cost) * 100
+                logger.info(f"💎 SAVINGS: {savings_pct:.1f}% cost reduction!")
+        else:
+            logger.warning("⚠️ No ultra-cheap AI providers available for Emotional Enhancement")
         
-        # Prefer Claude first (has API issues currently)
-        for provider in self.ai_providers:
-            if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("🤖 Using Claude for authority enhancement")
-                return provider
-                
-        # Fallback to Cohere second
-        for provider in self.ai_providers:
-            if provider.get("name") == "cohere" and provider.get("available"):
-                logger.info("💫 Using Cohere for authority enhancement") 
-                return provider
+    def _get_ultra_cheap_provider(self) -> Optional[Dict]:
+        """Get the best ultra-cheap AI provider using tiered system priority"""
         
-        # Fallback to OpenAI last (working perfectly)
-        for provider in self.ai_providers:
-            if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("🚀 Using OpenAI for authority enhancement")
-                return provider        
+        if not self.ai_providers:
+            logger.warning("⚠️ No AI providers available for emotional enhancement")
+            return None
         
-        logger.warning("⚠️ No AI providers available for authority enhancement")
-        return None
+        # Sort by priority (lowest first = cheapest/fastest)
+        sorted_providers = sorted(
+            [p for p in self.ai_providers if p.get("available", False)],
+            key=lambda x: x.get("priority", 999)
+        )
+        
+        if not sorted_providers:
+            logger.warning("⚠️ No available AI providers for emotional enhancement")
+            return None
+        
+        # Use the highest priority (cheapest) provider
+        selected_provider = sorted_providers[0]
+        
+        provider_name = selected_provider.get("name", "unknown")
+        cost = selected_provider.get("cost_per_1k_tokens", 0)
+        quality = selected_provider.get("quality_score", 0)
+        
+        logger.info(f"✅ Selected ultra-cheap provider for emotional enhancement:")
+        logger.info(f"   Provider: {provider_name}")
+        logger.info(f"   Cost: ${cost:.5f}/1K tokens")
+        logger.info(f"   Quality: {quality}/100")
+        logger.info(f"   Priority: {selected_provider.get('priority', 'unknown')}")
+        
+        return selected_provider
     
     async def generate_emotional_transformation_intelligence(
         self, 
         product_data: Dict[str, Any], 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate comprehensive emotional transformation intelligence"""
+        """Generate comprehensive emotional transformation intelligence using ultra-cheap AI"""
         
         if not self.available_provider:
+            logger.warning("🚨 No ultra-cheap providers available, using fallback")
             return self._generate_fallback_emotional_intelligence(product_data)
         
         try:
+            # Log cost optimization start
+            provider_name = self.available_provider.get("name", "unknown")
+            logger.info(f"💭 Starting emotional transformation intelligence with {provider_name}")
+            
             # Extract product information
             product_name = product_data.get("product_name", "Product")
             psych_intel = base_intelligence.get("psychology_intelligence", {})
             offer_intel = base_intelligence.get("offer_intelligence", {})
             
-            # Generate emotional journey mapping
+            # Generate emotional journey mapping using ultra-cheap AI
             emotional_journey = await self._generate_emotional_journey_mapping(product_name, psych_intel, offer_intel)
             
-            # Generate psychological triggers
+            # Generate psychological triggers using ultra-cheap AI
             psychological_triggers = await self._generate_psychological_triggers(product_name, psych_intel)
             
-            # Generate emotional value propositions
+            # Generate emotional value propositions using ultra-cheap AI
             emotional_value_props = await self._generate_emotional_value_propositions(product_name, offer_intel)
             
-            # Generate transformation narratives
+            # Generate transformation narratives using ultra-cheap AI
             transformation_narratives = await self._generate_transformation_narratives(product_name, base_intelligence)
             
-            # Generate emotional engagement strategies
+            # Generate emotional engagement strategies using ultra-cheap AI
             engagement_strategies = await self._generate_emotional_engagement_strategies(product_name, psych_intel)
             
-            # Compile emotional transformation intelligence
+            # Calculate emotional impact score
+            emotional_impact = self._calculate_emotional_impact_score(
+                emotional_journey, psychological_triggers, emotional_value_props
+            )
+            
+            # Compile emotional transformation intelligence with ultra-cheap metadata
             emotional_intelligence = {
                 "emotional_journey_mapping": emotional_journey,
                 "psychological_triggers": psychological_triggers,
                 "emotional_value_propositions": emotional_value_props,
                 "transformation_narratives": transformation_narratives,
                 "emotional_engagement_strategies": engagement_strategies,
-                "emotional_impact_score": self._calculate_emotional_impact_score(
-                    emotional_journey, psychological_triggers, emotional_value_props
-                ),
+                "emotional_impact_score": emotional_impact,
                 "generated_at": datetime.utcnow().isoformat(),
-                "ai_provider": self.available_provider.get("name"),
-                "enhancement_confidence": 0.86
+                "ai_provider": provider_name,
+                "enhancement_confidence": 0.86,
+                "ultra_cheap_optimization": {
+                    "provider_used": provider_name,
+                    "cost_per_1k_tokens": self.available_provider.get("cost_per_1k_tokens", 0),
+                    "quality_score": self.available_provider.get("quality_score", 0),
+                    "provider_tier": self.available_provider.get("provider_tier", "unknown"),
+                    "estimated_cost_savings_vs_openai": self._calculate_cost_savings(),
+                    "speed_rating": self.available_provider.get("speed_rating", 0)
+                }
             }
             
-            logger.info(f"✅ Generated emotional transformation intelligence for {product_name}")
+            # Log successful generation with cost data
+            total_items = (
+                len(emotional_journey) + 
+                len(psychological_triggers) + 
+                len(emotional_value_props) +
+                len(transformation_narratives) +
+                len(engagement_strategies)
+            )
+            
+            logger.info(f"✅ Emotional intelligence generated using {provider_name}")
+            logger.info(f"📊 Generated {total_items} emotional items")
+            logger.info(f"💰 Cost optimization: {self._calculate_cost_savings():.1f}% savings")
+            
             return emotional_intelligence
             
         except Exception as e:
-            logger.error(f"❌ Emotional transformation intelligence generation failed: {str(e)}")
+            logger.error(f"❌ Ultra-cheap emotional intelligence generation failed: {str(e)}")
+            logger.info("🔄 Falling back to static emotional intelligence")
             return self._generate_fallback_emotional_intelligence(product_data)
+    
+    def _calculate_cost_savings(self) -> float:
+        """Calculate cost savings percentage vs OpenAI"""
+        try:
+            openai_cost = 0.030  # OpenAI GPT-4 cost per 1K tokens
+            provider_cost = self.available_provider.get("cost_per_1k_tokens", openai_cost)
+            
+            if provider_cost >= openai_cost:
+                return 0.0
+            
+            savings_pct = ((openai_cost - provider_cost) / openai_cost) * 100
+            return min(savings_pct, 99.9)  # Cap at 99.9%
+            
+        except Exception:
+            return 0.0
     
     async def _generate_emotional_journey_mapping(
         self, 
@@ -99,7 +170,7 @@ class EmotionalTransformationEnhancer:
         psych_intel: Dict[str, Any],
         offer_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate detailed emotional journey mapping"""
+        """Generate detailed emotional journey mapping using ultra-cheap AI"""
         
         pain_points = psych_intel.get("pain_points", [])
         emotional_triggers = psych_intel.get("emotional_triggers", [])
@@ -134,12 +205,15 @@ class EmotionalTransformationEnhancer:
         """
         
         try:
-            emotional_journey = await self._call_ai_provider(prompt)
+            logger.info(f"🗺️ Generating emotional journey with {self.available_provider.get('name')}")
+            emotional_journey = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(emotional_journey, str):
                 emotional_journey = json.loads(emotional_journey)
             
-            return emotional_journey if isinstance(emotional_journey, dict) else {}
+            result = emotional_journey if isinstance(emotional_journey, dict) else {}
+            logger.info(f"✅ Generated emotional journey with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Emotional journey mapping failed: {str(e)}")
@@ -150,7 +224,7 @@ class EmotionalTransformationEnhancer:
         product_name: str, 
         psych_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate psychological triggers analysis"""
+        """Generate psychological triggers analysis using ultra-cheap AI"""
         
         existing_triggers = psych_intel.get("emotional_triggers", [])
         target_audience = psych_intel.get("target_audience", "General audience")
@@ -182,12 +256,15 @@ class EmotionalTransformationEnhancer:
         """
         
         try:
-            psychological_triggers = await self._call_ai_provider(prompt)
+            logger.info(f"🧠 Generating psychological triggers with {self.available_provider.get('name')}")
+            psychological_triggers = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(psychological_triggers, str):
                 psychological_triggers = json.loads(psychological_triggers)
             
-            return psychological_triggers if isinstance(psychological_triggers, dict) else {}
+            result = psychological_triggers if isinstance(psychological_triggers, dict) else {}
+            logger.info(f"✅ Generated psychological triggers with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Psychological triggers generation failed: {str(e)}")
@@ -198,7 +275,7 @@ class EmotionalTransformationEnhancer:
         product_name: str, 
         offer_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate emotional value propositions"""
+        """Generate emotional value propositions using ultra-cheap AI"""
         
         value_props = offer_intel.get("value_propositions", [])
         benefits = offer_intel.get("insights", [])
@@ -228,12 +305,15 @@ class EmotionalTransformationEnhancer:
         """
         
         try:
-            emotional_value_props = await self._call_ai_provider(prompt)
+            logger.info(f"💝 Generating emotional value propositions with {self.available_provider.get('name')}")
+            emotional_value_props = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(emotional_value_props, str):
                 emotional_value_props = json.loads(emotional_value_props)
             
-            return emotional_value_props if isinstance(emotional_value_props, dict) else {}
+            result = emotional_value_props if isinstance(emotional_value_props, dict) else {}
+            logger.info(f"✅ Generated emotional value propositions with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Emotional value propositions generation failed: {str(e)}")
@@ -244,7 +324,7 @@ class EmotionalTransformationEnhancer:
         product_name: str, 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate transformation narratives"""
+        """Generate transformation narratives using ultra-cheap AI"""
         
         prompt = f"""
         As a transformation storytelling expert, create narratives for "{product_name}".
@@ -268,12 +348,15 @@ class EmotionalTransformationEnhancer:
         """
         
         try:
-            transformation_narratives = await self._call_ai_provider(prompt)
+            logger.info(f"📖 Generating transformation narratives with {self.available_provider.get('name')}")
+            transformation_narratives = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(transformation_narratives, str):
                 transformation_narratives = json.loads(transformation_narratives)
             
-            return transformation_narratives if isinstance(transformation_narratives, dict) else {}
+            result = transformation_narratives if isinstance(transformation_narratives, dict) else {}
+            logger.info(f"✅ Generated transformation narratives with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Transformation narratives generation failed: {str(e)}")
@@ -284,7 +367,7 @@ class EmotionalTransformationEnhancer:
         product_name: str, 
         psych_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate emotional engagement strategies"""
+        """Generate emotional engagement strategies using ultra-cheap AI"""
         
         prompt = f"""
         As an emotional engagement strategist, develop strategies for "{product_name}".
@@ -308,54 +391,135 @@ class EmotionalTransformationEnhancer:
         """
         
         try:
-            engagement_strategies = await self._call_ai_provider(prompt)
+            logger.info(f"🤝 Generating emotional engagement with {self.available_provider.get('name')}")
+            engagement_strategies = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(engagement_strategies, str):
                 engagement_strategies = json.loads(engagement_strategies)
             
-            return engagement_strategies if isinstance(engagement_strategies, dict) else {}
+            result = engagement_strategies if isinstance(engagement_strategies, dict) else {}
+            logger.info(f"✅ Generated emotional engagement with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Emotional engagement strategies generation failed: {str(e)}")
             return self._fallback_emotional_engagement_strategies()
     
-    async def _call_ai_provider(self, prompt: str) -> Any:
-        """Call the available AI provider"""
+    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
+        """Call the ultra-cheap AI provider with optimized settings"""
         
-        if self.available_provider["name"] == "anthropic":
-            response = await self.available_provider["client"].messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=2000,
-                temperature=0.4,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            return response.content[0].text
+        provider_name = self.available_provider["name"]
+        client = self.available_provider["client"]
+        
+        # Log the call for cost tracking
+        estimated_tokens = len(prompt.split()) * 1.3  # Rough estimate
+        cost_per_1k = self.available_provider.get("cost_per_1k_tokens", 0)
+        estimated_cost = (estimated_tokens / 1000) * cost_per_1k
+        
+        logger.info(f"💰 AI Call: {provider_name} | ~{estimated_tokens:.0f} tokens | ~${estimated_cost:.6f}")
+        
+        try:
+            if provider_name == "groq":
+                response = await client.chat.completions.create(
+                    model="llama-3.1-70b-versatile",  # Best Groq model for emotional content
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are an emotional psychology expert providing strategic insights. Always respond with valid JSON when requested. Be empathetic but comprehensive."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.4,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+                
+            elif provider_name == "together":
+                response = await client.chat.completions.create(
+                    model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",  # Best Together AI model
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are an emotional psychology expert providing strategic insights. Always respond with valid JSON when requested. Be empathetic but comprehensive."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.4,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+                
+            elif provider_name == "deepseek":
+                response = await client.chat.completions.create(
+                    model="deepseek-chat",  # Deepseek's main model
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are an emotional psychology expert providing strategic insights. Always respond with valid JSON when requested. Be empathetic but comprehensive."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.4,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+                
+            elif provider_name == "anthropic":
+                response = await client.messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=2000,
+                    temperature=0.4,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                )
+                return response.content[0].text
             
-        elif self.available_provider["name"] == "openai":
-            response = await self.available_provider["client"].chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an emotional psychology expert providing strategic insights. Always respond with valid JSON when requested."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=0.4,
-                max_tokens=2000
-            )
-            return response.choices[0].message.content
-        
-        else:
-            raise Exception("No supported AI provider available")
+            elif provider_name == "cohere":
+                response = await client.chat(
+                    model="command-r-plus",
+                    message=prompt,
+                    temperature=0.4,
+                    max_tokens=2000
+                )
+                return response.text
+                
+            elif provider_name == "openai":
+                response = await client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are an emotional psychology expert providing strategic insights. Always respond with valid JSON when requested."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.4,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+            
+            else:
+                raise Exception(f"Unsupported ultra-cheap provider: {provider_name}")
+                
+        except Exception as e:
+            logger.error(f"❌ Ultra-cheap AI call failed for {provider_name}: {str(e)}")
+            raise
     
     def _calculate_emotional_impact_score(
         self, 
@@ -381,9 +545,9 @@ class EmotionalTransformationEnhancer:
         
         return min(score, 1.0)
     
-    # Fallback methods
+    # Fallback methods (updated with ultra-cheap metadata)
     def _generate_fallback_emotional_intelligence(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate fallback emotional intelligence"""
+        """Generate fallback emotional intelligence with ultra-cheap metadata"""
         
         product_name = product_data.get("product_name", "Product")
         
@@ -396,7 +560,15 @@ class EmotionalTransformationEnhancer:
             "emotional_impact_score": 0.74,
             "generated_at": datetime.utcnow().isoformat(),
             "ai_provider": "fallback",
-            "enhancement_confidence": 0.74
+            "enhancement_confidence": 0.74,
+            "ultra_cheap_optimization": {
+                "provider_used": "fallback_static",
+                "cost_per_1k_tokens": 0.0,
+                "quality_score": 74,
+                "provider_tier": "fallback",
+                "estimated_cost_savings_vs_openai": 100.0,
+                "fallback_reason": "No ultra-cheap providers available"
+            }
         }
     
     def _fallback_emotional_journey_mapping(self) -> Dict[str, Any]:

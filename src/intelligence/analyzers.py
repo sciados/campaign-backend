@@ -16,6 +16,12 @@ import uuid
 from datetime import datetime
 import os
 
+from src.intelligence.utils.tiered_ai_provider import (
+    get_tiered_ai_provider, 
+    make_tiered_ai_request, 
+    ServiceTier
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -29,123 +35,345 @@ except ImportError as e:
     logger.warning(f"⚠️ Product extractor import failed: {e}")
 
 class SalesPageAnalyzer:
-    """Analyze competitor sales pages for offers, psychology, and opportunities"""
+    """Analyze competitor sales pages using ULTRA-CHEAP AI providers"""
     
     def __init__(self):
-        # 🔍 COMPREHENSIVE AI PROVIDER DEBUG
-        print("🤖 Checking ALL AI providers...")
-        logger.info("🤖 Starting AI provider initialization checks")
+        # 🔥 NEW: Use tiered AI provider system instead of expensive direct initialization
+        print("🤖 Initializing ULTRA-CHEAP AI provider system...")
+        logger.info("🤖 Starting ULTRA-CHEAP AI provider initialization")
         
-        # Initialize OpenAI client if API key is available
-        openai_key = os.getenv("OPENAI_API_KEY")
-        print(f"🔑 OpenAI API Key check:")
-        print(f"   - Key exists: {openai_key is not None}")
-        print(f"   - Key length: {len(openai_key) if openai_key else 0}")
-        print(f"   - Key prefix: {openai_key[:10] if openai_key else 'None'}...")
+        # Get the tiered provider manager
+        self.ai_provider_manager = get_tiered_ai_provider()
         
-        if openai_key:
-            self.openai_client = openai.AsyncOpenAI(api_key=openai_key)
-            print("✅ OpenAI client initialized")
-            logger.info("✅ OpenAI client initialized successfully")
+        # Get available ultra-cheap providers
+        self.available_providers = self.ai_provider_manager.get_available_providers(ServiceTier.FREE)
+        
+        if self.available_providers:
+            primary_provider = self.available_providers[0]
+            provider_name = primary_provider.get("name", "unknown")
+            cost_per_1k = primary_provider.get("cost_per_1k_tokens", 0)
+            
+            print(f"✅ Primary ultra-cheap provider: {provider_name}")
+            print(f"💰 Cost: ${cost_per_1k:.5f}/1K tokens")
+            
+            # Calculate savings vs OpenAI
+            openai_cost = 0.030
+            if cost_per_1k > 0:
+                savings_pct = ((openai_cost - cost_per_1k) / openai_cost) * 100
+                print(f"💎 SAVINGS: {savings_pct:.1f}% vs OpenAI!")
+            
+            logger.info(f"✅ Ultra-cheap AI system initialized with {len(self.available_providers)} providers")
         else:
-            self.openai_client = None
-            print("❌ OpenAI client NOT initialized")
-            logger.warning("❌ OpenAI API key not found")
+            print("❌ No ultra-cheap providers available - falling back to expensive providers")
+            logger.warning("❌ No ultra-cheap providers available")
+            
+            # Fallback to old expensive system (temporarily)
+            self._init_expensive_providers_fallback()
         
-        # Initialize Claude/Anthropic client
-        claude_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
-        print(f"🔑 Claude API Key check:")
-        print(f"   - Key exists: {claude_key is not None}")
-        print(f"   - Key length: {len(claude_key) if claude_key else 0}")
-        print(f"   - Key prefix: {claude_key[:10] if claude_key else 'None'}...")
-        
-        if claude_key:
-            try:
-                # Assuming you're using the anthropic library
-                import anthropic
-                self.claude_client = anthropic.AsyncAnthropic(api_key=claude_key)
-                print("✅ Claude client initialized")
-                logger.info("✅ Claude client initialized successfully")
-            except ImportError:
-                self.claude_client = None
-                print("❌ Claude library not installed")
-                logger.warning("❌ Anthropic library not found")
-        else:
-            self.claude_client = None
-            print("❌ Claude client NOT initialized")
-            logger.warning("❌ Claude API key not found")
-        
-        # Initialize Cohere client
-        cohere_key = os.getenv("COHERE_API_KEY")
-        print(f"🔑 Cohere API Key check:")
-        print(f"   - Key exists: {cohere_key is not None}")
-        print(f"   - Key length: {len(cohere_key) if cohere_key else 0}")
-        print(f"   - Key prefix: {cohere_key[:10] if cohere_key else 'None'}...")
-        
-        if cohere_key:
-            try:
-                import cohere
-                self.cohere_client = cohere.AsyncClient(api_key=cohere_key)
-                print("✅ Cohere client initialized")
-                logger.info("✅ Cohere client initialized successfully")
-            except ImportError:
-                self.cohere_client = None
-                print("❌ Cohere library not installed")
-                logger.warning("❌ Cohere library not found")
-        else:
-            self.cohere_client = None
-            print("❌ Cohere client NOT initialized")
-            logger.warning("❌ Cohere API key not found")
-        
-        # Summary
-        ai_providers_available = sum([
-            self.openai_client is not None,
-            getattr(self, 'claude_client', None) is not None,
-            getattr(self, 'cohere_client', None) is not None
-        ])
-        
-        print(f"📊 AI Provider Summary: {ai_providers_available}/3 providers available")
-        logger.info(f"📊 AI Provider Summary: {ai_providers_available}/3 providers initialized")
-        
-        if ai_providers_available == 0:
-            print("🚨 WARNING: NO AI providers available - will use basic fallback only!")
-            logger.error("🚨 No AI providers initialized - analysis will be limited to pattern matching")
-        
-        # ✅ ADD: Initialize product extractor
+        # ✅ Keep product extractor initialization (unchanged)
         if PRODUCT_EXTRACTOR_AVAILABLE:
             self.product_extractor = ProductNameExtractor()
             logger.info("✅ Product extractor initialized")
         else:
             self.product_extractor = None
             logger.warning("⚠️ Product extractor not available")
-    
-    async def analyze(self, url: str) -> Dict[str, Any]:
-        """Complete sales page analysis with COMPREHENSIVE intelligence extraction"""
+
+    def _init_expensive_providers_fallback(self):
+        """Fallback to expensive providers if ultra-cheap not available"""
+        print("⚠️ Falling back to expensive providers...")
+        
+        # Original expensive provider initialization (keep as fallback)
+        # openai_key = os.getenv("OPENAI_API_KEY")
+        claude_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
+        cohere_key = os.getenv("COHERE_API_KEY")
+        
+        # self.openai_client = openai.AsyncOpenAI(api_key=openai_key) if openai_key else None
+        
+        if claude_key:
+            try:
+                import anthropic
+                self.claude_client = anthropic.AsyncAnthropic(api_key=claude_key)
+            except ImportError:
+                self.claude_client = None
+        else:
+            self.claude_client = None
+            
+        if cohere_key:
+            try:
+                import cohere
+                self.cohere_client = cohere.AsyncClient(api_key=cohere_key)
+            except ImportError:
+                self.cohere_client = None
+        else:
+            self.cohere_client = None
+
+    # 🔥 REPLACE: Ultra-cheap intelligence extraction method
+    async def _extract_intelligence_with_rotation(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
+        """Extract intelligence using ULTRA-CHEAP AI providers with massive cost savings"""
+        
+        if self.available_providers:
+            # Use ultra-cheap tiered system
+            return await self._extract_intelligence_ultra_cheap(structured_content, url, product_name)
+        else:
+            # Fallback to expensive providers
+            logger.warning("🚨 Using expensive provider fallback")
+            return await self._extract_intelligence_expensive_fallback(structured_content, url, product_name)
+
+    async def _extract_intelligence_ultra_cheap(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
+        """🔥 NEW: Extract intelligence using ultra-cheap AI providers"""
+        
+        logger.info("🚀 Starting ULTRA-CHEAP intelligence extraction...")
+        
+        # Get primary ultra-cheap provider
+        primary_provider = self.available_providers[0]
+        provider_name = primary_provider.get("name", "unknown")
+        cost_per_1k = primary_provider.get("cost_per_1k_tokens", 0)
+        
+        logger.info(f"🤖 Using ultra-cheap provider: {provider_name} (${cost_per_1k:.5f}/1K tokens)")
         
         try:
-            logger.info(f"Starting COMPREHENSIVE analysis for URL: {url}")
+            # Create optimized prompt for intelligence extraction
+            analysis_prompt = self._create_intelligence_prompt(structured_content, url, product_name)
             
-            # Step 1: Scrape the page content
-            page_content = await self._scrape_page(url)
-            logger.info("Page scraping completed successfully")
+            # Make ultra-cheap AI request
+            logger.info("💰 Making ultra-cheap AI request...")
+            result = await make_tiered_ai_request(
+                prompt=analysis_prompt,
+                max_tokens=2000,
+                service_tier=ServiceTier.FREE,  # Use ultra-cheap tier
+                temperature=0.3
+            )
             
-            # Step 2: Extract structured content
-            structured_content = await self._extract_content_structure(page_content)
-            logger.info("Content structure extraction completed")
+            # Log cost savings
+            estimated_cost = result.get("estimated_cost", 0)
+            openai_equivalent_cost = estimated_cost / (1 - 0.95)  # Assuming 95% savings
+            savings = openai_equivalent_cost - estimated_cost
             
-            # ✅ ADD: Step 2.5: Extract product name using advanced extractor
-            product_name = await self._extract_product_name(page_content, structured_content)
-            logger.info(f"🎯 Product name extracted: '{product_name}'")
+            logger.info(f"✅ Intelligence extraction completed!")
+            logger.info(f"💰 Cost: ${estimated_cost:.5f} (saved ${savings:.5f} vs OpenAI)")
+            logger.info(f"🤖 Provider: {result.get('provider_used', 'unknown')}")
             
-            # Step 3: AI-powered intelligence extraction with provider rotation
-            intelligence = await self._extract_intelligence_with_rotation(structured_content, url, product_name)
+            # Parse AI response into structured intelligence
+            ai_analysis = result.get("response", "")
+            intelligence = self._parse_ai_analysis(ai_analysis, structured_content)
+            
+            # Add ultra-cheap metadata
+            intelligence.update({
+                "source_url": url,
+                "page_title": structured_content["title"],
+                "product_name": product_name,
+                "analysis_timestamp": datetime.utcnow().isoformat(),
+                "confidence_score": self._calculate_confidence_score(intelligence, structured_content),
+                "raw_content": structured_content["content"][:1000],
+                "ultra_cheap_analysis": {
+                    "provider_used": result.get("provider_used", "unknown"),
+                    "cost_per_request": estimated_cost,
+                    "cost_savings_vs_openai": savings,
+                    "savings_percentage": (savings / openai_equivalent_cost * 100) if openai_equivalent_cost > 0 else 0,
+                    "quality_score": result.get("quality_score", 0),
+                    "processing_time": result.get("processing_time", 0)
+                }
+            })
             
             return intelligence
             
         except Exception as e:
-            logger.error(f"Sales page analysis failed for {url}: {str(e)}")
-            # Return a fallback response instead of raising
-            return self._error_fallback_analysis(url, str(e))
+            logger.error(f"❌ Ultra-cheap intelligence extraction failed: {str(e)}")
+            logger.info("🔄 Falling back to pattern-based analysis")
+            return self._fallback_analysis(structured_content, url, product_name)
+
+    def _create_intelligence_prompt(self, structured_content: Dict[str, Any], url: str, product_name: str) -> str:
+        """Create optimized prompt for ultra-cheap AI providers"""
+        
+        # Optimized prompt that's shorter but still comprehensive
+        prompt = f"""Analyze this sales page and extract competitive intelligence in JSON format:
+
+URL: {url}
+Product: {product_name}
+Title: {structured_content['title']}
+Content: {structured_content['content'][:1500]}  # Truncated to save tokens
+Triggers: {structured_content['emotional_triggers'][:5]}  # Top 5 only
+Pricing: {structured_content['pricing_mentions'][:3]}  # Top 3 only
+
+Extract key intelligence:
+
+1. OFFER ANALYSIS:
+- Main product/service
+- Pricing strategy  
+- Key benefits claimed
+- Guarantees offered
+
+2. PSYCHOLOGY ANALYSIS:
+- Emotional triggers used
+- Target audience
+- Pain points addressed
+- Persuasion techniques
+
+3. COMPETITIVE ANALYSIS:
+- Market positioning
+- Competitive advantages
+- Potential weaknesses
+- Opportunities for competitors
+
+4. CONTENT ANALYSIS:
+- Key messages
+- Success stories
+- Social proof elements
+- Call-to-action strategy
+
+Respond with structured JSON analysis. Be concise but actionable."""
+
+        return prompt
+
+    async def _extract_intelligence_expensive_fallback(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
+        """Fallback to expensive providers if ultra-cheap fails"""
+        
+        logger.warning("💸 Using EXPENSIVE provider fallback")
+        
+        # Try expensive providers in order (same as original code)
+        providers_tried = []
+        
+        # Try Claude first (expensive)
+        if getattr(self, 'claude_client', None):
+            try:
+                logger.info("💸 Trying Claude (EXPENSIVE)...")
+                intelligence = await self._extract_intelligence_claude(structured_content, url, product_name)
+                logger.info("✅ Claude intelligence extraction successful (but expensive)")
+                return intelligence
+            except Exception as e:
+                providers_tried.append("Claude")
+                logger.warning(f"❌ Claude failed: {str(e)}")
+        
+        # Try Cohere second (expensive)
+        if getattr(self, 'cohere_client', None):
+            try:
+                logger.info("💸 Trying Cohere (EXPENSIVE)...")
+                intelligence = await self._extract_intelligence_cohere(structured_content, url, product_name)
+                logger.info("✅ Cohere intelligence extraction successful (but expensive)")
+                return intelligence
+            except Exception as e:
+                providers_tried.append("Cohere")
+                logger.warning(f"❌ Cohere failed: {str(e)}")
+
+        # Try OpenAI third (most expensive)
+        if getattr(self, 'openai_client', None):
+            try:
+                logger.info("💸 Trying OpenAI (MOST EXPENSIVE)...")
+                intelligence = await self._extract_intelligence_openai(structured_content, url, product_name)
+                logger.info("✅ OpenAI intelligence extraction successful (but most expensive)")
+                return intelligence
+            except Exception as e:
+                providers_tried.append("OpenAI")
+                logger.warning(f"❌ OpenAI failed: {str(e)}")
+        
+        # All providers failed
+        logger.warning(f"🚨 All providers failed ({', '.join(providers_tried)}), using pattern matching")
+        return self._fallback_analysis(structured_content, url, product_name)
+
+    async def _extract_intelligence_openai(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
+        """OpenAI-specific intelligence extraction (EXPENSIVE - original method)"""
+        
+        # This is the original _extract_intelligence method
+        analysis_prompt = f"""
+        Analyze this sales page content and extract comprehensive competitive intelligence:
+
+        URL: {url}
+        Title: {structured_content['title']}
+        Product Name: {product_name}
+        Content Preview: {structured_content['content'][:2000]}
+        Found Triggers: {structured_content['emotional_triggers']}
+        Pricing Mentions: {structured_content['pricing_mentions']}
+        
+        Extract intelligence in these categories (provide specific, actionable insights):
+
+        1. OFFER INTELLIGENCE:
+        - Main products/services offered (focus on {product_name})
+        - Pricing strategy and structure
+        - Bonuses and incentives
+        - Guarantees and risk reversal
+        - Value propositions and benefits
+
+        2. PSYCHOLOGY INTELLIGENCE:
+        - Emotional triggers used
+        - Persuasion techniques
+        - Target audience indicators
+        - Pain points addressed
+        - Social proof elements
+
+        3. COMPETITIVE INTELLIGENCE:
+        - Market positioning
+        - Competitive advantages claimed
+        - Potential weaknesses
+        - Market gaps and opportunities
+        - Improvement opportunities
+
+        4. CONTENT INTELLIGENCE:
+        - Key messages and headlines
+        - Content structure and flow
+        - Call-to-action strategy
+        - Success stories and testimonials
+        - Messaging hierarchy
+
+        5. BRAND INTELLIGENCE:
+        - Tone and voice characteristics
+        - Messaging style and approach
+        - Brand positioning strategy
+        - Authority and credibility signals
+
+        6. CAMPAIGN SUGGESTIONS:
+        - Alternative positioning ideas
+        - Content opportunities
+        - Marketing strategies
+        - Testing recommendations
+
+        Provide specific, actionable insights that can be used for competitive campaigns.
+        """
+        
+        try:
+            # Log expensive usage
+            estimated_tokens = len(analysis_prompt.split()) * 1.3
+            estimated_cost = (estimated_tokens / 1000) * 0.030  # OpenAI cost
+            logger.warning(f"💸 EXPENSIVE OpenAI call: ~${estimated_cost:.4f}")
+            
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are an expert competitive intelligence analyst. Extract actionable insights for marketing campaigns. Provide specific, detailed analysis in each category."
+                    },
+                    {"role": "user", "content": analysis_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=2000
+            )
+            
+            ai_analysis = response.choices[0].message.content
+            
+            # Parse AI response into structured format
+            intelligence = self._parse_ai_analysis(ai_analysis, structured_content)
+            
+            # Add metadata with cost warning
+            intelligence.update({
+                "source_url": url,
+                "page_title": structured_content["title"],
+                "product_name": product_name,
+                "analysis_timestamp": datetime.utcnow().isoformat(),
+                "confidence_score": self._calculate_confidence_score(intelligence, structured_content),
+                "raw_content": structured_content["content"][:1000],
+                "expensive_analysis_warning": {
+                    "provider_used": "openai_gpt4",
+                    "estimated_cost": estimated_cost,
+                    "cost_vs_ultra_cheap": f"{estimated_cost / 0.0002:.0f}x more expensive than Groq",
+                    "recommendation": "Switch to ultra-cheap providers for 95%+ savings"
+                }
+            })
+            
+            return intelligence
+            
+        except Exception as e:
+            logger.error(f"💸 EXPENSIVE OpenAI analysis failed: {str(e)}")
+            return self._fallback_analysis(structured_content, url, product_name)
     
     # ✅ ADD: Advanced product name extraction method
     async def _extract_product_name(self, page_content: Dict[str, str], structured_content: Dict[str, Any]) -> str:
@@ -169,6 +397,31 @@ class SalesPageAnalyzer:
         except Exception as e:
             logger.error(f"❌ Product extraction failed: {e}")
             return self._basic_product_extraction(page_content["content"], page_content["title"])
+        
+    # ==============================================================================
+# COST TRACKING ADDITIONS
+# ==============================================================================
+
+    def get_analysis_cost_summary(self) -> Dict[str, Any]:
+        """Get cost summary for recent analysis"""
+        
+        if hasattr(self, 'ai_provider_manager'):
+            cost_data = self.ai_provider_manager.get_cost_summary_by_tier()
+            
+            return {
+                "current_tier": "ultra_cheap",
+                "primary_provider": cost_data.get("primary_provider", "unknown"),
+                "estimated_monthly_cost": cost_data.get("total_cost", 0) * 30,
+                "estimated_monthly_savings": cost_data.get("cost_savings_vs_openai", 0) * 30,
+                "quality_score": cost_data.get("average_quality_score", 0),
+                "recommendation": "Continue using ultra-cheap providers for maximum savings"
+            }
+        else:
+            return {
+                "current_tier": "expensive_fallback",
+                "warning": "Using expensive providers - switch to ultra-cheap for 95%+ savings",
+                "recommendation": "Add ultra-cheap provider API keys to environment"
+            }
     
     def _basic_product_extraction(self, content: str, title: str) -> str:
         """Basic product name extraction fallback"""

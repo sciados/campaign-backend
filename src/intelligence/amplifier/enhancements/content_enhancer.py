@@ -1,6 +1,7 @@
 # src/intelligence/amplifier/enhancements/content_enhancer.py
 """
-Generates enhanced content intelligence using AI
+Generates enhanced content intelligence using ULTRA-CHEAP AI providers
+UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -10,92 +11,158 @@ import json
 logger = logging.getLogger(__name__)
 
 class ContentIntelligenceEnhancer:
-    """Generate enhanced content intelligence and messaging optimization"""
+    """Generate enhanced content intelligence and messaging optimization using ultra-cheap AI"""
     
     def __init__(self, ai_providers: List[Dict]):
         self.ai_providers = ai_providers
-        self.available_provider = self._get_best_provider()
+        self.available_provider = self._get_ultra_cheap_provider()
         
-    def __init__(self, ai_providers: List[Dict]):
-        self.ai_providers = ai_providers
-        self.available_provider = self._get_best_provider()
+        # Log the ultra-cheap optimization status
+        if self.available_provider:
+            provider_name = self.available_provider.get("name", "unknown")
+            cost_per_1k = self.available_provider.get("cost_per_1k_tokens", 0)
+            quality_score = self.available_provider.get("quality_score", 0)
+            
+            logger.info(f"🚀 Content Enhancer using ULTRA-CHEAP provider: {provider_name}")
+            logger.info(f"💰 Cost: ${cost_per_1k:.5f}/1K tokens (vs $0.030 OpenAI)")
+            logger.info(f"🎯 Quality: {quality_score}/100")
+            
+            # Calculate savings
+            openai_cost = 0.030
+            if cost_per_1k > 0:
+                savings_pct = ((openai_cost - cost_per_1k) / openai_cost) * 100
+                logger.info(f"💎 SAVINGS: {savings_pct:.1f}% cost reduction!")
+        else:
+            logger.warning("⚠️ No ultra-cheap AI providers available for Content Enhancement")
         
-    def _get_best_provider(self) -> Optional[Dict]:
-        """Get the best available AI provider - prefer Claude for stability"""
+    def _get_ultra_cheap_provider(self) -> Optional[Dict]:
+        """Get the best ultra-cheap AI provider using tiered system priority"""
         
-        # Prefer Claude first (has API issues currently)
-        for provider in self.ai_providers:
-            if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("🤖 Using Claude for authority enhancement")
-                return provider
-                
-        # Fallback to Cohere second
-        for provider in self.ai_providers:
-            if provider.get("name") == "cohere" and provider.get("available"):
-                logger.info("💫 Using Cohere for authority enhancement") 
-                return provider
+        if not self.ai_providers:
+            logger.warning("⚠️ No AI providers available for content enhancement")
+            return None
         
-        # Fallback to OpenAI last (working perfectly)
-        for provider in self.ai_providers:
-            if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("🚀 Using OpenAI for authority enhancement")
-                return provider        
+        # Sort by priority (lowest first = cheapest/fastest)
+        sorted_providers = sorted(
+            [p for p in self.ai_providers if p.get("available", False)],
+            key=lambda x: x.get("priority", 999)
+        )
         
-        logger.warning("⚠️ No AI providers available for authority enhancement")
-        return None
+        if not sorted_providers:
+            logger.warning("⚠️ No available AI providers for content enhancement")
+            return None
+        
+        # Use the highest priority (cheapest) provider
+        selected_provider = sorted_providers[0]
+        
+        provider_name = selected_provider.get("name", "unknown")
+        cost = selected_provider.get("cost_per_1k_tokens", 0)
+        quality = selected_provider.get("quality_score", 0)
+        
+        logger.info(f"✅ Selected ultra-cheap provider for content enhancement:")
+        logger.info(f"   Provider: {provider_name}")
+        logger.info(f"   Cost: ${cost:.5f}/1K tokens")
+        logger.info(f"   Quality: {quality}/100")
+        logger.info(f"   Priority: {selected_provider.get('priority', 'unknown')}")
+        
+        return selected_provider
     
     async def generate_content_intelligence(
         self, 
         product_data: Dict[str, Any], 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate enhanced content intelligence"""
+        """Generate enhanced content intelligence using ultra-cheap AI"""
         
         if not self.available_provider:
+            logger.warning("🚨 No ultra-cheap providers available, using fallback")
             return self._generate_fallback_content_intelligence(product_data)
         
         try:
+            # Log cost optimization start
+            provider_name = self.available_provider.get("name", "unknown")
+            logger.info(f"📝 Starting content intelligence generation with {provider_name}")
+            
             # Extract product information
             product_name = product_data.get("product_name", "Product")
             base_content = base_intelligence.get("content_intelligence", {})
             offer_intel = base_intelligence.get("offer_intelligence", {})
             
-            # Generate enhanced key messages
+            # Generate enhanced key messages using ultra-cheap AI
             key_messages = await self._generate_enhanced_key_messages(product_name, base_content, offer_intel)
             
-            # Generate social proof amplification
+            # Generate social proof amplification using ultra-cheap AI
             social_proof = await self._generate_social_proof_amplification(product_name, base_content)
             
-            # Generate success story frameworks
+            # Generate success story frameworks using ultra-cheap AI
             success_stories = await self._generate_success_story_frameworks(product_name, base_content)
             
-            # Generate messaging hierarchy
+            # Generate messaging hierarchy using ultra-cheap AI
             messaging_hierarchy = await self._generate_messaging_hierarchy(product_name, offer_intel)
             
-            # Generate engagement optimization
+            # Generate engagement optimization using ultra-cheap AI
             engagement_optimization = await self._generate_engagement_optimization(product_name, base_intelligence)
             
-            # Compile enhanced content intelligence
+            # Calculate content performance score
+            content_performance = self._calculate_content_performance_score(
+                key_messages, social_proof, success_stories
+            )
+            
+            # Compile enhanced content intelligence with ultra-cheap metadata
             content_intelligence = {
                 "enhanced_key_messages": key_messages,
                 "social_proof_amplification": social_proof,
                 "success_story_frameworks": success_stories,
                 "messaging_hierarchy": messaging_hierarchy,
                 "engagement_optimization": engagement_optimization,
-                "content_performance_score": self._calculate_content_performance_score(
-                    key_messages, social_proof, success_stories
-                ),
+                "content_performance_score": content_performance,
                 "generated_at": datetime.utcnow().isoformat(),
-                "ai_provider": self.available_provider.get("name"),
-                "enhancement_confidence": 0.83
+                "ai_provider": provider_name,
+                "enhancement_confidence": 0.83,
+                "ultra_cheap_optimization": {
+                    "provider_used": provider_name,
+                    "cost_per_1k_tokens": self.available_provider.get("cost_per_1k_tokens", 0),
+                    "quality_score": self.available_provider.get("quality_score", 0),
+                    "provider_tier": self.available_provider.get("provider_tier", "unknown"),
+                    "estimated_cost_savings_vs_openai": self._calculate_cost_savings(),
+                    "speed_rating": self.available_provider.get("speed_rating", 0)
+                }
             }
             
-            logger.info(f"✅ Generated content intelligence for {product_name}")
+            # Log successful generation with cost data
+            total_items = (
+                len(key_messages) + 
+                len(social_proof) + 
+                len(success_stories) +
+                len(messaging_hierarchy) +
+                len(engagement_optimization)
+            )
+            
+            logger.info(f"✅ Content intelligence generated using {provider_name}")
+            logger.info(f"📊 Generated {total_items} content items")
+            logger.info(f"💰 Cost optimization: {self._calculate_cost_savings():.1f}% savings")
+            
             return content_intelligence
             
         except Exception as e:
-            logger.error(f"❌ Content intelligence generation failed: {str(e)}")
+            logger.error(f"❌ Ultra-cheap content intelligence generation failed: {str(e)}")
+            logger.info("🔄 Falling back to static content intelligence")
             return self._generate_fallback_content_intelligence(product_data)
+    
+    def _calculate_cost_savings(self) -> float:
+        """Calculate cost savings percentage vs OpenAI"""
+        try:
+            openai_cost = 0.030  # OpenAI GPT-4 cost per 1K tokens
+            provider_cost = self.available_provider.get("cost_per_1k_tokens", openai_cost)
+            
+            if provider_cost >= openai_cost:
+                return 0.0
+            
+            savings_pct = ((openai_cost - provider_cost) / openai_cost) * 100
+            return min(savings_pct, 99.9)  # Cap at 99.9%
+            
+        except Exception:
+            return 0.0
     
     async def _generate_enhanced_key_messages(
         self, 
@@ -103,7 +170,7 @@ class ContentIntelligenceEnhancer:
         base_content: Dict[str, Any],
         offer_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate enhanced key messaging"""
+        """Generate enhanced key messaging using ultra-cheap AI"""
         
         existing_messages = base_content.get("key_messages", [])
         value_props = offer_intel.get("value_propositions", [])
@@ -133,12 +200,15 @@ class ContentIntelligenceEnhancer:
         """
         
         try:
-            key_messages = await self._call_ai_provider(prompt)
+            logger.info(f"💬 Generating key messages with {self.available_provider.get('name')}")
+            key_messages = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(key_messages, str):
                 key_messages = json.loads(key_messages)
             
-            return key_messages if isinstance(key_messages, dict) else {}
+            result = key_messages if isinstance(key_messages, dict) else {}
+            logger.info(f"✅ Generated key messages with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Key messages generation failed: {str(e)}")
@@ -149,7 +219,7 @@ class ContentIntelligenceEnhancer:
         product_name: str, 
         base_content: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate social proof amplification strategies"""
+        """Generate social proof amplification strategies using ultra-cheap AI"""
         
         existing_social_proof = base_content.get("social_proof", [])
         
@@ -177,12 +247,15 @@ class ContentIntelligenceEnhancer:
         """
         
         try:
-            social_proof = await self._call_ai_provider(prompt)
+            logger.info(f"👥 Generating social proof amplification with {self.available_provider.get('name')}")
+            social_proof = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(social_proof, str):
                 social_proof = json.loads(social_proof)
             
-            return social_proof if isinstance(social_proof, dict) else {}
+            result = social_proof if isinstance(social_proof, dict) else {}
+            logger.info(f"✅ Generated social proof amplification with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Social proof amplification failed: {str(e)}")
@@ -193,7 +266,7 @@ class ContentIntelligenceEnhancer:
         product_name: str, 
         base_content: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate success story frameworks"""
+        """Generate success story frameworks using ultra-cheap AI"""
         
         existing_stories = base_content.get("success_stories", [])
         
@@ -221,12 +294,15 @@ class ContentIntelligenceEnhancer:
         """
         
         try:
-            success_stories = await self._call_ai_provider(prompt)
+            logger.info(f"📖 Generating success story frameworks with {self.available_provider.get('name')}")
+            success_stories = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(success_stories, str):
                 success_stories = json.loads(success_stories)
             
-            return success_stories if isinstance(success_stories, dict) else {}
+            result = success_stories if isinstance(success_stories, dict) else {}
+            logger.info(f"✅ Generated success story frameworks with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Success story frameworks generation failed: {str(e)}")
@@ -237,7 +313,7 @@ class ContentIntelligenceEnhancer:
         product_name: str, 
         offer_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate messaging hierarchy optimization"""
+        """Generate messaging hierarchy optimization using ultra-cheap AI"""
         
         prompt = f"""
         As a messaging architect, create messaging hierarchy for "{product_name}".
@@ -263,12 +339,15 @@ class ContentIntelligenceEnhancer:
         """
         
         try:
-            messaging_hierarchy = await self._call_ai_provider(prompt)
+            logger.info(f"🏗️ Generating messaging hierarchy with {self.available_provider.get('name')}")
+            messaging_hierarchy = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(messaging_hierarchy, str):
                 messaging_hierarchy = json.loads(messaging_hierarchy)
             
-            return messaging_hierarchy if isinstance(messaging_hierarchy, dict) else {}
+            result = messaging_hierarchy if isinstance(messaging_hierarchy, dict) else {}
+            logger.info(f"✅ Generated messaging hierarchy with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Messaging hierarchy generation failed: {str(e)}")
@@ -279,7 +358,7 @@ class ContentIntelligenceEnhancer:
         product_name: str, 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate engagement optimization strategies"""
+        """Generate engagement optimization strategies using ultra-cheap AI"""
         
         prompt = f"""
         As an engagement expert, optimize content engagement for "{product_name}".
@@ -303,54 +382,135 @@ class ContentIntelligenceEnhancer:
         """
         
         try:
-            engagement_optimization = await self._call_ai_provider(prompt)
+            logger.info(f"🎯 Generating engagement optimization with {self.available_provider.get('name')}")
+            engagement_optimization = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(engagement_optimization, str):
                 engagement_optimization = json.loads(engagement_optimization)
             
-            return engagement_optimization if isinstance(engagement_optimization, dict) else {}
+            result = engagement_optimization if isinstance(engagement_optimization, dict) else {}
+            logger.info(f"✅ Generated engagement optimization with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Engagement optimization generation failed: {str(e)}")
             return self._fallback_engagement_optimization()
     
-    async def _call_ai_provider(self, prompt: str) -> Any:
-        """Call the available AI provider"""
+    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
+        """Call the ultra-cheap AI provider with optimized settings"""
         
-        if self.available_provider["name"] == "anthropic":
-            response = await self.available_provider["client"].messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=2000,
-                temperature=0.4,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            return response.content[0].text
+        provider_name = self.available_provider["name"]
+        client = self.available_provider["client"]
+        
+        # Log the call for cost tracking
+        estimated_tokens = len(prompt.split()) * 1.3  # Rough estimate
+        cost_per_1k = self.available_provider.get("cost_per_1k_tokens", 0)
+        estimated_cost = (estimated_tokens / 1000) * cost_per_1k
+        
+        logger.info(f"💰 AI Call: {provider_name} | ~{estimated_tokens:.0f} tokens | ~${estimated_cost:.6f}")
+        
+        try:
+            if provider_name == "groq":
+                response = await client.chat.completions.create(
+                    model="llama-3.1-70b-versatile",  # Best Groq model for content creation
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a content and messaging expert. Always respond with valid JSON when requested. Be creative but strategic."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.4,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+                
+            elif provider_name == "together":
+                response = await client.chat.completions.create(
+                    model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",  # Best Together AI model
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a content and messaging expert. Always respond with valid JSON when requested. Be creative but strategic."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.4,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+                
+            elif provider_name == "deepseek":
+                response = await client.chat.completions.create(
+                    model="deepseek-chat",  # Deepseek's main model
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a content and messaging expert. Always respond with valid JSON when requested. Be creative but strategic."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.4,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+                
+            elif provider_name == "anthropic":
+                response = await client.messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=2000,
+                    temperature=0.4,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                )
+                return response.content[0].text
             
-        elif self.available_provider["name"] == "openai":
-            response = await self.available_provider["client"].chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a content and messaging expert. Always respond with valid JSON when requested."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=0.4,
-                max_tokens=2000
-            )
-            return response.choices[0].message.content
-        
-        else:
-            raise Exception("No supported AI provider available")
+            elif provider_name == "cohere":
+                response = await client.chat(
+                    model="command-r-plus",
+                    message=prompt,
+                    temperature=0.4,
+                    max_tokens=2000
+                )
+                return response.text
+                
+            elif provider_name == "openai":
+                response = await client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a content and messaging expert. Always respond with valid JSON when requested."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.4,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+            
+            else:
+                raise Exception(f"Unsupported ultra-cheap provider: {provider_name}")
+                
+        except Exception as e:
+            logger.error(f"❌ Ultra-cheap AI call failed for {provider_name}: {str(e)}")
+            raise
     
     def _calculate_content_performance_score(
         self, 
@@ -376,9 +536,9 @@ class ContentIntelligenceEnhancer:
         
         return min(score, 1.0)
     
-    # Fallback methods
+    # Fallback methods (updated with ultra-cheap metadata)
     def _generate_fallback_content_intelligence(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate fallback content intelligence"""
+        """Generate fallback content intelligence with ultra-cheap metadata"""
         
         product_name = product_data.get("product_name", "Product")
         
@@ -391,7 +551,15 @@ class ContentIntelligenceEnhancer:
             "content_performance_score": 0.68,
             "generated_at": datetime.utcnow().isoformat(),
             "ai_provider": "fallback",
-            "enhancement_confidence": 0.68
+            "enhancement_confidence": 0.68,
+            "ultra_cheap_optimization": {
+                "provider_used": "fallback_static",
+                "cost_per_1k_tokens": 0.0,
+                "quality_score": 68,
+                "provider_tier": "fallback",
+                "estimated_cost_savings_vs_openai": 100.0,
+                "fallback_reason": "No ultra-cheap providers available"
+            }
         }
     
     def _fallback_key_messages(self, product_name: str) -> Dict[str, Any]:

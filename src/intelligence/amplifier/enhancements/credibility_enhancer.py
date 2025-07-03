@@ -1,6 +1,7 @@
 # src/intelligence/amplifier/enhancements/credibility_enhancer.py
 """
-Generates comprehensive credibility and authority signals using AI
+Generates comprehensive credibility and authority signals using ULTRA-CHEAP AI providers
+UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -11,71 +12,107 @@ import re
 logger = logging.getLogger(__name__)
 
 class CredibilityIntelligenceEnhancer:
-    """Generate comprehensive credibility intelligence and authority signals"""
+    """Generate comprehensive credibility intelligence and authority signals using ultra-cheap AI"""
     
     def __init__(self, ai_providers: List[Dict]):
         self.ai_providers = ai_providers
-        self.available_provider = self._get_best_provider()
+        self.available_provider = self._get_ultra_cheap_provider()
         
-    def _get_best_provider(self) -> Optional[Dict]:
-        """Get the best available AI provider - prefer Claude for stability"""
+        # Log the ultra-cheap optimization status
+        if self.available_provider:
+            provider_name = self.available_provider.get("name", "unknown")
+            cost_per_1k = self.available_provider.get("cost_per_1k_tokens", 0)
+            quality_score = self.available_provider.get("quality_score", 0)
+            
+            logger.info(f"🚀 Credibility Enhancer using ULTRA-CHEAP provider: {provider_name}")
+            logger.info(f"💰 Cost: ${cost_per_1k:.5f}/1K tokens (vs $0.030 OpenAI)")
+            logger.info(f"🎯 Quality: {quality_score}/100")
+            
+            # Calculate savings
+            openai_cost = 0.030
+            if cost_per_1k > 0:
+                savings_pct = ((openai_cost - cost_per_1k) / openai_cost) * 100
+                logger.info(f"💎 SAVINGS: {savings_pct:.1f}% cost reduction!")
+        else:
+            logger.warning("⚠️ No ultra-cheap AI providers available for Credibility Enhancement")
         
-        # Prefer Claude first (has API issues currently)
-        for provider in self.ai_providers:
-            if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("🤖 Using Claude for authority enhancement")
-                return provider
-                
-        # Fallback to Cohere second
-        for provider in self.ai_providers:
-            if provider.get("name") == "cohere" and provider.get("available"):
-                logger.info("💫 Using Cohere for authority enhancement") 
-                return provider
+    def _get_ultra_cheap_provider(self) -> Optional[Dict]:
+        """Get the best ultra-cheap AI provider using tiered system priority"""
         
-        # Fallback to OpenAI last (working perfectly)
-        for provider in self.ai_providers:
-            if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("🚀 Using OpenAI for authority enhancement")
-                return provider        
+        if not self.ai_providers:
+            logger.warning("⚠️ No AI providers available for credibility enhancement")
+            return None
         
-        logger.warning("⚠️ No AI providers available for authority enhancement")
-        return None
+        # Sort by priority (lowest first = cheapest/fastest)
+        sorted_providers = sorted(
+            [p for p in self.ai_providers if p.get("available", False)],
+            key=lambda x: x.get("priority", 999)
+        )
+        
+        if not sorted_providers:
+            logger.warning("⚠️ No available AI providers for credibility enhancement")
+            return None
+        
+        # Use the highest priority (cheapest) provider
+        selected_provider = sorted_providers[0]
+        
+        provider_name = selected_provider.get("name", "unknown")
+        cost = selected_provider.get("cost_per_1k_tokens", 0)
+        quality = selected_provider.get("quality_score", 0)
+        
+        logger.info(f"✅ Selected ultra-cheap provider for credibility enhancement:")
+        logger.info(f"   Provider: {provider_name}")
+        logger.info(f"   Cost: ${cost:.5f}/1K tokens")
+        logger.info(f"   Quality: {quality}/100")
+        logger.info(f"   Priority: {selected_provider.get('priority', 'unknown')}")
+        
+        return selected_provider
     
     async def generate_credibility_intelligence(
         self, 
         product_data: Dict[str, Any], 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate comprehensive credibility intelligence"""
+        """Generate comprehensive credibility intelligence using ultra-cheap AI"""
         
         if not self.available_provider:
+            logger.warning("🚨 No ultra-cheap providers available, using fallback")
             return self._generate_fallback_credibility_intelligence(product_data)
         
         try:
+            # Log cost optimization start
+            provider_name = self.available_provider.get("name", "unknown")
+            logger.info(f"🏆 Starting credibility intelligence generation with {provider_name}")
+            
             # Extract product information
             product_name = product_data.get("product_name", "Product")
             offer_intel = base_intelligence.get("offer_intelligence", {})
             content_intel = base_intelligence.get("content_intelligence", {})
             
-            # Generate trust indicators
+            # Generate trust indicators using ultra-cheap AI
             trust_indicators = await self._generate_trust_indicators(product_name, offer_intel)
             
-            # Generate authority signals
+            # Generate authority signals using ultra-cheap AI
             authority_signals = await self._generate_authority_signals(product_name, offer_intel)
             
-            # Generate social proof elements
+            # Generate social proof enhancement using ultra-cheap AI
             social_proof = await self._generate_social_proof_enhancement(product_name, content_intel)
             
-            # Generate credibility scoring
+            # Generate credibility scoring using ultra-cheap AI
             credibility_scoring = await self._generate_credibility_scoring(product_name, base_intelligence)
             
-            # Generate reputation factors
+            # Generate reputation factors using ultra-cheap AI
             reputation_factors = await self._generate_reputation_factors(product_name, offer_intel)
             
-            # Generate expertise indicators
+            # Generate expertise indicators using ultra-cheap AI
             expertise_indicators = await self._generate_expertise_indicators(product_name, offer_intel)
             
-            # Compile comprehensive credibility intelligence
+            # Calculate overall credibility score
+            overall_credibility = self._calculate_overall_credibility_score(
+                trust_indicators, authority_signals, social_proof
+            )
+            
+            # Compile comprehensive credibility intelligence with ultra-cheap metadata
             credibility_intelligence = {
                 "trust_indicators": trust_indicators,
                 "authority_signals": authority_signals,
@@ -83,27 +120,62 @@ class CredibilityIntelligenceEnhancer:
                 "credibility_scoring": credibility_scoring,
                 "reputation_factors": reputation_factors,
                 "expertise_indicators": expertise_indicators,
-                "overall_credibility_score": self._calculate_overall_credibility_score(
-                    trust_indicators, authority_signals, social_proof
-                ),
+                "overall_credibility_score": overall_credibility,
                 "generated_at": datetime.utcnow().isoformat(),
-                "ai_provider": self.available_provider.get("name"),
-                "enhancement_confidence": 0.88
+                "ai_provider": provider_name,
+                "enhancement_confidence": 0.88,
+                "ultra_cheap_optimization": {
+                    "provider_used": provider_name,
+                    "cost_per_1k_tokens": self.available_provider.get("cost_per_1k_tokens", 0),
+                    "quality_score": self.available_provider.get("quality_score", 0),
+                    "provider_tier": self.available_provider.get("provider_tier", "unknown"),
+                    "estimated_cost_savings_vs_openai": self._calculate_cost_savings(),
+                    "speed_rating": self.available_provider.get("speed_rating", 0)
+                }
             }
             
-            logger.info(f"✅ Generated credibility intelligence for {product_name}")
+            # Log successful generation with cost data
+            total_items = (
+                len(trust_indicators) + 
+                len(authority_signals) + 
+                len(social_proof) +
+                len(credibility_scoring) +
+                len(reputation_factors) +
+                len(expertise_indicators)
+            )
+            
+            logger.info(f"✅ Credibility intelligence generated using {provider_name}")
+            logger.info(f"📊 Generated {total_items} credibility items")
+            logger.info(f"💰 Cost optimization: {self._calculate_cost_savings():.1f}% savings")
+            
             return credibility_intelligence
             
         except Exception as e:
-            logger.error(f"❌ Credibility intelligence generation failed: {str(e)}")
+            logger.error(f"❌ Ultra-cheap credibility intelligence generation failed: {str(e)}")
+            logger.info("🔄 Falling back to static credibility intelligence")
             return self._generate_fallback_credibility_intelligence(product_data)
+    
+    def _calculate_cost_savings(self) -> float:
+        """Calculate cost savings percentage vs OpenAI"""
+        try:
+            openai_cost = 0.030  # OpenAI GPT-4 cost per 1K tokens
+            provider_cost = self.available_provider.get("cost_per_1k_tokens", openai_cost)
+            
+            if provider_cost >= openai_cost:
+                return 0.0
+            
+            savings_pct = ((openai_cost - provider_cost) / openai_cost) * 100
+            return min(savings_pct, 99.9)  # Cap at 99.9%
+            
+        except Exception:
+            return 0.0
     
     async def _generate_trust_indicators(
         self, 
         product_name: str, 
         offer_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate trust indicators and trust-building elements"""
+        """Generate trust indicators and trust-building elements using ultra-cheap AI"""
         
         guarantees = offer_intel.get("guarantees", [])
         value_props = offer_intel.get("value_propositions", [])
@@ -136,12 +208,15 @@ class CredibilityIntelligenceEnhancer:
         """
         
         try:
-            trust_indicators = await self._call_ai_provider(prompt)
+            logger.info(f"🔒 Generating trust indicators with {self.available_provider.get('name')}")
+            trust_indicators = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(trust_indicators, str):
                 trust_indicators = json.loads(trust_indicators)
             
-            return trust_indicators if isinstance(trust_indicators, dict) else {}
+            result = trust_indicators if isinstance(trust_indicators, dict) else {}
+            logger.info(f"✅ Generated trust indicators with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Trust indicators generation failed: {str(e)}")
@@ -152,7 +227,7 @@ class CredibilityIntelligenceEnhancer:
         product_name: str, 
         offer_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate authority signals and expertise markers"""
+        """Generate authority signals and expertise markers using ultra-cheap AI"""
         
         prompt = f"""
         As an authority and expertise analyst, identify authority signals for a product called "{product_name}".
@@ -182,12 +257,15 @@ class CredibilityIntelligenceEnhancer:
         """
         
         try:
-            authority_signals = await self._call_ai_provider(prompt)
+            logger.info(f"👑 Generating authority signals with {self.available_provider.get('name')}")
+            authority_signals = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(authority_signals, str):
                 authority_signals = json.loads(authority_signals)
             
-            return authority_signals if isinstance(authority_signals, dict) else {}
+            result = authority_signals if isinstance(authority_signals, dict) else {}
+            logger.info(f"✅ Generated authority signals with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Authority signals generation failed: {str(e)}")
@@ -198,7 +276,7 @@ class CredibilityIntelligenceEnhancer:
         product_name: str, 
         content_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate enhanced social proof elements"""
+        """Generate enhanced social proof elements using ultra-cheap AI"""
         
         existing_social_proof = content_intel.get("social_proof", [])
         success_stories = content_intel.get("success_stories", [])
@@ -234,12 +312,15 @@ class CredibilityIntelligenceEnhancer:
         """
         
         try:
-            social_proof = await self._call_ai_provider(prompt)
+            logger.info(f"👥 Generating social proof enhancement with {self.available_provider.get('name')}")
+            social_proof = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(social_proof, str):
                 social_proof = json.loads(social_proof)
             
-            return social_proof if isinstance(social_proof, dict) else {}
+            result = social_proof if isinstance(social_proof, dict) else {}
+            logger.info(f"✅ Generated social proof enhancement with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Social proof enhancement generation failed: {str(e)}")
@@ -250,7 +331,7 @@ class CredibilityIntelligenceEnhancer:
         product_name: str, 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate credibility scoring analysis"""
+        """Generate credibility scoring analysis using ultra-cheap AI"""
         
         confidence_score = base_intelligence.get("confidence_score", 0.0)
         
@@ -282,12 +363,15 @@ class CredibilityIntelligenceEnhancer:
         """
         
         try:
-            credibility_scoring = await self._call_ai_provider(prompt)
+            logger.info(f"📊 Generating credibility scoring with {self.available_provider.get('name')}")
+            credibility_scoring = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(credibility_scoring, str):
                 credibility_scoring = json.loads(credibility_scoring)
             
-            return credibility_scoring if isinstance(credibility_scoring, dict) else {}
+            result = credibility_scoring if isinstance(credibility_scoring, dict) else {}
+            logger.info(f"✅ Generated credibility scoring with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Credibility scoring generation failed: {str(e)}")
@@ -298,7 +382,7 @@ class CredibilityIntelligenceEnhancer:
         product_name: str, 
         offer_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate reputation factors analysis"""
+        """Generate reputation factors analysis using ultra-cheap AI"""
         
         prompt = f"""
         As a reputation management expert, analyze reputation factors for "{product_name}".
@@ -328,12 +412,15 @@ class CredibilityIntelligenceEnhancer:
         """
         
         try:
-            reputation_factors = await self._call_ai_provider(prompt)
+            logger.info(f"🌟 Generating reputation factors with {self.available_provider.get('name')}")
+            reputation_factors = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(reputation_factors, str):
                 reputation_factors = json.loads(reputation_factors)
             
-            return reputation_factors if isinstance(reputation_factors, dict) else {}
+            result = reputation_factors if isinstance(reputation_factors, dict) else {}
+            logger.info(f"✅ Generated reputation factors with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Reputation factors generation failed: {str(e)}")
@@ -344,7 +431,7 @@ class CredibilityIntelligenceEnhancer:
         product_name: str, 
         offer_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate expertise indicators"""
+        """Generate expertise indicators using ultra-cheap AI"""
         
         prompt = f"""
         As an expertise assessment specialist, identify expertise indicators for "{product_name}".
@@ -374,54 +461,135 @@ class CredibilityIntelligenceEnhancer:
         """
         
         try:
-            expertise_indicators = await self._call_ai_provider(prompt)
+            logger.info(f"🎓 Generating expertise indicators with {self.available_provider.get('name')}")
+            expertise_indicators = await self._call_ultra_cheap_ai(prompt)
             
             if isinstance(expertise_indicators, str):
                 expertise_indicators = json.loads(expertise_indicators)
             
-            return expertise_indicators if isinstance(expertise_indicators, dict) else {}
+            result = expertise_indicators if isinstance(expertise_indicators, dict) else {}
+            logger.info(f"✅ Generated expertise indicators with {len(result)} categories")
+            return result
             
         except Exception as e:
             logger.error(f"❌ Expertise indicators generation failed: {str(e)}")
             return self._fallback_expertise_indicators()
     
-    async def _call_ai_provider(self, prompt: str) -> Any:
-        """Call the available AI provider"""
+    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
+        """Call the ultra-cheap AI provider with optimized settings"""
         
-        if self.available_provider["name"] == "anthropic":
-            response = await self.available_provider["client"].messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=2000,
-                temperature=0.2,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            return response.content[0].text
+        provider_name = self.available_provider["name"]
+        client = self.available_provider["client"]
+        
+        # Log the call for cost tracking
+        estimated_tokens = len(prompt.split()) * 1.3  # Rough estimate
+        cost_per_1k = self.available_provider.get("cost_per_1k_tokens", 0)
+        estimated_cost = (estimated_tokens / 1000) * cost_per_1k
+        
+        logger.info(f"💰 AI Call: {provider_name} | ~{estimated_tokens:.0f} tokens | ~${estimated_cost:.6f}")
+        
+        try:
+            if provider_name == "groq":
+                response = await client.chat.completions.create(
+                    model="llama-3.1-70b-versatile",  # Best Groq model for credibility analysis
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a credibility and trust expert providing strategic insights. Always respond with valid JSON when requested. Be thorough and realistic."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.2,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+                
+            elif provider_name == "together":
+                response = await client.chat.completions.create(
+                    model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",  # Best Together AI model
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a credibility and trust expert providing strategic insights. Always respond with valid JSON when requested. Be thorough and realistic."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.2,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+                
+            elif provider_name == "deepseek":
+                response = await client.chat.completions.create(
+                    model="deepseek-chat",  # Deepseek's main model
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a credibility and trust expert providing strategic insights. Always respond with valid JSON when requested. Be thorough and realistic."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.2,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+                
+            elif provider_name == "anthropic":
+                response = await client.messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=2000,
+                    temperature=0.2,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                )
+                return response.content[0].text
             
-        elif self.available_provider["name"] == "openai":
-            response = await self.available_provider["client"].chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a credibility and trust expert providing strategic insights. Always respond with valid JSON when requested."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=0.2,
-                max_tokens=2000
-            )
-            return response.choices[0].message.content
-        
-        else:
-            raise Exception("No supported AI provider available")
+            elif provider_name == "cohere":
+                response = await client.chat(
+                    model="command-r-plus",
+                    message=prompt,
+                    temperature=0.2,
+                    max_tokens=2000
+                )
+                return response.text
+                
+            elif provider_name == "openai":
+                response = await client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a credibility and trust expert providing strategic insights. Always respond with valid JSON when requested."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.2,
+                    max_tokens=2000
+                )
+                return response.choices[0].message.content
+            
+            else:
+                raise Exception(f"Unsupported ultra-cheap provider: {provider_name}")
+                
+        except Exception as e:
+            logger.error(f"❌ Ultra-cheap AI call failed for {provider_name}: {str(e)}")
+            raise
     
     def _calculate_overall_credibility_score(
         self, 
@@ -447,9 +615,9 @@ class CredibilityIntelligenceEnhancer:
         
         return min(score, 1.0)
     
-    # Fallback methods
+    # Fallback methods (updated with ultra-cheap metadata)
     def _generate_fallback_credibility_intelligence(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate fallback credibility intelligence"""
+        """Generate fallback credibility intelligence with ultra-cheap metadata"""
         
         product_name = product_data.get("product_name", "Product")
         
@@ -463,7 +631,15 @@ class CredibilityIntelligenceEnhancer:
             "overall_credibility_score": 0.72,
             "generated_at": datetime.utcnow().isoformat(),
             "ai_provider": "fallback",
-            "enhancement_confidence": 0.70
+            "enhancement_confidence": 0.70,
+            "ultra_cheap_optimization": {
+                "provider_used": "fallback_static",
+                "cost_per_1k_tokens": 0.0,
+                "quality_score": 70,
+                "provider_tier": "fallback",
+                "estimated_cost_savings_vs_openai": 100.0,
+                "fallback_reason": "No ultra-cheap providers available"
+            }
         }
     
     def _fallback_trust_indicators(self) -> Dict[str, Any]:

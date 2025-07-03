@@ -18,6 +18,12 @@ from src.intelligence.routes import router as intelligence_router
 # ✅ NEW: Import landing page and analytics routes
 from src.intelligence.generators.landing_page.routes import router as landing_pages_router
 
+# ✅ NEW: Import default service tier routes
+from src.intelligence.utils.tiered_ai_provider import set_default_service_tier, ServiceTier
+
+ # Set ultra-cheap as default for all users
+set_default_service_tier(ServiceTier.FREE)
+
 # Create analytics router placeholder if it doesn't exist
 try:
     from src.analytics.routes import router as analytics_router
