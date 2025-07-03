@@ -419,19 +419,17 @@ class AnalysisHandler:
     async def _store_analysis_results(
         self, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]
     ):
-        """PostgreSQL-optimized storage for AI intelligence with FIXED parameter syntax"""
+        """HYBRID: Simplified approach with performance optimization option"""
         try:
-            # Store base intelligence first
             enhanced_analysis = analysis_result
             
-            # Validate and clean intelligence data before storage
+            # Store base intelligence (proven method)
             offer_intel = self._validate_intelligence_section(enhanced_analysis.get("offer_intelligence", {}))
             psychology_intel = self._validate_intelligence_section(enhanced_analysis.get("psychology_intelligence", {}))
             content_intel = self._validate_intelligence_section(enhanced_analysis.get("content_intelligence", {}))
             competitive_intel = self._validate_intelligence_section(enhanced_analysis.get("competitive_intelligence", {}))
             brand_intel = self._validate_intelligence_section(enhanced_analysis.get("brand_intelligence", {}))
 
-            # Store base intelligence
             intelligence.offer_intelligence = offer_intel
             intelligence.psychology_intelligence = psychology_intel
             intelligence.content_intelligence = content_intel
@@ -440,72 +438,16 @@ class AnalysisHandler:
             
             logger.info(f"✅ Base intelligence stored successfully")
             
-            # Process AI intelligence data
-            ai_keys = ['scientific_intelligence', 'credibility_intelligence', 'market_intelligence', 
-                      'emotional_transformation_intelligence', 'scientific_authority_intelligence']
+            # Check if we should use optimized bulk storage
+            use_bulk_optimization = self._should_use_bulk_optimization(enhanced_analysis)
             
-            ai_data_to_store = {}
-            for key in ai_keys:
-                source_data = enhanced_analysis.get(key, {})
-                if isinstance(source_data, dict) and source_data:
-                    # Ensure JSON serializable for PostgreSQL
-                    try:
-                        json.dumps(source_data)  # Test serialization
-                        ai_data_to_store[key] = source_data
-                        logger.info(f"✅ {key}: Validated for storage ({len(source_data)} items)")
-                    except (TypeError, ValueError) as json_error:
-                        logger.error(f"❌ {key}: JSON serialization failed - {str(json_error)}")
-                        ai_data_to_store[key] = {"error": f"Serialization failed: {str(json_error)}"}
-                else:
-                    # Test data to verify storage mechanism
-                    ai_data_to_store[key] = {
-                        "test_data": f"Storage test for {key}",
-                        "timestamp": datetime.utcnow().isoformat(),
-                        "status": "test_mode"
-                    }
-                    logger.warning(f"⚠️ {key}: Using test data")
-
-            # FIXED: Use PostgreSQL positional parameters instead of named parameters
-            logger.info("🔧 Attempting PostgreSQL raw SQL update with positional parameters...")
-            try:
-                # PostgreSQL uses $1, $2, etc. for positional parameters
-                update_query = text("""
-                    UPDATE campaign_intelligence 
-                    SET 
-                        scientific_intelligence = $2::jsonb,
-                        credibility_intelligence = $3::jsonb,
-                        market_intelligence = $4::jsonb,
-                        emotional_transformation_intelligence = $5::jsonb,
-                        scientific_authority_intelligence = $6::jsonb,
-                        updated_at = NOW()
-                    WHERE id = $1
-                """)
-                
-                # Execute with positional parameters in correct order
-                await self.db.execute(update_query, [
-                    intelligence.id,  # $1
-                    json.dumps(ai_data_to_store['scientific_intelligence']),  # $2
-                    json.dumps(ai_data_to_store['credibility_intelligence']),  # $3
-                    json.dumps(ai_data_to_store['market_intelligence']),  # $4
-                    json.dumps(ai_data_to_store['emotional_transformation_intelligence']),  # $5
-                    json.dumps(ai_data_to_store['scientific_authority_intelligence'])  # $6
-                ])
-                
-                logger.info("✅ PostgreSQL raw SQL update completed successfully")
-                
-            except Exception as sql_error:
-                logger.error(f"❌ Raw SQL update failed: {str(sql_error)}")
-                
-                # Fallback to SQLAlchemy method
-                logger.info("🔧 Fallback to SQLAlchemy method...")
-                for category, data in ai_data_to_store.items():
-                    try:
-                        setattr(intelligence, category, data)
-                        flag_modified(intelligence, category)
-                        logger.info(f"✅ SQLAlchemy: {category} set successfully")
-                    except Exception as attr_error:
-                        logger.error(f"❌ SQLAlchemy: Failed to set {category} - {str(attr_error)}")
-
+            if use_bulk_optimization:
+                # Use raw SQL for performance-critical scenarios
+                await self._store_ai_data_optimized(intelligence, enhanced_analysis)
+            else:
+                # Use simplified ORM approach (reliable)
+                await self._store_ai_data_simplified(intelligence, enhanced_analysis)
+            
             # Store metadata and finalize
             intelligence.confidence_score = enhanced_analysis.get("confidence_score", 0.0)
             intelligence.source_title = enhanced_analysis.get("page_title", "Analyzed Page")
@@ -513,9 +455,8 @@ class AnalysisHandler:
             
             processing_metadata = enhanced_analysis.get("amplification_metadata", {})
             processing_metadata.update({
-                "postgresql_optimized_storage": True,
-                "storage_method": "raw_sql_with_positional_params",
-                "parameter_fix_applied": True,
+                "storage_method": "hybrid_approach",
+                "bulk_optimization": use_bulk_optimization,
                 "analysis_timestamp": datetime.utcnow().isoformat()
             })
             intelligence.processing_metadata = processing_metadata
@@ -524,28 +465,160 @@ class AnalysisHandler:
             # Single commit
             logger.info("🔧 Committing all changes...")
             await self.db.commit()
-            logger.info("✅ Commit completed successfully")
+            logger.info("✅ All data committed successfully")
             
-            # Verify storage with raw SQL
-            await self._verify_ai_storage(intelligence.id)
+            # Verify storage
+            await self._verify_ai_storage_simple(intelligence.id)
 
         except Exception as storage_error:
             logger.error(f"❌ Critical storage error: {str(storage_error)}")
-            logger.error(f"❌ Error type: {type(storage_error).__name__}")
-            logger.error(f"❌ Traceback: {traceback.format_exc()}")
-            
             intelligence.analysis_status = AnalysisStatus.FAILED
             intelligence.processing_metadata = {
                 "storage_error": str(storage_error),
-                "error_type": type(storage_error).__name__,
-                "traceback": traceback.format_exc()
+                "error_type": type(storage_error).__name__
             }
             await self.db.commit()
+    
+    def _should_use_bulk_optimization(self, enhanced_analysis: Dict[str, Any]) -> bool:
+        """Determine if we should use bulk optimization based on data characteristics"""
+        
+        # Check data size
+        total_size = 0
+        ai_keys = ['scientific_intelligence', 'credibility_intelligence', 'market_intelligence', 
+                  'emotional_transformation_intelligence', 'scientific_authority_intelligence']
+        
+        for key in ai_keys:
+            data = enhanced_analysis.get(key, {})
+            if data:
+                try:
+                    # Estimate JSON size
+                    json_size = len(json.dumps(data))
+                    total_size += json_size
+                except:
+                    pass
+        
+        # Use bulk optimization if:
+        # 1. Data is large (>100KB total)
+        # 2. Performance mode is enabled
+        # 3. Not in development/testing
+        
+        performance_mode = enhanced_analysis.get("amplification_metadata", {}).get("performance_mode", False)
+        large_dataset = total_size > 100000  # 100KB threshold
+        
+        should_optimize = performance_mode or large_dataset
+        
+        if should_optimize:
+            logger.info(f"🚀 Using bulk optimization: size={total_size/1024:.1f}KB, performance_mode={performance_mode}")
+        else:
+            logger.info(f"🔧 Using simplified approach: size={total_size/1024:.1f}KB")
+        
+        return should_optimize
+    
+    async def _store_ai_data_simplified(self, intelligence: CampaignIntelligence, enhanced_analysis: Dict[str, Any]):
+        """Store AI data using simplified ORM approach (reliable)"""
+        
+        ai_keys = ['scientific_intelligence', 'credibility_intelligence', 'market_intelligence', 
+                  'emotional_transformation_intelligence', 'scientific_authority_intelligence']
+        
+        for key in ai_keys:
+            source_data = enhanced_analysis.get(key, {})
+            validated_data = self._validate_intelligence_section(source_data)
+            
+            try:
+                # Use SQLAlchemy ORM - same as basic data
+                setattr(intelligence, key, validated_data)
+                logger.info(f"✅ {key}: Set successfully ({len(validated_data)} items)")
+            except Exception as e:
+                logger.error(f"❌ {key}: Failed to set - {str(e)}")
+                # Fallback: store in processing_metadata
+                intelligence.processing_metadata = intelligence.processing_metadata or {}
+                intelligence.processing_metadata[f"ai_backup_{key}"] = validated_data
+    
+    async def _store_ai_data_optimized(self, intelligence: CampaignIntelligence, enhanced_analysis: Dict[str, Any]):
+        """Store AI data using optimized raw SQL (performance)"""
+        
+        try:
+            ai_keys = ['scientific_intelligence', 'credibility_intelligence', 'market_intelligence', 
+                      'emotional_transformation_intelligence', 'scientific_authority_intelligence']
+            
+            # Prepare data
+            ai_data = {}
+            for key in ai_keys:
+                source_data = enhanced_analysis.get(key, {})
+                validated_data = self._validate_intelligence_section(source_data)
+                ai_data[key] = validated_data
+            
+            # Use optimized raw SQL with proper parameter handling
+            update_query = text("""
+                UPDATE campaign_intelligence 
+                SET 
+                    scientific_intelligence = $2::jsonb,
+                    credibility_intelligence = $3::jsonb,
+                    market_intelligence = $4::jsonb,
+                    emotional_transformation_intelligence = $5::jsonb,
+                    scientific_authority_intelligence = $6::jsonb,
+                    updated_at = NOW()
+                WHERE id = $1
+            """)
+            
+            # Execute with individual parameters (not list)
+            await self.db.execute(update_query, 
+                intelligence.id,
+                json.dumps(ai_data['scientific_intelligence']),
+                json.dumps(ai_data['credibility_intelligence']),
+                json.dumps(ai_data['market_intelligence']),
+                json.dumps(ai_data['emotional_transformation_intelligence']),
+                json.dumps(ai_data['scientific_authority_intelligence'])
+            )
+            
+            logger.info("✅ Optimized raw SQL update completed successfully")
+            
+        except Exception as e:
+            logger.error(f"❌ Optimized storage failed: {str(e)}")
+            # Fallback to simplified approach
+            logger.info("🔧 Falling back to simplified approach...")
+            await self._store_ai_data_simplified(intelligence, enhanced_analysis)
+    
+    async def _verify_ai_storage_simple(self, intelligence_id: uuid.UUID):
+        """Simple verification using ORM - same as basic data"""
+        try:
+            # Use SQLAlchemy ORM for verification too
+            query = select(CampaignIntelligence).where(CampaignIntelligence.id == intelligence_id)
+            result = await self.db.execute(query)
+            intelligence = result.scalar_one_or_none()
+            
+            if intelligence:
+                ai_fields = ['scientific_intelligence', 'credibility_intelligence', 'market_intelligence',
+                            'emotional_transformation_intelligence', 'scientific_authority_intelligence']
+                
+                total_items = 0
+                for field in ai_fields:
+                    data = getattr(intelligence, field, {})
+                    if data and isinstance(data, dict):
+                        item_count = len(data)
+                        total_items += item_count
+                        logger.info(f"✅ VERIFIED {field}: {item_count} items")
+                    else:
+                        logger.warning(f"⚠️ VERIFIED {field}: Empty or invalid")
+                
+                logger.info(f"📊 VERIFICATION SUMMARY: {total_items} total AI items verified")
+                
+                # Check backup data if any
+                if intelligence.processing_metadata:
+                    backup_keys = [k for k in intelligence.processing_metadata.keys() if k.startswith('ai_backup_')]
+                    if backup_keys:
+                        logger.info(f"📦 Found {len(backup_keys)} backup entries in metadata")
+                        
+            else:
+                logger.error("❌ No record found during verification!")
+                
+        except Exception as e:
+            logger.error(f"❌ Verification failed: {str(e)}")
     
     async def _verify_ai_storage(self, intelligence_id: uuid.UUID):
         """Verify AI intelligence was stored correctly using PostgreSQL positional parameters"""
         try:
-            # FIXED: Use PostgreSQL positional parameter syntax
+            # FIXED: Use PostgreSQL positional parameter syntax (individual parameter, not list)
             verify_query = text("""
                 SELECT 
                     scientific_intelligence::text,
@@ -557,8 +630,8 @@ class AnalysisHandler:
                 WHERE id = $1
             """)
             
-            # Use positional parameter
-            result = await self.db.execute(verify_query, [intelligence_id])
+            # Use individual parameter, not list
+            result = await self.db.execute(verify_query, intelligence_id)
             row = result.fetchone()
             
             if row:
