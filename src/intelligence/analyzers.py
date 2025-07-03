@@ -36,7 +36,6 @@ from .utils.campaign_helpers import update_campaign_counters
 
 logger = logging.getLogger(__name__)
 
-
 def diagnose_amplification_output(enhanced_analysis: Dict[str, Any]):
     """Diagnostic function to understand what's happening to your AI data"""
     
@@ -319,66 +318,39 @@ class AnalysisHandler:
             }
             return base_analysis
     
-    def _get_ai_providers_from_analyzer(self) -> List[Dict[str, Any]]:
-        """Get AI providers using TIERED SYSTEM optimized for ULTRA-CHEAP defaults"""
+    # def _get_ai_providers_from_analyzer(self) -> List[Dict[str, Any]]:
+    def _get_ai_providers_from_analyzer(self) -> Optional[Dict]:
+        """Get the best ultra-cheap AI provider using tiered system priority"""
         
-        # Import the tiered provider manager
-        from src.intelligence.utils.tiered_ai_provider import get_tiered_ai_provider, ServiceTier
+        if not self.ai_providers:
+            logger.warning("⚠️ No AI providers available for scientific enhancement")
+            return None
         
-        try:
-            # Use FREE tier by default (ultra-cheap providers: Groq, Together AI, Deepseek)
-            # Later you can make this configurable based on user subscription
-            service_tier = ServiceTier.FREE  # This gives you Groq, Together AI, Deepseek
+        # Sort by priority (lowest first = cheapest/fastest)
+        sorted_providers = sorted(
+            [p for p in self.ai_providers if p.get("available", False)],
+            key=lambda x: x.get("priority", 999)
+        )
+        
+        if not sorted_providers:
+            logger.warning("⚠️ No available AI providers for scientific enhancement")
+            return None
+        
+        # Use the highest priority (cheapest) provider
+        selected_provider = sorted_providers[0]
+        
+        provider_name = selected_provider.get("name", "unknown")
+        cost = selected_provider.get("cost_per_1k_tokens", 0)
+        quality = selected_provider.get("quality_score", 0)
+        
+        logger.info(f"✅ Selected ultra-cheap provider for scientific enhancement:")
+        logger.info(f"   Provider: {provider_name}")
+        logger.info(f"   Cost: ${cost:.5f}/1K tokens")
+        logger.info(f"   Quality: {quality}/100")
+        logger.info(f"   Priority: {selected_provider.get('priority', 'unknown')}")
+        
+        return selected_provider
             
-            # Get the tiered provider manager
-            provider_manager = get_tiered_ai_provider(service_tier)
-            
-            # Convert to format expected by enhancement modules
-            providers = []
-            
-            for provider_config in provider_manager.available_providers:
-                providers.append({
-                    "name": provider_config.name,
-                    "available": True,
-                    "client": provider_config.client,
-                    "priority": provider_config.priority,
-                    "cost_per_1k_tokens": provider_config.cost_per_1k_tokens,
-                    "quality_score": provider_config.quality_score,
-                    "speed_rating": provider_config.speed_rating,
-                    "provider_tier": provider_config.provider_tier.value,
-                    "service_tier": service_tier.value,
-                    "model_name": provider_config.model_name,
-                    "max_tokens": provider_config.max_tokens,
-                    "rate_limit_rpm": provider_config.rate_limit_rpm
-                })
-            
-            # Log the ultra-cheap optimization
-            if providers:
-                primary = providers[0]
-                openai_cost = 0.030
-                savings_pct = ((openai_cost - primary['cost_per_1k_tokens']) / openai_cost) * 100
-                
-                logger.info(f"💎 ULTRA-CHEAP OPTIMIZATION ACTIVE:")
-                logger.info(f"   Service Tier: {service_tier.value.upper()}")
-                logger.info(f"   Primary Provider: {primary['name']}")
-                logger.info(f"   Cost: ${primary['cost_per_1k_tokens']:.5f}/1K tokens")
-                logger.info(f"   Quality: {primary['quality_score']:.0f}/100")
-                logger.info(f"   Speed: {primary['speed_rating']}/10")
-                logger.info(f"   SAVINGS: {savings_pct:.1f}% vs OpenAI")
-                logger.info(f"   Available providers: {[p['name'] for p in providers]}")
-                
-                # Calculate potential monthly savings
-                monthly_savings = ((openai_cost - primary['cost_per_1k_tokens']) * 1000)  # Per 1M tokens
-                logger.info(f"💰 MONTHLY SAVINGS: ${monthly_savings:.2f} per 1M tokens")
-                
-            else:
-                logger.error("❌ No ultra-cheap providers available!")
-            
-            return providers
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to get tiered providers: {str(e)}")
-            return self._create_emergency_fallback_providers()
     
     def _create_emergency_fallback_providers(self) -> List[Dict[str, Any]]:
         """Emergency fallback if tiered system fails - prioritize ultra-cheap providers"""
