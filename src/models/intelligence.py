@@ -1,4 +1,4 @@
-# src/models/intelligence.py - COMPLETE FIXED VERSION
+# src/models/intelligence.py - COMPLETE FIXED VERSION WITH AI COLUMNS
 """
 Intelligence models - Extends existing campaign system with competitive intelligence - FIXED RELATIONSHIPS
 """
@@ -38,13 +38,19 @@ class CampaignIntelligence(BaseModel):
     source_title = Column(String(500))
     analysis_status = Column(Enum(AnalysisStatus, name='analysis_status'), default=AnalysisStatus.PENDING)
     
-    
     # Core Intelligence Data (JSONB for flexibility)
     offer_intelligence = Column(JSONB, default={})
     psychology_intelligence = Column(JSONB, default={})
     content_intelligence = Column(JSONB, default={})
     competitive_intelligence = Column(JSONB, default={})
     brand_intelligence = Column(JSONB, default={})
+    
+    # ADDED: AI Enhancement Intelligence Columns
+    scientific_intelligence = Column(JSONB, default={})
+    credibility_intelligence = Column(JSONB, default={})
+    market_intelligence = Column(JSONB, default={})
+    emotional_transformation_intelligence = Column(JSONB, default={})
+    scientific_authority_intelligence = Column(JSONB, default={})
     
     # Performance Tracking
     confidence_score = Column(Float, default=0.0)  # 0-1 confidence in analysis

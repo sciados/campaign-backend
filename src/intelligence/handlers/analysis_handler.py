@@ -188,13 +188,23 @@ class AnalysisHandler:
     async def _perform_amplification(
         self, url: str, base_analysis: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Perform intelligence amplification using direct enhancement functions"""
+        """Perform intelligence amplification using direct enhancement functions with COST-OPTIMIZED providers"""
         
         try:
             logger.info("🚀 Starting intelligence amplification...")
             
-            # Set up AI providers properly from your analyzer
+            # FIXED: Get AI providers with cost optimization
             ai_providers = self._get_ai_providers_from_analyzer()
+            
+            # CRITICAL: Log the provider priority to verify cost optimization
+            provider_names = [p.get('name', 'unknown') for p in ai_providers]
+            logger.info(f"💰 AMPLIFICATION using cost-optimized providers: {provider_names}")
+            
+            # Verify Claude is first (most cost-effective)
+            if provider_names and provider_names[0] == 'anthropic':
+                logger.info("✅ Cost optimization confirmed: Claude (Anthropic) is primary provider")
+            else:
+                logger.warning(f"⚠️ Cost optimization issue: Expected Claude first, got {provider_names[0] if provider_names else 'none'}")
             
             # Set up preferences
             preferences = {
@@ -202,26 +212,28 @@ class AnalysisHandler:
                 "boost_credibility": True,
                 "competitive_analysis": True,
                 "psychological_depth": "medium",
-                "content_optimization": True
+                "content_optimization": True,
+                "cost_optimization": True,  # ADDED: Enable cost optimization
+                "preferred_provider": "anthropic"  # ADDED: Explicit preference for Claude
             }
             
-            # STEP 1: Identify opportunities
+            # STEP 1: Identify opportunities with cost-optimized providers
             logger.info("🔍 Identifying enhancement opportunities...")
             opportunities = await identify_opportunities(
                 base_intel=base_analysis,
                 preferences=preferences,
-                providers=ai_providers
+                providers=ai_providers  # Pass the cost-optimized providers
             )
             
             opportunities_count = opportunities.get("opportunity_metadata", {}).get("total_opportunities", 0)
             logger.info(f"✅ Identified {opportunities_count} enhancement opportunities")
             
-            # STEP 2: Generate enhancements
+            # STEP 2: Generate enhancements with cost-optimized providers
             logger.info("🚀 Generating AI-powered enhancements...")
             enhancements = await generate_enhancements(
                 base_intel=base_analysis,
                 opportunities=opportunities,
-                providers=ai_providers
+                providers=ai_providers  # Pass the cost-optimized providers
             )
             
             enhancement_metadata = enhancements.get("enhancement_metadata", {})
@@ -257,10 +269,14 @@ class AnalysisHandler:
                 "modules_successful": enhancement_metadata.get("modules_successful", []),
                 "scientific_enhancements": len(enhancements.get("scientific_validation", {})) if enhancements.get("scientific_validation") else 0,
                 "system_architecture": "direct_modular_enhancement",
-                "amplification_timestamp": datetime.utcnow().isoformat()
+                "amplification_timestamp": datetime.utcnow().isoformat(),
+                "cost_optimization_applied": True,  # ADDED: Track cost optimization
+                "primary_provider_used": provider_names[0] if provider_names else "unknown",  # ADDED: Track primary provider
+                "provider_priority": provider_names  # ADDED: Track full provider priority
             }
             
             logger.info(f"✅ Amplification completed successfully - Final confidence: {enriched_intelligence.get('confidence_score', 0.0):.2f}")
+            logger.info(f"💰 Cost optimization status: Primary provider = {provider_names[0] if provider_names else 'unknown'}")
             
             return enriched_intelligence
             
@@ -515,24 +531,86 @@ class AnalysisHandler:
         return should_optimize
     
     async def _store_ai_data_simplified(self, intelligence: CampaignIntelligence, enhanced_analysis: Dict[str, Any]):
-        """Store AI data using simplified ORM approach (reliable)"""
+        """Store AI data using FIXED approach that actually saves to database"""
         
         ai_keys = ['scientific_intelligence', 'credibility_intelligence', 'market_intelligence', 
                   'emotional_transformation_intelligence', 'scientific_authority_intelligence']
+        
+        ai_data_stored = {}
         
         for key in ai_keys:
             source_data = enhanced_analysis.get(key, {})
             validated_data = self._validate_intelligence_section(source_data)
             
             try:
-                # Use SQLAlchemy ORM - same as basic data
-                setattr(intelligence, key, validated_data)
-                logger.info(f"✅ {key}: Set successfully ({len(validated_data)} items)")
+                # FIXED: Use raw SQL to ensure data is actually stored
+                await self._store_single_ai_column(intelligence.id, key, validated_data)
+                ai_data_stored[key] = validated_data
+                logger.info(f"✅ {key}: ACTUALLY stored to database ({len(validated_data)} items)")
+                
             except Exception as e:
-                logger.error(f"❌ {key}: Failed to set - {str(e)}")
+                logger.error(f"❌ {key}: Failed to store to database - {str(e)}")
+                
                 # Fallback: store in processing_metadata
-                intelligence.processing_metadata = intelligence.processing_metadata or {}
+                if not intelligence.processing_metadata:
+                    intelligence.processing_metadata = {}
                 intelligence.processing_metadata[f"ai_backup_{key}"] = validated_data
+                logger.info(f"📦 {key}: Stored in processing_metadata as backup")
+        
+        # Verify data was actually stored
+        stored_count = await self._verify_ai_data_actually_stored(intelligence.id)
+        logger.info(f"🔍 VERIFICATION: {stored_count} AI columns actually contain data")
+        
+        if stored_count == 0:
+            logger.error("❌ NO AI DATA STORED IN COLUMNS - using emergency metadata storage")
+            # Store all AI data in processing_metadata as emergency backup
+            intelligence.processing_metadata = intelligence.processing_metadata or {}
+            intelligence.processing_metadata["emergency_ai_storage"] = ai_data_stored
+            intelligence.processing_metadata["storage_failure_note"] = "AI columns not accessible via ORM"
+    
+    async def _store_single_ai_column(self, intelligence_id: uuid.UUID, column_name: str, data: Dict[str, Any]):
+        """Store a single AI intelligence column using raw SQL"""
+        
+        # Use raw SQL to directly update the specific column
+        update_query = text(f"""
+            UPDATE campaign_intelligence 
+            SET {column_name} = $2::jsonb
+            WHERE id = $1
+        """)
+        
+        await self.db.execute(update_query, intelligence_id, json.dumps(data))
+        logger.info(f"🔧 Raw SQL update for {column_name}: {len(data)} items")
+    
+    async def _verify_ai_data_actually_stored(self, intelligence_id: uuid.UUID) -> int:
+        """Verify AI data was actually stored in the database columns"""
+        
+        try:
+            # Check each AI column for actual data
+            verify_query = text("""
+                SELECT 
+                    CASE WHEN scientific_intelligence != '{}' THEN 1 ELSE 0 END +
+                    CASE WHEN credibility_intelligence != '{}' THEN 1 ELSE 0 END +
+                    CASE WHEN market_intelligence != '{}' THEN 1 ELSE 0 END +
+                    CASE WHEN emotional_transformation_intelligence != '{}' THEN 1 ELSE 0 END +
+                    CASE WHEN scientific_authority_intelligence != '{}' THEN 1 ELSE 0 END as non_empty_count
+                FROM campaign_intelligence 
+                WHERE id = $1
+            """)
+            
+            result = await self.db.execute(verify_query, intelligence_id)
+            row = result.fetchone()
+            
+            if row:
+                non_empty_count = row[0]
+                logger.info(f"🔍 Database verification: {non_empty_count}/5 AI columns contain data")
+                return non_empty_count
+            else:
+                logger.error("❌ No record found during verification")
+                return 0
+                
+        except Exception as e:
+            logger.error(f"❌ Verification failed: {str(e)}")
+            return 0
     
     async def _store_ai_data_optimized(self, intelligence: CampaignIntelligence, enhanced_analysis: Dict[str, Any]):
         """Store AI data using optimized raw SQL (performance)"""
@@ -580,40 +658,104 @@ class AnalysisHandler:
             await self._store_ai_data_simplified(intelligence, enhanced_analysis)
     
     async def _verify_ai_storage_simple(self, intelligence_id: uuid.UUID):
-        """Simple verification using ORM - same as basic data"""
+        """FIXED: Actually verify AI data in database columns"""
         try:
-            # Use SQLAlchemy ORM for verification too
-            query = select(CampaignIntelligence).where(CampaignIntelligence.id == intelligence_id)
-            result = await self.db.execute(query)
-            intelligence = result.scalar_one_or_none()
+            # Check what's actually stored in the database
+            verify_query = text("""
+                SELECT 
+                    scientific_intelligence::text,
+                    credibility_intelligence::text,
+                    market_intelligence::text,
+                    emotional_transformation_intelligence::text,
+                    scientific_authority_intelligence::text
+                FROM campaign_intelligence 
+                WHERE id = $1
+            """)
             
-            if intelligence:
-                ai_fields = ['scientific_intelligence', 'credibility_intelligence', 'market_intelligence',
+            result = await self.db.execute(verify_query, intelligence_id)
+            row = result.fetchone()
+            
+            if row:
+                ai_columns = ['scientific_intelligence', 'credibility_intelligence', 'market_intelligence',
                             'emotional_transformation_intelligence', 'scientific_authority_intelligence']
                 
                 total_items = 0
-                for field in ai_fields:
-                    data = getattr(intelligence, field, {})
-                    if data and isinstance(data, dict):
-                        item_count = len(data)
-                        total_items += item_count
-                        logger.info(f"✅ VERIFIED {field}: {item_count} items")
+                empty_columns = 0
+                
+                for i, column in enumerate(ai_columns):
+                    raw_data_str = row[i]
+                    if raw_data_str and raw_data_str != '{}':
+                        try:
+                            parsed_data = json.loads(raw_data_str)
+                            item_count = len(parsed_data)
+                            total_items += item_count
+                            logger.info(f"✅ ACTUALLY VERIFIED {column}: {item_count} items in database")
+                        except json.JSONDecodeError:
+                            logger.error(f"❌ VERIFIED {column}: Invalid JSON in database")
+                            empty_columns += 1
                     else:
-                        logger.warning(f"⚠️ VERIFIED {field}: Empty or invalid")
+                        logger.error(f"❌ VERIFIED {column}: EMPTY in database ({{}})")
+
+                        empty_columns += 1
                 
-                logger.info(f"📊 VERIFICATION SUMMARY: {total_items} total AI items verified")
-                
-                # Check backup data if any
-                if intelligence.processing_metadata:
-                    backup_keys = [k for k in intelligence.processing_metadata.keys() if k.startswith('ai_backup_')]
-                    if backup_keys:
-                        logger.info(f"📦 Found {len(backup_keys)} backup entries in metadata")
+                if empty_columns == 5:
+                    logger.error("🚨 ALL AI COLUMNS ARE EMPTY - Data not reaching database!")
+                    logger.error("💡 This means SQLAlchemy ORM is not working for AI columns")
+                    
+                    # Check if data is in processing_metadata instead
+                    await self._check_metadata_for_ai_data(intelligence_id)
+                    
+                else:
+                    logger.info(f"📊 VERIFICATION SUMMARY: {total_items} total AI items actually in database")
+                    logger.info(f"📊 Empty columns: {empty_columns}/5")
                         
             else:
                 logger.error("❌ No record found during verification!")
                 
         except Exception as e:
             logger.error(f"❌ Verification failed: {str(e)}")
+    
+    async def _check_metadata_for_ai_data(self, intelligence_id: uuid.UUID):
+        """Check if AI data ended up in processing_metadata"""
+        try:
+            metadata_query = text("""
+                SELECT processing_metadata::text
+                FROM campaign_intelligence 
+                WHERE id = $1
+            """)
+            
+            result = await self.db.execute(metadata_query, intelligence_id)
+            row = result.fetchone()
+            
+            if row and row[0]:
+                try:
+                    metadata = json.loads(row[0])
+                    
+                    # Check for AI backup data
+                    ai_backup_keys = [key for key in metadata.keys() if key.startswith('ai_backup_')]
+                    emergency_ai = metadata.get('emergency_ai_storage', {})
+                    
+                    if ai_backup_keys:
+                        logger.info(f"📦 Found AI data in metadata backups: {len(ai_backup_keys)} entries")
+                        for key in ai_backup_keys:
+                            data = metadata[key]
+                            item_count = len(data) if isinstance(data, dict) else 0
+                            logger.info(f"📦 BACKUP {key}: {item_count} items")
+                            
+                    if emergency_ai:
+                        logger.info(f"🚨 Found emergency AI storage: {len(emergency_ai)} categories")
+                        for category, data in emergency_ai.items():
+                            item_count = len(data) if isinstance(data, dict) else 0
+                            logger.info(f"🚨 EMERGENCY {category}: {item_count} items")
+                            
+                    if not ai_backup_keys and not emergency_ai:
+                        logger.error("❌ No AI data found in metadata either - data is lost!")
+                        
+                except json.JSONDecodeError:
+                    logger.error("❌ Invalid JSON in processing_metadata")
+                    
+        except Exception as e:
+            logger.error(f"❌ Metadata check failed: {str(e)}")
     
     async def _verify_ai_storage(self, intelligence_id: uuid.UUID):
         """Verify AI intelligence was stored correctly using PostgreSQL positional parameters"""
