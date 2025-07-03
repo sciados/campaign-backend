@@ -18,58 +18,27 @@ class CredibilityIntelligenceEnhancer:
         self.available_provider = self._get_best_provider()
         
     def _get_best_provider(self) -> Optional[Dict]:
-        """Get the best available AI provider - prefer OpenAI for stability"""
+        """Get the best available AI provider - prefer Claude for stability"""
         
-        # Prefer OpenAI first (working perfectly)
+        # Prefer Claude first (has API issues currently)
         for provider in self.ai_providers:
-            if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("🚀 Using OpenAI for credibility enhancement")
+            if provider.get("name") == "anthropic" and provider.get("available"):
+                logger.info("🤖 Using Claude for authority enhancement")
                 return provider
-        
+                
         # Fallback to Cohere second
         for provider in self.ai_providers:
             if provider.get("name") == "cohere" and provider.get("available"):
-                logger.info("💫 Using Cohere for credibility enhancement") 
+                logger.info("💫 Using Cohere for authority enhancement") 
                 return provider
         
-        # Fallback to Claude third (has API issues currently)
-        for provider in self.ai_providers:
-            if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("🤖 Using Claude for credibility enhancement")
-                return provider
-        
-        logger.warning("⚠️ No AI providers available for credibility enhancement")
-        return None
-
-        
-        # Prefer OpenAI for content and messaging
+        # Fallback to OpenAI last (working perfectly)
         for provider in self.ai_providers:
             if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("📝 Using OpenAI for content enhancement")
-                return provider
+                logger.info("🚀 Using OpenAI for authority enhancement")
+                return provider        
         
-        # Fallback to Anthropic Claude
-        for provider in self.ai_providers:
-            if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("📝 Using Anthropic Claude for content enhancement")
-                return provider
-        
-        logger.warning("⚠️ No AI providers available for content enhancement")
-        return None
-        
-        # Prefer OpenAI for credibility and authority analysis
-        for provider in self.ai_providers:
-            if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("🏆 Using OpenAI for credibility enhancement")
-                return provider
-        
-        # Fallback to Anthropic Claude
-        for provider in self.ai_providers:
-            if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("🏆 Using Anthropic Claude for credibility enhancement")
-                return provider
-        
-        logger.warning("⚠️ No AI providers available for credibility enhancement")
+        logger.warning("⚠️ No AI providers available for authority enhancement")
         return None
     
     async def generate_credibility_intelligence(

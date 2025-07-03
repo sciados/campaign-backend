@@ -17,57 +17,27 @@ class ScientificAuthorityEnhancer:
         self.available_provider = self._get_best_provider()
         
     def _get_best_provider(self) -> Optional[Dict]:
-        """Get the best available AI provider - prefer OpenAI for stability"""
+        """Get the best available AI provider - prefer Claude for stability"""
         
-        # Prefer OpenAI first (working perfectly)
+        # Prefer Claude first (has API issues currently)
         for provider in self.ai_providers:
-            if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("🚀 Using OpenAI for authority enhancement")
+            if provider.get("name") == "anthropic" and provider.get("available"):
+                logger.info("🤖 Using Claude for authority enhancement")
                 return provider
-        
+                
         # Fallback to Cohere second
         for provider in self.ai_providers:
             if provider.get("name") == "cohere" and provider.get("available"):
                 logger.info("💫 Using Cohere for authority enhancement") 
                 return provider
         
-        # Fallback to Claude third (has API issues currently)
+        # Fallback to OpenAI last (working perfectly)
         for provider in self.ai_providers:
-            if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("🤖 Using Claude for authority enhancement")
-                return provider
+            if provider.get("name") == "openai" and provider.get("available"):
+                logger.info("🚀 Using OpenAI for authority enhancement")
+                return provider        
         
         logger.warning("⚠️ No AI providers available for authority enhancement")
-        return None
-       
-        # Prefer OpenAI for content and messaging
-        for provider in self.ai_providers:
-            if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("📝 Using OpenAI for content enhancement")
-                return provider
-        
-        # Fallback to Anthropic Claude
-        for provider in self.ai_providers:
-            if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("📝 Using Anthropic Claude for content enhancement")
-                return provider
-        
-        logger.warning("⚠️ No AI providers available for content enhancement")
-        return None
-        
-        # Prefer Anthropic Claude for scientific authority content
-        for provider in self.ai_providers:
-            if provider.get("name") == "anthropic" and provider.get("available"):
-                logger.info("👨‍🔬 Using Anthropic Claude for scientific authority enhancement")
-                return provider
-        
-        # Fallback to OpenAI
-        for provider in self.ai_providers:
-            if provider.get("name") == "openai" and provider.get("available"):
-                logger.info("👨‍🔬 Using OpenAI for scientific authority enhancement")
-                return provider
-        
-        logger.warning("⚠️ No AI providers available for scientific authority enhancement")
         return None
     
     async def generate_scientific_authority_intelligence(

@@ -705,18 +705,7 @@ class SalesPageAnalyzer:
         
         providers_tried = []
         
-        # Try OpenAI first
-        if self.openai_client:
-            try:
-                logger.info("🤖 Trying OpenAI for intelligence extraction...")
-                intelligence = await self._extract_intelligence_openai(structured_content, url, product_name)
-                logger.info("✅ OpenAI intelligence extraction successful")
-                return intelligence
-            except Exception as e:
-                providers_tried.append("OpenAI")
-                logger.warning(f"❌ OpenAI failed: {str(e)}")
-        
-        # Try Claude second
+        # Try Claude first
         if getattr(self, 'claude_client', None):
             try:
                 logger.info("🤖 Trying Claude for intelligence extraction...")
@@ -727,7 +716,7 @@ class SalesPageAnalyzer:
                 providers_tried.append("Claude")
                 logger.warning(f"❌ Claude failed: {str(e)}")
         
-        # Try Cohere third
+        # Try Cohere second
         if getattr(self, 'cohere_client', None):
             try:
                 logger.info("🤖 Trying Cohere for intelligence extraction...")
@@ -737,14 +726,21 @@ class SalesPageAnalyzer:
             except Exception as e:
                 providers_tried.append("Cohere")
                 logger.warning(f"❌ Cohere failed: {str(e)}")
+
+        # Try OpenAI third
+        if self.openai_client:
+            try:
+                logger.info("🤖 Trying OpenAI for intelligence extraction...")
+                intelligence = await self._extract_intelligence_openai(structured_content, url, product_name)
+                logger.info("✅ OpenAI intelligence extraction successful")
+                return intelligence
+            except Exception as e:
+                providers_tried.append("OpenAI")
+                logger.warning(f"❌ OpenAI failed: {str(e)}")
         
         # All AI providers failed, use fallback
         logger.warning(f"🚨 All AI providers failed ({', '.join(providers_tried)}), using pattern matching fallback")
         return self._fallback_analysis(structured_content, url, product_name)
-    
-    async def _extract_intelligence_openai(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
-        """OpenAI-specific intelligence extraction (existing method renamed)"""
-        return await self._extract_intelligence(structured_content, url, product_name)
     
     async def _extract_intelligence_claude(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
         """Claude-specific intelligence extraction"""
@@ -758,6 +754,10 @@ class SalesPageAnalyzer:
         logger.info("Cohere analysis not yet implemented, using fallback")
         return self._fallback_analysis(structured_content, url, product_name)
     
+    async def _extract_intelligence_openai(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
+        """OpenAI-specific intelligence extraction (existing method renamed)"""
+        return await self._extract_intelligence(structured_content, url, product_name)
+
     # ✅ FIXED: COMPLETE AI INTELLIGENCE EXTRACTION
     async def _extract_intelligence(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
         """FIXED: Use AI to extract COMPLETE competitive intelligence from structured content"""
