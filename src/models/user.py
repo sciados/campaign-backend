@@ -2,12 +2,9 @@
 User model and related schemas - FIXED VERSION
 """
 
-import json
-from intelligence.amplifier import sources
 from sqlalchemy import Column, String, Boolean, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
-from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 
 from src.models import BaseModel
 
@@ -29,7 +26,7 @@ class User(BaseModel):
     is_verified = Column(Boolean, default=False)
     
     # User Preferences (personal, not company-wide)
-    json.loads(sources.preferences).get("research_data")
+    preferences = Column(JSONB, default={})
     
     # Relationships - Use string references to avoid circular imports
     company = relationship("Company", back_populates="users")

@@ -4,7 +4,8 @@ Main Intelligence Routes - Refactored Version
 Reduced from 1000+ lines to ~50 lines
 """
 from fastapi import APIRouter
-from .routers import analysis_routes, content_routes, management_routes, debug_routes
+
+from intelligence.routers import analysis_routes, content_routes, management_routes, debug_routes
 
 # Create main router
 router = APIRouter(tags=["intelligence"])
