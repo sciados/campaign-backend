@@ -46,6 +46,25 @@ class IntelligenceHandler:
         self.user = user
         self.enhancement_available = ENHANCEMENT_FUNCTIONS_AVAILABLE
     
+    # 🔥 CRITICAL FIX: Add enum serialization helper
+    def _serialize_enum_field(self, field_value):
+        """Serialize enum field to proper format for API response"""
+        if field_value is None:
+            return {}
+        
+        if isinstance(field_value, str):
+            try:
+                return json.loads(field_value)
+            except (json.JSONDecodeError, ValueError):
+                logger.warning(f"Failed to parse enum field as JSON: {field_value}")
+                return {}
+        
+        if isinstance(field_value, dict):
+            return field_value
+        
+        logger.warning(f"Unexpected enum field type: {type(field_value)}")
+        return {}
+    
     async def get_campaign_intelligence(self, campaign_id: str) -> Dict[str, Any]:
         """Get all intelligence sources for a campaign with proper error handling"""
         
@@ -112,7 +131,7 @@ class IntelligenceHandler:
             return []
 
     def _build_intelligence_response(self, campaign_id: str, intelligence_sources: list, generated_content: list) -> Dict[str, Any]:
-        """Build the enhanced intelligence response"""
+        """Build the enhanced intelligence response with proper enum serialization"""
         try:
             # Format intelligence sources
             formatted_sources = []
@@ -124,24 +143,24 @@ class IntelligenceHandler:
                     "confidence_score": source.confidence_score or 0.0,
                     "created_at": source.created_at.isoformat() if source.created_at else None,
                     
-                    # Core intelligence categories
-                    "offer_intelligence": source.offer_intelligence or {},
-                    "psychology_intelligence": source.psychology_intelligence or {},
-                    "content_intelligence": source.content_intelligence or {},
-                    "competitive_intelligence": source.competitive_intelligence or {},
-                    "brand_intelligence": source.brand_intelligence or {},
+                    # 🔥 CRITICAL FIX: Core intelligence categories with enum serialization
+                    "offer_intelligence": self._serialize_enum_field(source.offer_intelligence),
+                    "psychology_intelligence": self._serialize_enum_field(source.psychology_intelligence),
+                    "content_intelligence": self._serialize_enum_field(source.content_intelligence),
+                    "competitive_intelligence": self._serialize_enum_field(source.competitive_intelligence),
+                    "brand_intelligence": self._serialize_enum_field(source.brand_intelligence),
                     
-                    # AI-enhanced categories
-                    "scientific_intelligence": source.scientific_intelligence or {},
-                    "credibility_intelligence": source.credibility_intelligence or {},
-                    "market_intelligence": source.market_intelligence or {},
-                    "emotional_transformation_intelligence": source.emotional_transformation_intelligence or {},
-                    "scientific_authority_intelligence": source.scientific_authority_intelligence or {},
+                    # 🔥 CRITICAL FIX: AI-enhanced categories with enum serialization
+                    "scientific_intelligence": self._serialize_enum_field(source.scientific_intelligence),
+                    "credibility_intelligence": self._serialize_enum_field(source.credibility_intelligence),
+                    "market_intelligence": self._serialize_enum_field(source.market_intelligence),
+                    "emotional_transformation_intelligence": self._serialize_enum_field(source.emotional_transformation_intelligence),
+                    "scientific_authority_intelligence": self._serialize_enum_field(source.scientific_authority_intelligence),
                     
-                    # Metadata
-                    "processing_metadata": source.processing_metadata or {},
+                    # 🔥 CRITICAL FIX: Metadata with enum serialization
+                    "processing_metadata": self._serialize_enum_field(source.processing_metadata),
                     "amplification_applied": bool(
-                        (source.processing_metadata or {}).get("amplification_applied", False)
+                        self._serialize_enum_field(source.processing_metadata).get("amplification_applied", False)
                     )
                 }
                 formatted_sources.append(formatted_source)
@@ -162,12 +181,28 @@ class IntelligenceHandler:
             # Calculate statistics
             total_sources = len(intelligence_sources)
             amplified_sources = sum(1 for source in intelligence_sources 
-                                  if (source.processing_metadata or {}).get("amplification_applied", False))
+                                  if self._serialize_enum_field(source.processing_metadata).get("amplification_applied", False))
             
             avg_confidence = (
                 sum(source.confidence_score or 0.0 for source in intelligence_sources) / total_sources
                 if total_sources > 0 else 0.0
             )
+            
+            # 🔥 ENHANCED LOGGING: Verify AI data is being serialized properly
+            logger.info(f"📊 Intelligence Response Stats:")
+            logger.info(f"   Total sources: {total_sources}")
+            logger.info(f"   Amplified sources: {amplified_sources}")
+            logger.info(f"   Average confidence: {avg_confidence:.2f}")
+            
+            # Debug first source AI categories
+            if intelligence_sources:
+                first_source = intelligence_sources[0]
+                logger.info(f"🔍 First source AI categories:")
+                logger.info(f"   scientific_intelligence: {len(self._serialize_enum_field(first_source.scientific_intelligence))} items")
+                logger.info(f"   credibility_intelligence: {len(self._serialize_enum_field(first_source.credibility_intelligence))} items")
+                logger.info(f"   market_intelligence: {len(self._serialize_enum_field(first_source.market_intelligence))} items")
+                logger.info(f"   emotional_transformation_intelligence: {len(self._serialize_enum_field(first_source.emotional_transformation_intelligence))} items")
+                logger.info(f"   scientific_authority_intelligence: {len(self._serialize_enum_field(first_source.scientific_authority_intelligence))} items")
             
             return {
                 "campaign_id": campaign_id,
@@ -185,7 +220,7 @@ class IntelligenceHandler:
             }
             
         except Exception as e:
-            logger.error(f"Error building intelligence response: {str(e)}")
+            logger.error(f"❌ Error building intelligence response: {str(e)}")
             return self._build_fallback_response(campaign_id)
 
     def _build_fallback_response(self, campaign_id: str) -> Dict[str, Any]:
@@ -272,13 +307,13 @@ class IntelligenceHandler:
             raise ValueError("Intelligence source not found")
         
         try:
-            # Prepare data for amplification
+            # 🔥 CRITICAL FIX: Prepare data for amplification with enum serialization
             base_intel = {
-                "offer_intelligence": intelligence_source.offer_intelligence or {},
-                "psychology_intelligence": intelligence_source.psychology_intelligence or {},
-                "content_intelligence": intelligence_source.content_intelligence or {},
-                "competitive_intelligence": intelligence_source.competitive_intelligence or {},
-                "brand_intelligence": intelligence_source.brand_intelligence or {},
+                "offer_intelligence": self._serialize_enum_field(intelligence_source.offer_intelligence),
+                "psychology_intelligence": self._serialize_enum_field(intelligence_source.psychology_intelligence),
+                "content_intelligence": self._serialize_enum_field(intelligence_source.content_intelligence),
+                "competitive_intelligence": self._serialize_enum_field(intelligence_source.competitive_intelligence),
+                "brand_intelligence": self._serialize_enum_field(intelligence_source.brand_intelligence),
                 "source_url": intelligence_source.source_url,
                 "confidence_score": intelligence_source.confidence_score or 0.0,
                 "page_title": intelligence_source.source_title or "",
@@ -333,117 +368,122 @@ class IntelligenceHandler:
             logger.info("💾 Storing enriched intelligence data...")
             
             # Update existing intelligence categories (merge with existing data)
-            intelligence_source.offer_intelligence = self._merge_intelligence_data(
-                intelligence_source.offer_intelligence, 
+            intelligence_source.offer_intelligence = json.dumps(self._merge_intelligence_data(
+                self._serialize_enum_field(intelligence_source.offer_intelligence), 
                 enriched_intelligence.get("offer_intelligence", {})
-            )
+            ))
             
-            intelligence_source.psychology_intelligence = self._merge_intelligence_data(
-                intelligence_source.psychology_intelligence,
+            intelligence_source.psychology_intelligence = json.dumps(self._merge_intelligence_data(
+                self._serialize_enum_field(intelligence_source.psychology_intelligence),
                 enriched_intelligence.get("psychology_intelligence", {})
-            )
+            ))
             
-            intelligence_source.content_intelligence = self._merge_intelligence_data(
-                intelligence_source.content_intelligence,
+            intelligence_source.content_intelligence = json.dumps(self._merge_intelligence_data(
+                self._serialize_enum_field(intelligence_source.content_intelligence),
                 enriched_intelligence.get("content_intelligence", {})
-            )
+            ))
             
-            intelligence_source.competitive_intelligence = self._merge_intelligence_data(
-                intelligence_source.competitive_intelligence,
+            intelligence_source.competitive_intelligence = json.dumps(self._merge_intelligence_data(
+                self._serialize_enum_field(intelligence_source.competitive_intelligence),
                 enriched_intelligence.get("competitive_intelligence", {})
-            )
+            ))
             
-            intelligence_source.brand_intelligence = self._merge_intelligence_data(
-                intelligence_source.brand_intelligence,
+            intelligence_source.brand_intelligence = json.dumps(self._merge_intelligence_data(
+                self._serialize_enum_field(intelligence_source.brand_intelligence),
                 enriched_intelligence.get("brand_intelligence", {})
-            )
+            ))
             
-            # 🔥 CRITICAL FIX: Store AI-enhanced intelligence with proper validation
+            # 🔥 CRITICAL FIX: Store AI-enhanced intelligence with proper validation and JSON serialization
             ai_intelligence_stored = {}
             
             # Scientific Intelligence
             scientific_data = enriched_intelligence.get("scientific_intelligence", {})
             if scientific_data and len(scientific_data) > 0:
-                intelligence_source.scientific_intelligence = scientific_data
+                intelligence_source.scientific_intelligence = json.dumps(scientific_data)
                 ai_intelligence_stored["scientific_intelligence"] = len(scientific_data)
                 logger.info(f"✅ Stored scientific_intelligence: {len(scientific_data)} items")
             else:
                 # Use fallback data with timestamp
-                intelligence_source.scientific_intelligence = {
+                fallback_data = {
                     "scientific_backing": ["General health and wellness support"],
                     "research_quality_score": 0.5,
                     "generated_at": datetime.utcnow().isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
+                intelligence_source.scientific_intelligence = json.dumps(fallback_data)
                 ai_intelligence_stored["scientific_intelligence"] = 1
                 logger.warning("⚠️ Using fallback data for scientific_intelligence")
             
             # Credibility Intelligence
             credibility_data = enriched_intelligence.get("credibility_intelligence", {})
             if credibility_data and len(credibility_data) > 0:
-                intelligence_source.credibility_intelligence = credibility_data
+                intelligence_source.credibility_intelligence = json.dumps(credibility_data)
                 ai_intelligence_stored["credibility_intelligence"] = len(credibility_data)
                 logger.info(f"✅ Stored credibility_intelligence: {len(credibility_data)} items")
             else:
-                intelligence_source.credibility_intelligence = {
+                fallback_data = {
                     "trust_indicators": ["Quality assurance", "Professional presentation"],
                     "overall_credibility_score": 0.6,
                     "generated_at": datetime.utcnow().isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
+                intelligence_source.credibility_intelligence = json.dumps(fallback_data)
                 ai_intelligence_stored["credibility_intelligence"] = 1
                 logger.warning("⚠️ Using fallback data for credibility_intelligence")
             
             # Market Intelligence
             market_data = enriched_intelligence.get("market_intelligence", {})
             if market_data and len(market_data) > 0:
-                intelligence_source.market_intelligence = market_data
+                intelligence_source.market_intelligence = json.dumps(market_data)
                 ai_intelligence_stored["market_intelligence"] = len(market_data)
                 logger.info(f"✅ Stored market_intelligence: {len(market_data)} items")
             else:
-                intelligence_source.market_intelligence = {
+                fallback_data = {
                     "market_analysis": {"market_size": {"current_estimate": "Growing market"}},
                     "market_intelligence_score": 0.5,
                     "generated_at": datetime.utcnow().isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
+                intelligence_source.market_intelligence = json.dumps(fallback_data)
                 ai_intelligence_stored["market_intelligence"] = 1
                 logger.warning("⚠️ Using fallback data for market_intelligence")
             
             # Emotional Transformation Intelligence
             emotional_data = enriched_intelligence.get("emotional_transformation_intelligence", {})
             if emotional_data and len(emotional_data) > 0:
-                intelligence_source.emotional_transformation_intelligence = emotional_data
+                intelligence_source.emotional_transformation_intelligence = json.dumps(emotional_data)
                 ai_intelligence_stored["emotional_transformation_intelligence"] = len(emotional_data)
                 logger.info(f"✅ Stored emotional_transformation_intelligence: {len(emotional_data)} items")
             else:
-                intelligence_source.emotional_transformation_intelligence = {
+                fallback_data = {
                     "emotional_journey": {"current_state": ["Seeking health solutions"]},
                     "transformation_confidence": 0.5,
                     "generated_at": datetime.utcnow().isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
+                intelligence_source.emotional_transformation_intelligence = json.dumps(fallback_data)
                 ai_intelligence_stored["emotional_transformation_intelligence"] = 1
                 logger.warning("⚠️ Using fallback data for emotional_transformation_intelligence")
             
             # Scientific Authority Intelligence
             authority_data = enriched_intelligence.get("scientific_authority_intelligence", {})
             if authority_data and len(authority_data) > 0:
-                intelligence_source.scientific_authority_intelligence = authority_data
+                intelligence_source.scientific_authority_intelligence = json.dumps(authority_data)
                 ai_intelligence_stored["scientific_authority_intelligence"] = len(authority_data)
                 logger.info(f"✅ Stored scientific_authority_intelligence: {len(authority_data)} items")
             else:
-                intelligence_source.scientific_authority_intelligence = {
+                fallback_data = {
                     "research_validation": {"evidence_strength": "Basic validation"},
                     "authority_score": 0.6,
                     "generated_at": datetime.utcnow().isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
+                intelligence_source.scientific_authority_intelligence = json.dumps(fallback_data)
                 ai_intelligence_stored["scientific_authority_intelligence"] = 1
                 logger.warning("⚠️ Using fallback data for scientific_authority_intelligence")
             
@@ -497,10 +537,10 @@ class IntelligenceHandler:
                 }
             }
             
-            intelligence_source.processing_metadata = {
-                **(intelligence_source.processing_metadata or {}),
+            intelligence_source.processing_metadata = json.dumps({
+                **self._serialize_enum_field(intelligence_source.processing_metadata),
                 **amplification_metadata
-            }
+            })
             
             # Commit changes
             await self.db.commit()
@@ -541,10 +581,10 @@ class IntelligenceHandler:
                 }
             }
             
-            intelligence_source.processing_metadata = {
-                **(intelligence_source.processing_metadata or {}),
+            intelligence_source.processing_metadata = json.dumps({
+                **self._serialize_enum_field(intelligence_source.processing_metadata),
                 **error_metadata
-            }
+            })
             
             await self.db.commit()
             
@@ -595,12 +635,14 @@ class IntelligenceHandler:
         
         for column in ai_columns:
             data = getattr(intelligence_source, column, None)
-            is_stored = bool(data and len(data) > 0)
+            # 🔥 CRITICAL FIX: Use enum serialization for verification
+            serialized_data = self._serialize_enum_field(data)
+            is_stored = bool(serialized_data and len(serialized_data) > 0)
             stored_count += is_stored
             storage_details[f"{column}_stored"] = is_stored
             
             if is_stored:
-                storage_details[f"{column}_size"] = len(data) if isinstance(data, (dict, list)) else 1
+                storage_details[f"{column}_size"] = len(serialized_data) if isinstance(serialized_data, (dict, list)) else 1
         
         return {
             "stored_categories": stored_count,

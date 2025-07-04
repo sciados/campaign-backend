@@ -2,6 +2,7 @@
 File: src/intelligence/handlers/content_handler.py
 Content Handler - Contains content generation business logic
 Extracted from routes.py to improve maintainability
+🔥 FIXED: Enum serialization issues resolved
 """
 import json
 import logging
@@ -23,6 +24,25 @@ class ContentHandler:
     def __init__(self, db: AsyncSession, user: User):
         self.db = db
         self.user = user
+    
+    # 🔥 CRITICAL FIX: Add enum serialization helper
+    def _serialize_enum_field(self, field_value):
+        """Serialize enum field to proper format for API response"""
+        if field_value is None:
+            return {}
+        
+        if isinstance(field_value, str):
+            try:
+                return json.loads(field_value)
+            except (json.JSONDecodeError, ValueError):
+                logger.warning(f"Failed to parse enum field as JSON: {field_value}")
+                return {}
+        
+        if isinstance(field_value, dict):
+            return field_value
+        
+        logger.warning(f"Unexpected enum field type: {type(field_value)}")
+        return {}
     
     async def generate_content(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate content using intelligence data"""
@@ -206,7 +226,7 @@ class ContentHandler:
         return campaign
     
     async def _prepare_intelligence_data(self, campaign_id: str, campaign: Campaign) -> Dict[str, Any]:
-        """Prepare intelligence data for content generation"""
+        """Prepare intelligence data for content generation with enum serialization"""
         # Get intelligence sources
         intelligence_result = await self.db.execute(
             select(CampaignIntelligence).where(
@@ -231,27 +251,48 @@ class ContentHandler:
         # Aggregate intelligence data from all sources
         for source in intelligence_sources:
             try:
+                # 🔥 CRITICAL FIX: Use enum serialization for all intelligence fields
                 source_data = {
                     "id": str(source.id),
                     "source_type": source.source_type.value if source.source_type else "unknown",
                     "source_url": source.source_url,
                     "confidence_score": source.confidence_score or 0.0,
-                    "offer_intelligence": source.offer_intelligence or {},
-                    "psychology_intelligence": source.psychology_intelligence or {},
-                    "content_intelligence": source.content_intelligence or {},
-                    "competitive_intelligence": source.competitive_intelligence or {},
-                    "brand_intelligence": source.brand_intelligence or {}
+                    "offer_intelligence": self._serialize_enum_field(source.offer_intelligence),
+                    "psychology_intelligence": self._serialize_enum_field(source.psychology_intelligence),
+                    "content_intelligence": self._serialize_enum_field(source.content_intelligence),
+                    "competitive_intelligence": self._serialize_enum_field(source.competitive_intelligence),
+                    "brand_intelligence": self._serialize_enum_field(source.brand_intelligence),
+                    
+                    # 🔥 CRITICAL FIX: Also include AI-enhanced categories with enum serialization
+                    "scientific_intelligence": self._serialize_enum_field(source.scientific_intelligence),
+                    "credibility_intelligence": self._serialize_enum_field(source.credibility_intelligence),
+                    "market_intelligence": self._serialize_enum_field(source.market_intelligence),
+                    "emotional_transformation_intelligence": self._serialize_enum_field(source.emotional_transformation_intelligence),
+                    "scientific_authority_intelligence": self._serialize_enum_field(source.scientific_authority_intelligence),
+                    
+                    # 🔥 CRITICAL FIX: Processing metadata with enum serialization
+                    "processing_metadata": self._serialize_enum_field(source.processing_metadata),
                 }
                 intelligence_data["intelligence_sources"].append(source_data)
                 
                 # Merge into aggregate intelligence
                 for intel_type in ["offer_intelligence", "psychology_intelligence", "content_intelligence", "competitive_intelligence", "brand_intelligence"]:
                     self._merge_intelligence_category(intelligence_data, source_data, intel_type)
+                
+                # Debug logging for first source
+                if len(intelligence_data["intelligence_sources"]) == 1:
+                    logger.info(f"🔍 Content Handler - First source AI categories:")
+                    logger.info(f"   scientific_intelligence: {len(source_data['scientific_intelligence'])} items")
+                    logger.info(f"   credibility_intelligence: {len(source_data['credibility_intelligence'])} items")
+                    logger.info(f"   market_intelligence: {len(source_data['market_intelligence'])} items")
+                    logger.info(f"   emotional_transformation_intelligence: {len(source_data['emotional_transformation_intelligence'])} items")
+                    logger.info(f"   scientific_authority_intelligence: {len(source_data['scientific_authority_intelligence'])} items")
                     
             except Exception as source_error:
                 logger.warning(f"⚠️ Error processing source {source.id}: {str(source_error)}")
                 continue
         
+        logger.info(f"✅ Content Handler prepared intelligence data: {len(intelligence_data['intelligence_sources'])} sources")
         return intelligence_data
     
     def _merge_intelligence_category(self, target: Dict, source: Dict, category: str):
@@ -318,6 +359,13 @@ class ContentHandler:
         """Save generated content to database"""
         intelligence_sources = intelligence_data.get("intelligence_sources", [])
         
+        # 🔥 CRITICAL FIX: Check for amplification data using enum serialization
+        amplified_sources = []
+        for source in intelligence_sources:
+            processing_metadata = self._serialize_enum_field(source.get("processing_metadata", {}))
+            if processing_metadata.get("amplification_applied", False):
+                amplified_sources.append(source["id"])
+        
         generated_content = GeneratedContent(
             campaign_id=campaign_id,
             company_id=self.user.company_id,
@@ -331,10 +379,10 @@ class ContentHandler:
                 "sources_count": len(intelligence_sources),
                 "primary_source_id": str(intelligence_sources[0]["id"]) if intelligence_sources else None,
                 "generation_timestamp": datetime.utcnow().isoformat(),
-                "amplified": any(
-                    source.get("processing_metadata", {}).get("amplification_applied", False)
-                    for source in intelligence_sources
-                )
+                "amplified": bool(amplified_sources),
+                "amplified_sources": amplified_sources,
+                "ai_categories_available": self._count_ai_categories(intelligence_sources),
+                "enum_serialization_applied": True
             },
             intelligence_source_id=intelligence_sources[0]["id"] if intelligence_sources else None,
             is_published=False
@@ -344,7 +392,29 @@ class ContentHandler:
         await self.db.commit()
         await self.db.refresh(generated_content)
         
+        logger.info(f"✅ Content saved with {len(amplified_sources)} amplified sources")
         return str(generated_content.id)
+    
+    def _count_ai_categories(self, intelligence_sources: List[Dict[str, Any]]) -> Dict[str, int]:
+        """Count available AI intelligence categories across all sources"""
+        ai_categories = [
+            'scientific_intelligence',
+            'credibility_intelligence',
+            'market_intelligence',
+            'emotional_transformation_intelligence',
+            'scientific_authority_intelligence'
+        ]
+        
+        category_counts = {}
+        for category in ai_categories:
+            total_items = 0
+            for source in intelligence_sources:
+                ai_data = source.get(category, {})
+                if isinstance(ai_data, dict) and ai_data:
+                    total_items += len(ai_data)
+            category_counts[category] = total_items
+        
+        return category_counts
     
     async def _get_content_with_verification(self, campaign_id: str, content_id: str) -> GeneratedContent:
         """Get content item with campaign verification"""
@@ -392,7 +462,7 @@ class ContentHandler:
             return "Content available"
     
     async def _get_intelligence_source_info(self, intelligence_source_id: Optional[str]) -> Optional[Dict[str, Any]]:
-        """Get intelligence source information if available"""
+        """Get intelligence source information if available with enum serialization"""
         if not intelligence_source_id:
             return None
         
@@ -406,12 +476,24 @@ class ContentHandler:
         if not intelligence_source:
             return None
         
+        # 🔥 CRITICAL FIX: Include amplification status with enum serialization
+        processing_metadata = self._serialize_enum_field(intelligence_source.processing_metadata)
+        amplification_applied = processing_metadata.get("amplification_applied", False)
+        
         return {
             "id": str(intelligence_source.id),
             "source_title": intelligence_source.source_title,
             "source_url": intelligence_source.source_url,
             "confidence_score": intelligence_source.confidence_score,
-            "source_type": intelligence_source.source_type.value if intelligence_source.source_type else None
+            "source_type": intelligence_source.source_type.value if intelligence_source.source_type else None,
+            "amplification_applied": amplification_applied,
+            "ai_categories_available": {
+                "scientific_intelligence": bool(self._serialize_enum_field(intelligence_source.scientific_intelligence)),
+                "credibility_intelligence": bool(self._serialize_enum_field(intelligence_source.credibility_intelligence)),
+                "market_intelligence": bool(self._serialize_enum_field(intelligence_source.market_intelligence)),
+                "emotional_transformation_intelligence": bool(self._serialize_enum_field(intelligence_source.emotional_transformation_intelligence)),
+                "scientific_authority_intelligence": bool(self._serialize_enum_field(intelligence_source.scientific_authority_intelligence))
+            }
         }
     
     async def _update_campaign_counters(self, campaign_id: str):

@@ -6,6 +6,7 @@ CLEANED VERSION with proper structure and no duplications
 FIXED: PostgreSQL parameter syntax errors resolved
 ULTRA-CHEAP AI PROVIDER INTEGRATION: 95-99% cost savings implemented
 FIXED: Circular import and provider method issues resolved
+🔥 FIXED: Enum serialization issues resolved
 """
 import uuid
 import logging
@@ -85,6 +86,25 @@ class AnalysisHandler:
         self.db = db
         self.user = user
     
+    # 🔥 CRITICAL FIX: Add enum serialization helper
+    def _serialize_enum_field(self, field_value):
+        """Serialize enum field to proper format for API response"""
+        if field_value is None:
+            return {}
+        
+        if isinstance(field_value, str):
+            try:
+                return json.loads(field_value)
+            except (json.JSONDecodeError, ValueError):
+                logger.warning(f"Failed to parse enum field as JSON: {field_value}")
+                return {}
+        
+        if isinstance(field_value, dict):
+            return field_value
+        
+        logger.warning(f"Unexpected enum field type: {type(field_value)}")
+        return {}
+    
     async def analyze_url(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Enhanced URL analysis with direct amplifier integration
@@ -123,11 +143,11 @@ class AnalysisHandler:
                 
                 # Set failed status
                 intelligence.analysis_status = AnalysisStatus.FAILED
-                intelligence.processing_metadata = {
+                intelligence.processing_metadata = json.dumps({
                     "storage_error": str(storage_error),
                     "error_type": type(storage_error).__name__,
                     "partial_analysis": True
-                }
+                })
                 await self.db.commit()
             
             # STEP 4: Update campaign counters
@@ -465,18 +485,19 @@ class AnalysisHandler:
         try:
             enhanced_analysis = analysis_result
             
-            # Store base intelligence (proven method)
+            # 🔥 CRITICAL FIX: Store base intelligence with enum serialization
             offer_intel = self._validate_intelligence_section(enhanced_analysis.get("offer_intelligence", {}))
             psychology_intel = self._validate_intelligence_section(enhanced_analysis.get("psychology_intelligence", {}))
             content_intel = self._validate_intelligence_section(enhanced_analysis.get("content_intelligence", {}))
             competitive_intel = self._validate_intelligence_section(enhanced_analysis.get("competitive_intelligence", {}))
             brand_intel = self._validate_intelligence_section(enhanced_analysis.get("brand_intelligence", {}))
 
-            intelligence.offer_intelligence = offer_intel
-            intelligence.psychology_intelligence = psychology_intel
-            intelligence.content_intelligence = content_intel
-            intelligence.competitive_intelligence = competitive_intel
-            intelligence.brand_intelligence = brand_intel
+            # Serialize as JSON strings for enum storage
+            intelligence.offer_intelligence = json.dumps(offer_intel)
+            intelligence.psychology_intelligence = json.dumps(psychology_intel)
+            intelligence.content_intelligence = json.dumps(content_intel)
+            intelligence.competitive_intelligence = json.dumps(competitive_intel)
+            intelligence.brand_intelligence = json.dumps(brand_intel)
             
             logger.info(f"✅ Base intelligence stored successfully")
             
@@ -499,9 +520,10 @@ class AnalysisHandler:
             processing_metadata.update({
                 "storage_method": "hybrid_approach",
                 "bulk_optimization": use_bulk_optimization,
-                "analysis_timestamp": datetime.utcnow().isoformat()
+                "analysis_timestamp": datetime.utcnow().isoformat(),
+                "enum_serialization_applied": True
             })
-            intelligence.processing_metadata = processing_metadata
+            intelligence.processing_metadata = json.dumps(processing_metadata)
             intelligence.analysis_status = AnalysisStatus.COMPLETED
             
             # Single commit
@@ -515,10 +537,10 @@ class AnalysisHandler:
         except Exception as storage_error:
             logger.error(f"❌ Critical storage error: {str(storage_error)}")
             intelligence.analysis_status = AnalysisStatus.FAILED
-            intelligence.processing_metadata = {
+            intelligence.processing_metadata = json.dumps({
                 "storage_error": str(storage_error),
                 "error_type": type(storage_error).__name__
-            }
+            })
             await self.db.commit()
     
     def _should_use_bulk_optimization(self, enhanced_analysis: Dict[str, Any]) -> bool:
@@ -557,7 +579,7 @@ class AnalysisHandler:
         return should_optimize
     
     async def _store_ai_data_simplified(self, intelligence: CampaignIntelligence, enhanced_analysis: Dict[str, Any]):
-        """Store AI data using dedicated AI Intelligence Saver"""
+        """Store AI data using dedicated AI Intelligence Saver with enum serialization"""
         
         # Import the dedicated saver
         try:
@@ -632,16 +654,16 @@ class AnalysisHandler:
             
             if validated_data and validated_data != {}:
                 try:
-                    # Set the attribute directly on the intelligence object
-                    setattr(intelligence, key, validated_data)
+                    # 🔥 CRITICAL FIX: Store as JSON string for enum compatibility
+                    setattr(intelligence, key, json.dumps(validated_data))
                     flag_modified(intelligence, key)
                     logger.info(f"✅ Fallback storage: {key} set ({len(validated_data)} items)")
                 except Exception as e:
                     logger.error(f"❌ Fallback storage failed for {key}: {str(e)}")
                     # Store in metadata as backup
-                    current_metadata = intelligence.processing_metadata or {}
+                    current_metadata = self._serialize_enum_field(intelligence.processing_metadata)
                     current_metadata[f"ai_backup_{key}"] = validated_data
-                    intelligence.processing_metadata = current_metadata
+                    intelligence.processing_metadata = json.dumps(current_metadata)
                     logger.info(f"🔄 Stored {key} in metadata backup")
     
     async def _verify_ai_storage_with_dedicated_saver(self, intelligence_id: uuid.UUID):
@@ -684,13 +706,13 @@ class AnalysisHandler:
         """Emergency fallback - save all AI data in processing_metadata"""
         
         try:
-            current_metadata = intelligence.processing_metadata or {}
+            current_metadata = self._serialize_enum_field(intelligence.processing_metadata)
             
             current_metadata["emergency_ai_storage"] = ai_data
             current_metadata["emergency_save_timestamp"] = datetime.utcnow().isoformat()
             current_metadata["emergency_save_reason"] = "All primary storage methods failed"
             
-            intelligence.processing_metadata = current_metadata
+            intelligence.processing_metadata = json.dumps(current_metadata)
             
             total_items = sum(len(data) if isinstance(data, dict) else 0 for data in ai_data.values())
             logger.info(f"🚨 Emergency save: {len(ai_data)} categories, {total_items} items in metadata")
@@ -866,10 +888,10 @@ class AnalysisHandler:
         """Handle analysis failure"""
         try:
             intelligence.analysis_status = AnalysisStatus.FAILED
-            intelligence.processing_metadata = {
+            intelligence.processing_metadata = json.dumps({
                 "error": str(error),
                 "traceback": traceback.format_exc()
-            }
+            })
             await self.db.commit()
         except:
             await self.db.rollback()
@@ -877,7 +899,7 @@ class AnalysisHandler:
     def _prepare_analysis_response(
         self, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Prepare successful analysis response"""
+        """Prepare successful analysis response with enum serialization"""
         # Extract competitive opportunities
         competitive_intel = analysis_result.get("competitive_intelligence", {})
         competitive_opportunities = []
@@ -914,12 +936,13 @@ class AnalysisHandler:
                 primary_provider = amplification_metadata.get("primary_provider_used", "unknown")
                 campaign_suggestions.append(f"💰 Ultra-cheap AI optimization active: {cost_savings:.0f}% cost savings using {primary_provider}")
 
+        # 🔥 CRITICAL FIX: Use enum serialization for response data
         return {
             "intelligence_id": str(intelligence.id),
             "analysis_status": intelligence.analysis_status.value,
             "confidence_score": intelligence.confidence_score,
-            "offer_intelligence": intelligence.offer_intelligence,
-            "psychology_intelligence": intelligence.psychology_intelligence,
+            "offer_intelligence": self._serialize_enum_field(intelligence.offer_intelligence),
+            "psychology_intelligence": self._serialize_enum_field(intelligence.psychology_intelligence),
             "competitive_opportunities": competitive_opportunities,
             "campaign_suggestions": campaign_suggestions,
             "amplification_metadata": amplification_metadata  # Include cost optimization data
@@ -1011,13 +1034,13 @@ async def emergency_ai_storage_fallback(
         current_metadata["emergency_storage_applied"] = True
         current_metadata["emergency_timestamp"] = datetime.utcnow().isoformat()
         
-        intelligence.processing_metadata = current_metadata
+        intelligence.processing_metadata = json.dumps(current_metadata)
         
         # Also try to store in individual columns one more time
         for category in ai_categories:
             if category in consolidated_ai_data:
                 try:
-                    setattr(intelligence, category, consolidated_ai_data[category])
+                    setattr(intelligence, category, json.dumps(consolidated_ai_data[category]))
                     flag_modified(intelligence, category)
                     logger.info(f"✅ Emergency storage: {category} set")
                 except Exception as e:
@@ -1107,7 +1130,7 @@ async def store_analysis_with_bindparam(
             "parameter_fix_applied": True,
             "analysis_timestamp": datetime.utcnow().isoformat()
         })
-        intelligence.processing_metadata = processing_metadata
+        intelligence.processing_metadata = json.dumps(processing_metadata)
         intelligence.analysis_status = AnalysisStatus.COMPLETED
         
         await db_session.commit()
@@ -1129,6 +1152,7 @@ async def store_analysis_with_bindparam(
 2. Provider method signature corrected to return List[Dict[str, Any]]
 3. Ultra-cheap provider integration with proper error handling
 4. Emergency fallback providers for maximum reliability
+5. 🔥 NEW: Enum serialization issues resolved
 
 ✅ ULTRA-CHEAP OPTIMIZATION FEATURES:
 1. Tiered AI provider system integration
@@ -1136,6 +1160,12 @@ async def store_analysis_with_bindparam(
 3. Cost tracking and savings calculation
 4. Provider priority verification
 5. Emergency fallback to ultra-cheap providers
+
+✅ ENUM SERIALIZATION FIXES:
+1. Added _serialize_enum_field() method
+2. Fixed _store_analysis_results() with JSON serialization
+3. Fixed _prepare_analysis_response() with enum deserialization
+4. All enum field access patterns corrected
 
 ✅ ENHANCED LOGGING:
 1. Real-time cost savings reporting
@@ -1155,6 +1185,7 @@ KEY BENEFITS:
 - 🛡️ Multiple fallback strategies
 - 📊 Real-time cost tracking
 - ✅ Production-ready implementation
+- 🔥 Enum serialization compatibility
 
-READY FOR DEPLOYMENT: The analysis handler now correctly integrates with the ultra-cheap AI provider system for maximum cost savings while maintaining reliability.
+READY FOR DEPLOYMENT: The analysis handler now correctly integrates with the ultra-cheap AI provider system for maximum cost savings while maintaining reliability AND proper enum serialization.
 """
