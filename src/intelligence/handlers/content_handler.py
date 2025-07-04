@@ -8,6 +8,7 @@ import json
 import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+from intelligence.utils.enum_serializer import EnumSerializerMixin
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
@@ -18,7 +19,7 @@ from ..utils.campaign_helpers import update_campaign_counters
 
 logger = logging.getLogger(__name__)
 
-class ContentHandler:
+class ContentHandler(EnumSerializerMixin):
     """Handle content generation and management operations"""
     
     def __init__(self, db: AsyncSession, user: User):

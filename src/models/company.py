@@ -3,11 +3,14 @@
 Company models and related schemas - FIXED VERSION
 """
 
+import json
+from intelligence.amplifier import sources
 from sqlalchemy import Column, String, Text, Integer, ForeignKey, Boolean, DateTime, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 
 from src.models import BaseModel
 
@@ -54,8 +57,8 @@ class Company(BaseModel):
     
     # Branding & Settings
     logo_url = Column(Text)
-    brand_colors = Column(JSONB, default={})
-    brand_guidelines = Column(JSONB, default={})
+    json.loads(sources.brand_colors).get("research_data")
+    json.loads(sources.brand_guidelines).get("research_data")
     
     # Subscription & Billing
     subscription_tier = Column(String(50), default=CompanySubscriptionTier.FREE.value)
@@ -69,7 +72,7 @@ class Company(BaseModel):
     total_campaigns_created = Column(Integer, default=0)  # ← CRITICAL FIX for registration
     
     # Company Settings
-    settings = Column(JSONB, default={})
+    json.loads(sources.settings).get("research_data")
     
     # Relationships - Use string references to avoid circular imports
     users = relationship("User", back_populates="company")
@@ -95,7 +98,7 @@ class CompanyMembership(BaseModel):
     
     # Role & Permissions
     role = Column(String(50), nullable=False, default=MembershipRole.MEMBER.value)
-    permissions = Column(JSONB, default={})
+    json.loads(sources.permissions).get("research_data")
     
     # Status
     status = Column(String(50), default=MembershipStatus.ACTIVE.value)

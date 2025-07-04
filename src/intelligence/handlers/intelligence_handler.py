@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 from src.models.user import User
 from src.models.campaign import Campaign
 from src.models.intelligence import CampaignIntelligence, GeneratedContent
@@ -38,7 +39,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-class IntelligenceHandler:
+class IntelligenceHandler(EnumSerializerMixin):
     """Handle intelligence data management operations"""
     
     def __init__(self, db: AsyncSession, user: User):

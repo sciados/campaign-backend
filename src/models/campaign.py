@@ -2,6 +2,8 @@
 """
 Campaign models - Updated enum values to match database
 """
+import json
+from intelligence.amplifier import sources
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -9,6 +11,7 @@ from sqlalchemy.sql import func
 import enum
 from datetime import datetime
 from uuid import uuid4
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 
 from src.models import BaseModel
 
@@ -44,8 +47,8 @@ class Campaign(BaseModel):
     # Basic Campaign Information
     title = Column(String(500), nullable=False)
     description = Column(Text)
-    keywords = Column(JSONB, default=[])  # List of keywords
-    target_audience = Column(JSONB, default={})
+    json.loads(sources.keywords).get("research_data")
+    json.loads(sources.target_audience).get("research_data")
     
     # ✅ FIXED: Use enum values that match database
     status = Column(Enum(CampaignStatus, name='campaignstatus'), default=CampaignStatus.DRAFT)
@@ -54,16 +57,16 @@ class Campaign(BaseModel):
     style = Column(String(100), default="modern")  # modern, classic, bold, etc.
     
     # Campaign Settings and Configuration
-    settings = Column(JSONB, default={})  # Flexible settings storage
+    json.loads(sources.settings).get("research_data")  # settings storage
     
     # Flexible workflow tracking
     workflow_state = Column(Enum(CampaignWorkflowState, name='campaignworkflowstate'), default=CampaignWorkflowState.BASIC_SETUP)
     workflow_preference = Column(Enum(WorkflowPreference, name='workflowpreference'), default=WorkflowPreference.FLEXIBLE)
     
     # Allow users to work on multiple steps simultaneously
-    active_steps = Column(JSONB, default=[1])  # Which steps user is currently working on
-    completed_steps = Column(JSONB, default=[])  # Which steps are fully complete
-    available_steps = Column(JSONB, default=[1, 2])  # Which steps user can access
+    json.loads(sources.active_steps).get("research_data")
+    json.loads(sources.completed_steps).get("research_data")
+    json.loads(sources.available_steps).get("research_data") # steps user can access
     
     # Flexible progress tracking
     step_states = Column(JSONB, default={
@@ -74,8 +77,8 @@ class Campaign(BaseModel):
     })
     
     # User session management
-    current_session = Column(JSONB, default={})  # What user is working on right now
-    session_history = Column(JSONB, default=[])  # Track user's work patterns
+    json.loads(sources.current_session).get("research_data")
+    json.loads(sources.session_history).get("research_data") # Track user's work patterns
     
     # Quick vs Methodical mode settings
     quick_mode_enabled = Column(Boolean, default=False)
@@ -94,18 +97,18 @@ class Campaign(BaseModel):
     content_generated = Column(Integer, default=0)
     
     # Step-specific data
-    step_2_data = Column(JSONB, default={})  # Source upload preferences, etc.
-    step_3_data = Column(JSONB, default={})  # Analysis results, extracted insights
-    step_4_data = Column(JSONB, default={})  # Content generation preferences
+    json.loads(sources.step_2_data).get("research_data")
+    json.loads(sources.step_3_data).get("research_data")
+    json.loads(sources.step_4_data).get("research_data") # generation preferences
     
     # Progress percentages for UI
-    step_2_progress = Column(JSONB, default={})
-    step_3_progress = Column(JSONB, default={})
-    step_4_progress = Column(JSONB, default={})
+    json.loads(sources.step_2_progress).get("research_data")
+    json.loads(sources.step_3_progress).get("research_data")
+    json.loads(sources.step_4_progress).get("research_data")
     
     # Resume data - what user was working on when they left
     last_active_step = Column(Integer, default=1)
-    resume_data = Column(JSONB, default={})  # Context for resuming where they left off
+    json.loads(sources.resume_data).get("research_data") # resuming where they left off
     
     # Performance and Analytics
     confidence_score = Column(Float)  # Overall campaign confidence
@@ -114,7 +117,7 @@ class Campaign(BaseModel):
     last_activity = Column(DateTime)
     
     # Content storage (flexible JSON structure)
-    content = Column(JSONB, default={})  # Store campaign-related content and metadata
+    json.loads(sources.content).get("research_data")  # Store campaign-related content and metadata
     
     # Foreign Keys
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)

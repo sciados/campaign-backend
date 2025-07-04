@@ -2,6 +2,8 @@
 """
 Intelligence models - Extends existing campaign system with competitive intelligence - FIXED RELATIONSHIPS
 """
+import json
+from intelligence.amplifier import sources
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -10,6 +12,7 @@ import enum
 from datetime import datetime
 from pydantic import BaseModel as PydanticBaseModel, Field
 from typing import List, Optional, Dict, Any, Literal
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 
 from src.models import BaseModel
 
@@ -39,18 +42,18 @@ class CampaignIntelligence(BaseModel):
     analysis_status = Column(Enum(AnalysisStatus, name='analysis_status'), default=AnalysisStatus.PENDING)
     
     # Core Intelligence Data (JSONB for flexibility)
-    offer_intelligence = Column(JSONB, default={})
-    psychology_intelligence = Column(JSONB, default={})
-    content_intelligence = Column(JSONB, default={})
-    competitive_intelligence = Column(JSONB, default={})
-    brand_intelligence = Column(JSONB, default={})
+    json.loads(sources.offer_intelligence).get("research_data")
+    json.loads(sources.psychology_intelligence).get("research_data")
+    json.loads(sources.content_intelligence).get("research_data")
+    json.loads(sources.competitive_intelligence).get("research_data")
+    json.loads(sources.brand_intelligence).get("research_data")
     
     # ADDED: AI Enhancement Intelligence Columns
-    scientific_intelligence = Column(JSONB, default={})
-    credibility_intelligence = Column(JSONB, default={})
-    market_intelligence = Column(JSONB, default={})
-    emotional_transformation_intelligence = Column(JSONB, default={})
-    scientific_authority_intelligence = Column(JSONB, default={})
+    json.loads(sources.scientific_intelligence).get("research_data")
+    json.loads(sources.credibility_intelligence).get("research_data")
+    json.loads(sources.market_intelligence).get("research_data")
+    json.loads(sources.emotional_transformation).get("research_data")
+    json.loads(sources.scientific_authority).get("research_data")
     
     # Performance Tracking
     confidence_score = Column(Float, default=0.0)  # 0-1 confidence in analysis
@@ -59,7 +62,7 @@ class CampaignIntelligence(BaseModel):
     
     # Raw Data Storage
     raw_content = Column(Text)  # Original extracted content
-    processing_metadata = Column(JSONB, default={})  # Processing logs and settings
+    json.loads(sources.processing_metadata).get("research_data")  # Processing logs and settings
     
     # Foreign Keys
     campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=False)

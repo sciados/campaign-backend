@@ -53,9 +53,12 @@ class AdCopyGenerator:
         if preferences is None:
             preferences = {}
             
-        platform = preferences.get("platform", "facebook")
-        objective = preferences.get("objective", "conversions")
-        ad_count = preferences.get("count", 5)
+        platform = self._serialize_enum_field(intelligence_data.get("platform","facebook"))
+        objective = self._serialize_enum_field(intelligence_data.get("objective", "conversions"))
+        ad_count = self._serialize_enum_field(intelligence_data.get("count", 5))
+        # platform = preferences.get("platform", "facebook")
+        # objective = preferences.get("objective", "conversions")
+        # ad_count = preferences.get("count", 5)
         
         product_name = self._extract_product_name(intelligence_data)
         
@@ -127,11 +130,13 @@ class AdCopyGenerator:
             }
         }
         
-        spec = platform_specs.get(platform, platform_specs["facebook"])
+        #spec = platform_specs.get(platform, platform_specs["facebook"])
+        spec = self._serialize_enum_field(platform_specs.get(platform, platform_specs["facebook"]))
         
         # Extract angle intelligence for ad copy
-        angles = intelligence_data.get("angle_selection_system", {}).get("available_angles", [])
-        
+        # angles = intelligence_data.get("angle_selection_system", {}).get("available_angles", [])
+        angles = self._serialize_enum_field(intelligence_data.get("angle_selection_system", {}).get("available_angles", []))
+
         prompt = f"""
 Create {count} high-converting {platform} ads for {product_name}.
 
@@ -263,9 +268,10 @@ Angle: [angle used]
     
     def _extract_product_name(self, intelligence_data):
         """Extract product name from intelligence"""
-        offer_intel = intelligence_data.get("offer_intelligence", {})
-        insights = offer_intel.get("insights", [])
-        
+        #offer_intel = intelligence_data.get("offer_intelligence", {})
+        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
+        # insights = offer_intel.get("insights", [])
+        insights = self._serialize_enum_field(offer_intel.get("insights", []))
         for insight in insights:
             if "called" in str(insight).lower():
                 words = str(insight).split()

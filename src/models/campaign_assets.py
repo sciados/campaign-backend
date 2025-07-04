@@ -3,6 +3,8 @@
 Campaign Assets models for file uploads and asset management
 """
 
+import json
+from intelligence.amplifier import sources
 from sqlalchemy import Column, String, Text, Integer, Float, Boolean, ForeignKey, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -51,8 +53,8 @@ class CampaignAsset(BaseModel):
     error_message = Column(Text)  # Error details if processing failed
     
     # Metadata and Properties
-    asset_metadata = Column(JSONB, default={})  # Image dimensions, video length, etc.
-    tags = Column(JSONB, default=[])  # User-defined tags
+    json.loads(sources.asset_metadata).get("research_data")
+    json.loads(sources.tags).get("research_data")  # User-defined tags
     description = Column(Text)  # Asset description
     
     # Usage and Analytics
@@ -67,7 +69,7 @@ class CampaignAsset(BaseModel):
     
     # Processing Results (for AI analysis)
     extracted_text = Column(Text)  # OCR or document text extraction
-    ai_analysis = Column(JSONB, default={})  # AI-generated insights about the asset
+    json.loads(sources.ai_analysis).get("research_data")  # AI-generated insights about the asset
     thumbnail_url = Column(Text)  # Generated thumbnail URL
     
     # Foreign Keys

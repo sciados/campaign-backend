@@ -15,6 +15,7 @@ from src.core.database import get_db
 from src.auth.dependencies import get_current_active_user
 from src.models import User, Company, GeneratedContent, Campaign
 from src.intelligence.generators.landing_page.analytics.tracker import AnalyticsTracker
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 
 logger = logging.getLogger(__name__)
 

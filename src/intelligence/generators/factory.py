@@ -256,9 +256,10 @@ class ContentGeneratorFactory:
         """Extract product name for fallback content"""
         
         try:
-            offer_intel = intelligence_data.get("offer_intelligence", {})
-            insights = offer_intel.get("insights", [])
-            
+            # offer_intel = intelligence_data.get("offer_intelligence", {})
+            offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence"))
+            # insights = offer_intel.get("insights", [])
+            insights = self._serialize_enum_field(offer_intel.get("insights", []))
             for insight in insights:
                 if "called" in str(insight).lower():
                     words = str(insight).split()
