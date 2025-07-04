@@ -12,7 +12,7 @@ import enum
 from datetime import datetime
 from pydantic import BaseModel as PydanticBaseModel, Field
 from typing import List, Optional, Dict, Any, Literal
-from src.intelligence.utils.enum_serializer import EnumSerializerMixin
+# from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 
 from src.models import BaseModel
 
