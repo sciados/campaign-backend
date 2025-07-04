@@ -119,7 +119,7 @@ class ContentDuplicateRequest(BaseModel):
 def normalize_campaign_status(status_str: str) -> CampaignStatus:
     """Normalize campaign status string to enum value"""
     try:
-        return CampaignStatus(status_str.lower())
+        return CampaignStatus(status_str.upper())
     except ValueError:
         logger.warning(f"Unknown campaign status '{status_str}', defaulting to DRAFT")
         return CampaignStatus.DRAFT
