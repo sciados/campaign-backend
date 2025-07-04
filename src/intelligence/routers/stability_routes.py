@@ -1,5 +1,5 @@
+# File: src/intelligence/routers/stability_routes.py
 """
-File: src/intelligence/routers/stability_routes.py
 Stability AI Image Generation Routes - Integrated with YOUR existing files
 ✅ Uses YOUR StabilityAIGenerator from src/intelligence/generators/stability_ai_generator.py
 ✅ Uses YOUR EnhancedSocialMediaGenerator from src/intelligence/generators/enhanced_social_media_generator.py
