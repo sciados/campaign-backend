@@ -1,15 +1,28 @@
 """
 File: src/intelligence/routes.py
-Main Intelligence Routes - Refactored Version
-Reduced from 1000+ lines to ~50 lines
+Main Intelligence Routes - Updated with Stability AI Integration
 """
 from fastapi import APIRouter
-from .routers import analysis_routes, content_routes, management_routes, debug_routes, stability_routes
+
+# Import all existing routers
+from .routers import (
+    analysis_routes, 
+    content_routes, 
+    management_routes, 
+    debug_routes
+)
+
+# Import the new Stability AI routes (create this file)
+try:
+    from .routers import stability_routes
+    STABILITY_ROUTES_AVAILABLE = True
+except ImportError:
+    STABILITY_ROUTES_AVAILABLE = False
 
 # Create main router
 router = APIRouter(tags=["intelligence"])
 
-# Include sub-routers with proper prefixes
+# Include existing sub-routers with proper prefixes
 router.include_router(
     analysis_routes.router,
     prefix="/analysis",
@@ -34,8 +47,10 @@ router.include_router(
     tags=["intelligence-debug"]
 )
 
-router.include_router(
-    stability_routes.router,
-    prefix="/stability",
-    tags=["stability-ai-images"]
-)
+# ✅ NEW: Include Stability AI routes if available
+if STABILITY_ROUTES_AVAILABLE:
+    router.include_router(
+        stability_routes.router,
+        prefix="/stability",
+        tags=["stability-ai-images"]
+    )
