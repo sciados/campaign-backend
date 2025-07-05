@@ -1,14 +1,15 @@
 # src/intelligence/amplifier/enhancements/emotional_enhancer.py
 """
 Generates emotional journey mapping and psychological insights using ULTRA-CHEAP AI providers
+FIXED: Removed duplicate AI calling methods, using centralized ai_throttle for consistency
 UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
-FIXED: Added throttling and proper error handling
 """
 import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import json
 
+# FIXED: Import centralized AI throttling system
 from ...utils.ai_throttle import safe_ai_call
 
 logger = logging.getLogger(__name__)
@@ -71,8 +72,14 @@ class EmotionalTransformationEnhancer:
         return selected_provider
     
     async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
-        """Call the ultra-cheap AI provider with throttling and error handling"""
+        """
+        FIXED: Call the ultra-cheap AI provider using centralized ai_throttle system
+        This replaces the duplicate method and ensures consistent error handling
+        """
         
+        if not self.available_provider:
+            raise Exception("No AI provider available")
+            
         provider_name = self.available_provider["name"]
         client = self.available_provider["client"]
         
@@ -101,7 +108,7 @@ class EmotionalTransformationEnhancer:
         model = model_map.get(provider_name, "gpt-3.5-turbo")
         
         # Make the safe AI call with automatic throttling and JSON validation
-        return await safe_ai_call(
+        result = await safe_ai_call(
             client=client,
             provider_name=provider_name,
             model=model,
@@ -109,6 +116,17 @@ class EmotionalTransformationEnhancer:
             temperature=0.4,
             max_tokens=2000
         )
+        
+        # Handle fallback responses
+        if isinstance(result, dict) and result.get("fallback"):
+            logger.warning(f"⚠️ AI call returned fallback for {provider_name}")
+            # Extract any useful fallback data
+            if "fallback_data" in result:
+                return result["fallback_data"]
+            else:
+                raise Exception("AI call failed and no fallback data available")
+        
+        return result
     
     async def generate_emotional_transformation_intelligence(
         self, 
@@ -131,19 +149,19 @@ class EmotionalTransformationEnhancer:
             psych_intel = base_intelligence.get("psychology_intelligence", {})
             offer_intel = base_intelligence.get("offer_intelligence", {})
             
-            # Generate emotional journey mapping using ultra-cheap AI
+            # Generate emotional journey mapping using centralized AI system
             emotional_journey = await self._generate_emotional_journey_mapping(product_name, psych_intel, offer_intel)
             
-            # Generate psychological triggers using ultra-cheap AI
+            # Generate psychological triggers using centralized AI system
             psychological_triggers = await self._generate_psychological_triggers(product_name, psych_intel)
             
-            # Generate emotional value propositions using ultra-cheap AI
+            # Generate emotional value propositions using centralized AI system
             emotional_value_props = await self._generate_emotional_value_propositions(product_name, offer_intel)
             
-            # Generate transformation narratives using ultra-cheap AI
+            # Generate transformation narratives using centralized AI system
             transformation_narratives = await self._generate_transformation_narratives(product_name, base_intelligence)
             
-            # Generate emotional engagement strategies using ultra-cheap AI
+            # Generate emotional engagement strategies using centralized AI system
             engagement_strategies = await self._generate_emotional_engagement_strategies(product_name, psych_intel)
             
             # Calculate emotional impact score
@@ -174,11 +192,11 @@ class EmotionalTransformationEnhancer:
             
             # Log successful generation with cost data
             total_items = (
-                len(emotional_journey) + 
-                len(psychological_triggers) + 
-                len(emotional_value_props) +
-                len(transformation_narratives) +
-                len(engagement_strategies)
+                len(emotional_journey) if isinstance(emotional_journey, dict) else 0 +
+                len(psychological_triggers) if isinstance(psychological_triggers, dict) else 0 +
+                len(emotional_value_props) if isinstance(emotional_value_props, dict) else 0 +
+                len(transformation_narratives) if isinstance(transformation_narratives, dict) else 0 +
+                len(engagement_strategies) if isinstance(engagement_strategies, dict) else 0
             )
             
             logger.info(f"✅ Emotional intelligence generated using {provider_name}")
@@ -213,7 +231,7 @@ class EmotionalTransformationEnhancer:
         psych_intel: Dict[str, Any],
         offer_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate detailed emotional journey mapping using ultra-cheap AI"""
+        """Generate detailed emotional journey mapping using centralized AI system"""
         
         pain_points = psych_intel.get("pain_points", [])
         emotional_triggers = psych_intel.get("emotional_triggers", [])
@@ -226,14 +244,7 @@ class EmotionalTransformationEnhancer:
         Emotional triggers: {json.dumps(emotional_triggers, indent=2)}
         Value propositions: {json.dumps(value_props, indent=2)}
         
-        Create detailed emotional journey mapping including:
-        1. Current emotional state (before product)
-        2. Transformation process stages
-        3. Desired emotional outcome
-        4. Emotional milestones along the way
-        5. Potential emotional barriers
-        
-        Format as JSON:
+        Create detailed emotional journey mapping. Format as JSON:
         {{
             "current_emotional_state": ["emotion1", "emotion2", "emotion3"],
             "transformation_stages": [
@@ -251,8 +262,13 @@ class EmotionalTransformationEnhancer:
             logger.info(f"🗺️ Generating emotional journey with {self.available_provider.get('name')}")
             emotional_journey = await self._call_ultra_cheap_ai(prompt)
             
+            # Handle string responses
             if isinstance(emotional_journey, str):
-                emotional_journey = json.loads(emotional_journey)
+                try:
+                    emotional_journey = json.loads(emotional_journey)
+                except:
+                    logger.warning("⚠️ Could not parse emotional journey as JSON, using fallback")
+                    return self._fallback_emotional_journey_mapping()
             
             result = emotional_journey if isinstance(emotional_journey, dict) else {}
             logger.info(f"✅ Generated emotional journey with {len(result)} categories")
@@ -267,7 +283,7 @@ class EmotionalTransformationEnhancer:
         product_name: str, 
         psych_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate psychological triggers analysis using ultra-cheap AI"""
+        """Generate psychological triggers analysis using centralized AI system"""
         
         existing_triggers = psych_intel.get("emotional_triggers", [])
         target_audience = psych_intel.get("target_audience", "General audience")
@@ -278,15 +294,7 @@ class EmotionalTransformationEnhancer:
         Existing triggers: {json.dumps(existing_triggers, indent=2)}
         Target audience: {target_audience}
         
-        Generate psychological triggers including:
-        1. Trust-building triggers
-        2. Urgency and scarcity triggers
-        3. Social proof triggers
-        4. Authority and credibility triggers
-        5. Emotional comfort triggers
-        6. Decision facilitation triggers
-        
-        Format as JSON:
+        Generate psychological triggers. Format as JSON:
         {{
             "trust_building": ["trigger1", "trigger2"],
             "urgency_scarcity": ["trigger1", "trigger2"],
@@ -302,8 +310,13 @@ class EmotionalTransformationEnhancer:
             logger.info(f"🧠 Generating psychological triggers with {self.available_provider.get('name')}")
             psychological_triggers = await self._call_ultra_cheap_ai(prompt)
             
+            # Handle string responses
             if isinstance(psychological_triggers, str):
-                psychological_triggers = json.loads(psychological_triggers)
+                try:
+                    psychological_triggers = json.loads(psychological_triggers)
+                except:
+                    logger.warning("⚠️ Could not parse psychological triggers as JSON, using fallback")
+                    return self._fallback_psychological_triggers()
             
             result = psychological_triggers if isinstance(psychological_triggers, dict) else {}
             logger.info(f"✅ Generated psychological triggers with {len(result)} categories")
@@ -318,7 +331,7 @@ class EmotionalTransformationEnhancer:
         product_name: str, 
         offer_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate emotional value propositions using ultra-cheap AI"""
+        """Generate emotional value propositions using centralized AI system"""
         
         value_props = offer_intel.get("value_propositions", [])
         benefits = offer_intel.get("insights", [])
@@ -329,14 +342,7 @@ class EmotionalTransformationEnhancer:
         Functional value propositions: {json.dumps(value_props, indent=2)}
         Product benefits: {json.dumps(benefits, indent=2)}
         
-        Generate emotional value propositions including:
-        1. Emotional benefits and outcomes
-        2. Feeling-focused messaging
-        3. Aspirational positioning
-        4. Peace of mind propositions
-        5. Confidence-building messages
-        
-        Format as JSON:
+        Generate emotional value propositions. Format as JSON:
         {{
             "emotional_benefits": ["benefit1", "benefit2", "benefit3"],
             "feeling_focused": ["feeling1", "feeling2"],
@@ -351,8 +357,13 @@ class EmotionalTransformationEnhancer:
             logger.info(f"💝 Generating emotional value propositions with {self.available_provider.get('name')}")
             emotional_value_props = await self._call_ultra_cheap_ai(prompt)
             
+            # Handle string responses
             if isinstance(emotional_value_props, str):
-                emotional_value_props = json.loads(emotional_value_props)
+                try:
+                    emotional_value_props = json.loads(emotional_value_props)
+                except:
+                    logger.warning("⚠️ Could not parse emotional value props as JSON, using fallback")
+                    return self._fallback_emotional_value_propositions()
             
             result = emotional_value_props if isinstance(emotional_value_props, dict) else {}
             logger.info(f"✅ Generated emotional value propositions with {len(result)} categories")
@@ -367,19 +378,12 @@ class EmotionalTransformationEnhancer:
         product_name: str, 
         base_intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate transformation narratives using ultra-cheap AI"""
+        """Generate transformation narratives using centralized AI system"""
         
         prompt = f"""
         As a transformation storytelling expert, create narratives for "{product_name}".
         
-        Generate transformation narratives including:
-        1. Hero's journey adaptation for customers
-        2. Problem to solution story arcs
-        3. Transformation milestone stories
-        4. Success achievement narratives
-        5. Empowerment and growth stories
-        
-        Format as JSON:
+        Generate transformation narratives. Format as JSON:
         {{
             "heros_journey": ["journey1", "journey2"],
             "problem_solution_arcs": ["arc1", "arc2"],
@@ -394,8 +398,13 @@ class EmotionalTransformationEnhancer:
             logger.info(f"📖 Generating transformation narratives with {self.available_provider.get('name')}")
             transformation_narratives = await self._call_ultra_cheap_ai(prompt)
             
+            # Handle string responses
             if isinstance(transformation_narratives, str):
-                transformation_narratives = json.loads(transformation_narratives)
+                try:
+                    transformation_narratives = json.loads(transformation_narratives)
+                except:
+                    logger.warning("⚠️ Could not parse transformation narratives as JSON, using fallback")
+                    return self._fallback_transformation_narratives()
             
             result = transformation_narratives if isinstance(transformation_narratives, dict) else {}
             logger.info(f"✅ Generated transformation narratives with {len(result)} categories")
@@ -410,19 +419,12 @@ class EmotionalTransformationEnhancer:
         product_name: str, 
         psych_intel: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate emotional engagement strategies using ultra-cheap AI"""
+        """Generate emotional engagement strategies using centralized AI system"""
         
         prompt = f"""
         As an emotional engagement strategist, develop strategies for "{product_name}".
         
-        Generate emotional engagement strategies including:
-        1. Emotional connection building
-        2. Empathy and understanding demonstration
-        3. Community and belonging creation
-        4. Support and guidance provision
-        5. Celebration and achievement recognition
-        
-        Format as JSON:
+        Generate emotional engagement strategies. Format as JSON:
         {{
             "connection_building": ["strategy1", "strategy2"],
             "empathy_demonstration": ["demo1", "demo2"],
@@ -437,8 +439,13 @@ class EmotionalTransformationEnhancer:
             logger.info(f"🤝 Generating emotional engagement with {self.available_provider.get('name')}")
             engagement_strategies = await self._call_ultra_cheap_ai(prompt)
             
+            # Handle string responses
             if isinstance(engagement_strategies, str):
-                engagement_strategies = json.loads(engagement_strategies)
+                try:
+                    engagement_strategies = json.loads(engagement_strategies)
+                except:
+                    logger.warning("⚠️ Could not parse engagement strategies as JSON, using fallback")
+                    return self._fallback_emotional_engagement_strategies()
             
             result = engagement_strategies if isinstance(engagement_strategies, dict) else {}
             logger.info(f"✅ Generated emotional engagement with {len(result)} categories")
@@ -447,122 +454,6 @@ class EmotionalTransformationEnhancer:
         except Exception as e:
             logger.error(f"❌ Emotional engagement strategies generation failed: {str(e)}")
             return self._fallback_emotional_engagement_strategies()
-    
-    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
-        """Call the ultra-cheap AI provider with optimized settings"""
-        
-        provider_name = self.available_provider["name"]
-        client = self.available_provider["client"]
-        
-        # Log the call for cost tracking
-        estimated_tokens = len(prompt.split()) * 1.3  # Rough estimate
-        cost_per_1k = self.available_provider.get("cost_per_1k_tokens", 0)
-        estimated_cost = (estimated_tokens / 1000) * cost_per_1k
-        
-        logger.info(f"💰 AI Call: {provider_name} | ~{estimated_tokens:.0f} tokens | ~${estimated_cost:.6f}")
-        
-        try:
-            if provider_name == "groq":
-                response = await client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",  # Best Groq model for emotional content
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are an emotional psychology expert providing strategic insights. Always respond with valid JSON when requested. Be empathetic but comprehensive."
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    temperature=0.4,
-                    max_tokens=2000
-                )
-                return response.choices[0].message.content
-                
-            elif provider_name == "together":
-                response = await client.chat.completions.create(
-                    model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",  # Best Together AI model
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are an emotional psychology expert providing strategic insights. Always respond with valid JSON when requested. Be empathetic but comprehensive."
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    temperature=0.4,
-                    max_tokens=2000
-                )
-                return response.choices[0].message.content
-                
-            elif provider_name == "deepseek":
-                response = await client.chat.completions.create(
-                    model="deepseek-chat",  # Deepseek's main model
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are an emotional psychology expert providing strategic insights. Always respond with valid JSON when requested. Be empathetic but comprehensive."
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    temperature=0.4,
-                    max_tokens=2000
-                )
-                return response.choices[0].message.content
-                
-            elif provider_name == "anthropic":
-                response = await client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
-                    max_tokens=2000,
-                    temperature=0.4,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
-                )
-                return response.content[0].text
-            
-            elif provider_name == "cohere":
-                response = await client.chat(
-                    model="command-r-plus",
-                    message=prompt,
-                    temperature=0.4,
-                    max_tokens=2000
-                )
-                return response.text
-                
-            elif provider_name == "openai":
-                response = await client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are an emotional psychology expert providing strategic insights. Always respond with valid JSON when requested."
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    temperature=0.4,
-                    max_tokens=2000
-                )
-                return response.choices[0].message.content
-            
-            else:
-                raise Exception(f"Unsupported ultra-cheap provider: {provider_name}")
-                
-        except Exception as e:
-            logger.error(f"❌ Ultra-cheap AI call failed for {provider_name}: {str(e)}")
-            raise
     
     def _calculate_emotional_impact_score(
         self, 
@@ -575,15 +466,15 @@ class EmotionalTransformationEnhancer:
         score = 0.4  # Base score
         
         # Emotional journey score
-        if emotional_journey:
+        if emotional_journey and isinstance(emotional_journey, dict):
             score += min(len(emotional_journey) * 0.06, 0.20)
         
         # Psychological triggers score
-        if psychological_triggers:
+        if psychological_triggers and isinstance(psychological_triggers, dict):
             score += min(len(psychological_triggers) * 0.05, 0.20)
         
         # Emotional value propositions score
-        if emotional_value_props:
+        if emotional_value_props and isinstance(emotional_value_props, dict):
             score += min(len(emotional_value_props) * 0.04, 0.20)
         
         return min(score, 1.0)
