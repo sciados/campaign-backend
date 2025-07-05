@@ -2,11 +2,14 @@
 """
 Generates enhanced content intelligence using ULTRA-CHEAP AI providers
 UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
+FIXED: Added throttling and proper error handling
 """
 import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import json
+
+from ...utils.ai_throttle import safe_ai_call
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +69,46 @@ class ContentIntelligenceEnhancer:
         logger.info(f"   Priority: {selected_provider.get('priority', 'unknown')}")
         
         return selected_provider
+    
+    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
+        """Call the ultra-cheap AI provider with throttling and error handling"""
+        
+        provider_name = self.available_provider["name"]
+        client = self.available_provider["client"]
+        
+        # Create messages for the AI call
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a content and messaging expert. Always respond with valid JSON when requested. Be creative but strategic."
+            },
+            {
+                "role": "user", 
+                "content": prompt
+            }
+        ]
+        
+        # Get the model name for this provider
+        model_map = {
+            "groq": "llama-3.3-70b-versatile",
+            "together": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+            "deepseek": "deepseek-chat",
+            "anthropic": "claude-3-haiku-20240307",
+            "cohere": "command-r-plus",
+            "openai": "gpt-3.5-turbo"
+        }
+        
+        model = model_map.get(provider_name, "gpt-3.5-turbo")
+        
+        # Make the safe AI call with automatic throttling and JSON validation
+        return await safe_ai_call(
+            client=client,
+            provider_name=provider_name,
+            model=model,
+            messages=messages,
+            temperature=0.4,
+            max_tokens=2000
+        )
     
     async def generate_content_intelligence(
         self, 
@@ -395,122 +438,6 @@ class ContentIntelligenceEnhancer:
         except Exception as e:
             logger.error(f"❌ Engagement optimization generation failed: {str(e)}")
             return self._fallback_engagement_optimization()
-    
-    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
-        """Call the ultra-cheap AI provider with optimized settings"""
-        
-        provider_name = self.available_provider["name"]
-        client = self.available_provider["client"]
-        
-        # Log the call for cost tracking
-        estimated_tokens = len(prompt.split()) * 1.3  # Rough estimate
-        cost_per_1k = self.available_provider.get("cost_per_1k_tokens", 0)
-        estimated_cost = (estimated_tokens / 1000) * cost_per_1k
-        
-        logger.info(f"💰 AI Call: {provider_name} | ~{estimated_tokens:.0f} tokens | ~${estimated_cost:.6f}")
-        
-        try:
-            if provider_name == "groq":
-                response = await client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",  # Best Groq model for content creation
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a content and messaging expert. Always respond with valid JSON when requested. Be creative but strategic."
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    temperature=0.4,
-                    max_tokens=2000
-                )
-                return response.choices[0].message.content
-                
-            elif provider_name == "together":
-                response = await client.chat.completions.create(
-                    model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",  # Best Together AI model
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a content and messaging expert. Always respond with valid JSON when requested. Be creative but strategic."
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    temperature=0.4,
-                    max_tokens=2000
-                )
-                return response.choices[0].message.content
-                
-            elif provider_name == "deepseek":
-                response = await client.chat.completions.create(
-                    model="deepseek-chat",  # Deepseek's main model
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a content and messaging expert. Always respond with valid JSON when requested. Be creative but strategic."
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    temperature=0.4,
-                    max_tokens=2000
-                )
-                return response.choices[0].message.content
-                
-            elif provider_name == "anthropic":
-                response = await client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
-                    max_tokens=2000,
-                    temperature=0.4,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
-                )
-                return response.content[0].text
-            
-            elif provider_name == "cohere":
-                response = await client.chat(
-                    model="command-r-plus",
-                    message=prompt,
-                    temperature=0.4,
-                    max_tokens=2000
-                )
-                return response.text
-                
-            elif provider_name == "openai":
-                response = await client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a content and messaging expert. Always respond with valid JSON when requested."
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    temperature=0.4,
-                    max_tokens=2000
-                )
-                return response.choices[0].message.content
-            
-            else:
-                raise Exception(f"Unsupported ultra-cheap provider: {provider_name}")
-                
-        except Exception as e:
-            logger.error(f"❌ Ultra-cheap AI call failed for {provider_name}: {str(e)}")
-            raise
     
     def _calculate_content_performance_score(
         self, 

@@ -2,11 +2,14 @@
 """
 Generates emotional journey mapping and psychological insights using ULTRA-CHEAP AI providers
 UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
+FIXED: Added throttling and proper error handling
 """
 import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import json
+
+from ...utils.ai_throttle import safe_ai_call
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +69,46 @@ class EmotionalTransformationEnhancer:
         logger.info(f"   Priority: {selected_provider.get('priority', 'unknown')}")
         
         return selected_provider
+    
+    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
+        """Call the ultra-cheap AI provider with throttling and error handling"""
+        
+        provider_name = self.available_provider["name"]
+        client = self.available_provider["client"]
+        
+        # Create messages for the AI call
+        messages = [
+            {
+                "role": "system",
+                "content": "You are an emotional psychology expert providing strategic insights. Always respond with valid JSON when requested. Be empathetic but comprehensive."
+            },
+            {
+                "role": "user", 
+                "content": prompt
+            }
+        ]
+        
+        # Get the model name for this provider
+        model_map = {
+            "groq": "llama-3.3-70b-versatile",
+            "together": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+            "deepseek": "deepseek-chat",
+            "anthropic": "claude-3-haiku-20240307",
+            "cohere": "command-r-plus",
+            "openai": "gpt-3.5-turbo"
+        }
+        
+        model = model_map.get(provider_name, "gpt-3.5-turbo")
+        
+        # Make the safe AI call with automatic throttling and JSON validation
+        return await safe_ai_call(
+            client=client,
+            provider_name=provider_name,
+            model=model,
+            messages=messages,
+            temperature=0.4,
+            max_tokens=2000
+        )
     
     async def generate_emotional_transformation_intelligence(
         self, 
