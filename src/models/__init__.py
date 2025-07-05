@@ -1,5 +1,5 @@
 """
-Base models and mixins - SIMPLIFIED VERSION to fix circular imports
+Base models and mixins - EMERGENCY FIX for production circular imports
 """
 
 from sqlalchemy import Column, DateTime, Boolean, String, func
@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from uuid import uuid4
 
-# Create base directly here to avoid circular imports
+# Create base directly - avoid importing from src.core.database
 Base = declarative_base()
 
 class TimestampMixin:
@@ -27,35 +27,13 @@ class BaseModel(Base, UUIDMixin, TimestampMixin):
     def __tablename__(cls):
         return cls.__name__.lower()
 
-# SIMPLIFIED: Only import what we need for the migration
-# This avoids the circular import issue with the async database engine
-try:
-    from .intelligence import (
-        CampaignIntelligence,
-        GeneratedContent,
-        SmartURL,
-        IntelligenceSourceType,
-        AnalysisStatus
-    )
-    INTELLIGENCE_MODELS_AVAILABLE = True
-except ImportError as e:
-    INTELLIGENCE_MODELS_AVAILABLE = False
-    print(f"Intelligence models not available: {e}")
+# EMERGENCY FIX: Don't import ANY models in __init__.py
+# This prevents circular imports completely
+# Models will be imported directly where needed
 
-# Minimal exports for migration
 __all__ = [
     "BaseModel", 
     "Base",
     "TimestampMixin", 
     "UUIDMixin",
 ]
-
-# Add intelligence models if available
-if INTELLIGENCE_MODELS_AVAILABLE:
-    __all__.extend([
-        "CampaignIntelligence",
-        "GeneratedContent", 
-        "SmartURL",
-        "IntelligenceSourceType",
-        "AnalysisStatus"
-    ])
