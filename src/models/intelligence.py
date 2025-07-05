@@ -1,6 +1,6 @@
-# src/models/intelligence.py - EMERGENCY FIX for production circular imports
+# src/models/intelligence.py - FINAL FIX for reserved 'metadata' column name
 """
-Intelligence models - EMERGENCY FIX to resolve circular imports
+Intelligence models - FINAL FIX to resolve SQLAlchemy reserved attribute error
 """
 import json
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
@@ -163,14 +163,14 @@ class CampaignIntelligence(BaseModel, EnumSerializerMixin):
         return sum(1 for category_data in ai_data.values() if category_data and len(category_data) > 0)
 
 class GeneratedContent(BaseModel, EnumSerializerMixin):
-    """Track content generated from intelligence - EMERGENCY FIX VERSION"""
+    """Track content generated from intelligence - FINAL FIX VERSION"""
     __tablename__ = "generated_content"
     
     # Content Information
     content_type = Column(String(50), nullable=False)
     title = Column(String(500))
     content = Column(Text, nullable=False)
-    metadata = Column(JSONB, default={})
+    content_metadata = Column(JSONB, default={})  # 🔥 FIXED: Renamed from 'metadata' to 'content_metadata'
     
     # Generation Settings
     generation_prompt = Column(Text)
@@ -202,7 +202,7 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
         return {
             "generation_settings": self._serialize_enum_field(self.generation_settings),
             "intelligence_used": self._serialize_enum_field(self.intelligence_used),
-            "metadata": self._serialize_enum_field(self.metadata),
+            "content_metadata": self._serialize_enum_field(self.content_metadata),  # 🔥 FIXED: Updated reference
             "performance_data": self._serialize_enum_field(self.performance_data)
         }
 
@@ -253,7 +253,7 @@ class SmartURL(BaseModel, EnumSerializerMixin):
             }
         }
 
-# Pydantic models remain the same...
+# Minimal Pydantic models for production compatibility
 class EnhancedAnalysisRequest(PydanticBaseModel):
     url: str = Field(..., description="URL to analyze")
     campaign_id: str = Field(..., description="Campaign ID")
