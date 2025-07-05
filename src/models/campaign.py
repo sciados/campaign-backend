@@ -1,6 +1,6 @@
-# src/models/campaign.py - FIXED to remove circular import
+# src/models/campaign.py - PERMANENT CLEAN VERSION
 """
-Campaign models - Updated enum values to match database - FIXED CIRCULAR IMPORT
+Campaign models - Clean permanent version with proper imports
 """
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -10,20 +10,10 @@ import enum
 from datetime import datetime
 from uuid import uuid4
 
-# EMERGENCY FIX: Create BaseModel locally to avoid circular import
-from sqlalchemy.ext.declarative import declarative_base
+# Import from our clean base module
+from .base import BaseModel
 
-Base = declarative_base()
-
-class BaseModel(Base):
-    """Emergency base model to avoid circular imports"""
-    __abstract__ = True
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-# ✅ FIXED: Match the actual database enum values
+# Campaign-specific enums
 class CampaignStatus(str, enum.Enum):
     DRAFT = "DRAFT"
     IN_PROGRESS = "IN_PROGRESS" 
@@ -58,7 +48,7 @@ class Campaign(BaseModel):
     keywords = Column(JSONB, default=[])  # List of keywords
     target_audience = Column(JSONB, default={})
     
-    # ✅ FIXED: Use enum values that match database
+    # Status and workflow
     status = Column(Enum(CampaignStatus, name='campaignstatus'), default=CampaignStatus.DRAFT)
     
     tone = Column(String(100), default="conversational")  # conversational, professional, casual, etc.
@@ -131,8 +121,29 @@ class Campaign(BaseModel):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
-    # EMERGENCY FIX: Remove relationships to avoid circular imports
-    # Relationships will be defined elsewhere if needed
+    # Clean relationships (will work once all models use proper imports)
+    user = relationship("User", back_populates="campaigns")
+    company = relationship("Company", back_populates="campaigns")
+    
+    # Asset relationships
+    assets = relationship("CampaignAsset", back_populates="campaign", cascade="all, delete-orphan")
+    
+    # Intelligence and content relationships
+    intelligence_sources = relationship(
+        "CampaignIntelligence", 
+        back_populates="campaign", 
+        cascade="all, delete-orphan"
+    )
+    generated_content = relationship(
+        "GeneratedContent", 
+        back_populates="campaign", 
+        cascade="all, delete-orphan"
+    )
+    smart_urls = relationship(
+        "SmartURL", 
+        back_populates="campaign", 
+        cascade="all, delete-orphan"
+    )
     
     def __init__(self, **kwargs):
         # Set default ID if not provided
@@ -153,8 +164,8 @@ class Campaign(BaseModel):
     def update_workflow_progress(self):
         """Update workflow progress based on current data"""
         # Count actual sources and content
-        sources_count = self.sources_count or 0
-        content_count = self.content_generated or 0
+        sources_count = len(self.intelligence_sources) if self.intelligence_sources else 0
+        content_count = len(self.generated_content) if self.generated_content else 0
         
         # Update step states based on actual progress
         if sources_count > 0:
@@ -162,7 +173,7 @@ class Campaign(BaseModel):
             self.step_states["step_2"]["progress"] = 100
             self.step_states["step_3"]["status"] = "available"
         
-        if self.intelligence_extracted and self.intelligence_extracted > 0:
+        if self.intelligence_extracted > 0:
             self.step_states["step_3"]["status"] = "completed" 
             self.step_states["step_3"]["progress"] = 100
             self.step_states["step_4"]["status"] = "available"
@@ -186,7 +197,6 @@ class Campaign(BaseModel):
     
     def calculate_completion_percentage(self):
         """Calculate overall completion percentage"""
-        total_weight = 100
         progress = 0
         
         # Step 1: Always complete (25%)
@@ -195,30 +205,30 @@ class Campaign(BaseModel):
         # Step 2: Sources (25% weight)
         if self.step_states.get("step_2", {}).get("status") == "completed":
             progress += 25
-        elif self.sources_count and self.sources_count > 0:
+        elif self.sources_count > 0:
             progress += 12.5  # Partial credit
         
         # Step 3: Analysis (25% weight) 
         if self.step_states.get("step_3", {}).get("status") == "completed":
             progress += 25
-        elif self.intelligence_extracted and self.intelligence_extracted > 0:
+        elif self.intelligence_extracted > 0:
             progress += 12.5  # Partial credit
         
         # Step 4: Content (25% weight)
         if self.step_states.get("step_4", {}).get("status") == "completed":
             progress += 25
-        elif self.content_generated and self.content_generated > 0:
+        elif self.content_generated > 0:
             progress += 12.5  # Partial credit
         
         return min(progress, 100)
     
     def get_suggested_next_step(self):
         """Get the suggested next step for the user"""
-        if not self.sources_count or self.sources_count == 0:
+        if self.sources_count == 0:
             return 2, "Add input sources to analyze"
-        elif not self.intelligence_extracted or self.intelligence_extracted == 0:
+        elif self.intelligence_extracted == 0:
             return 3, "Analyze your sources to extract intelligence"
-        elif not self.content_generated or self.content_generated == 0:
+        elif self.content_generated == 0:
             return 4, "Generate marketing content from your intelligence"
         else:
             return 2, "Add more sources or generate additional content"
@@ -227,11 +237,11 @@ class Campaign(BaseModel):
         """Determine if user can quickly complete remaining steps"""
         remaining_steps = []
         
-        if not self.sources_count or self.sources_count == 0:
+        if self.sources_count == 0:
             remaining_steps.append("add_sources")
-        if not self.intelligence_extracted or self.intelligence_extracted == 0:
+        if self.intelligence_extracted == 0:
             remaining_steps.append("analyze_sources")
-        if not self.content_generated or self.content_generated == 0:
+        if self.content_generated == 0:
             remaining_steps.append("generate_content")
         
         # Can quick complete if 2 or fewer steps remain
@@ -245,13 +255,13 @@ class Campaign(BaseModel):
             "suggested_step": self.get_suggested_next_step()[0],
             "suggested_action": self.get_suggested_next_step()[1],
             "can_quick_complete": self.can_quick_complete(),
-            "sources_count": self.sources_count or 0,
-            "intelligence_count": self.intelligence_extracted or 0,
-            "content_count": self.content_generated or 0,
+            "sources_count": self.sources_count,
+            "intelligence_count": self.intelligence_extracted,
+            "content_count": self.content_generated,
             "workflow_preference": self.workflow_preference.value if self.workflow_preference else "flexible"
         }
     
-    # ✅ Helper property for backward compatibility
+    # Helper property for backward compatibility
     @property
     def campaign_type(self):
         """All campaigns are universal - for backward compatibility"""

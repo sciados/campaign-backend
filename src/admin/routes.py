@@ -16,7 +16,7 @@ from src.admin.schemas import (
     UserUpdateRequest, CompanyUpdateRequest, UserCreateRequest,
     SubscriptionUpdateRequest, AdminUserResponse, AdminCompanyResponse
 )
-from src.intelligence.utils.enum_serializer import EnumSerializerMixin
+from src.models.base import EnumSerializerMixin
 from src.models.user import User
 from src.models.company import Company, CompanyMembership, CompanySubscriptionTier
 from src.models.campaign import Campaign

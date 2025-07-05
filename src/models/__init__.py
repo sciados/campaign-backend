@@ -1,39 +1,91 @@
+# src/models/__init__.py - Central model exports
 """
-Base models and mixins - EMERGENCY FIX for production circular imports
+Central model imports and exports
 """
 
-from sqlalchemy import Column, DateTime, Boolean, String, func
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.declarative import declarative_base, declared_attr
-from uuid import uuid4
+# Import base classes first
+from .base import BaseModel, EnumSerializerMixin, Base
 
-# Create base directly - avoid importing from src.core.database
-Base = declarative_base()
+# Import all models (order matters to avoid circular imports)
+from .company import (
+    Company, 
+    CompanyMembership, 
+    CompanyInvitation,
+    CompanySize,
+    CompanySubscriptionTier,
+    MembershipRole,
+    MembershipStatus,
+    InvitationStatus
+)
 
-class TimestampMixin:
-    """Mixin for created_at and updated_at timestamps"""
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+from .user import User
 
-class UUIDMixin:
-    """Mixin for UUID primary key"""
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+from .campaign import (
+    Campaign,
+    CampaignStatus,
+    WorkflowPreference, 
+    CampaignWorkflowState
+)
 
-class BaseModel(Base, UUIDMixin, TimestampMixin):
-    """Base model with common fields"""
-    __abstract__ = True
-    
-    @declared_attr
-    def __tablename__(cls):
-        return cls.__name__.lower()
+from .campaign_assets import (
+    CampaignAsset,
+    AssetType,
+    AssetStatus,
+    get_asset_type_from_extension,
+    validate_file_size,
+    generate_file_hash,
+    get_allowed_extensions
+)
 
-# EMERGENCY FIX: Don't import ANY models in __init__.py
-# This prevents circular imports completely
-# Models will be imported directly where needed
+from .intelligence import (
+    CampaignIntelligence,
+    GeneratedContent,
+    SmartURL,
+    IntelligenceSourceType,
+    AnalysisStatus,
+    EnhancedAnalysisRequest
+)
 
+# Export all models and utilities
 __all__ = [
-    "BaseModel", 
-    "Base",
-    "TimestampMixin", 
-    "UUIDMixin",
+    # Base classes
+    'BaseModel',
+    'EnumSerializerMixin', 
+    'Base',
+    
+    # Company models
+    'Company',
+    'CompanyMembership',
+    'CompanyInvitation',
+    'CompanySize',
+    'CompanySubscriptionTier',
+    'MembershipRole',
+    'MembershipStatus',
+    'InvitationStatus',
+    
+    # User models
+    'User',
+    
+    # Campaign models
+    'Campaign',
+    'CampaignStatus',
+    'WorkflowPreference',
+    'CampaignWorkflowState',
+    
+    # Asset models
+    'CampaignAsset',
+    'AssetType',
+    'AssetStatus',
+    'get_asset_type_from_extension',
+    'validate_file_size', 
+    'generate_file_hash',
+    'get_allowed_extensions',
+    
+    # Intelligence models
+    'CampaignIntelligence',
+    'GeneratedContent', 
+    'SmartURL',
+    'IntelligenceSourceType',
+    'AnalysisStatus',
+    'EnhancedAnalysisRequest',
 ]

@@ -1,6 +1,6 @@
-# src/models/intelligence.py - FINAL FIX for reserved 'metadata' column name
+# src/models/intelligence.py - PERMANENT CLEAN VERSION
 """
-Intelligence models - FINAL FIX to resolve SQLAlchemy reserved attribute error
+Intelligence models - Clean permanent version with proper imports
 """
 import json
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
@@ -12,40 +12,8 @@ from datetime import datetime
 from pydantic import BaseModel as PydanticBaseModel, Field
 from typing import List, Optional, Dict, Any, Literal
 
-# EMERGENCY FIX: Import BaseModel directly from the module to avoid circular imports
-from sqlalchemy.ext.declarative import declarative_base
-from uuid import uuid4
-
-# Create our own base to avoid circular imports
-Base = declarative_base()
-
-class BaseModel(Base):
-    """Emergency base model to avoid circular imports"""
-    __abstract__ = True
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-# EMERGENCY FIX: Create a simple enum serializer here to avoid imports
-class EnumSerializerMixin:
-    """Simple enum serializer to avoid import issues"""
-    
-    def _serialize_enum_field(self, field_value):
-        """Serialize enum field to proper format"""
-        if field_value is None:
-            return {}
-        
-        if isinstance(field_value, dict):
-            return field_value
-        
-        if isinstance(field_value, str):
-            try:
-                return json.loads(field_value)
-            except (json.JSONDecodeError, ValueError):
-                return {}
-        
-        return {}
+# Import from our clean base module
+from .base import BaseModel, EnumSerializerMixin
 
 class IntelligenceSourceType(str, enum.Enum):
     SALES_PAGE = "SALES_PAGE"
@@ -63,7 +31,7 @@ class AnalysisStatus(str, enum.Enum):
     CANCELLED = "CANCELLED"
 
 class CampaignIntelligence(BaseModel, EnumSerializerMixin):
-    """Store extracted intelligence for campaigns - EMERGENCY FIX VERSION"""
+    """Store extracted intelligence for campaigns - Clean permanent version"""
     __tablename__ = "campaign_intelligence"
     
     # Basic Information
@@ -100,8 +68,10 @@ class CampaignIntelligence(BaseModel, EnumSerializerMixin):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
-    # EMERGENCY FIX: Remove relationships to avoid circular imports
-    # Relationships will be defined elsewhere if needed
+    # Clean relationships
+    campaign = relationship("Campaign", back_populates="intelligence_sources")
+    user = relationship("User", back_populates="intelligence_sources")
+    company = relationship("Company", back_populates="intelligence_sources")
     
     def get_core_intelligence(self) -> Dict[str, Any]:
         """Get all core intelligence data with proper enum serialization"""
@@ -163,14 +133,14 @@ class CampaignIntelligence(BaseModel, EnumSerializerMixin):
         return sum(1 for category_data in ai_data.values() if category_data and len(category_data) > 0)
 
 class GeneratedContent(BaseModel, EnumSerializerMixin):
-    """Track content generated from intelligence - FINAL FIX VERSION"""
+    """Track content generated from intelligence - Clean permanent version"""
     __tablename__ = "generated_content"
     
     # Content Information
     content_type = Column(String(50), nullable=False)
     title = Column(String(500))
     content = Column(Text, nullable=False)
-    content_metadata = Column(JSONB, default={})  # 🔥 FIXED: Renamed from 'metadata' to 'content_metadata'
+    content_metadata = Column(JSONB, default={})  # FIXED: Renamed from 'metadata' to avoid reserved name
     
     # Generation Settings
     generation_prompt = Column(Text)
@@ -195,19 +165,23 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
-    # EMERGENCY FIX: Remove relationships to avoid circular imports
+    # Clean relationships
+    campaign = relationship("Campaign", back_populates="generated_content")
+    intelligence_source = relationship("CampaignIntelligence")
+    user = relationship("User", back_populates="generated_content")
+    company = relationship("Company", back_populates="generated_content")
     
     def get_generation_metadata(self) -> Dict[str, Any]:
         """Get generation metadata with proper serialization"""
         return {
             "generation_settings": self._serialize_enum_field(self.generation_settings),
             "intelligence_used": self._serialize_enum_field(self.intelligence_used),
-            "content_metadata": self._serialize_enum_field(self.content_metadata),  # 🔥 FIXED: Updated reference
+            "content_metadata": self._serialize_enum_field(self.content_metadata),
             "performance_data": self._serialize_enum_field(self.performance_data)
         }
 
 class SmartURL(BaseModel, EnumSerializerMixin):
-    """Smart URL tracking for attribution - EMERGENCY FIX VERSION"""
+    """Smart URL tracking for attribution - Clean permanent version"""
     __tablename__ = "smart_urls"
     
     # URL Information
@@ -236,7 +210,11 @@ class SmartURL(BaseModel, EnumSerializerMixin):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
-    # EMERGENCY FIX: Remove relationships to avoid circular imports
+    # Clean relationships
+    campaign = relationship("Campaign", back_populates="smart_urls")
+    generated_content = relationship("GeneratedContent")
+    user = relationship("User", back_populates="smart_urls")
+    company = relationship("Company", back_populates="smart_urls")
     
     def get_analytics_summary(self) -> Dict[str, Any]:
         """Get analytics data with proper serialization"""

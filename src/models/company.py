@@ -1,49 +1,16 @@
-# src/models/company.py - FIXED to remove circular import
+# src/models/company.py - PERMANENT CLEAN VERSION
 """
-Company models and related schemas - FIXED CIRCULAR IMPORT
+Company models and related schemas - Clean permanent version
 """
 
-import json
 from sqlalchemy import Column, String, Text, Integer, ForeignKey, Boolean, DateTime, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 
-# EMERGENCY FIX: Create enum serializer HERE instead of importing (removes circular import)
-class EnumSerializerMixin:
-    """Simple enum serializer to avoid import issues"""
-    
-    def _serialize_enum_field(self, field_value):
-        """Serialize enum field to proper format"""
-        if field_value is None:
-            return {}
-        
-        if isinstance(field_value, dict):
-            return field_value
-        
-        if isinstance(field_value, str):
-            try:
-                return json.loads(field_value)
-            except (json.JSONDecodeError, ValueError):
-                return {}
-        
-        return {}
-
-# EMERGENCY FIX: Create BaseModel locally to avoid circular import
-from sqlalchemy.ext.declarative import declarative_base
-from uuid import uuid4
-
-# Create base directly to avoid circular imports
-Base = declarative_base()
-
-class BaseModel(Base):
-    """Emergency base model to avoid circular imports"""
-    __abstract__ = True
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+# Import from our clean base module
+from .base import BaseModel, EnumSerializerMixin
 
 class CompanySize(str, enum.Enum):
     STARTUP = "startup"
@@ -76,7 +43,7 @@ class InvitationStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 class Company(BaseModel, EnumSerializerMixin):
-    """Company model - FIXED VERSION"""
+    """Company model - Clean permanent version"""
     __tablename__ = "companies"
     
     # Company Information
@@ -86,7 +53,7 @@ class Company(BaseModel, EnumSerializerMixin):
     company_size = Column(String(50), default=CompanySize.STARTUP.value)
     website_url = Column(Text)
     
-    # Branding & Settings - FIXED: Proper JSONB column definitions
+    # Branding & Settings
     logo_url = Column(Text)
     brand_colors = Column(JSONB, default={})
     brand_guidelines = Column(JSONB, default={})
@@ -101,11 +68,20 @@ class Company(BaseModel, EnumSerializerMixin):
     monthly_credits_limit = Column(Integer, default=1000)
     total_campaigns_created = Column(Integer, default=0)
     
-    # Company Settings - FIXED: Proper JSONB column definition
+    # Company Settings
     settings = Column(JSONB, default={})
     
-    # EMERGENCY FIX: Remove relationships to avoid circular imports
-    # Relationships will be defined elsewhere if needed
+    # Clean relationships (will work once all models use proper imports)
+    users = relationship("User", back_populates="company")
+    campaigns = relationship("Campaign", back_populates="company")
+    assets = relationship("CampaignAsset", back_populates="company")
+    memberships = relationship("CompanyMembership", back_populates="company")
+    invitations = relationship("CompanyInvitation", back_populates="company")
+    
+    # Intelligence relationships
+    intelligence_sources = relationship("CampaignIntelligence", back_populates="company")
+    generated_content = relationship("GeneratedContent", back_populates="company")
+    smart_urls = relationship("SmartURL", back_populates="company")
     
     def get_branding_settings(self) -> dict:
         """Get branding settings with proper enum serialization"""
@@ -119,7 +95,7 @@ class Company(BaseModel, EnumSerializerMixin):
         return self._serialize_enum_field(self.settings)
 
 class CompanyMembership(BaseModel, EnumSerializerMixin):
-    """Company membership model for team collaboration - FIXED VERSION"""
+    """Company membership model for team collaboration"""
     __tablename__ = "company_memberships"
     
     # Relationships
@@ -136,7 +112,10 @@ class CompanyMembership(BaseModel, EnumSerializerMixin):
     invited_at = Column(DateTime(timezone=True))
     joined_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    # EMERGENCY FIX: Remove relationships to avoid circular imports
+    # Clean relationships
+    user = relationship("User", foreign_keys=[user_id], back_populates="company_memberships")
+    company = relationship("Company", back_populates="memberships")
+    inviter = relationship("User", foreign_keys=[invited_by], back_populates="invited_memberships")
     
     __table_args__ = (
         UniqueConstraint('user_id', 'company_id', name='unique_user_company_membership'),
@@ -147,7 +126,7 @@ class CompanyMembership(BaseModel, EnumSerializerMixin):
         return self._serialize_enum_field(self.permissions)
 
 class CompanyInvitation(BaseModel):
-    """Company invitation model for team invites - FIXED VERSION"""
+    """Company invitation model for team invites"""
     __tablename__ = "company_invitations"
     
     # Invitation Details
@@ -165,4 +144,7 @@ class CompanyInvitation(BaseModel):
     # Security (will be populated by backend)
     invitation_token = Column(String(255), unique=True, nullable=False, index=True)
     
-    # EMERGENCY FIX: Remove relationships to avoid circular imports
+    # Clean relationships
+    company = relationship("Company", back_populates="invitations")
+    inviter = relationship("User", foreign_keys=[invited_by], back_populates="sent_invitations")
+    accepter = relationship("User", foreign_keys=[accepted_by], back_populates="accepted_invitations")

@@ -1,6 +1,6 @@
-# src/models/campaign_assets.py - FIXED VERSION
+# src/models/campaign_assets.py - PERMANENT CLEAN VERSION
 """
-Campaign Assets models for file uploads and asset management - FIXED VERSION
+Campaign Assets models for file uploads and asset management - Clean permanent version
 """
 
 import json
@@ -10,19 +10,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 
-# EMERGENCY FIX: Create BaseModel locally to avoid circular imports
-from sqlalchemy.ext.declarative import declarative_base
-from uuid import uuid4
-
-Base = declarative_base()
-
-class BaseModel(Base):
-    """Emergency base model to avoid circular imports"""
-    __abstract__ = True
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+# Import from our clean base module
+from .base import BaseModel
 
 class AssetType(str, enum.Enum):
     IMAGE = "image"
@@ -63,7 +52,7 @@ class CampaignAsset(BaseModel):
     processing_status = Column(String(50))  # upload progress, processing state
     error_message = Column(Text)  # Error details if processing failed
     
-    # Metadata and Properties - FIXED: Proper JSONB column definitions
+    # Metadata and Properties
     asset_metadata = Column(JSONB, default={})  # AI analysis metadata
     tags = Column(JSONB, default={})  # User-defined tags
     description = Column(Text)  # Asset description
@@ -88,8 +77,10 @@ class CampaignAsset(BaseModel):
     uploaded_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
-    # EMERGENCY FIX: Remove relationships to avoid circular imports
-    # Relationships will be defined elsewhere if needed
+    # Clean relationships
+    campaign = relationship("Campaign", back_populates="assets")
+    uploader = relationship("User", back_populates="uploaded_assets")
+    company = relationship("Company", back_populates="assets")
     
     def __repr__(self):
         return f"<CampaignAsset(id={self.id}, name='{self.asset_name}', type='{self.asset_type}')>"

@@ -1,29 +1,17 @@
-# src/models/user.py - FIXED VERSION
+# src/models/user.py - PERMANENT CLEAN VERSION
 """
-User model and related schemas - FIXED VERSION (no circular imports)
+User model and related schemas - Clean permanent version
 """
 
-from sqlalchemy import Column, String, Boolean, ForeignKey, Text, DateTime
+from sqlalchemy import Column, String, Boolean, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
 
-# EMERGENCY FIX: Create BaseModel locally to avoid circular imports
-from sqlalchemy.ext.declarative import declarative_base
-from uuid import uuid4
-
-Base = declarative_base()
-
-class BaseModel(Base):
-    """Emergency base model to avoid circular imports"""
-    __abstract__ = True
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+# Import from our clean base module
+from .base import BaseModel
 
 class User(BaseModel):
-    """User model - FIXED VERSION"""
+    """User model - Clean permanent version"""
     __tablename__ = "users"
     
     email = Column(String(255), unique=True, index=True, nullable=False)
@@ -42,8 +30,45 @@ class User(BaseModel):
     # User Preferences (personal, not company-wide)
     preferences = Column(JSONB, default={})
     
-    # EMERGENCY FIX: Remove relationships to avoid circular imports
-    # Relationships will be defined elsewhere if needed
+    # Clean relationships (will work once all models use proper imports)
+    company = relationship("Company", back_populates="users")
+    campaigns = relationship("Campaign", back_populates="user", cascade="all, delete-orphan")
+    
+    # Intelligence relationships
+    intelligence_sources = relationship("CampaignIntelligence", back_populates="user")
+    generated_content = relationship("GeneratedContent", back_populates="user")
+    smart_urls = relationship("SmartURL", back_populates="user")
+    
+    # Company membership relationships
+    company_memberships = relationship(
+        "CompanyMembership", 
+        foreign_keys="CompanyMembership.user_id",
+        back_populates="user"
+    )
+    
+    # Asset relationships
+    uploaded_assets = relationship("CampaignAsset", back_populates="uploader")
+    
+    # Invitations sent by this user (as inviter)
+    sent_invitations = relationship(
+        "CompanyInvitation",
+        foreign_keys="CompanyInvitation.invited_by", 
+        back_populates="inviter"
+    )
+    
+    # Invitations accepted by this user (as accepter)
+    accepted_invitations = relationship(
+        "CompanyInvitation",
+        foreign_keys="CompanyInvitation.accepted_by",
+        back_populates="accepter"
+    )
+    
+    # Memberships where this user was the inviter
+    invited_memberships = relationship(
+        "CompanyMembership",
+        foreign_keys="CompanyMembership.invited_by",
+        back_populates="inviter"
+    )
     
     def get_preferences(self) -> dict:
         """Get user preferences with proper handling"""

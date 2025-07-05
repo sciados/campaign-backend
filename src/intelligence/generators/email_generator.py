@@ -17,7 +17,7 @@ import uuid
 import re
 from datetime import datetime
 
-from src.intelligence.utils.enum_serializer import EnumSerializerMixin
+from src.models.base import EnumSerializerMixin
 
 logger = logging.getLogger(__name__)
 
