@@ -5,6 +5,7 @@ STREAMLINED EMAIL SEQUENCE GENERATOR
 ✅ 5 diverse angles for maximum variety
 ✅ Production-ready with multiple parsing strategies
 ✅ Guaranteed unique content every time
+🔥 FIXED: Enum serialization issues resolved
 """
 
 import os
@@ -16,9 +17,11 @@ import uuid
 import re
 from datetime import datetime
 
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
+
 logger = logging.getLogger(__name__)
 
-class EmailSequenceGenerator:
+class EmailSequenceGenerator(EnumSerializerMixin):
     """Streamlined email sequence generator with 5 diverse angles"""
     
     def __init__(self):
@@ -80,13 +83,13 @@ class EmailSequenceGenerator:
         if preferences is None:
             preferences = {}
         
-        # Extract email-specific intelligence
+        # Extract email-specific intelligence with enum serialization
         product_details = self._extract_product_details(intelligence_data)
         sequence_length = self._safe_int_conversion(preferences.get("length", "5"), 5, 3, 10)
         uniqueness_id = str(uuid.uuid4())[:8]
         
-        # Get angle diversity system
-        angle_system = intelligence_data.get("angle_selection_system", {})
+        # 🔥 FIXED: Get angle diversity system with enum serialization
+        angle_system = self._serialize_enum_field(intelligence_data.get("angle_selection_system", {}))
         available_angles = angle_system.get("available_angles", [])
         
         logger.info(f"🎯 Generating {sequence_length} diverse emails for {product_details['name']} (ID: {uniqueness_id})")
@@ -139,7 +142,7 @@ class EmailSequenceGenerator:
     ) -> str:
         """Generate email content with 5 diverse angles"""
         
-        # Extract angle-specific intelligence
+        # 🔥 FIXED: Extract angle-specific intelligence with enum serialization
         angles_intel = self._extract_angle_intelligence(intelligence_data)
         
         # Build email-specific diversified prompt
@@ -234,14 +237,14 @@ CRITICAL: Each email must feel completely different in tone, approach, and emoti
         return ""
     
     def _extract_angle_intelligence(self, intelligence_data: Dict) -> Dict[str, Dict]:
-        """Extract angle-specific intelligence for email generation"""
+        """Extract angle-specific intelligence for email generation with enum serialization"""
         
-        # Get angle-specific intelligence sections
-        scientific_intel = intelligence_data.get("scientific_authority_intelligence", {})
-        emotional_intel = intelligence_data.get("emotional_transformation_intelligence", {})
-        community_intel = intelligence_data.get("community_social_proof_intelligence", {})
-        urgency_intel = intelligence_data.get("urgency_scarcity_intelligence", {})
-        lifestyle_intel = intelligence_data.get("lifestyle_confidence_intelligence", {})
+        # 🔥 FIXED: Get angle-specific intelligence sections with enum serialization
+        scientific_intel = self._serialize_enum_field(intelligence_data.get("scientific_authority_intelligence", {}))
+        emotional_intel = self._serialize_enum_field(intelligence_data.get("emotional_transformation_intelligence", {}))
+        community_intel = self._serialize_enum_field(intelligence_data.get("community_social_proof_intelligence", {}))
+        urgency_intel = self._serialize_enum_field(intelligence_data.get("urgency_scarcity_intelligence", {}))
+        lifestyle_intel = self._serialize_enum_field(intelligence_data.get("lifestyle_confidence_intelligence", {}))
         
         return {
             "scientific": {
@@ -551,13 +554,14 @@ Ready to take the next step with {product_details['name']}?
             return default
     
     def _extract_product_details(self, intelligence_data: Dict[str, Any]) -> Dict[str, str]:
-        offer_intel = intelligence_data.get("offer_intelligence", {})
+        # 🔥 FIXED: Use enum serialization for offer intelligence
+        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
         
         product_name = "Product"
         insights = offer_intel.get("insights", [])
         for insight in insights:
-            if "called" in insight.lower():
-                parts = insight.split("called")
+            if "called" in str(insight).lower():
+                parts = str(insight).split("called")
                 if len(parts) > 1:
                     name_part = parts[1].strip().split()[0].upper()
                     if name_part and name_part != "PRODUCT":
@@ -572,7 +576,7 @@ Ready to take the next step with {product_details['name']}?
         }
 
 
-class CampaignAngleGenerator:
+class CampaignAngleGenerator(EnumSerializerMixin):
     """Generate UNIQUE campaign angles from intelligence data - NO TEMPLATES"""
     
     def __init__(self):

@@ -2,6 +2,8 @@
 """
 Intelligence data extraction and processing for landing page generation.
 Processes raw intelligence data and extracts relevant information for page creation.
+
+FIXED: Added enum serialization support to handle intelligence enum fields safely.
 """
 
 from typing import Dict, List, Any
@@ -10,13 +12,61 @@ import logging
 logger = logging.getLogger(__name__)
 
 class IntelligenceExtractor:
-    """Extracts and processes intelligence data for landing page generation"""
+    """
+    Extracts and processes intelligence data for landing page generation
+    
+    FIXED: Now includes enum serialization helper to safely access intelligence fields
+    """
+    
+    def _serialize_enum_field(self, enum_value: Any) -> Dict[str, Any]:
+        """
+        Helper method to safely serialize enum fields from intelligence data
+        
+        Args:
+            enum_value: The enum field value (could be string, dict, or actual enum)
+            
+        Returns:
+            Dict containing the serialized enum data
+        """
+        if enum_value is None:
+            return {}
+        
+        # If it's already a dictionary (serialized), return as-is
+        if isinstance(enum_value, dict):
+            return enum_value
+        
+        # If it's a string, try to parse as JSON
+        if isinstance(enum_value, str):
+            try:
+                import json
+                return json.loads(enum_value)
+            except (json.JSONDecodeError, ValueError):
+                logger.warning(f"Could not parse enum field as JSON: {enum_value}")
+                return {}
+        
+        # If it has a .value attribute (actual enum), try to access it
+        if hasattr(enum_value, 'value'):
+            try:
+                return enum_value.value if isinstance(enum_value.value, dict) else {}
+            except:
+                logger.warning(f"Could not access enum value: {enum_value}")
+                return {}
+        
+        # Fallback: try to convert to dict
+        try:
+            return dict(enum_value) if enum_value else {}
+        except:
+            logger.warning(f"Could not convert enum field to dict: {enum_value}")
+            return {}
     
     def extract_product_info(self, intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract product information from intelligence data"""
         
         try:
-            offer_intel = intelligence_data.get("offer_intelligence", {})
+            # FIXED: Use safe enum field access
+            offer_intel = self._serialize_enum_field(
+                intelligence_data.get("offer_intelligence")
+            )
             
             # Extract product name
             product_name = self._extract_product_name(offer_intel)
@@ -46,9 +96,16 @@ class IntelligenceExtractor:
         """Extract conversion-focused intelligence"""
         
         try:
-            psychology_intel = intelligence_data.get("psychology_intelligence", {})
-            competitive_intel = intelligence_data.get("competitive_intelligence", {})
-            credibility_intel = intelligence_data.get("credibility_intelligence", {})
+            # FIXED: Use safe enum field access for all intelligence types
+            psychology_intel = self._serialize_enum_field(
+                intelligence_data.get("psychology_intelligence")
+            )
+            competitive_intel = self._serialize_enum_field(
+                intelligence_data.get("competitive_intelligence")
+            )
+            credibility_intel = self._serialize_enum_field(
+                intelligence_data.get("credibility_intelligence")
+            )
             
             # Check if intelligence was amplified
             amplification_metadata = intelligence_data.get("amplification_metadata", {})
@@ -109,7 +166,10 @@ class IntelligenceExtractor:
         """Extract benefits with scientific backing priority"""
         
         benefits = []
-        offer_intel = intelligence_data.get("offer_intelligence", {})
+        # FIXED: Use safe enum field access
+        offer_intel = self._serialize_enum_field(
+            intelligence_data.get("offer_intelligence")
+        )
         
         # Priority 1: Scientific support (from amplification)
         scientific_support = offer_intel.get("scientific_support", [])
@@ -221,8 +281,10 @@ class IntelligenceExtractor:
             trust_signals.extend([str(signal) for signal in trust_indicators[:2]])
             trust_signals.extend([str(signal) for signal in authority_signals[:2]])
         
-        # From offer intelligence
-        offer_intel = intelligence_data.get("offer_intelligence", {})
+        # FIXED: Safe enum access for offer intelligence
+        offer_intel = self._serialize_enum_field(
+            intelligence_data.get("offer_intelligence")
+        )
         guarantees = offer_intel.get("guarantees", [])
         trust_signals.extend([str(guarantee) for guarantee in guarantees[:2]])
         
@@ -301,8 +363,10 @@ class IntelligenceExtractor:
         
         social_proof = []
         
-        # From content intelligence
-        content_intel = intelligence_data.get("content_intelligence", {})
+        # FIXED: Safe enum access for content intelligence
+        content_intel = self._serialize_enum_field(
+            intelligence_data.get("content_intelligence")
+        )
         if content_intel:
             success_stories = content_intel.get("success_stories", [])
             social_proof.extend([str(story) for story in success_stories[:2]])
@@ -310,8 +374,10 @@ class IntelligenceExtractor:
             existing_social_proof = content_intel.get("social_proof", [])
             social_proof.extend([str(proof) for proof in existing_social_proof[:2]])
         
-        # From psychology intelligence
-        psychology_intel = intelligence_data.get("psychology_intelligence", {})
+        # FIXED: Safe enum access for psychology intelligence
+        psychology_intel = self._serialize_enum_field(
+            intelligence_data.get("psychology_intelligence")
+        )
         techniques = psychology_intel.get("persuasion_techniques", [])
         for technique in techniques:
             technique_str = str(technique).lower()
@@ -366,15 +432,19 @@ class IntelligenceExtractor:
     def _determine_positioning(self, intelligence_data: Dict[str, Any]) -> str:
         """Determine positioning strategy"""
         
-        # Check for scientific backing
-        offer_intel = intelligence_data.get("offer_intelligence", {})
+        # FIXED: Safe enum access for offer intelligence
+        offer_intel = self._serialize_enum_field(
+            intelligence_data.get("offer_intelligence")
+        )
         scientific_support = offer_intel.get("scientific_support", [])
         
         if scientific_support:
             return "Premium scientific solution"
         
-        # Check for competitive advantages
-        competitive_intel = intelligence_data.get("competitive_intelligence", {})
+        # FIXED: Safe enum access for competitive intelligence
+        competitive_intel = self._serialize_enum_field(
+            intelligence_data.get("competitive_intelligence")
+        )
         if competitive_intel and competitive_intel.get("advantages"):
             return "Competitive market leader"
         

@@ -5,18 +5,22 @@ AD COPY GENERATOR
 ✅ Multiple ad variations with different angles
 ✅ Conversion-focused copy
 ✅ A/B testing variations
+🔥 FIXED: Enum serialization issues resolved
 """
 
 import os
 import logging
 import uuid
 import re
+import json
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
+
 logger = logging.getLogger(__name__)
 
-class AdCopyGenerator:
+class AdCopyGenerator(EnumSerializerMixin):
     """Generate platform-specific ad copy for paid advertising"""
     
     def __init__(self):
@@ -53,12 +57,10 @@ class AdCopyGenerator:
         if preferences is None:
             preferences = {}
             
-        platform = self._serialize_enum_field(intelligence_data.get("platform","facebook"))
-        objective = self._serialize_enum_field(intelligence_data.get("objective", "conversions"))
-        ad_count = self._serialize_enum_field(intelligence_data.get("count", 5))
-        # platform = preferences.get("platform", "facebook")
-        # objective = preferences.get("objective", "conversions")
-        # ad_count = preferences.get("count", 5)
+        # 🔥 FIXED: Use preferences instead of trying to serialize from intelligence_data
+        platform = preferences.get("platform", "facebook")
+        objective = preferences.get("objective", "conversions")
+        ad_count = preferences.get("count", 5)
         
         product_name = self._extract_product_name(intelligence_data)
         
@@ -130,12 +132,11 @@ class AdCopyGenerator:
             }
         }
         
-        #spec = platform_specs.get(platform, platform_specs["facebook"])
-        spec = self._serialize_enum_field(platform_specs.get(platform, platform_specs["facebook"]))
+        spec = platform_specs.get(platform, platform_specs["facebook"])
         
-        # Extract angle intelligence for ad copy
-        # angles = intelligence_data.get("angle_selection_system", {}).get("available_angles", [])
-        angles = self._serialize_enum_field(intelligence_data.get("angle_selection_system", {}).get("available_angles", []))
+        # 🔥 FIXED: Extract angle intelligence with proper enum serialization
+        angle_system = self._serialize_enum_field(intelligence_data.get("angle_selection_system", {}))
+        angles = angle_system.get("available_angles", [])
 
         prompt = f"""
 Create {count} high-converting {platform} ads for {product_name}.
@@ -268,10 +269,10 @@ Angle: [angle used]
     
     def _extract_product_name(self, intelligence_data):
         """Extract product name from intelligence"""
-        #offer_intel = intelligence_data.get("offer_intelligence", {})
+        # 🔥 FIXED: Use enum serialization for offer intelligence
         offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
-        # insights = offer_intel.get("insights", [])
-        insights = self._serialize_enum_field(offer_intel.get("insights", []))
+        insights = offer_intel.get("insights", [])
+        
         for insight in insights:
             if "called" in str(insight).lower():
                 words = str(insight).split()

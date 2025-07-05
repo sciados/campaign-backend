@@ -1,6 +1,8 @@
 """
 Intelligence Enhancement System
 Amplifies intelligence data with additional insights and optimizations.
+
+FIXED: Added enum serialization support and safe data handling
 """
 
 import logging
@@ -9,7 +11,11 @@ from typing import Dict, Any, List, Optional
 logger = logging.getLogger(__name__)
 
 class IntelligenceEnhancer:
-    """Enhances intelligence data with advanced insights"""
+    """
+    Enhances intelligence data with advanced insights
+    
+    FIXED: Now includes enum-safe data handling and serialization support
+    """
     
     def __init__(self):
         self.enhancement_strategies = {
@@ -20,6 +26,64 @@ class IntelligenceEnhancer:
             'conversion_psychology': self._enhance_conversion_psychology
         }
     
+    def _serialize_enum_field(self, enum_value: Any) -> Dict[str, Any]:
+        """
+        Helper method to safely serialize enum fields from intelligence data
+        
+        Args:
+            enum_value: The enum field value (could be string, dict, or actual enum)
+            
+        Returns:
+            Dict containing the serialized enum data
+        """
+        if enum_value is None:
+            return {}
+        
+        # If it's already a dictionary (serialized), return as-is
+        if isinstance(enum_value, dict):
+            return enum_value
+        
+        # If it's a string, try to parse as JSON
+        if isinstance(enum_value, str):
+            try:
+                import json
+                return json.loads(enum_value)
+            except (json.JSONDecodeError, ValueError):
+                logger.warning(f"Could not parse enum field as JSON: {enum_value}")
+                return {}
+        
+        # If it has a .value attribute (actual enum), try to access it
+        if hasattr(enum_value, 'value'):
+            try:
+                return enum_value.value if isinstance(enum_value.value, dict) else {}
+            except:
+                logger.warning(f"Could not access enum value: {enum_value}")
+                return {}
+        
+        # Fallback: try to convert to dict
+        try:
+            return dict(enum_value) if enum_value else {}
+        except:
+            logger.warning(f"Could not convert enum field to dict: {enum_value}")
+            return {}
+
+    def _serialize_enum_field_for_output(self, data: Dict[str, Any]) -> str:
+        """
+        Convert dictionary back to JSON string for database storage
+        
+        Args:
+            data: Dictionary to serialize
+            
+        Returns:
+            JSON string representation
+        """
+        try:
+            import json
+            return json.dumps(data)
+        except:
+            logger.warning(f"Could not serialize data to JSON: {data}")
+            return "{}"
+    
     def enhance_intelligence(
         self, 
         base_intelligence: Dict[str, Any], 
@@ -27,7 +91,8 @@ class IntelligenceEnhancer:
     ) -> Dict[str, Any]:
         """Enhance intelligence with advanced insights"""
         
-        enhanced = base_intelligence.copy()
+        # FIXED: Create a deep copy to avoid modifying original data
+        enhanced = self._deep_copy_intelligence(base_intelligence)
         
         # Apply each enhancement strategy
         for strategy_name, enhancement_func in self.enhancement_strategies.items():
@@ -41,6 +106,42 @@ class IntelligenceEnhancer:
         
         return enhanced
     
+    def _deep_copy_intelligence(self, intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a deep copy of intelligence data with enum field serialization
+        
+        Args:
+            intelligence_data: Original intelligence data
+            
+        Returns:
+            Deep copy with properly serialized enum fields
+        """
+        import copy
+        
+        # Create base copy
+        enhanced = copy.deepcopy(intelligence_data)
+        
+        # Enum fields that need special handling
+        enum_fields = [
+            'scientific_authority_intelligence',
+            'credibility_intelligence', 
+            'market_intelligence',
+            'emotional_transformation_intelligence',
+            'offer_intelligence',
+            'psychology_intelligence',
+            'content_intelligence',
+            'competitive_intelligence',
+            'brand_intelligence',
+            'processing_metadata'
+        ]
+        
+        # Ensure enum fields are properly serialized as dictionaries
+        for field in enum_fields:
+            if field in enhanced:
+                enhanced[field] = self._serialize_enum_field(enhanced[field])
+        
+        return enhanced
+    
     def _enhance_scientific_backing(
         self, 
         intelligence: Dict[str, Any], 
@@ -48,10 +149,16 @@ class IntelligenceEnhancer:
     ) -> Dict[str, Any]:
         """Enhance with scientific backing and credibility"""
         
+        # FIXED: Safe access to scientific intelligence enum field
         if 'scientific_authority_intelligence' not in intelligence:
             intelligence['scientific_authority_intelligence'] = {}
         
         scientific_intel = intelligence['scientific_authority_intelligence']
+        
+        # Ensure it's a dictionary (handle enum serialization)
+        if not isinstance(scientific_intel, dict):
+            scientific_intel = self._serialize_enum_field(scientific_intel)
+            intelligence['scientific_authority_intelligence'] = scientific_intel
         
         # Add clinical studies if not present
         if 'clinical_studies' not in scientific_intel:
@@ -78,10 +185,16 @@ class IntelligenceEnhancer:
     ) -> Dict[str, Any]:
         """Enhance with emotional triggers and transformation elements"""
         
+        # FIXED: Safe access to emotional intelligence enum field
         if 'emotional_transformation_intelligence' not in intelligence:
             intelligence['emotional_transformation_intelligence'] = {}
         
         emotional_intel = intelligence['emotional_transformation_intelligence']
+        
+        # Ensure it's a dictionary (handle enum serialization)
+        if not isinstance(emotional_intel, dict):
+            emotional_intel = self._serialize_enum_field(emotional_intel)
+            intelligence['emotional_transformation_intelligence'] = emotional_intel
         
         # Add transformation promises
         if 'transformation_promises' not in emotional_intel:
@@ -203,3 +316,38 @@ class IntelligenceEnhancer:
             score += 10
         
         return min(score, max_score)
+    
+    def prepare_for_database_storage(self, enhanced_intelligence: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Prepare enhanced intelligence data for database storage
+        
+        Converts dictionary enum fields back to JSON strings for database compatibility
+        
+        Args:
+            enhanced_intelligence: Enhanced intelligence data with dict enum fields
+            
+        Returns:
+            Intelligence data ready for database storage
+        """
+        storage_ready = enhanced_intelligence.copy()
+        
+        # Enum fields that need to be converted back to JSON strings
+        enum_fields = [
+            'scientific_authority_intelligence',
+            'credibility_intelligence', 
+            'market_intelligence',
+            'emotional_transformation_intelligence',
+            'offer_intelligence',
+            'psychology_intelligence',
+            'content_intelligence',
+            'competitive_intelligence',
+            'brand_intelligence',
+            'processing_metadata'
+        ]
+        
+        # Convert enum fields back to JSON strings for database storage
+        for field in enum_fields:
+            if field in storage_ready and isinstance(storage_ready[field], dict):
+                storage_ready[field] = self._serialize_enum_field_for_output(storage_ready[field])
+        
+        return storage_ready

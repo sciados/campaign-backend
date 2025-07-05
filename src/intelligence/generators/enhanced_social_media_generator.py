@@ -5,18 +5,22 @@ ENHANCED SOCIAL MEDIA GENERATOR
 ✅ Uses Global Cache intelligence
 ✅ AI-generated visuals and video concepts
 ✅ Ready-to-publish formats
+🔥 FIXED: Enum serialization issues resolved
 """
 
 import os
 import logging
 import re
 import uuid
+import json
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
+
 logger = logging.getLogger(__name__)
 
-class EnhancedSocialMediaGenerator:
+class EnhancedSocialMediaGenerator(EnumSerializerMixin):
     """Generate platform-specific social media content including visuals"""
     
     def __init__(self):
@@ -89,6 +93,7 @@ class EnhancedSocialMediaGenerator:
                     "models": ["gpt-4", "dall-e-3"],
                     "capabilities": ["text", "image_generation", "creative_concepts"]
                 })
+                logger.info("✅ OpenAI provider initialized for enhanced social media")
         except Exception as e:
             logger.warning(f"OpenAI not available: {str(e)}")
             
@@ -108,7 +113,7 @@ class EnhancedSocialMediaGenerator:
         content_count = preferences.get("content_count", 5)
         campaign_theme = preferences.get("theme", "product_benefits")
         
-        # Extract intelligence from Global Cache
+        # 🔥 FIXED: Extract intelligence from Global Cache with enum serialization
         campaign_intelligence = self._extract_campaign_intelligence(intelligence_data)
         
         campaign_content = {}
@@ -141,25 +146,25 @@ class EnhancedSocialMediaGenerator:
         }
     
     def _extract_campaign_intelligence(self, intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract key intelligence for social media campaigns"""
+        """Extract key intelligence for social media campaigns with enum serialization"""
         
         # Extract product name
         product_name = self._extract_product_name(intelligence_data)
         
-        # Extract key benefits from scientific intelligence
-        scientific_intel = intelligence_data.get("scientific_intelligence", {})
+        # 🔥 FIXED: Extract key benefits from scientific intelligence with enum serialization
+        scientific_intel = self._serialize_enum_field(intelligence_data.get("scientific_intelligence", {}))
         key_benefits = scientific_intel.get("scientific_backing", [])[:5]
         
-        # Extract emotional triggers
-        emotional_intel = intelligence_data.get("emotional_transformation_intelligence", {})
+        # 🔥 FIXED: Extract emotional triggers with enum serialization
+        emotional_intel = self._serialize_enum_field(intelligence_data.get("emotional_transformation_intelligence", {}))
         emotional_triggers = emotional_intel.get("psychological_triggers", {})
         
-        # Extract social proof
-        credibility_intel = intelligence_data.get("credibility_intelligence", {})
+        # 🔥 FIXED: Extract social proof with enum serialization
+        credibility_intel = self._serialize_enum_field(intelligence_data.get("credibility_intelligence", {}))
         social_proof = credibility_intel.get("social_proof_enhancement", {})
         
-        # Extract content intelligence
-        content_intel = intelligence_data.get("content_intelligence", {})
+        # 🔥 FIXED: Extract content intelligence with enum serialization
+        content_intel = self._serialize_enum_field(intelligence_data.get("content_intelligence", {}))
         key_messages = content_intel.get("key_messages", [])
         
         return {
@@ -423,7 +428,7 @@ class EnhancedSocialMediaGenerator:
             f"Style: {visual_concept.get('style', 'modern and clean')}",
             f"Colors: {visual_concept.get('colors', 'natural health-focused palette')}",
             "High quality, social media optimized",
-            "No text overlay" # We'll add text separately
+            "No text overlay"  # We'll add text separately
         ]
         
         return ", ".join(prompt_parts)
@@ -716,7 +721,8 @@ class EnhancedSocialMediaGenerator:
         if "product_name" in intelligence_data:
             return intelligence_data["product_name"]
         
-        offer_intel = intelligence_data.get("offer_intelligence", {})
+        # 🔥 FIXED: Use enum serialization for offer intelligence
+        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
         insights = offer_intel.get("insights", [])
         
         for insight in insights:
@@ -729,18 +735,59 @@ class EnhancedSocialMediaGenerator:
         return "PRODUCT"
     
     def _extract_usps(self, intelligence_data: Dict[str, Any]) -> List[str]:
-        """Extract unique selling points from intelligence"""
+        """Extract unique selling points from intelligence with enum serialization"""
         
         usps = []
         
-        # From offer intelligence
-        offer_intel = intelligence_data.get("offer_intelligence", {})
+        # 🔥 FIXED: From offer intelligence with enum serialization
+        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
         value_props = offer_intel.get("value_propositions", [])
         usps.extend(value_props[:3])
         
-        # From scientific intelligence
-        scientific_intel = intelligence_data.get("scientific_intelligence", {})
+        # 🔥 FIXED: From scientific intelligence with enum serialization
+        scientific_intel = self._serialize_enum_field(intelligence_data.get("scientific_intelligence", {}))
         scientific_backing = scientific_intel.get("scientific_backing", [])
         usps.extend([f"Science-backed: {point}" for point in scientific_backing[:2]])
         
         return usps[:5]  # Return top 5 USPs
+    
+    # Additional helper methods for video content
+    async def _generate_video_concept(self, platform: str, intelligence: Dict[str, Any], theme: str, post_number: int) -> Dict[str, Any]:
+        """Generate video concept for platform"""
+        return {
+            "concept": f"Short {platform} video showcasing {intelligence['product_name']} benefits",
+            "style": "dynamic and engaging",
+            "duration": "15-30 seconds" if platform == "tiktok" else "30-60 seconds",
+            "focus": theme
+        }
+    
+    async def _generate_video_script(self, platform: str, intelligence: Dict[str, Any], concept: Dict[str, Any]) -> str:
+        """Generate video script"""
+        product_name = intelligence["product_name"]
+        return f"Transform your health with {product_name}! Discover natural wellness that actually works. Ready to feel amazing? Link in bio!"
+    
+    async def _generate_video_shots(self, concept: Dict[str, Any], intelligence: Dict[str, Any]) -> List[Dict[str, str]]:
+        """Generate video shots breakdown"""
+        return [
+            {"shot": 1, "description": f"Close-up of {intelligence['product_name']} product", "duration": "3 seconds"},
+            {"shot": 2, "description": "Person looking energetic and healthy", "duration": "5 seconds"},
+            {"shot": 3, "description": "Product in lifestyle setting", "duration": "4 seconds"}
+        ]
+    
+    async def _generate_text_content(self, platform: str, intelligence: Dict[str, Any], theme: str, limit: int) -> str:
+        """Generate text content for platform"""
+        product_name = intelligence["product_name"]
+        content = f"Ready to transform your health naturally? {product_name} is here to support your wellness journey with science-backed ingredients. What's your biggest health goal this year?"
+        
+        if len(content) > limit:
+            content = content[:limit-3] + "..."
+        
+        return content
+    
+    async def _suggest_supporting_visual(self, text: str, intelligence: Dict[str, Any]) -> Dict[str, str]:
+        """Suggest supporting visual for text post"""
+        return {
+            "suggestion": f"Product shot of {intelligence['product_name']} with natural background",
+            "style": "clean and professional",
+            "optional": True
+        }

@@ -5,18 +5,22 @@ SOCIAL MEDIA POSTS GENERATOR
 ✅ Multiple post variations
 ✅ Hashtag optimization
 ✅ Engagement-focused copy
+🔥 FIXED: Enum serialization issues resolved
 """
 
 import os
 import logging
 import re
 import uuid
+import json
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
+
 logger = logging.getLogger(__name__)
 
-class SocialMediaGenerator:
+class SocialMediaGenerator(EnumSerializerMixin):
     """Generate platform-specific social media posts"""
     
     def __init__(self):
@@ -37,6 +41,7 @@ class SocialMediaGenerator:
                     "models": ["gpt-4", "gpt-3.5-turbo"],
                     "strengths": ["social_creativity", "hashtags", "engagement"]
                 })
+                logger.info("✅ OpenAI provider initialized for social media")
         except Exception as e:
             logger.warning(f"OpenAI not available for social media: {str(e)}")
         
@@ -56,7 +61,8 @@ class SocialMediaGenerator:
         post_count = preferences.get("count", 5)
         
         product_name = self._extract_product_name(intelligence_data)
-        angle_system = intelligence_data.get("angle_selection_system", {})
+        # 🔥 FIXED: Use enum serialization for angle system
+        angle_system = self._serialize_enum_field(intelligence_data.get("angle_selection_system", {}))
         
         posts = []
         
@@ -273,7 +279,8 @@ POST 2:
     
     def _extract_product_name(self, intelligence_data):
         """Extract product name from intelligence"""
-        offer_intel = intelligence_data.get("offer_intelligence", {})
+        # 🔥 FIXED: Use enum serialization for offer intelligence
+        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
         insights = offer_intel.get("insights", [])
         
         for insight in insights:
@@ -287,10 +294,10 @@ POST 2:
 
 
 # ============================================================================
-# AD COPY GENERATOR
+# AD COPY GENERATOR (separate class in same file)
 # ============================================================================
 
-class AdCopyGenerator:
+class AdCopyGenerator(EnumSerializerMixin):
     """Generate paid advertising copy for different platforms"""
     
     def __init__(self):
@@ -311,6 +318,7 @@ class AdCopyGenerator:
                     "models": ["gpt-4"],
                     "strengths": ["ad_copy", "conversion", "persuasion"]
                 })
+                logger.info("✅ OpenAI provider initialized for ad copy")
         except Exception as e:
             logger.warning(f"OpenAI not available for ad copy: {str(e)}")
             
@@ -392,9 +400,10 @@ class AdCopyGenerator:
         
         spec = platform_specs.get(platform, platform_specs["facebook"])
         
-        # Extract angle intelligence for ad copy
-        angles = intelligence_data.get("angle_selection_system", {}).get("available_angles", [])
-        
+        # 🔥 FIXED: Extract angle intelligence with proper enum serialization
+        angle_system = self._serialize_enum_field(intelligence_data.get("angle_selection_system", {}))
+        angles = angle_system.get("available_angles", [])
+
         prompt = f"""
 Create {count} high-converting {platform} ads for {product_name}.
 
@@ -526,7 +535,8 @@ Angle: [angle used]
     
     def _extract_product_name(self, intelligence_data):
         """Extract product name from intelligence"""
-        offer_intel = intelligence_data.get("offer_intelligence", {})
+        # 🔥 FIXED: Use enum serialization for offer intelligence
+        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
         insights = offer_intel.get("insights", [])
         
         for insight in insights:
@@ -540,10 +550,10 @@ Angle: [angle used]
 
 
 # ============================================================================
-# BLOG POST GENERATOR
+# BLOG POST GENERATOR (separate class in same file)  
 # ============================================================================
 
-class BlogPostGenerator:
+class BlogPostGenerator(EnumSerializerMixin):
     """Generate long-form blog posts and articles"""
     
     def __init__(self):
@@ -563,6 +573,7 @@ class BlogPostGenerator:
                     "models": ["claude-3-5-sonnet-20241022"],
                     "strengths": ["long_form", "research", "depth"]
                 })
+                logger.info("✅ Anthropic provider initialized for blog posts")
         except Exception as e:
             logger.warning(f"Anthropic not available for blog posts: {str(e)}")
             
@@ -576,6 +587,7 @@ class BlogPostGenerator:
                     "models": ["gpt-4"],
                     "strengths": ["creativity", "engagement"]
                 })
+                logger.info("✅ OpenAI provider initialized for blog posts")
         except Exception as e:
             logger.warning(f"OpenAI not available for blog posts: {str(e)}")
             
@@ -624,7 +636,8 @@ class BlogPostGenerator:
                 "main_content": blog_post.get("main_content"),
                 "conclusion": blog_post.get("conclusion"),
                 "full_text": blog_post.get("full_text"),
-                "word_count": blog_post.get("word_count", 0)
+                "word_count": blog_post.get("word_count", 0),
+                "sections": blog_post.get("sections", [])
             },
             "metadata": {
                 "generated_by": "blog_ai",
@@ -648,9 +661,9 @@ class BlogPostGenerator:
         
         target_words = word_targets.get(length, 1500)
         
-        # Extract intelligence for blog context
-        scientific_intel = intelligence_data.get("scientific_authority_intelligence", {})
-        emotional_intel = intelligence_data.get("emotional_transformation_intelligence", {})
+        # 🔥 FIXED: Extract intelligence with proper enum serialization
+        scientific_intel = self._serialize_enum_field(intelligence_data.get("scientific_authority_intelligence", {}))
+        emotional_intel = self._serialize_enum_field(intelligence_data.get("emotional_transformation_intelligence", {}))
         
         prompt = f"""
 Write a comprehensive {length} blog post about {topic} related to {product_name}.
@@ -659,7 +672,7 @@ Requirements:
 - Target length: {target_words} words
 - Tone: {tone}
 - Include scientific backing where relevant
-- SEO-optimized structure
+- SEO-optimized structure with clear headers
 - Engaging introduction and conclusion
 - Actionable insights for readers
 
@@ -667,13 +680,18 @@ Product: {product_name}
 Scientific backing: {', '.join(scientific_intel.get('clinical_studies', ['Research-supported'])[:3])}
 
 Structure:
-1. Compelling headline
-2. Hook introduction (100-150 words)
-3. Main content sections (3-5 sections)
+1. Compelling headline (H1)
+2. Hook introduction (150-200 words)
+3. Main content sections (3-5 sections with H2 headers)
 4. Actionable conclusion
 5. Call-to-action
 
 Focus on providing value while naturally mentioning {product_name} where relevant.
+Use headers like:
+# Main Title
+## Section 1: [Topic]
+## Section 2: [Topic]
+etc.
 """
         
         try:
@@ -682,7 +700,7 @@ Focus on providing value while naturally mentioning {product_name} where relevan
                     model=provider["models"][0],
                     max_tokens=4000,
                     temperature=0.7,
-                    system=f"You are an expert health and wellness blogger writing about {topic}. Create valuable, informative content.",
+                    system=f"You are an expert health and wellness blogger writing about {topic}. Create valuable, informative content with clear structure.",
                     messages=[{"role": "user", "content": prompt}]
                 )
                 
@@ -693,7 +711,7 @@ Focus on providing value while naturally mentioning {product_name} where relevan
                 response = await provider["client"].chat.completions.create(
                     model=provider["models"][0],
                     messages=[
-                        {"role": "system", "content": f"Expert health blogger writing about {topic}. Create valuable content."},
+                        {"role": "system", "content": f"Expert health blogger writing about {topic}. Create valuable, structured content."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.7,
@@ -722,7 +740,34 @@ Focus on providing value while naturally mentioning {product_name} where relevan
         if not title:
             title = f"The Complete Guide to {product_name} Benefits"
         
-        # Simple content parsing
+        # Extract sections
+        sections = []
+        current_section = None
+        section_content = []
+        
+        for line in lines:
+            if line.startswith('##') and not line.startswith('###'):
+                # Save previous section
+                if current_section:
+                    sections.append({
+                        "header": current_section,
+                        "content": '\n'.join(section_content).strip()
+                    })
+                
+                # Start new section
+                current_section = line.replace('##', '').strip()
+                section_content = []
+            elif current_section:
+                section_content.append(line)
+        
+        # Add last section
+        if current_section:
+            sections.append({
+                "header": current_section,
+                "content": '\n'.join(section_content).strip()
+            })
+        
+        # Simple content parsing for introduction, main content, conclusion
         paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
         
         introduction = paragraphs[1] if len(paragraphs) > 1 else paragraphs[0][:200] + "..."
@@ -735,7 +780,8 @@ Focus on providing value while naturally mentioning {product_name} where relevan
             "main_content": main_content,
             "conclusion": conclusion,
             "full_text": content,
-            "word_count": len(content.split())
+            "word_count": len(content.split()),
+            "sections": sections
         }
     
     def _generate_fallback_blog_post(self, product_name, topic):
@@ -774,25 +820,34 @@ If you're considering {product_name} as part of your wellness journey, consult w
 Natural health optimization is a journey, not a destination. {product_name} can be a valuable tool in supporting your wellness goals through science-backed, natural methods.
 """
         
+        sections = [
+            {"header": "The Science Behind " + product_name, "content": "Research-backed approach to health optimization"},
+            {"header": "Key Benefits", "content": "Metabolic enhancement, energy optimization, detoxification support"},
+            {"header": "How " + product_name + " Works", "content": "Natural process support for sustainable results"},
+            {"header": "Getting Started", "content": "Consult healthcare professionals for personalized guidance"}
+        ]
+        
         return {
             "title": title,
             "introduction": "Natural health optimization has become increasingly important in our modern world.",
             "main_content": content,
             "conclusion": "Natural health optimization is a journey, not a destination.",
             "full_text": content,
-            "word_count": len(content.split())
+            "word_count": len(content.split()),
+            "sections": sections
         }
     
     def _extract_product_name(self, intelligence_data):
         """Extract product name from intelligence"""
-        offer_intel = intelligence_data.get("offer_intelligence", {})
+        # 🔥 FIXED: Use enum serialization for offer intelligence
+        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
         insights = offer_intel.get("insights", [])
-        
+    
         for insight in insights:
             if "called" in str(insight).lower():
                 words = str(insight).split()
-                for i, word in enumerate(words):
-                    if word.lower() == "called" and i + 1 < len(words):
-                        return words[i + 1].upper().replace(",", "").replace(".", "")
-        
+            for i, word in enumerate(words):
+                if word.lower() == "called" and i + 1 < len(words):
+                    return words[i + 1].upper().replace(",", "").replace(".", "")
+    
         return "PRODUCT"

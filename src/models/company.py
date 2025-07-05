@@ -1,17 +1,17 @@
-# src/models/company.py - FIXED VERSION with missing field
+# src/models/company.py - FIXED VERSION with proper column definitions
 """
 Company models and related schemas - FIXED VERSION
 """
 
 import json
-from intelligence.amplifier import sources
 from sqlalchemy import Column, String, Text, Integer, ForeignKey, Boolean, DateTime, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
-# from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 
+# Import enum serializer mixin
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 from src.models import BaseModel
 
 class CompanySize(str, enum.Enum):
@@ -44,8 +44,12 @@ class InvitationStatus(str, enum.Enum):
     EXPIRED = "expired"
     CANCELLED = "cancelled"
 
-class Company(BaseModel):
-    """Company model"""
+class Company(BaseModel, EnumSerializerMixin):
+    """
+    Company model
+    
+    FIXED: Proper SQLAlchemy column definitions with JSONB types
+    """
     __tablename__ = "companies"
     
     # Company Information
@@ -55,24 +59,23 @@ class Company(BaseModel):
     company_size = Column(String(50), default=CompanySize.STARTUP.value)
     website_url = Column(Text)
     
-    # Branding & Settings
+    # Branding & Settings - 🔥 FIXED: Proper JSONB column definitions
     logo_url = Column(Text)
-    json.loads(sources.brand_colors).get("research_data")
-    json.loads(sources.brand_guidelines).get("research_data")
+    brand_colors = Column(JSONB, default={})
+    brand_guidelines = Column(JSONB, default={})
     
     # Subscription & Billing
     subscription_tier = Column(String(50), default=CompanySubscriptionTier.FREE.value)
     subscription_status = Column(String(50), default="active")
     billing_email = Column(String(255))
     
-    # Usage Tracking - ✅ FIXED: Added missing field
+    # Usage Tracking - ✅ FIXED: Removed duplicate field
     monthly_credits_used = Column(Integer, default=0)
     monthly_credits_limit = Column(Integer, default=1000)
     total_campaigns_created = Column(Integer, default=0)
-    total_campaigns_created = Column(Integer, default=0)  # ← CRITICAL FIX for registration
     
-    # Company Settings
-    json.loads(sources.settings).get("research_data")
+    # Company Settings - 🔥 FIXED: Proper JSONB column definition
+    settings = Column(JSONB, default={})
     
     # Relationships - Use string references to avoid circular imports
     users = relationship("User", back_populates="company")
@@ -87,8 +90,19 @@ class Company(BaseModel):
     intelligence_sources = relationship("CampaignIntelligence", back_populates="company")
     generated_content = relationship("GeneratedContent", back_populates="company")
     smart_urls = relationship("SmartURL", back_populates="company")
+    
+    def get_branding_settings(self) -> dict:
+        """Get branding settings with proper enum serialization"""
+        return {
+            "brand_colors": self._serialize_enum_field(self.brand_colors),
+            "brand_guidelines": self._serialize_enum_field(self.brand_guidelines)
+        }
+    
+    def get_company_settings(self) -> dict:
+        """Get company settings with proper enum serialization"""
+        return self._serialize_enum_field(self.settings)
 
-class CompanyMembership(BaseModel):
+class CompanyMembership(BaseModel, EnumSerializerMixin):
     """Company membership model for team collaboration"""
     __tablename__ = "company_memberships"
     
@@ -98,7 +112,7 @@ class CompanyMembership(BaseModel):
     
     # Role & Permissions
     role = Column(String(50), nullable=False, default=MembershipRole.MEMBER.value)
-    json.loads(sources.permissions).get("research_data")
+    permissions = Column(JSONB, default={})  # 🔥 FIXED: Proper JSONB column
     
     # Status
     status = Column(String(50), default=MembershipStatus.ACTIVE.value)
@@ -114,6 +128,10 @@ class CompanyMembership(BaseModel):
     __table_args__ = (
         UniqueConstraint('user_id', 'company_id', name='unique_user_company_membership'),
     )
+    
+    def get_permissions(self) -> dict:
+        """Get permissions with proper enum serialization"""
+        return self._serialize_enum_field(self.permissions)
 
 class CompanyInvitation(BaseModel):
     """Company invitation model for team invites"""

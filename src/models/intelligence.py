@@ -1,9 +1,9 @@
-# src/models/intelligence.py - COMPLETE FIXED VERSION WITH AI COLUMNS
+# src/models/intelligence.py - COMPLETE FIXED VERSION WITH PROPER COLUMNS
 """
-Intelligence models - Extends existing campaign system with competitive intelligence - FIXED RELATIONSHIPS
+Intelligence models - Extends existing campaign system with competitive intelligence
+FIXED: Proper SQLAlchemy column definitions and enum serialization integration
 """
 import json
-from intelligence.amplifier import sources
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -12,8 +12,9 @@ import enum
 from datetime import datetime
 from pydantic import BaseModel as PydanticBaseModel, Field
 from typing import List, Optional, Dict, Any, Literal
-# from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 
+# Import enum serializer mixin
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 from src.models import BaseModel
 
 class IntelligenceSourceType(str, enum.Enum):
@@ -21,8 +22,8 @@ class IntelligenceSourceType(str, enum.Enum):
     DOCUMENT = "DOCUMENT"
     VIDEO = "VIDEO"
     WEBSITE = "WEBSITE"
-    SOCIAL_MEDIA = "SOCIAL_MEDIA"           # ← New
-    COMPETITOR_AD = "COMPETITOR_AD" 
+    SOCIAL_MEDIA = "SOCIAL_MEDIA"
+    COMPETITOR_AD = "COMPETITOR_AD"
 
 class AnalysisStatus(str, enum.Enum):
     PENDING = "PENDING"
@@ -31,8 +32,13 @@ class AnalysisStatus(str, enum.Enum):
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
 
-class CampaignIntelligence(BaseModel):
-    """Store extracted intelligence for campaigns"""
+class CampaignIntelligence(BaseModel, EnumSerializerMixin):
+    """
+    Store extracted intelligence for campaigns
+    
+    FIXED: Proper SQLAlchemy column definitions with JSONB types
+    ENHANCED: Includes enum serialization mixin for safe data access
+    """
     __tablename__ = "campaign_intelligence"
     
     # Basic Information
@@ -41,19 +47,19 @@ class CampaignIntelligence(BaseModel):
     source_title = Column(String(500))
     analysis_status = Column(Enum(AnalysisStatus, name='analysis_status'), default=AnalysisStatus.PENDING)
     
-    # Core Intelligence Data (JSONB for flexibility)
-    json.loads(sources.offer_intelligence).get("research_data")
-    json.loads(sources.psychology_intelligence).get("research_data")
-    json.loads(sources.content_intelligence).get("research_data")
-    json.loads(sources.competitive_intelligence).get("research_data")
-    json.loads(sources.brand_intelligence).get("research_data")
+    # 🔥 FIXED: Core Intelligence Data - Proper JSONB column definitions
+    offer_intelligence = Column(JSONB, default={})
+    psychology_intelligence = Column(JSONB, default={})
+    content_intelligence = Column(JSONB, default={})
+    competitive_intelligence = Column(JSONB, default={})
+    brand_intelligence = Column(JSONB, default={})
     
-    # ADDED: AI Enhancement Intelligence Columns
-    json.loads(sources.scientific_intelligence).get("research_data")
-    json.loads(sources.credibility_intelligence).get("research_data")
-    json.loads(sources.market_intelligence).get("research_data")
-    json.loads(sources.emotional_transformation).get("research_data")
-    json.loads(sources.scientific_authority).get("research_data")
+    # 🔥 FIXED: AI Enhancement Intelligence Columns - Proper JSONB column definitions
+    scientific_intelligence = Column(JSONB, default={})
+    credibility_intelligence = Column(JSONB, default={})
+    market_intelligence = Column(JSONB, default={})
+    emotional_transformation_intelligence = Column(JSONB, default={})
+    scientific_authority_intelligence = Column(JSONB, default={})
     
     # Performance Tracking
     confidence_score = Column(Float, default=0.0)  # 0-1 confidence in analysis
@@ -62,7 +68,7 @@ class CampaignIntelligence(BaseModel):
     
     # Raw Data Storage
     raw_content = Column(Text)  # Original extracted content
-    json.loads(sources.processing_metadata).get("research_data")  # Processing logs and settings
+    processing_metadata = Column(JSONB, default={})  # Processing logs and settings
     
     # Foreign Keys
     campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=False)
@@ -74,16 +80,100 @@ class CampaignIntelligence(BaseModel):
     user = relationship("User", back_populates="intelligence_sources")
     company = relationship("Company", back_populates="intelligence_sources")
     generated_content = relationship("GeneratedContent", back_populates="intelligence_source")
+    
+    def get_core_intelligence(self) -> Dict[str, Any]:
+        """
+        Get all core intelligence data with proper enum serialization
+        
+        Returns:
+            Dict containing all core intelligence categories as Python dicts
+        """
+        return {
+            "offer_intelligence": self._serialize_enum_field(self.offer_intelligence),
+            "psychology_intelligence": self._serialize_enum_field(self.psychology_intelligence),
+            "content_intelligence": self._serialize_enum_field(self.content_intelligence),
+            "competitive_intelligence": self._serialize_enum_field(self.competitive_intelligence),
+            "brand_intelligence": self._serialize_enum_field(self.brand_intelligence),
+        }
+    
+    def get_ai_intelligence(self) -> Dict[str, Any]:
+        """
+        Get all AI-enhanced intelligence data with proper enum serialization
+        
+        Returns:
+            Dict containing all AI intelligence categories as Python dicts
+        """
+        return {
+            "scientific_intelligence": self._serialize_enum_field(self.scientific_intelligence),
+            "credibility_intelligence": self._serialize_enum_field(self.credibility_intelligence),
+            "market_intelligence": self._serialize_enum_field(self.market_intelligence),
+            "emotional_transformation_intelligence": self._serialize_enum_field(self.emotional_transformation_intelligence),
+            "scientific_authority_intelligence": self._serialize_enum_field(self.scientific_authority_intelligence),
+        }
+    
+    def get_all_intelligence(self) -> Dict[str, Any]:
+        """
+        Get all intelligence data (core + AI) with proper enum serialization
+        
+        Returns:
+            Dict containing all intelligence categories as Python dicts
+        """
+        return {
+            **self.get_core_intelligence(),
+            **self.get_ai_intelligence(),
+            "processing_metadata": self._serialize_enum_field(self.processing_metadata)
+        }
+    
+    def is_amplified(self) -> bool:
+        """
+        Check if this intelligence source has been amplified with AI enhancements
+        
+        Returns:
+            True if amplification has been applied
+        """
+        metadata = self._serialize_enum_field(self.processing_metadata)
+        return metadata.get("amplification_applied", False)
+    
+    def get_amplification_summary(self) -> Dict[str, Any]:
+        """
+        Get summary of amplification status and quality
+        
+        Returns:
+            Dict containing amplification metadata
+        """
+        metadata = self._serialize_enum_field(self.processing_metadata)
+        
+        if not self.is_amplified():
+            return {
+                "amplified": False,
+                "amplification_available": True,
+                "message": "Intelligence source ready for AI amplification"
+            }
+        
+        return {
+            "amplified": True,
+            "amplified_at": metadata.get("amplification_timestamp", "Unknown"),
+            "confidence_boost": metadata.get("confidence_boost", 0.0),
+            "total_enhancements": metadata.get("total_enhancements", 0),
+            "enhancement_quality": metadata.get("enhancement_quality", "unknown"),
+            "ai_categories_populated": self._count_ai_categories(),
+            "amplification_method": metadata.get("amplification_method", "unknown")
+        }
+    
+    def _count_ai_categories(self) -> int:
+        """Count how many AI intelligence categories have data"""
+        ai_data = self.get_ai_intelligence()
+        return sum(1 for category_data in ai_data.values() if category_data and len(category_data) > 0)
 
-class GeneratedContent(BaseModel):
+class GeneratedContent(BaseModel, EnumSerializerMixin):
     """Track content generated from intelligence"""
     __tablename__ = "generated_content"
     
     # Content Information
     content_type = Column(String(50), nullable=False)
-    content_title = Column(String(500))
-    content_body = Column(Text, nullable=False)
-    content_metadata = Column(JSONB, default={})
+    title = Column(String(500))  # Fixed: was content_title
+    content = Column(Text, nullable=False)  # Fixed: was content_body
+    metadata = Column(JSONB, default={})  # Fixed: was content_metadata
     
     # Generation Settings
     generation_prompt = Column(Text)
@@ -95,9 +185,12 @@ class GeneratedContent(BaseModel):
     user_rating = Column(Integer)
     is_published = Column(Boolean, default=False)
     
-    # ✅ IMPROVED: Use proper timestamp fields
-    published_at = Column(DateTime(timezone=True), nullable=True)  # When published
-    published_to = Column(String(200), nullable=True)  # WHERE published ("Facebook", "Email Campaign", etc.)
+    # Publishing Information
+    published_at = Column(DateTime(timezone=True), nullable=True)
+    published_to = Column(String(200), nullable=True)
+    
+    # Analysis Status (for content that gets analyzed)
+    analysis_status = Column(String(20), default="pending")  # pending, completed, failed
     
     # Foreign Keys
     campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=False)
@@ -110,8 +203,17 @@ class GeneratedContent(BaseModel):
     intelligence_source = relationship("CampaignIntelligence", back_populates="generated_content")
     user = relationship("User", back_populates="generated_content")
     company = relationship("Company", back_populates="generated_content")
+    
+    def get_generation_metadata(self) -> Dict[str, Any]:
+        """Get generation metadata with proper serialization"""
+        return {
+            "generation_settings": self._serialize_enum_field(self.generation_settings),
+            "intelligence_used": self._serialize_enum_field(self.intelligence_used),
+            "metadata": self._serialize_enum_field(self.metadata),
+            "performance_data": self._serialize_enum_field(self.performance_data)
+        }
 
-class SmartURL(BaseModel):
+class SmartURL(BaseModel, EnumSerializerMixin):
     """Smart URL tracking for attribution"""
     __tablename__ = "smart_urls"
     
@@ -122,7 +224,7 @@ class SmartURL(BaseModel):
     
     # Tracking Configuration
     tracking_parameters = Column(JSONB, default={})  # UTM and custom parameters
-    expiration_date = Column(String(100))  # Optional expiration
+    expiration_date = Column(DateTime(timezone=True))  # Optional expiration
     is_active = Column(Boolean, default=True)
     
     # Analytics Data
@@ -141,11 +243,26 @@ class SmartURL(BaseModel):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
-    # Relationships - Use string references to avoid circular imports
+    # Relationships
     campaign = relationship("Campaign", back_populates="smart_urls")
     generated_content = relationship("GeneratedContent")
     user = relationship("User", back_populates="smart_urls")
     company = relationship("Company", back_populates="smart_urls")
+    
+    def get_analytics_summary(self) -> Dict[str, Any]:
+        """Get analytics data with proper serialization"""
+        return {
+            "tracking_parameters": self._serialize_enum_field(self.tracking_parameters),
+            "click_analytics": self._serialize_enum_field(self.click_analytics),
+            "conversion_analytics": self._serialize_enum_field(self.conversion_analytics),
+            "performance_summary": {
+                "click_count": self.click_count,
+                "unique_clicks": self.unique_clicks,
+                "conversion_count": self.conversion_count,
+                "revenue_attributed": self.revenue_attributed,
+                "conversion_rate": (self.conversion_count / self.click_count * 100) if self.click_count > 0 else 0
+            }
+        }
 
 # ============================================================================
 # PYDANTIC MODELS FOR API REQUESTS/RESPONSES
@@ -221,7 +338,7 @@ class BatchAnalysisRequest(PydanticBaseModel):
 class URLValidationRequest(PydanticBaseModel):
     url: str = Field(..., description="URL to validate and pre-analyze")
 
-# Enhanced Response Models
+# Enhanced Response Models with proper structure
 class OfferAnalysis(PydanticBaseModel):
     primary_offer: str
     pricing_strategy: List[str]
@@ -300,168 +417,38 @@ class EnhancedSalesPageIntelligence(PydanticBaseModel):
     actionable_insights: ActionableInsights
     technical_analysis: Optional[TechnicalAnalysis] = None
 
-class VSLKeyMoment(PydanticBaseModel):
-    timestamp: str
-    description: str
-    importance_score: float
-
-class VSLOfferMention(PydanticBaseModel):
-    timestamp: str
-    offer_details: str
-
-class VSLCallToAction(PydanticBaseModel):
-    timestamp: str
-    cta_text: str
-    urgency_level: Literal['low', 'medium', 'high']
-
-class VSLTranscriptionResult(PydanticBaseModel):
-    transcript_id: str
-    video_url: str
-    transcript_text: str
-    key_moments: List[VSLKeyMoment]
-    psychological_hooks: List[str]
-    offer_mentions: List[VSLOfferMention]
-    call_to_actions: List[VSLCallToAction]
-
-class PrimaryAngle(PydanticBaseModel):
-    angle: str
-    reasoning: str
-    target_audience: str
-    key_messages: List[str]
-    differentiation_points: List[str]
-
-class AlternativeAngle(PydanticBaseModel):
-    angle: str
-    reasoning: str
-    strength_score: float
-    use_case: str
-
-class PositioningStrategy(PydanticBaseModel):
-    market_position: str
-    competitive_advantage: str
-    value_proposition: str
-    messaging_framework: List[str]
-
-class ImplementationGuide(PydanticBaseModel):
-    content_priorities: List[str]
-    channel_recommendations: List[str]
-    testing_suggestions: List[str]
-
-class CampaignAngleResponse(PydanticBaseModel):
-    primary_angle: PrimaryAngle
-    alternative_angles: List[AlternativeAngle]
-    positioning_strategy: PositioningStrategy
-    implementation_guide: ImplementationGuide
-
-class ConsolidatedIntelligence(PydanticBaseModel):
-    top_opportunities: List[str]
-    consistent_patterns: List[str]
-    conflicting_insights: List[str]
-    confidence_weighted_insights: Dict[str, Any]
-
-class SourceComparison(PydanticBaseModel):
-    intelligence_id: str
+# Additional response models for various endpoints
+class IntelligenceSourceSummary(PydanticBaseModel):
+    id: str
     source_url: str
-    key_insights: List[str]
+    source_title: str
     confidence_score: float
+    analysis_status: str
+    amplified: bool
+    created_at: str
+    intelligence_categories: Dict[str, bool]
+    ai_categories: Dict[str, bool]
 
-class RecommendedStrategy(PydanticBaseModel):
-    primary_positioning: str
-    messaging_pillars: List[str]
-    content_recommendations: List[str]
-    testing_priorities: List[str]
-
-class MultiSourceIntelligence(PydanticBaseModel):
-    campaign_id: str
-    consolidated_intelligence: ConsolidatedIntelligence
-    source_comparison: List[SourceComparison]
-    recommended_campaign_strategy: RecommendedStrategy
-
-class UniqueApproach(PydanticBaseModel):
-    url: str
-    unique_elements: List[str]
-
-class OpportunityMatrix(PydanticBaseModel):
-    opportunity: str
-    difficulty: Literal['low', 'medium', 'high']
-    impact: Literal['low', 'medium', 'high']
-
-class ComparativeAnalysis(PydanticBaseModel):
-    common_strategies: List[str]
-    unique_approaches: List[UniqueApproach]
-    market_gaps: List[str]
-    opportunity_matrix: List[OpportunityMatrix]
-
-class BatchAnalysisResponse(PydanticBaseModel):
-    analyses: List[EnhancedSalesPageIntelligence]
-    comparative_analysis: ComparativeAnalysis
-
-class AnalysisReadiness(PydanticBaseModel):
-    content_extractable: bool
-    video_detected: bool
-    estimated_analysis_time: str
-    confidence_prediction: float
-
-class AnalysisRecommendations(PydanticBaseModel):
-    recommended_analysis_type: str
-    expected_insights: List[str]
-    potential_limitations: List[str]
-
-class URLValidationResponse(PydanticBaseModel):
-    is_valid: bool
-    is_accessible: bool
-    page_type: Literal['sales_page', 'landing_page', 'website', 'blog', 'social', 'unknown']
-    analysis_readiness: AnalysisReadiness
-    optimization_suggestions: List[str]
-    analysis_recommendations: AnalysisRecommendations
-
-class ConsolidateIntelligenceRequest(PydanticBaseModel):
-    campaign_id: str = Field(..., description="Campaign ID to consolidate intelligence for")
-    weight_by_confidence: bool = Field(
-        default=True,
-        description="Whether to weight insights by confidence scores"
-    )
-    include_conflicting_insights: bool = Field(
-        default=True,
-        description="Whether to include conflicting insights in analysis"
-    )
-    generate_unified_strategy: bool = Field(
-        default=True,
-        description="Whether to generate unified campaign strategy"
-    )
-
-class IntelligenceConsolidationResponse(PydanticBaseModel):
+class CampaignIntelligenceSummary(PydanticBaseModel):
     campaign_id: str
     total_sources: int
-    confidence_weighted_score: float
-    top_insights: List[str]
-    common_patterns: List[str]
-    conflicting_insights: List[str]
-    recommended_actions: List[str]
-    unified_strategy: Optional[Dict[str, Any]] = None
+    amplified_sources: int
+    average_confidence: float
+    intelligence_sources: List[IntelligenceSourceSummary]
+    amplification_status: Dict[str, Any]
 
-class ExportReportRequest(PydanticBaseModel):
-    campaign_id: str = Field(..., description="Campaign ID to export")
-    format: Literal['pdf', 'excel', 'json', 'presentation'] = Field(
-        default='pdf',
-        description="Export format"
-    )
-    sections: Optional[List[str]] = Field(
-        default=None,
-        description="Specific sections to include in export"
-    )
-    include_recommendations: bool = Field(
-        default=True,
-        description="Whether to include actionable recommendations"
-    )
-    include_visuals: bool = Field(
-        default=True,
-        description="Whether to include charts and visualizations"
+class AmplificationRequest(PydanticBaseModel):
+    intelligence_id: str
+    preferences: Optional[Dict[str, Any]] = Field(
+        default={},
+        description="Amplification preferences and settings"
     )
 
-class ExportReportResponse(PydanticBaseModel):
-    download_url: str
-    expires_at: str
-    file_size: int
-    format: str
-    sections_included: List[str]
+class AmplificationResponse(PydanticBaseModel):
+    intelligence_id: str
+    amplification_applied: bool
+    confidence_boost: float
+    enhancements_applied: int
+    ai_categories_populated: int
+    message: str
+    amplification_summary: Optional[Dict[str, Any]] = None

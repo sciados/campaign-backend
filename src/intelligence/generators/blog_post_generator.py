@@ -5,18 +5,22 @@ BLOG POST GENERATOR
 ✅ SEO-optimized content
 ✅ Multiple lengths and tones
 ✅ Structured sections with headers
+🔥 FIXED: Enum serialization issues resolved
 """
 
 import os
 import logging
 import uuid
 import re
+import json
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
+
 logger = logging.getLogger(__name__)
 
-class BlogPostGenerator:
+class BlogPostGenerator(EnumSerializerMixin):
     """Generate long-form blog posts and articles"""
     
     def __init__(self):
@@ -124,9 +128,9 @@ class BlogPostGenerator:
         
         target_words = word_targets.get(length, 1500)
         
-        # Extract intelligence for blog context
-        scientific_intel = intelligence_data.get("scientific_authority_intelligence", {})
-        emotional_intel = intelligence_data.get("emotional_transformation_intelligence", {})
+        # 🔥 FIXED: Extract intelligence with proper enum serialization
+        scientific_intel = self._serialize_enum_field(intelligence_data.get("scientific_authority_intelligence", {}))
+        emotional_intel = self._serialize_enum_field(intelligence_data.get("emotional_transformation_intelligence", {}))
         
         prompt = f"""
 Write a comprehensive {length} blog post about {topic} related to {product_name}.
@@ -302,7 +306,8 @@ Natural health optimization is a journey, not a destination. {product_name} can 
     
     def _extract_product_name(self, intelligence_data):
         """Extract product name from intelligence"""
-        offer_intel = intelligence_data.get("offer_intelligence", {})
+        # 🔥 FIXED: Use enum serialization for offer intelligence
+        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
         insights = offer_intel.get("insights", [])
         
         for insight in insights:
