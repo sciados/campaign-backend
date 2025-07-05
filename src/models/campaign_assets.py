@@ -1,17 +1,28 @@
-# src/models/campaign_assets.py
+# src/models/campaign_assets.py - FIXED VERSION
 """
-Campaign Assets models for file uploads and asset management
+Campaign Assets models for file uploads and asset management - FIXED VERSION
 """
 
 import json
-from intelligence.amplifier import sources
 from sqlalchemy import Column, String, Text, Integer, Float, Boolean, ForeignKey, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 
-from src.models import BaseModel
+# EMERGENCY FIX: Create BaseModel locally to avoid circular imports
+from sqlalchemy.ext.declarative import declarative_base
+from uuid import uuid4
+
+Base = declarative_base()
+
+class BaseModel(Base):
+    """Emergency base model to avoid circular imports"""
+    __abstract__ = True
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 class AssetType(str, enum.Enum):
     IMAGE = "image"
@@ -52,9 +63,9 @@ class CampaignAsset(BaseModel):
     processing_status = Column(String(50))  # upload progress, processing state
     error_message = Column(Text)  # Error details if processing failed
     
-    # Metadata and Properties
-    json.loads(sources.asset_metadata).get("research_data")
-    json.loads(sources.tags).get("research_data")  # User-defined tags
+    # Metadata and Properties - FIXED: Proper JSONB column definitions
+    asset_metadata = Column(JSONB, default={})  # AI analysis metadata
+    tags = Column(JSONB, default={})  # User-defined tags
     description = Column(Text)  # Asset description
     
     # Usage and Analytics
@@ -69,7 +80,7 @@ class CampaignAsset(BaseModel):
     
     # Processing Results (for AI analysis)
     extracted_text = Column(Text)  # OCR or document text extraction
-    json.loads(sources.ai_analysis).get("research_data")  # AI-generated insights about the asset
+    ai_analysis = Column(JSONB, default={})  # AI-generated insights about the asset
     thumbnail_url = Column(Text)  # Generated thumbnail URL
     
     # Foreign Keys
@@ -77,10 +88,8 @@ class CampaignAsset(BaseModel):
     uploaded_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
-    # Relationships - Use string references to avoid circular imports
-    campaign = relationship("Campaign", back_populates="assets")
-    uploader = relationship("User", back_populates="uploaded_assets")
-    company = relationship("Company", back_populates="assets")
+    # EMERGENCY FIX: Remove relationships to avoid circular imports
+    # Relationships will be defined elsewhere if needed
     
     def __repr__(self):
         return f"<CampaignAsset(id={self.id}, name='{self.asset_name}', type='{self.asset_type}')>"
@@ -107,6 +116,39 @@ class CampaignAsset(BaseModel):
     def is_media(self):
         """Check if asset is video or audio"""
         return self.asset_type in [AssetType.VIDEO.value, AssetType.AUDIO.value]
+    
+    def get_asset_metadata(self) -> dict:
+        """Get asset metadata with proper handling"""
+        if isinstance(self.asset_metadata, dict):
+            return self.asset_metadata
+        elif isinstance(self.asset_metadata, str):
+            try:
+                return json.loads(self.asset_metadata)
+            except (json.JSONDecodeError, ValueError):
+                return {}
+        return {}
+    
+    def get_tags(self) -> dict:
+        """Get tags with proper handling"""
+        if isinstance(self.tags, dict):
+            return self.tags
+        elif isinstance(self.tags, str):
+            try:
+                return json.loads(self.tags)
+            except (json.JSONDecodeError, ValueError):
+                return {}
+        return {}
+    
+    def get_ai_analysis(self) -> dict:
+        """Get AI analysis with proper handling"""
+        if isinstance(self.ai_analysis, dict):
+            return self.ai_analysis
+        elif isinstance(self.ai_analysis, str):
+            try:
+                return json.loads(self.ai_analysis)
+            except (json.JSONDecodeError, ValueError):
+                return {}
+        return {}
 
 # Utility functions for asset management
 def get_asset_type_from_extension(filename: str) -> AssetType:
