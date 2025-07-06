@@ -1,8 +1,8 @@
-# FIXED: src/intelligence/analyzers.py - Circular import fix
+# FIXED: src/intelligence/analyzers.py - Load Balanced Integration
 """
 Intelligence analysis engines - The core AI that extracts competitive insights
 Enhanced with product extractor integration and COMPLETE intelligence extraction
-FIXED: Circular import issue resolved by removing analyzer_factory import
+UPDATED: Integrated with load balanced sequential system for optimal provider distribution
 """
 import aiohttp
 import asyncio
@@ -19,7 +19,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# ✅ FIXED: Remove circular import - import tiered provider directly
+# ✅ UPDATED: Import both tiered provider AND load balancing utilities
 try:
     from src.intelligence.utils.tiered_ai_provider import (
         get_tiered_ai_provider, 
@@ -31,6 +31,19 @@ try:
 except ImportError as e:
     TIERED_AI_AVAILABLE = False
     logger.warning(f"⚠️ Tiered AI provider not available: {e}")
+
+# 🔥 NEW: Import load balancing system from enhancement module
+try:
+    from src.intelligence.amplifier.enhancement import (
+        get_load_balancing_stats,
+        _get_next_provider_with_load_balancing,
+        _provider_usage_stats
+    )
+    LOAD_BALANCING_AVAILABLE = True
+    logger.info("✅ Load balancing system imported successfully")
+except ImportError as e:
+    LOAD_BALANCING_AVAILABLE = False
+    logger.warning(f"⚠️ Load balancing system not available: {e}")
 
 # ✅ FIXED: Import product extractor with error handling (keep existing)
 try:
@@ -45,41 +58,21 @@ class SalesPageAnalyzer:
     """Analyze competitor sales pages for offers, psychology, and opportunities"""
     
     def __init__(self):
-        # 🔥 FIXED: Use ultra-cheap tiered AI provider system
-        print("🤖 Initializing ULTRA-CHEAP AI provider system...")
-        logger.info("🤖 Starting ULTRA-CHEAP AI provider initialization")
+        # 🔥 UPDATED: Use load balanced AI provider system when available
+        print("🤖 Initializing AI provider system with load balancing...")
+        logger.info("🤖 Starting AI provider initialization with load balancing")
         
-        if TIERED_AI_AVAILABLE:
-            # Get the tiered provider manager
-            self.ai_provider_manager = get_tiered_ai_provider(ServiceTier.FREE)
-            
-            # Get available ultra-cheap providers
-            self.available_providers = self.ai_provider_manager.get_providers_for_tier(ServiceTier.FREE)
-            
-            if self.available_providers:
-                primary_provider = self.available_providers[0]
-                provider_name = primary_provider.name
-                cost_per_1k = primary_provider.cost_per_1k_tokens
-                
-                print(f"✅ Primary ultra-cheap provider: {provider_name}")
-                print(f"💰 Cost: ${cost_per_1k:.5f}/1K tokens")
-                
-                # Calculate savings vs OpenAI
-                openai_cost = 0.030
-                if cost_per_1k > 0:
-                    savings_pct = ((openai_cost - cost_per_1k) / openai_cost) * 100
-                    print(f"💎 SAVINGS: {savings_pct:.1f}% vs OpenAI!")
-                
-                logger.info(f"✅ Ultra-cheap AI system initialized with {len(self.available_providers)} providers")
-            else:
-                print("❌ No ultra-cheap providers available - falling back to expensive providers")
-                logger.warning("❌ No ultra-cheap providers available")
-                self.available_providers = []
-                # Initialize expensive providers as fallback
-                self._init_expensive_providers_fallback()
+        # Try to use load balanced system first
+        if TIERED_AI_AVAILABLE and LOAD_BALANCING_AVAILABLE:
+            self.use_load_balanced_system = True
+            self._init_load_balanced_providers()
+        elif TIERED_AI_AVAILABLE:
+            self.use_load_balanced_system = False
+            self._init_tiered_providers()
         else:
-            print("❌ Tiered AI system not available - using expensive providers")
-            logger.warning("❌ Tiered AI system not available")
+            self.use_load_balanced_system = False
+            print("❌ No AI provider systems available - using expensive providers")
+            logger.warning("❌ No AI provider systems available")
             self.available_providers = []
             self._init_expensive_providers_fallback()
         
@@ -90,6 +83,89 @@ class SalesPageAnalyzer:
         else:
             self.product_extractor = None
             logger.warning("⚠️ Product extractor not available")
+    
+    def _init_load_balanced_providers(self):
+        """🔥 NEW: Initialize with load balanced provider system"""
+        try:
+            # Get the tiered provider manager
+            self.ai_provider_manager = get_tiered_ai_provider(ServiceTier.FREE)
+            
+            # Get available ultra-cheap providers in load balancing format
+            self.available_providers = self.ai_provider_manager.get_available_providers(ServiceTier.FREE)
+            
+            if self.available_providers:
+                # Log load balanced setup
+                provider_names = [p['name'] for p in self.available_providers]
+                total_cost = sum(p['cost_per_1k_tokens'] for p in self.available_providers) / len(self.available_providers)
+                
+                print(f"✅ Load balanced ultra-cheap providers: {provider_names}")
+                print(f"💰 Average cost: ${total_cost:.5f}/1K tokens")
+                print(f"🎯 Load balancing: ENABLED")
+                
+                # Calculate savings vs OpenAI
+                openai_cost = 0.030
+                savings_pct = ((openai_cost - total_cost) / openai_cost) * 100
+                print(f"💎 SAVINGS: {savings_pct:.1f}% vs OpenAI!")
+                
+                logger.info(f"✅ Load balanced AI system initialized with {len(self.available_providers)} providers")
+            else:
+                print("❌ No ultra-cheap providers available - falling back")
+                logger.warning("❌ No ultra-cheap providers available")
+                self.use_load_balanced_system = False
+                self._init_expensive_providers_fallback()
+                
+        except Exception as e:
+            logger.error(f"❌ Load balanced system initialization failed: {e}")
+            self.use_load_balanced_system = False
+            self._init_tiered_providers()
+    
+    def _init_tiered_providers(self):
+        """Initialize with standard tiered provider system (fallback)"""
+        try:
+            # Get the tiered provider manager
+            self.ai_provider_manager = get_tiered_ai_provider(ServiceTier.FREE)
+            
+            # Get available ultra-cheap providers
+            provider_configs = self.ai_provider_manager.get_providers_for_tier(ServiceTier.FREE)
+            
+            if provider_configs:
+                # Convert to format expected by analyzers
+                self.available_providers = []
+                for provider in provider_configs:
+                    self.available_providers.append({
+                        "name": provider.name,
+                        "available": provider.available,
+                        "client": provider.client,
+                        "priority": provider.priority,
+                        "cost_per_1k_tokens": provider.cost_per_1k_tokens,
+                        "quality_score": provider.quality_score,
+                        "provider_tier": provider.provider_tier.value,
+                        "speed_rating": provider.speed_rating
+                    })
+                
+                primary_provider = self.available_providers[0]
+                provider_name = primary_provider["name"]
+                cost_per_1k = primary_provider["cost_per_1k_tokens"]
+                
+                print(f"✅ Primary ultra-cheap provider: {provider_name}")
+                print(f"💰 Cost: ${cost_per_1k:.5f}/1K tokens")
+                print(f"🎯 Load balancing: DISABLED (using tiered system)")
+                
+                # Calculate savings vs OpenAI
+                openai_cost = 0.030
+                if cost_per_1k > 0:
+                    savings_pct = ((openai_cost - cost_per_1k) / openai_cost) * 100
+                    print(f"💎 SAVINGS: {savings_pct:.1f}% vs OpenAI!")
+                
+                logger.info(f"✅ Tiered AI system initialized with {len(self.available_providers)} providers")
+            else:
+                print("❌ No ultra-cheap providers available - falling back to expensive providers")
+                logger.warning("❌ No ultra-cheap providers available")
+                self._init_expensive_providers_fallback()
+                
+        except Exception as e:
+            logger.error(f"❌ Tiered system initialization failed: {e}")
+            self._init_expensive_providers_fallback()
     
     def _init_expensive_providers_fallback(self):
         """Fallback to expensive providers if ultra-cheap not available"""
@@ -138,8 +214,8 @@ class SalesPageAnalyzer:
             product_name = await self._extract_product_name(page_content, structured_content)
             logger.info(f"🎯 Product name extracted: '{product_name}'")
             
-            # Step 3: AI-powered intelligence extraction with provider rotation
-            intelligence = await self._extract_intelligence_with_rotation(structured_content, url, product_name)
+            # Step 3: AI-powered intelligence extraction with load balancing
+            intelligence = await self._extract_intelligence_with_load_balancing(structured_content, url, product_name)
             
             return intelligence
             
@@ -333,27 +409,151 @@ class SalesPageAnalyzer:
         
         return sections
     
-    # 🔥 FIXED: Ultra-cheap AI provider intelligence extraction
-    async def _extract_intelligence_with_rotation(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
-        """Extract intelligence using ULTRA-CHEAP AI providers with massive cost savings"""
+    # 🔥 UPDATED: Intelligence extraction with load balancing integration
+    async def _extract_intelligence_with_load_balancing(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
+        """Extract intelligence using load balanced AI providers when available"""
         
-        if self.available_providers:
-            # Use ultra-cheap tiered system
+        if self.use_load_balanced_system and self.available_providers:
+            # Use load balanced system
+            return await self._extract_intelligence_load_balanced(structured_content, url, product_name)
+        elif self.available_providers:
+            # Use tiered system (fallback)
             return await self._extract_intelligence_ultra_cheap(structured_content, url, product_name)
         else:
-            # Fallback to expensive providers
+            # Use expensive providers (last resort)
             logger.warning("🚨 Using expensive provider fallback")
             return await self._extract_intelligence_expensive_fallback(structured_content, url, product_name)
     
+    async def _extract_intelligence_load_balanced(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
+        """🔥 NEW: Extract intelligence using load balanced AI providers"""
+        
+        logger.info("🚀 Starting LOAD BALANCED intelligence extraction...")
+        
+        try:
+            # Get next provider using load balancing
+            if LOAD_BALANCING_AVAILABLE:
+                selected_provider = _get_next_provider_with_load_balancing(self.available_providers)
+            else:
+                # Fallback to first available provider
+                selected_provider = self.available_providers[0]
+            
+            if not selected_provider:
+                logger.error("❌ No provider selected by load balancer")
+                return self._fallback_analysis(structured_content, url, product_name)
+            
+            provider_name = selected_provider.get("name", "unknown")
+            cost_per_1k = selected_provider.get("cost_per_1k_tokens", 0)
+            
+            logger.info(f"🎯 Load balancer selected: {provider_name} (${cost_per_1k:.5f}/1K tokens)")
+            
+            # Create optimized prompt for intelligence extraction
+            analysis_prompt = self._create_intelligence_prompt(structured_content, url, product_name)
+            
+            # Make AI request using selected provider
+            logger.info("💰 Making load balanced AI request...")
+            result = await self._make_ai_request_with_provider(selected_provider, analysis_prompt)
+            
+            # Parse AI response into structured intelligence
+            intelligence = self._parse_ai_analysis(result, structured_content)
+            
+            # Add load balancing metadata
+            intelligence.update({
+                "source_url": url,
+                "page_title": structured_content["title"],
+                "product_name": product_name,
+                "analysis_timestamp": datetime.utcnow().isoformat(),
+                "confidence_score": self._calculate_confidence_score(intelligence, structured_content),
+                "raw_content": structured_content["content"][:1000],
+                "load_balanced_analysis": {
+                    "provider_selected": provider_name,
+                    "cost_per_1k_tokens": cost_per_1k,
+                    "load_balancing_enabled": True,
+                    "load_balancing_stats": get_load_balancing_stats() if LOAD_BALANCING_AVAILABLE else {},
+                    "provider_selection_method": "round_robin_load_balancing"
+                }
+            })
+            
+            return intelligence
+            
+        except Exception as e:
+            logger.error(f"❌ Load balanced intelligence extraction failed: {str(e)}")
+            logger.info("🔄 Falling back to pattern-based analysis")
+            return self._fallback_analysis(structured_content, url, product_name)
+    
+    async def _make_ai_request_with_provider(self, provider: Dict[str, Any], prompt: str) -> str:
+        """Make AI request using specific provider"""
+        
+        provider_name = provider.get("name", "unknown")
+        client = provider.get("client")
+        
+        if not client:
+            raise Exception(f"No client available for provider {provider_name}")
+        
+        try:
+            # Use the centralized AI throttling system
+            from src.intelligence.utils.ai_throttle import safe_ai_call
+            
+            # Create messages
+            messages = [
+                {
+                    "role": "system",
+                    "content": "You are an expert competitive intelligence analyst. Extract actionable insights for marketing campaigns. Provide specific, detailed analysis in each category."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+            
+            # Model mapping
+            model_map = {
+                "groq": "llama-3.3-70b-versatile",
+                "together": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+                "deepseek": "deepseek-chat",
+                "anthropic": "claude-3-haiku-20240307",
+                "cohere": "command-r-plus",
+                "openai": "gpt-3.5-turbo"
+            }
+            
+            model = model_map.get(provider_name, "gpt-3.5-turbo")
+            
+            # Make safe AI call with throttling
+            response = await safe_ai_call(
+                client=client,
+                provider_name=provider_name,
+                model=model,
+                messages=messages,
+                temperature=0.3,
+                max_tokens=2000
+            )
+            
+            # Handle response
+            if isinstance(response, dict):
+                if response.get("fallback"):
+                    # Extract fallback content if available
+                    fallback_data = response.get("fallback_data", {})
+                    return json.dumps(fallback_data)
+                else:
+                    # Response is structured data, convert to string
+                    return json.dumps(response)
+            elif isinstance(response, str):
+                return response
+            else:
+                raise Exception("Unexpected response format")
+                
+        except Exception as e:
+            logger.error(f"❌ AI request failed for {provider_name}: {str(e)}")
+            raise
+    
     async def _extract_intelligence_ultra_cheap(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
-        """🔥 Extract intelligence using ultra-cheap AI providers"""
+        """Extract intelligence using ultra-cheap AI providers (original method)"""
         
         logger.info("🚀 Starting ULTRA-CHEAP intelligence extraction...")
         
         # Get primary ultra-cheap provider
         primary_provider = self.available_providers[0]
-        provider_name = primary_provider.name
-        cost_per_1k = primary_provider.cost_per_1k_tokens
+        provider_name = primary_provider["name"]
+        cost_per_1k = primary_provider["cost_per_1k_tokens"]
         
         logger.info(f"🤖 Using ultra-cheap provider: {provider_name} (${cost_per_1k:.5f}/1K tokens)")
         
@@ -396,7 +596,8 @@ class SalesPageAnalyzer:
                     "cost_savings_vs_openai": savings,
                     "savings_percentage": (savings / openai_equivalent_cost * 100) if openai_equivalent_cost > 0 else 0,
                     "quality_score": result.get("quality_score", 0),
-                    "processing_time": result.get("processing_time", 0)
+                    "processing_time": result.get("processing_time", 0),
+                    "load_balancing_enabled": False
                 }
             })
             
@@ -408,7 +609,7 @@ class SalesPageAnalyzer:
             return self._fallback_analysis(structured_content, url, product_name)
     
     def _create_intelligence_prompt(self, structured_content: Dict[str, Any], url: str, product_name: str) -> str:
-        """Create optimized prompt for ultra-cheap AI providers"""
+        """Create optimized prompt for AI providers"""
         
         # Optimized prompt that's shorter but still comprehensive
         prompt = f"""Analyze this sales page and extract competitive intelligence in JSON format:
@@ -601,7 +802,8 @@ Respond with structured JSON analysis. Be concise but actionable."""
                     "provider_used": "openai_gpt4",
                     "estimated_cost": estimated_cost,
                     "cost_vs_ultra_cheap": f"{estimated_cost / 0.0002:.0f}x more expensive than Groq",
-                    "recommendation": "Switch to ultra-cheap providers for 95%+ savings"
+                    "recommendation": "Switch to ultra-cheap providers for 95%+ savings",
+                    "load_balancing_enabled": False
                 }
             })
             
@@ -836,7 +1038,12 @@ Respond with structured JSON analysis. Be concise but actionable."""
             "analysis_timestamp": datetime.utcnow().isoformat(),
             "confidence_score": 0.6,
             "raw_content": structured_content.get("content", "")[:1000],
-            "analysis_note": "Fallback analysis - AI providers recommended for enhanced insights"
+            "analysis_note": "Fallback analysis - AI providers recommended for enhanced insights",
+            "load_balancing_analysis": {
+                "load_balancing_available": LOAD_BALANCING_AVAILABLE,
+                "load_balancing_enabled": False,
+                "fallback_reason": "AI provider system not available"
+            }
         }
     
     def _error_fallback_analysis(self, url: str, error_msg: str) -> Dict[str, Any]:
@@ -887,7 +1094,12 @@ Respond with structured JSON analysis. Be concise but actionable."""
             "confidence_score": 0.0,
             "raw_content": "",
             "error_message": error_msg,
-            "analysis_note": f"Analysis failed: {error_msg}"
+            "analysis_note": f"Analysis failed: {error_msg}",
+            "load_balancing_analysis": {
+                "load_balancing_available": LOAD_BALANCING_AVAILABLE,
+                "load_balancing_enabled": False,
+                "error_occurred": True
+            }
         }
 
 

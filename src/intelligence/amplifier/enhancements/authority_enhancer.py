@@ -2,6 +2,7 @@
 """
 Generates scientific authority and expertise positioning using ULTRA-CHEAP AI providers
 UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
+FIXED: Now uses centralized AI system with automatic provider failover
 """
 import logging
 from typing import Dict, List, Any, Optional

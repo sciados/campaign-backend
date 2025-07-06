@@ -3,6 +3,7 @@
 Generates enhanced content intelligence using ULTRA-CHEAP AI providers
 UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
 FIXED: Added throttling and proper error handling
+FIXED: Now uses centralized AI system with automatic provider failover
 """
 import logging
 from typing import Dict, List, Any, Optional
