@@ -51,8 +51,8 @@ app = FastAPI(
 app.include_router(intelligence_router, prefix="/intelligence") 
 
 app.include_router(
-    affiliate_router, 
-    prefix="/api", 
+    affiliate_router,
+    prefix="/api",
     tags=["affiliate"]
 )
 

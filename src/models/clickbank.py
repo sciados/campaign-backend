@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
-from database import Base  # Adjust import based on your database setup
+from src.core.database import Base  # Adjust import based on your database setup
 
 class ClickBankProduct(Base):
     __tablename__ = "clickbank_products"
