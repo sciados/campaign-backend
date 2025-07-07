@@ -1,4 +1,4 @@
-# src/intelligence/routers/clickbank_routes.py - UPDATED FOR EXISTING POSTGRESQL TABLE
+# src/intelligence/routers/clickbank_routes.py - COMPLETE FIXED VERSION FOR POSTGRESQL
 from fastapi import APIRouter, Query, HTTPException, Depends
 from typing import List, Dict, Any, Optional
 import httpx
@@ -12,10 +12,10 @@ import logging
 import ssl
 import os
 from sqlalchemy.orm import Session
-from sqlalchemy import text, update
+from sqlalchemy import text
 
 # Import your database dependencies
-from src.core.database import get_db  # Adjust import path as needed
+from src.database import get_db  # Adjust import path as needed
 
 router = APIRouter()
 
@@ -55,8 +55,8 @@ class ClickBankScraper:
         """Check if running on Railway"""
         return os.getenv('RAILWAY_ENVIRONMENT') is not None or os.getenv('PORT') is not None
 
-    async def get_category_data(self, db: Session) -> Dict[str, Dict[str, Any]]:
-        """Fetch category data from existing PostgreSQL table"""
+    def get_category_data(self, db: Session) -> Dict[str, Dict[str, Any]]:
+        """Fetch category data from existing PostgreSQL table (SYNCHRONOUS)"""
         try:
             query = text("""
                 SELECT 
@@ -140,8 +140,8 @@ class ClickBankScraper:
             transport=httpx.HTTPTransport(retries=3)
         )
 
-    async def update_validation_status(self, db: Session, category_id: str, status: str, notes: str = None):
-        """Update validation status in database"""
+    def update_validation_status(self, db: Session, category_id: str, status: str, notes: str = None):
+        """Update validation status in database (SYNCHRONOUS)"""
         try:
             update_query = text("""
                 UPDATE clickbank_category_urls 
@@ -167,6 +167,7 @@ class ClickBankScraper:
             
         except Exception as e:
             logger.error(f"Error updating validation status: {e}")
+            db.rollback()
 
     async def test_category_url(self, url: str) -> Dict[str, Any]:
         """Test if a category URL is working"""
@@ -213,8 +214,8 @@ class ClickBankScraper:
     async def scrape_category_products(self, category: str, limit: int, db: Session) -> List[Dict[str, Any]]:
         """Scrape products from ClickBank category using PostgreSQL data"""
         
-        # Get category data from PostgreSQL
-        categories = await self.get_category_data(db)
+        # Get category data from PostgreSQL (SYNCHRONOUS CALL)
+        categories = self.get_category_data(db)
         
         if category not in categories:
             raise ValueError(f"Category '{category}' not found in database")
@@ -267,8 +268,8 @@ class ClickBankScraper:
                         logger.info(f"Successfully extracted {len(products)} products from {url}")
                         validation_notes.append(f"URL {i+1} working - extracted {len(products)} products")
                         
-                        # Update validation status in database
-                        await self.update_validation_status(
+                        # Update validation status in database (SYNCHRONOUS CALL)
+                        self.update_validation_status(
                             db, category_info['id'], 'working', 
                             f"Last successful scrape: {len(products)} products"
                         )
@@ -286,8 +287,8 @@ class ClickBankScraper:
             logger.warning(f"No products scraped for {category}, generating fallback data")
             products = self.generate_category_specific_fallback(category, category_info, limit)
             
-            # Update validation status
-            await self.update_validation_status(
+            # Update validation status (SYNCHRONOUS CALL)
+            self.update_validation_status(
                 db, category_info['id'], 'fallback', 
                 f"Using fallback data. Issues: {'; '.join(validation_notes)}"
             )
@@ -600,7 +601,6 @@ class ClickBankScraper:
         
         return fallback_products
 
-    # Keep existing helper methods...
     def extract_vendor_enhanced(self, element, element_text: str) -> str:
         """Extract vendor with enhanced patterns"""
         
@@ -669,7 +669,7 @@ scraper = ClickBankScraper()
 async def test_clickbank_connection(db: Session = Depends(get_db)):
     """Test ClickBank marketplace connection with PostgreSQL URLs"""
     
-    categories = await scraper.get_category_data(db)
+    categories = scraper.get_category_data(db)
     test_results = {}
     
     # Test top priority categories
@@ -713,7 +713,7 @@ async def get_live_clickbank_products(
         start_time = datetime.utcnow()
         
         # Get available categories from PostgreSQL
-        categories = await scraper.get_category_data(db)
+        categories = scraper.get_category_data(db)
         
         if category not in categories:
             available_categories = list(categories.keys())
@@ -792,7 +792,7 @@ async def get_available_categories(db: Session = Depends(get_db)) -> Dict[str, A
     """Get available ClickBank categories from PostgreSQL"""
     
     try:
-        categories = await scraper.get_category_data(db)
+        categories = scraper.get_category_data(db)
         
         category_list = []
         for cat_id, cat_info in categories.items():
@@ -840,7 +840,7 @@ async def get_all_categories_live(
         start_time = datetime.utcnow()
         
         # Get categories from PostgreSQL
-        categories = await scraper.get_category_data(db)
+        categories = scraper.get_category_data(db)
         
         # Filter by priority if specified
         if priority_filter:
@@ -912,7 +912,7 @@ async def validate_category_urls(category: str, db: Session = Depends(get_db)) -
     """Validate and update URLs for a specific category"""
     
     try:
-        categories = await scraper.get_category_data(db)
+        categories = scraper.get_category_data(db)
         
         if category not in categories:
             raise HTTPException(status_code=404, detail=f"Category '{category}' not found")
@@ -935,7 +935,7 @@ async def validate_category_urls(category: str, db: Session = Depends(get_db)) -
         validation_status = 'working' if working_urls else 'failed'
         validation_notes = f"Tested {len(all_urls)} URLs, {len(working_urls)} working"
         
-        await scraper.update_validation_status(
+        scraper.update_validation_status(
             db, category_info['id'], validation_status, validation_notes
         )
         
@@ -962,7 +962,7 @@ async def get_scraping_status(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get comprehensive scraping status using PostgreSQL data"""
     
     try:
-        categories = await scraper.get_category_data(db)
+        categories = scraper.get_category_data(db)
         
         # Quick connection test
         connection_test = {'success': True, 'environment': 'railway' if scraper.is_railway_environment() else 'local'}
@@ -1018,3 +1018,22 @@ async def get_scraping_status(db: Session = Depends(get_db)) -> Dict[str, Any]:
             "error": str(e),
             "last_updated": datetime.utcnow().isoformat()
         }
+
+# Legacy endpoint for backward compatibility
+@router.get("/top-products", tags=["clickbank"])
+async def get_clickbank_products(
+    type: str = Query(..., description="Category: mmo, weightloss, relationships, etc."),
+    use_live_data: bool = Query(True, description="Use live scraping (recommended)"),
+    db: Session = Depends(get_db)
+) -> List[Dict[str, Any]]:
+    """
+    Get ClickBank products - now uses PostgreSQL categories
+    """
+    
+    if use_live_data:
+        # Use live scraping with PostgreSQL
+        result = await get_live_clickbank_products(type, limit=10, db=db)
+        return result["products"]
+    else:
+        # Fallback message
+        raise HTTPException(status_code=400, detail="Live scraping with PostgreSQL is required. Set use_live_data=true")

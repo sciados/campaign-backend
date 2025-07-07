@@ -31,6 +31,7 @@ lxml==4.9.3
 requests==2.31.0
 asyncio-throttle==1.0.2
 certifi==2023.11.17  # ADD THIS - SSL certificates for Railway
+urllib3[secure]==2.1.0  
 
 # Document Processing
 PyPDF2==3.0.1
