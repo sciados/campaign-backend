@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 # Import your database dependencies
-from src.database import get_db  # Adjust import path as needed
+from src.core.database import get_db  # Adjust import path as needed
 
 router = APIRouter()
 
