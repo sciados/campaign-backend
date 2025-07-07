@@ -15,6 +15,7 @@ from src.intelligence.routes import router as intelligence_router
 from src.admin.routes import router as admin_router
 from src.intelligence.routes import router as intelligence_router
 from intelligence.routers.clickbank_routes import router as clickbank_router
+from intelligence.routers.affiliate_links import router as affiliate_router
 
 # ✅ NEW: Import landing page and analytics routes
 from src.intelligence.generators.landing_page.routes import router as landing_pages_router
@@ -48,6 +49,12 @@ app = FastAPI(
     version="1.0.0"
 )
 app.include_router(intelligence_router, prefix="/intelligence") 
+
+app.include_router(
+    affiliate_router, 
+    prefix="/api", 
+    tags=["affiliate"]
+)
 
 # ✅ FIXED: Better CORS configuration with multiple origins
 allowed_origins = [
