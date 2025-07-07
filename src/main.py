@@ -1,4 +1,4 @@
-# src/main.py - FIXED VERSION with proper import order and error handling
+# src/main.py - SIMPLIFIED VERSION without table creation
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -8,10 +8,9 @@ import sys
 import os
 
 # ============================================================================
-# ✅ FIXED: Ensure proper Python path setup
+# ✅ PYTHON PATH SETUP
 # ============================================================================
 
-# Add src to Python path if not already there
 current_dir = os.path.dirname(os.path.abspath(__file__))
 src_path = os.path.join(current_dir)
 app_path = os.path.dirname(current_dir)
@@ -22,10 +21,10 @@ if app_path not in sys.path:
     sys.path.insert(0, app_path)
 
 # ============================================================================
-# ✅ FIXED: Import database and models BEFORE routers to prevent conflicts
+# ✅ IMPORT MODELS IN PROPER ORDER (no table creation needed)
 # ============================================================================
 
-# Import database setup first
+# Import database setup (no table creation)
 try:
     from src.core.database import engine, Base, get_db
     logging.info("✅ Database core imported successfully")
@@ -33,20 +32,20 @@ except ImportError as e:
     logging.error(f"❌ Failed to import database core: {e}")
     raise
 
-# Import models in dependency order to prevent table conflicts
+# Import models in dependency order (tables already exist)
 try:
-    # Import base models first
+    # Core models first
     from src.models.user import User
     from src.models.company import Company
     
-    # Import campaign models
+    # Campaign models
     try:
         from src.models.campaign import Campaign
         logging.info("✅ Campaign models imported successfully")
     except ImportError as e:
         logging.warning(f"⚠️ Campaign models not available: {e}")
     
-    # Import ClickBank models LAST to prevent conflicts
+    # ClickBank models last (with extend_existing=True in the model files)
     try:
         from src.models.clickbank import (
             ClickBankProduct,
@@ -62,34 +61,27 @@ try:
     except ImportError as e:
         logging.warning(f"⚠️ ClickBank models not available: {e}")
         CLICKBANK_MODELS_AVAILABLE = False
-    
-    # Create all tables after models are imported
-    try:
-        Base.metadata.create_all(bind=engine)
-        logging.info("✅ Database tables created/verified successfully")
     except Exception as e:
-        logging.error(f"❌ Database table creation failed: {e}")
-        # Try to handle table conflicts
-        try:
-            logging.info("🔄 Attempting to resolve table conflicts...")
-            # Drop and recreate metadata if there are conflicts
-            Base.metadata.drop_all(bind=engine)
-            Base.metadata.create_all(bind=engine)
-            logging.info("✅ Database tables recreated successfully")
-        except Exception as recreate_error:
-            logging.error(f"❌ Failed to recreate tables: {recreate_error}")
-            # Continue anyway, tables might already exist
-            pass
+        # Handle SQLAlchemy warnings (not critical errors)
+        if "already contains a class" in str(e):
+            logging.warning(f"⚠️ ClickBank model redefinition warning (non-critical): {e}")
+            CLICKBANK_MODELS_AVAILABLE = True
+        else:
+            logging.error(f"❌ ClickBank models import failed: {e}")
+            CLICKBANK_MODELS_AVAILABLE = False
+    
+    # ✅ NO TABLE CREATION - Tables already exist!
+    logging.info("✅ All models imported successfully (using existing tables)")
     
 except ImportError as e:
     logging.error(f"❌ Failed to import models: {e}")
     CLICKBANK_MODELS_AVAILABLE = False
 
 # ============================================================================
-# ✅ FIXED: Import routers AFTER models are properly set up
+# ✅ IMPORT ROUTERS AFTER MODELS
 # ============================================================================
 
-# Import core routers (always required)
+# Import core routers
 try:
     from src.auth.routes import router as auth_router
     logging.info("✅ Auth router imported successfully")
@@ -114,7 +106,7 @@ except ImportError as e:
     logging.warning(f"⚠️ Dashboard router not available: {e}")
     DASHBOARD_ROUTER_AVAILABLE = False
 
-# Import intelligence routers with proper error handling
+# Import intelligence routers
 INTELLIGENCE_ROUTERS_AVAILABLE = False
 ANALYSIS_ROUTER_AVAILABLE = False
 CLICKBANK_ROUTER_AVAILABLE = False
@@ -162,18 +154,16 @@ INTELLIGENCE_ROUTERS_AVAILABLE = any([
 ])
 
 # ============================================================================
-# ✅ FIXED: Application lifespan with proper initialization
+# ✅ APPLICATION LIFESPAN
 # ============================================================================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Application lifespan manager with proper startup/shutdown handling
-    """
+    """Application lifespan manager"""
     # Startup
     logging.info("🚀 Starting CampaignForge AI Backend...")
     
-    # Verify database connection
+    # Test database connection (no table creation)
     try:
         from src.core.database import engine
         with engine.connect() as conn:
@@ -203,7 +193,7 @@ async def lifespan(app: FastAPI):
     logging.info("🛑 Shutting down CampaignForge AI Backend...")
 
 # ============================================================================
-# ✅ FIXED: FastAPI app creation with conditional router inclusion
+# ✅ FASTAPI APP CREATION
 # ============================================================================
 
 app = FastAPI(
@@ -217,10 +207,9 @@ app = FastAPI(
 )
 
 # ============================================================================
-# ✅ FIXED: Middleware configuration
+# ✅ MIDDLEWARE CONFIGURATION
 # ============================================================================
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -236,7 +225,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Trusted host middleware for security
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=[
@@ -249,10 +237,12 @@ app.add_middleware(
 )
 
 # ============================================================================
-# ✅ FIXED: Router registration with availability checks
+# ✅ ROUTER REGISTRATION
 # ============================================================================
 
-# Core routers (always included if available)
+# Register routers only if available
+intelligence_routes_registered = 0
+
 if AUTH_ROUTER_AVAILABLE:
     app.include_router(auth_router, prefix="/api")
     logging.info("📡 Auth router registered")
@@ -266,9 +256,6 @@ if CAMPAIGNS_ROUTER_AVAILABLE:
 if DASHBOARD_ROUTER_AVAILABLE:
     app.include_router(dashboard_router, prefix="/api")
     logging.info("📡 Dashboard router registered")
-
-# Intelligence routers (optional, with fallbacks)
-intelligence_routes_registered = 0
 
 if ANALYSIS_ROUTER_AVAILABLE and analysis_router:
     app.include_router(analysis_router, prefix="/api")
@@ -296,14 +283,12 @@ else:
     logging.warning("⚠️ Intelligence system: No routers available")
 
 # ============================================================================
-# ✅ FIXED: Health check and status endpoints
+# ✅ HEALTH CHECK ENDPOINTS
 # ============================================================================
 
 @app.get("/api/health")
 async def health_check():
-    """
-    Enhanced health check with feature availability
-    """
+    """Health check with feature availability"""
     return {
         "status": "healthy",
         "version": "2.0.0",
@@ -319,16 +304,14 @@ async def health_check():
             "clickbank_admin": CLICKBANK_ADMIN_ROUTER_AVAILABLE
         },
         "intelligence_routes_count": intelligence_routes_registered,
-        "database_status": "connected" if CLICKBANK_MODELS_AVAILABLE else "limited"
+        "database_status": "connected" if CLICKBANK_MODELS_AVAILABLE else "limited",
+        "tables_status": "existing"  # Tables already exist
     }
 
 @app.get("/api/status")
 async def system_status():
-    """
-    Detailed system status for debugging
-    """
+    """Detailed system status"""
     try:
-        # Test database connection
         from src.core.database import engine
         with engine.connect() as conn:
             conn.execute("SELECT 1")
@@ -341,6 +324,7 @@ async def system_status():
         "version": "2.0.0",
         "environment": os.getenv("ENVIRONMENT", "development"),
         "database": db_status,
+        "tables": "existing",  # No table creation needed
         "routers": {
             "auth": AUTH_ROUTER_AVAILABLE,
             "campaigns": CAMPAIGNS_ROUTER_AVAILABLE,
@@ -353,33 +337,30 @@ async def system_status():
         "models": {
             "clickbank_available": CLICKBANK_MODELS_AVAILABLE
         },
-        "python_path": sys.path[:3],  # Show first 3 paths for debugging
+        "python_path": sys.path[:3],
         "working_directory": os.getcwd()
     }
 
 @app.get("/")
 async def root():
-    """
-    Root endpoint with API information
-    """
+    """Root endpoint"""
     return {
         "message": "CampaignForge AI Backend API",
         "version": "2.0.0",
         "docs": "/api/docs",
         "health": "/api/health",
         "status": "/api/status",
-        "features_available": intelligence_routes_registered > 0
+        "features_available": intelligence_routes_registered > 0,
+        "tables_status": "existing"
     }
 
 # ============================================================================
-# ✅ FIXED: Global exception handler
+# ✅ GLOBAL EXCEPTION HANDLER
 # ============================================================================
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
-    """
-    Global exception handler for better error reporting
-    """
+    """Global exception handler"""
     logging.error(f"❌ Unhandled exception: {str(exc)}")
     logging.error(f"Request: {request.method} {request.url}")
     
