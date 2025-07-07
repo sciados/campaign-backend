@@ -14,6 +14,7 @@ from src.dashboard.routes import router as dashboard_router
 from src.intelligence.routes import router as intelligence_router
 from src.admin.routes import router as admin_router
 from src.intelligence.routes import router as intelligence_router
+from intelligence.routers.clickbank_routes import router as clickbank_router
 
 # ✅ NEW: Import landing page and analytics routes
 from src.intelligence.generators.landing_page.routes import router as landing_pages_router
@@ -146,6 +147,13 @@ if ANALYTICS_AVAILABLE:
     logger.info("✅ Analytics routes loaded")
 else:
     logger.warning("⚠️ Analytics routes not available")
+
+# Make sure this line exists:
+app.include_router(
+    clickbank_router, 
+    prefix="/api/intelligence/clickbank", 
+    tags=["clickbank"]
+)
 
 # Add explicit CORS preflight handler
 @app.options("/{full_path:path}")
