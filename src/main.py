@@ -3,6 +3,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 import logging
 import sys
 import os
@@ -167,7 +168,7 @@ async def lifespan(app: FastAPI):
     try:
         from src.core.database import engine
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))  # Add text() wrapper
         logging.info("✅ Database connection verified")
     except Exception as e:
         logging.error(f"❌ Database connection failed: {e}")
@@ -286,6 +287,11 @@ else:
 # ✅ HEALTH CHECK ENDPOINTS
 # ============================================================================
 
+@app.get("/health")
+async def health_check_root():
+    """Root level health check (Railway compatibility)"""
+    return {"status": "healthy", "message": "CampaignForge AI Backend is running"}
+
 @app.get("/api/health")
 async def health_check():
     """Health check with feature availability"""
@@ -314,7 +320,7 @@ async def system_status():
     try:
         from src.core.database import engine
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))  # Add text() wrapper
         db_status = "connected"
     except Exception as e:
         db_status = f"error: {str(e)}"
