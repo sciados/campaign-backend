@@ -9,10 +9,10 @@ import base64
 from datetime import datetime
 import logging
 
-# Adjust these imports based on your project structure
+# ✅ FIXED: Use absolute imports to prevent conflicts
 from src.auth.dependencies import get_db, get_current_user
-from models.user import User
-from models.clickbank import (
+from src.models.user import User  # ✅ FIXED: Use src.models instead of models
+from src.models.clickbank import (  # ✅ FIXED: Use src.models instead of models
     ClickBankProduct, 
     UserAffiliatePreferences, 
     AffiliateLinkClick,

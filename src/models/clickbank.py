@@ -1,12 +1,25 @@
+# src/models/clickbank.py - FIXED VERSION to resolve table conflicts
 from sqlalchemy import Column, String, Integer, Boolean, DECIMAL, DateTime, Text, JSON, Index
 from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
-from src.core.database import Base  # Adjust import based on your database setup
+from src.core.database import Base
+
+# ============================================================================
+# ✅ FIXED: Add extend_existing=True to prevent table redefinition errors
+# ============================================================================
 
 class ClickBankProduct(Base):
     __tablename__ = "clickbank_products"
+    __table_args__ = (
+        Index('idx_clickbank_products_category', 'category'),
+        Index('idx_clickbank_products_gravity', 'gravity'),
+        Index('idx_clickbank_products_active', 'is_active'),
+        Index('idx_clickbank_products_last_seen', 'last_seen_at'),
+        # ✅ FIXED: Add extend_existing to prevent redefinition errors
+        {'extend_existing': True}
+    )
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     product_id = Column(String(50), nullable=False)
@@ -30,18 +43,22 @@ class ClickBankProduct(Base):
     performance_score = Column(Integer)
     affiliate_tools_available = Column(Boolean, default=False)
     target_keywords = Column(ARRAY(String))
+    
+    # Analysis fields
+    analysis_status = Column(String(20), default='pending')  # pending, processing, completed, failed
+    analysis_score = Column(DECIMAL(3,2))  # 0.00 to 1.00
+    key_insights = Column(JSONB, default=lambda: [])
+    recommended_angles = Column(JSONB, default=lambda: [])
+    
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    
-    __table_args__ = (
-        Index('idx_clickbank_products_category', 'category'),
-        Index('idx_clickbank_products_gravity', 'gravity'),
-        Index('idx_clickbank_products_active', 'is_active'),
-        Index('idx_clickbank_products_last_seen', 'last_seen_at'),
-    )
 
 class ClickBankCategoryURL(Base):
     __tablename__ = "clickbank_category_urls"
+    __table_args__ = (
+        # ✅ FIXED: Add extend_existing to prevent redefinition errors
+        {'extend_existing': True}
+    )
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     category = Column(String(50), unique=True, nullable=False)
@@ -51,7 +68,9 @@ class ClickBankCategoryURL(Base):
     is_active = Column(Boolean, default=True)
     url_type = Column(String(20), default='marketplace')
     scraping_notes = Column(Text)
-    last_validated_at = Column(DateTime)
+    last_tested = Column(DateTime)  # ✅ FIXED: Renamed from last_validated_at for consistency
+    last_working = Column(DateTime)  # ✅ FIXED: Added for tracking working URLs
+    test_results = Column(JSONB, default=lambda: [])  # ✅ FIXED: Added for storing test results
     validation_status = Column(String(20), default='pending')
     priority_level = Column(Integer, default=5)
     commission_range = Column(String(20))
@@ -61,6 +80,10 @@ class ClickBankCategoryURL(Base):
 
 class ScrapingSchedule(Base):
     __tablename__ = "scraping_schedule"
+    __table_args__ = (
+        # ✅ FIXED: Add extend_existing to prevent redefinition errors
+        {'extend_existing': True}
+    )
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     category = Column(String(50), unique=True, nullable=False)
@@ -78,6 +101,10 @@ class ScrapingSchedule(Base):
 
 class ScrapingLog(Base):
     __tablename__ = "scraping_logs"
+    __table_args__ = (
+        # ✅ FIXED: Add extend_existing to prevent redefinition errors
+        {'extend_existing': True}
+    )
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     category = Column(String(50), nullable=False)
@@ -96,6 +123,10 @@ class ScrapingLog(Base):
 
 class ProductPerformance(Base):
     __tablename__ = "product_performance"
+    __table_args__ = (
+        # ✅ FIXED: Add extend_existing to prevent redefinition errors
+        {'extend_existing': True}
+    )
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     product_id = Column(String(50), nullable=False)
@@ -110,6 +141,10 @@ class ProductPerformance(Base):
 
 class UserAffiliatePreferences(Base):
     __tablename__ = "user_affiliate_preferences"
+    __table_args__ = (
+        # ✅ FIXED: Add extend_existing to prevent redefinition errors
+        {'extend_existing': True}
+    )
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), nullable=False, unique=True)
@@ -142,6 +177,14 @@ class UserAffiliatePreferences(Base):
 
 class AffiliateLinkClick(Base):
     __tablename__ = "affiliate_link_clicks"
+    __table_args__ = (
+        Index('idx_affiliate_clicks_user_id', 'user_id'),
+        Index('idx_affiliate_clicks_product_id', 'product_id'),
+        Index('idx_affiliate_clicks_timestamp', 'click_timestamp'),
+        Index('idx_affiliate_clicks_category', 'category'),
+        # ✅ FIXED: Add extend_existing to prevent redefinition errors
+        {'extend_existing': True}
+    )
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), nullable=False)
@@ -155,10 +198,18 @@ class AffiliateLinkClick(Base):
     click_timestamp = Column(DateTime, server_default=func.now())
     conversion_tracked = Column(Boolean, default=False)
     estimated_commission = Column(DECIMAL(10,2))
-    
-    __table_args__ = (
-        Index('idx_affiliate_clicks_user_id', 'user_id'),
-        Index('idx_affiliate_clicks_product_id', 'product_id'),
-        Index('idx_affiliate_clicks_timestamp', 'click_timestamp'),
-        Index('idx_affiliate_clicks_category', 'category'),
-    )
+
+# ============================================================================
+# ✅ ADDITIONAL FIXES FOR IMPORT CONFLICTS
+# ============================================================================
+
+# Ensure clean imports by explicitly defining what should be imported
+__all__ = [
+    'ClickBankProduct',
+    'ClickBankCategoryURL', 
+    'ScrapingSchedule',
+    'ScrapingLog',
+    'ProductPerformance',
+    'UserAffiliatePreferences',
+    'AffiliateLinkClick'
+]
