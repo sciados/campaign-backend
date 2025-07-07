@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 # ✅ FIXED: Remove duplicate prefix (main.py already adds /api/auth)
 router = APIRouter(
+    prefix="/auth",
     tags=["Authentication"],
     responses={404: {"description": "Not found"}},
 )
