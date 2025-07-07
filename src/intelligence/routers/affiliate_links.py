@@ -10,7 +10,7 @@ from datetime import datetime
 import logging
 
 # Adjust these imports based on your project structure
-from dependencies import get_db, get_current_user
+from src.auth.dependencies import get_db, get_current_user
 from models.user import User
 from models.clickbank import (
     ClickBankProduct, 
