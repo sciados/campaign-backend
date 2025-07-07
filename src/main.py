@@ -1,4 +1,4 @@
-# src/main.py - SIMPLIFIED VERSION without table creation
+# src/main.py - COMPLETE VERSION with debug code for auth router
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -238,7 +238,7 @@ app.add_middleware(
 )
 
 # ============================================================================
-# ✅ ROUTER REGISTRATION
+# ✅ ROUTER REGISTRATION WITH DEBUG
 # ============================================================================
 
 # Register routers only if available
@@ -247,6 +247,14 @@ intelligence_routes_registered = 0
 if AUTH_ROUTER_AVAILABLE:
     app.include_router(auth_router, prefix="/api")
     logging.info("📡 Auth router registered")
+    
+    # ✅ DEBUG CODE - Show what auth routes are registered
+    print(f"🔍 Auth router has {len(auth_router.routes)} routes:")
+    for route in auth_router.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            print(f"  {list(route.methods)} /api{route.path}")
+        else:
+            print(f"  Route object: {type(route)} - {route}")
 else:
     logging.error("❌ Auth router not registered - authentication will not work")
 
@@ -353,11 +361,40 @@ async def root():
     return {
         "message": "CampaignForge AI Backend API",
         "version": "2.0.0",
-        "docs": "/api/docs",
+        "status": "healthy",
+        "docs": "/api/docs", 
         "health": "/api/health",
-        "status": "/api/status",
-        "features_available": intelligence_routes_registered > 0,
-        "tables_status": "existing"
+        "features_available": True
+    }
+
+# ============================================================================
+# ✅ ADDITIONAL DEBUG ENDPOINT
+# ============================================================================
+
+@app.get("/api/debug/routes")
+async def debug_all_routes():
+    """Debug endpoint to show all registered routes"""
+    routes_info = []
+    auth_routes = []
+    
+    for route in app.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            route_info = {
+                "methods": list(route.methods),
+                "path": route.path,
+                "name": getattr(route, 'name', 'unnamed')
+            }
+            routes_info.append(route_info)
+            
+            # Track auth routes specifically
+            if '/auth/' in route.path:
+                auth_routes.append(route_info)
+    
+    return {
+        "total_routes": len(routes_info),
+        "auth_routes": len(auth_routes),
+        "auth_route_details": auth_routes,
+        "all_routes": routes_info
     }
 
 # ============================================================================
@@ -375,3 +412,29 @@ async def global_exception_handler(request, exc):
         "detail": str(exc) if os.getenv("DEBUG", "false").lower() == "true" else "An unexpected error occurred",
         "type": type(exc).__name__
     }
+
+# ============================================================================
+# ✅ STARTUP EVENT FOR ADDITIONAL DEBUGGING
+# ============================================================================
+
+@app.on_event("startup")
+async def startup_debug():
+    """Additional startup debugging"""
+    print("=" * 60)
+    print("🔍 STARTUP DEBUGGING INFORMATION")
+    print("=" * 60)
+    
+    # Count routes by category
+    total_routes = len(app.routes)
+    auth_routes = len([r for r in app.routes if hasattr(r, 'path') and '/auth/' in r.path])
+    
+    print(f"📊 Total routes registered: {total_routes}")
+    print(f"🔐 Auth routes found: {auth_routes}")
+    
+    # Show first few auth routes for verification
+    print("🔍 Auth routes registered:")
+    for route in app.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods') and '/auth/' in route.path:
+            print(f"  {list(route.methods)} {route.path}")
+    
+    print("=" * 60)
