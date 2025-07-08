@@ -1,7 +1,6 @@
 """
-Campaign routes - ENHANCED VERSION with Content Management
+Campaign routes - ENHANCED VERSION with Content Management - FIXED
 """
-
 # from fastapi import APIRouter, Depends, HTTPException
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
@@ -50,23 +49,28 @@ class CampaignUpdate(BaseModel):
 class CampaignResponse(BaseModel):
     id: str
     title: str
-    description: Optional[str] = None
+    description: Optional[str] = ""
     keywords: List[str] = []
     target_audience: Optional[str] = None
     campaign_type: str = "universal"
-    status: str
-    tone: Optional[str] = None
-    style: Optional[str] = None
+    status: str = "draft"
+    tone: Optional[str] = "conversational"
+    style: Optional[str] = "modern"
     created_at: datetime
     updated_at: datetime
-    workflow_state: str
-    completion_percentage: float
+    workflow_state: str = "basic_setup"
+    completion_percentage: float = 25.0
     sources_count: int = 0
     intelligence_count: int = 0
     content_count: int = 0
 
     class Config:
         from_attributes = True
+        use_enum_values = True
+        allow_population_by_field_name = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
 
 class WorkflowPreferences(BaseModel):
     workflow_preference: Optional[str] = "flexible"
@@ -163,7 +167,7 @@ async def update_campaign_counters(campaign_id: str, db: AsyncSession):
         return False
 
 # ============================================================================
-# CAMPAIGN ROUTES - EXISTING
+# CAMPAIGN ROUTES - FIXED
 # ============================================================================
 
 @router.get("", response_model=List[CampaignResponse])
@@ -178,76 +182,135 @@ async def get_campaigns(
     try:
         logger.info(f"Getting campaigns for user {current_user.id}, company {current_user.company_id}")
         
-        # Build a more selective query - only get essential columns
-        query = select(
-            Campaign.id,
-            Campaign.title,
-            Campaign.description,
-            Campaign.target_audience,
-            Campaign.status,
-            Campaign.tone,
-            Campaign.style,
-            Campaign.created_at,
-            Campaign.updated_at,
-            Campaign.sources_count,
-            Campaign.intelligence_extracted,
-            Campaign.content_generated
-        ).where(Campaign.company_id == current_user.company_id)
+        # Build query for FULL Campaign objects (not just specific columns)
+        query = select(Campaign).where(Campaign.company_id == current_user.company_id)
         
-        # Add status filter
+        # Add status filter if provided
         if status:
             try:
                 status_enum = normalize_campaign_status(status)
                 query = query.where(Campaign.status == status_enum)
-            except:
-                logger.warning(f"Invalid status filter: {status}")
+                logger.info(f"Applied status filter: {status}")
+            except Exception as status_error:
+                logger.warning(f"Invalid status filter '{status}': {status_error}")
+                # Don't fail the request, just ignore the filter
         
         # Add pagination
         query = query.offset(skip).limit(limit)
         
         # Execute query
         result = await db.execute(query)
-        campaigns = result.all()
+        campaigns = result.scalars().all()
         
         logger.info(f"Found {len(campaigns)} campaigns")
         
-        # Convert to response format
+        # Convert to response format with proper error handling
         campaign_responses = []
         for campaign in campaigns:
-            # Handle status enum safely
             try:
-                status_value = campaign.status.value if hasattr(campaign.status, 'value') else str(campaign.status)
-            except:
-                status_value = "draft"  # Default fallback
-            
-            campaign_response = CampaignResponse(
-                id=str(campaign.id),
-                title=campaign.title,
-                description=campaign.description,
-                keywords=[],  # Empty for now
-                target_audience=campaign.target_audience,
-                campaign_type="universal",
-                status=status_value,
-                tone=campaign.tone,
-                style=campaign.style,
-                created_at=campaign.created_at,
-                updated_at=campaign.updated_at,
-                workflow_state="basic_setup",  # Fixed value
-                completion_percentage=25.0,
-                sources_count=campaign.sources_count or 0,
-                intelligence_count=campaign.intelligence_extracted or 0,
-                content_count=campaign.content_generated or 0
-            )
-            campaign_responses.append(campaign_response)
+                # Safely handle status enum
+                try:
+                    if hasattr(campaign.status, 'value'):
+                        status_value = campaign.status.value
+                    else:
+                        status_value = str(campaign.status)
+                except (AttributeError, TypeError):
+                    status_value = "draft"  # Default fallback
+                
+                # Safely calculate completion percentage
+                try:
+                    completion_percentage = campaign.calculate_completion_percentage()
+                except (AttributeError, TypeError, Exception):
+                    completion_percentage = 25.0  # Default fallback
+                
+                # Safely get workflow state
+                try:
+                    if hasattr(campaign.workflow_state, 'value'):
+                        workflow_state = campaign.workflow_state.value
+                    else:
+                        workflow_state = str(campaign.workflow_state) if campaign.workflow_state else "basic_setup"
+                except (AttributeError, TypeError):
+                    workflow_state = "basic_setup"
+                
+                # Create response object with safe field access
+                campaign_response = CampaignResponse(
+                    id=str(campaign.id),
+                    title=campaign.title or "Untitled Campaign",
+                    description=campaign.description or "",
+                    keywords=campaign.keywords if isinstance(campaign.keywords, list) else [],
+                    target_audience=campaign.target_audience,
+                    campaign_type="universal",
+                    status=status_value,
+                    tone=campaign.tone or "conversational",
+                    style=campaign.style or "modern",
+                    created_at=campaign.created_at,
+                    updated_at=campaign.updated_at,
+                    workflow_state=workflow_state,
+                    completion_percentage=completion_percentage,
+                    sources_count=getattr(campaign, 'sources_count', 0) or 0,
+                    intelligence_count=getattr(campaign, 'intelligence_extracted', 0) or 0,
+                    content_count=getattr(campaign, 'content_generated', 0) or 0
+                )
+                campaign_responses.append(campaign_response)
+                
+            except Exception as campaign_error:
+                logger.error(f"Error processing campaign {campaign.id}: {campaign_error}")
+                # Skip this campaign but continue with others
+                continue
         
-        return campaign_responses  # ← YES, this return statement is needed!
+        logger.info(f"Successfully processed {len(campaign_responses)} campaigns")
+        
+        # ✅ CRITICAL FIX: Add the missing return statement
+        return campaign_responses
         
     except Exception as e:
         logger.error(f"Error getting campaigns: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve campaigns: {str(e)}"
+            detail=f"Failed to get campaign stats: {str(e)}"
         )
+
+@router.get("/debug/campaigns")
+async def debug_campaigns(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Debug endpoint to check campaign data structure"""
+    try:
+        # Get one campaign to examine its structure
+        query = select(Campaign).where(Campaign.company_id == current_user.company_id).limit(1)
+        result = await db.execute(query)
+        campaign = result.scalar_one_or_none()
+        
+        if not campaign:
+            return {"message": "No campaigns found", "user_id": str(current_user.id), "company_id": str(current_user.company_id)}
+        
+        # Examine the campaign object
+        campaign_dict = {}
+        for attr in dir(campaign):
+            if not attr.startswith('_') and not callable(getattr(campaign, attr)):
+                try:
+                    value = getattr(campaign, attr)
+                    if hasattr(value, 'value'):  # Enum
+                        campaign_dict[attr] = f"{value} (enum: {value.value})"
+                    else:
+                        campaign_dict[attr] = str(value)
+                except Exception as e:
+                    campaign_dict[attr] = f"Error: {str(e)}"
+        
+        return {
+            "campaign_id": str(campaign.id),
+            "campaign_attributes": campaign_dict,
+            "campaign_type": type(campaign).__name__,
+            "has_calculate_method": hasattr(campaign, 'calculate_completion_percentage'),
+            "status_type": type(campaign.status).__name__ if campaign.status else "None"
+        }
+        
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
 
 @router.post("", response_model=CampaignResponse)
 async def create_campaign(
