@@ -1,28 +1,28 @@
 """
-FastAPI dependencies for authentication and database - FIXED VERSION
+FastAPI dependencies for authentication and database - ASYNC FIXED VERSION
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi import status as http_status  # ✅ Fixed import
+from fastapi import status as http_status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-# ✅ FIXED: Use synchronous Session instead of AsyncSession
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 from typing import Optional
 from uuid import UUID
 import structlog
 
-from src.core.database import get_db
+from src.core.database import get_async_db  # ✅ FIXED: Use get_async_db
 from src.core.security import verify_token, SECRET_KEY
 from src.models.user import User
-from jose import jwt, JWTError  # ✅ FIXED: Import JWTError correctly
+from jose import jwt, JWTError
 
 logger = structlog.get_logger()
 security = HTTPBearer()
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)  # ✅ FIXED: Changed AsyncSession to Session
+    db: AsyncSession = Depends(get_async_db)  # ✅ FIXED: Use get_async_db
 ) -> User:
     """Get current authenticated user"""
 
@@ -49,12 +49,13 @@ async def get_current_user(
         except ValueError:
             raise credentials_exception
         
-        # ✅ FIXED: Remove await from database operation
-        user = db.scalar(
+        # ✅ FIXED: Use async database operation
+        result = await db.execute(
             select(User)
             .where(User.id == user_id)
             .options(selectinload(User.company))
         )
+        user = result.scalar_one_or_none()
         
         if user is None or not user.is_active:
             raise credentials_exception
@@ -72,7 +73,7 @@ async def get_current_user(
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except JWTError:  # ✅ FIXED: Use JWTError instead of jwt.InvalidTokenError
+    except JWTError:
         raise credentials_exception
     except Exception as e:
         logger.error(f"Unexpected error in get_current_user: {str(e)}")

@@ -13,7 +13,7 @@ import logging
 import json
 from datetime import datetime
 
-from src.core.database import get_db
+from src.core.database import get_async_db
 from src.auth.dependencies import get_current_user
 from src.models import Campaign, User, Company, CampaignStatus
 from src.models.intelligence import GeneratedContent, CampaignIntelligence
@@ -170,59 +170,108 @@ async def update_campaign_counters(campaign_id: str, db: AsyncSession):
 # CAMPAIGN ROUTES - FIXED
 # ============================================================================
 
-@router.get("")  # Remove response_model temporarily
+@router.get("", response_model=List[CampaignResponse])
 async def get_campaigns(
     skip: int = 0,
     limit: int = 100,
     status: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),  # ✅ FIXED: Use get_async_db
     current_user: User = Depends(get_current_user)
 ):
-    """Get all campaigns for the current user's company - NO RESPONSE MODEL"""
+    """Get all campaigns for the current user's company"""
     try:
-        print(f"🔍 get_campaigns called with skip={skip}, limit={limit}, status={status}")
-        print(f"🔍 User: {current_user.id}, Company: {current_user.company_id}")
+        logger.info(f"Getting campaigns for user {current_user.id}, company {current_user.company_id}")
         
-        # Simple query
-        query = select(Campaign).where(Campaign.company_id == current_user.company_id).limit(limit).offset(skip)
+        # Build query for FULL Campaign objects
+        query = select(Campaign).where(Campaign.company_id == current_user.company_id)
+        
+        # Add status filter if provided
+        if status:
+            try:
+                status_enum = normalize_campaign_status(status)
+                query = query.where(Campaign.status == status_enum)
+                logger.info(f"Applied status filter: {status}")
+            except Exception as status_error:
+                logger.warning(f"Invalid status filter '{status}': {status_error}")
+        
+        # Add pagination
+        query = query.offset(skip).limit(limit)
+        
+        # Execute query
         result = await db.execute(query)
         campaigns = result.scalars().all()
         
-        print(f"🔍 Found {len(campaigns)} campaigns")
+        logger.info(f"Found {len(campaigns)} campaigns")
         
-        # Return simple dict instead of response model
-        simple_campaigns = []
+        # Convert to response format with proper error handling
+        campaign_responses = []
         for campaign in campaigns:
-            simple_campaigns.append({
-                "id": str(campaign.id),
-                "title": campaign.title,
-                "status": str(campaign.status) if campaign.status else "draft",
-                "created_at": campaign.created_at.isoformat() if campaign.created_at else None
-            })
+            try:
+                # Safely handle status enum
+                try:
+                    if hasattr(campaign.status, 'value'):
+                        status_value = campaign.status.value
+                    else:
+                        status_value = str(campaign.status)
+                except (AttributeError, TypeError):
+                    status_value = "draft"
+                
+                # Safely calculate completion percentage
+                try:
+                    completion_percentage = campaign.calculate_completion_percentage()
+                except (AttributeError, TypeError, Exception):
+                    completion_percentage = 25.0
+                
+                # Safely get workflow state
+                try:
+                    if hasattr(campaign.workflow_state, 'value'):
+                        workflow_state = campaign.workflow_state.value
+                    else:
+                        workflow_state = str(campaign.workflow_state) if campaign.workflow_state else "basic_setup"
+                except (AttributeError, TypeError):
+                    workflow_state = "basic_setup"
+                
+                # Create response object
+                campaign_response = CampaignResponse(
+                    id=str(campaign.id),
+                    title=campaign.title or "Untitled Campaign",
+                    description=campaign.description or "",
+                    keywords=campaign.keywords if isinstance(campaign.keywords, list) else [],
+                    target_audience=campaign.target_audience,
+                    campaign_type="universal",
+                    status=status_value,
+                    tone=campaign.tone or "conversational",
+                    style=campaign.style or "modern",
+                    created_at=campaign.created_at,
+                    updated_at=campaign.updated_at,
+                    workflow_state=workflow_state,
+                    completion_percentage=completion_percentage,
+                    sources_count=getattr(campaign, 'sources_count', 0) or 0,
+                    intelligence_count=getattr(campaign, 'intelligence_extracted', 0) or 0,
+                    content_count=getattr(campaign, 'content_generated', 0) or 0
+                )
+                campaign_responses.append(campaign_response)
+                
+            except Exception as campaign_error:
+                logger.error(f"Error processing campaign {campaign.id}: {campaign_error}")
+                continue
         
-        return {
-            "campaigns": simple_campaigns,
-            "count": len(simple_campaigns),
-            "user_id": str(current_user.id),
-            "company_id": str(current_user.company_id)
-        }
+        logger.info(f"Successfully processed {len(campaign_responses)} campaigns")
+        return campaign_responses
         
     except Exception as e:
-        print(f"❌ Error in get_campaigns: {str(e)}")
+        logger.error(f"Error getting campaigns: {e}")
         import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         
-        # Return error as dict instead of raising exception
-        return {
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "campaigns": [],
-            "count": 0
-        }
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve campaigns: {str(e)}"
+        )
 
 @router.get("/debug/campaigns")
 async def debug_campaigns(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """Debug endpoint to check campaign data structure"""
@@ -262,7 +311,7 @@ async def debug_campaigns(
 @router.post("", response_model=CampaignResponse)
 async def create_campaign(
     campaign_data: CampaignCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """Create a new universal campaign"""
@@ -323,7 +372,7 @@ async def create_campaign(
 @router.get("/{campaign_id}", response_model=CampaignResponse)
 async def get_campaign(
     campaign_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get a specific campaign by ID"""
@@ -376,7 +425,7 @@ async def get_campaign(
 async def update_campaign(
     campaign_id: UUID,
     campaign_data: CampaignUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """Update a campaign"""
@@ -442,7 +491,7 @@ async def update_campaign(
 @router.delete("/{campaign_id}")
 async def delete_campaign(
     campaign_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """Delete a campaign"""
@@ -490,7 +539,7 @@ async def get_campaign_content_list(
     include_body: bool = False,
     content_type: Optional[str] = None,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Get list of generated content for a campaign"""
     try:
@@ -587,7 +636,7 @@ async def get_content_detail(
     campaign_id: UUID,
     content_id: UUID,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Get detailed content including full body"""
     try:
@@ -668,7 +717,7 @@ async def update_content(
     content_id: UUID,
     update_data: ContentUpdateRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Update generated content"""
     try:
@@ -724,7 +773,7 @@ async def delete_content(
     campaign_id: UUID,
     content_id: UUID,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Delete generated content"""
     try:
@@ -776,7 +825,7 @@ async def rate_content(
     content_id: UUID,
     rating_data: ContentRatingRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Rate generated content (1-5 stars)"""
     try:
@@ -826,7 +875,7 @@ async def publish_content(
     content_id: UUID,
     publish_data: ContentPublishRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Mark content as published"""
     try:
@@ -875,7 +924,7 @@ async def bulk_content_action(
     campaign_id: UUID,
     action_data: BulkContentActionRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Perform bulk actions on content (delete, publish, rate)"""
     try:
@@ -978,7 +1027,7 @@ async def bulk_content_action(
 async def get_content_stats(
     campaign_id: UUID,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Get content statistics for a campaign"""
     try:
@@ -1065,7 +1114,7 @@ async def duplicate_content(
     content_id: UUID,
     duplicate_data: ContentDuplicateRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Duplicate content item"""
     try:
@@ -1139,7 +1188,7 @@ async def duplicate_content(
 
 @router.get("/dashboard/stats")
 async def get_dashboard_stats(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get dashboard statistics"""
@@ -1236,7 +1285,7 @@ async def get_dashboard_stats(
 @router.get("/{campaign_id}/workflow-state", response_model=WorkflowStateResponse)
 async def get_campaign_workflow_state(
     campaign_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get current workflow state for a campaign"""
@@ -1331,7 +1380,7 @@ async def get_campaign_workflow_state(
 async def set_workflow_preference(
     campaign_id: UUID,
     preferences: WorkflowPreferences,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """Set workflow preferences for a campaign"""
@@ -1385,7 +1434,7 @@ async def set_workflow_preference(
 async def save_campaign_progress(
     campaign_id: UUID,
     progress_data: ProgressData,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """Save campaign progress (auto-save functionality)"""
@@ -1440,7 +1489,7 @@ async def save_campaign_progress(
 @router.get("/{campaign_id}/intelligence")
 async def get_campaign_intelligence(
     campaign_id: UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get intelligence sources for a campaign"""
@@ -1512,7 +1561,7 @@ async def get_campaign_intelligence(
 
 @router.get("/stats/overview")
 async def get_campaign_stats(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get campaign statistics overview"""
