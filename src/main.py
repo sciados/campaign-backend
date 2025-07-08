@@ -264,7 +264,7 @@ else:
     logging.error("❌ Auth router not registered - authentication will not work")
 
 if CAMPAIGNS_ROUTER_AVAILABLE:
-    app.include_router(campaigns_router, prefix="/api")
+    app.include_router(campaigns_router, prefix="/api/campaigns", tags=["campaigns"])
     logging.info("📡 Campaigns router registered")
 
 if DASHBOARD_ROUTER_AVAILABLE:
