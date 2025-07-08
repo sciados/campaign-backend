@@ -277,27 +277,28 @@ else:
     logging.error("❌ Campaigns router not registered")
 
 if DASHBOARD_ROUTER_AVAILABLE:
-    app.include_router(dashboard_router, prefix="/api")
-    logging.info("📡 Dashboard router registered")
+    app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
+    logging.info("📡 Dashboard router registered at /api/dashboard")
 
+# Intelligence routers with correct prefixes
 if ANALYSIS_ROUTER_AVAILABLE and analysis_router:
-    app.include_router(analysis_router, prefix="/api")
-    logging.info("📡 Analysis router registered")
+    app.include_router(analysis_router, prefix="/api/intelligence/analysis", tags=["intelligence", "analysis"])
+    logging.info("📡 Analysis router registered at /api/intelligence/analysis")
     intelligence_routes_registered += 1
 
 if CLICKBANK_ROUTER_AVAILABLE and clickbank_router:
-    app.include_router(clickbank_router, prefix="/api")
-    logging.info("📡 ClickBank routes registered")
+    app.include_router(clickbank_router, prefix="/api/intelligence/clickbank", tags=["intelligence", "clickbank"])
+    logging.info("📡 ClickBank routes registered at /api/intelligence/clickbank")
     intelligence_routes_registered += 1
 
 if AFFILIATE_ROUTER_AVAILABLE and affiliate_router:
-    app.include_router(affiliate_router, prefix="/api")
-    logging.info("📡 Affiliate links router registered")
+    app.include_router(affiliate_router, prefix="/api/intelligence/affiliate", tags=["intelligence", "affiliate"])
+    logging.info("📡 Affiliate links router registered at /api/intelligence/affiliate")
     intelligence_routes_registered += 1
 
 if CLICKBANK_ADMIN_ROUTER_AVAILABLE and clickbank_admin_router:
-    app.include_router(clickbank_admin_router, prefix="/api")
-    logging.info("📡 ClickBank admin router registered")
+    app.include_router(clickbank_admin_router, prefix="/api/admin/clickbank", tags=["admin", "clickbank"])
+    logging.info("📡 ClickBank admin router registered at /api/admin/clickbank")
     intelligence_routes_registered += 1
 
 if intelligence_routes_registered > 0:
