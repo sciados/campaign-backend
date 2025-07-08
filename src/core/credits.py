@@ -189,14 +189,20 @@ class CreditManager:
     @staticmethod
     async def _consume_credits(company: Company, credits: int, db: AsyncSession):
         """Actually consume the credits"""
-        
+    
         await db.execute(
-            update(Company)
-            .where(Company.id == company.id)
-            .values(monthly_credits_used=Company.monthly_credits_used + credits)
+        update(Company)
+        .where(Company.id == company.id)
+        .values(monthly_credits_used=Company.monthly_credits_used + credits)
         )
-        await db.commit()
-        
+    
+        # ✅ FIXED: Proper async commit
+        try:
+            await db.commit()
+        except TypeError:
+            # Fallback for older SQLAlchemy versions
+            db.commit()
+    
         # Update the object for immediate use
         company.monthly_credits_used += credits
     
