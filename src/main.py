@@ -264,8 +264,17 @@ else:
     logging.error("❌ Auth router not registered - authentication will not work")
 
 if CAMPAIGNS_ROUTER_AVAILABLE:
+    # ✅ Register campaigns router with explicit prefix="/api/campaigns" 
     app.include_router(campaigns_router, prefix="/api/campaigns", tags=["campaigns"])
-    logging.info("📡 Campaigns router registered")
+    logging.info("📡 Campaigns router registered with prefix /api/campaigns")
+    
+    # 🔍 DEBUG: Show campaigns routes
+    print(f"🔍 Campaigns router has {len(campaigns_router.routes)} routes:")
+    for route in campaigns_router.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            print(f"  {list(route.methods)} /api/campaigns{route.path}")
+else:
+    logging.error("❌ Campaigns router not registered")
 
 if DASHBOARD_ROUTER_AVAILABLE:
     app.include_router(dashboard_router, prefix="/api")
