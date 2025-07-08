@@ -168,30 +168,44 @@ class AnalysisHandler:
             return self._prepare_failure_response(intelligence, e)
     
     async def _verify_campaign_access(self, campaign_id: str) -> Campaign:
-        """🎉 CLEAN: Verify user has access to campaign using proper SQLAlchemy ORM"""
+        """🚨 EMERGENCY: Use raw SQL to completely bypass SQLAlchemy ORM async issues"""
         try:
-            logger.info(f"🔍 Verifying campaign access for: {campaign_id}")
-
-            # Now that all columns exist, use the proper ORM approach
-            campaign_query = select(Campaign).where(
-                and_(
-                    Campaign.id == campaign_id,
-                    Campaign.company_id == self.user.company_id
-                )
-            )
-
-            campaign_result = await self.db.execute(campaign_query)
-            campaign = campaign_result.scalar_one_or_none()
-
-            if not campaign:
+            logger.info(f"🔍 Emergency campaign verification for: {campaign_id}")
+            
+            # Use raw SQL to completely avoid SQLAlchemy ORM async issues
+            campaign_sql = text("""
+                SELECT id, title, description, company_id, status, created_at, updated_at
+                FROM campaigns 
+                WHERE id = :campaign_id AND company_id = :company_id
+                LIMIT 1
+            """)
+            
+            result = await self.db.execute(campaign_sql, {
+                'campaign_id': campaign_id,
+                'company_id': str(self.user.company_id)
+            })
+            
+            campaign_row = result.fetchone()
+            
+            if not campaign_row:
                 logger.error(f"❌ Campaign not found or access denied: {campaign_id}")
                 raise ValueError("Campaign not found or access denied")
-
-            logger.info(f"✅ Campaign access verified: {campaign.title}")
+            
+            # Create a real Campaign object manually
+            campaign = Campaign()
+            campaign.id = campaign_row.id
+            campaign.title = campaign_row.title
+            campaign.description = campaign_row.description
+            campaign.company_id = campaign_row.company_id
+            campaign.status = campaign_row.status
+            campaign.created_at = campaign_row.created_at
+            campaign.updated_at = campaign_row.updated_at
+            
+            logger.info(f"✅ Emergency campaign verification successful: {campaign.title}")
             return campaign
-
+            
         except Exception as e:
-            logger.error(f"❌ Error verifying campaign access: {str(e)}")
+            logger.error(f"❌ Emergency campaign verification failed: {str(e)}")
             logger.error(f"❌ Error type: {type(e).__name__}")
             raise ValueError(f"Campaign verification failed: {str(e)}")
     
