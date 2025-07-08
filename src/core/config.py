@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
 
     # CORS
-    ALLOWED_ORIGINS: List[str] = ["https://campaignforge-frontend.vercel.app"]
+    ALLOWED_ORIGINS: List[str] = ["https://campaignforge-frontend.vercel.app, https://rodgersdigital.com, https://www.rodgersdigital.com"]
     ALLOWED_HOSTS: List[str] = ["*"]
 
     # AI Services

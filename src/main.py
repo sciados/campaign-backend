@@ -218,6 +218,8 @@ app.add_middleware(
         "http://localhost:3001", 
         "https://campaignforge.vercel.app",
         "https://campaignforge-frontend.vercel.app",
+        "https://rodgersdigital.com",
+        "https://www.rodgersdigital.com",
         "https://*.vercel.app",
         "https://campaign-frontend-production-e2db.up.railway.app"
     ],
