@@ -76,20 +76,20 @@ async def analyze_url(
 ):
     """Analyze competitor sales page with amplifier integration"""
     
-    # Check credits if system is available
-    if CREDITS_AVAILABLE:
-        try:
-            await check_and_consume_credits(
-                user=current_user,
-                operation="intelligence_analysis",
-                credits_required=5,
-                db=db
-            )
-        except Exception as e:
-            raise HTTPException(
-                status_code=http_status.HTTP_402_PAYMENT_REQUIRED,
-                detail=f"Insufficient credits: {str(e)}"
-            )
+    # ✅ TEMPORARY: Disable credits completely
+# if CREDITS_AVAILABLE:
+#     try:
+#         await check_and_consume_credits(
+#             user=current_user,
+#             operation="intelligence_analysis", 
+#             credits_required=5,
+#             db=db
+#         )
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=http_status.HTTP_402_PAYMENT_REQUIRED,
+#             detail=f"Insufficient credits: {str(e)}"
+#         )
     
     # Create handler and process request
     handler = AnalysisHandler(db, current_user)
