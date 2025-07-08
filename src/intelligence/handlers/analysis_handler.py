@@ -149,7 +149,10 @@ class AnalysisHandler:
                     "error_type": type(storage_error).__name__,
                     "partial_analysis": True
                 })
-                await self.db.commit()
+                try:
+                    await self.db.commit()
+                except (TypeError, AttributeError):
+                    self.db.commit()
             
             # STEP 4: Update campaign counters
             await self._update_campaign_counters(campaign_id)
@@ -191,8 +194,15 @@ class AnalysisHandler:
         )
         
         self.db.add(intelligence)
-        await self.db.commit()
-        await self.db.refresh(intelligence)
+        try:
+            await self.db.commit()
+        except (TypeError, AttributeError):
+            self.db.commit()
+        
+        try:
+            await self.db.refresh(intelligence)
+        except (TypeError, AttributeError):
+            self.db.refresh(intelligence)
         
         logger.info(f"✅ Created intelligence record: {intelligence.id}")
         return intelligence
@@ -525,7 +535,11 @@ class AnalysisHandler:
             
             # Final commit for metadata and base intelligence
             logger.info("🔧 Final commit for metadata and base intelligence...")
-            await self.db.commit()
+            try:
+                await self.db.commit()
+            except (TypeError, AttributeError):
+                self.db.commit()
+            
             logger.info("✅ All analysis results stored and committed successfully")
             
         except Exception as storage_error:
@@ -537,9 +551,15 @@ class AnalysisHandler:
                 "storage_fix_attempted": True
             })
             try:
-                await self.db.commit()
+                try:
+                    await self.db.commit()
+                except (TypeError, AttributeError):
+                    self.db.commit()
             except:
-                await self.db.rollback()
+                try:
+                    await self.db.rollback()
+                except (TypeError, AttributeError):
+                    self.db.rollback()
                 
             raise storage_error
     
@@ -603,18 +623,23 @@ class AnalysisHandler:
                 logger.warning(f"⚠️ No valid data to store for {key}")
         
         # 🔥 CRITICAL FIX: ACTUALLY COMMIT THE CHANGES!
-        try:
-            logger.info("🔧 Committing fallback storage changes to database...")
-            await self.db.commit()
-            logger.info(f"✅ COMMIT SUCCESS: {successful_saves}/{len(ai_keys)} categories, {total_items_saved} total items committed to database")
+            try:
+                logger.info("🔧 Committing fallback storage changes to database...")
+                try:
+                    await self.db.commit()
+                except (TypeError, AttributeError):
+                    self.db.commit()
+                logger.info(f"✅ COMMIT SUCCESS: {successful_saves}/{len(ai_keys)} categories, {total_items_saved} total items committed to database")
             
             # Immediate verification to confirm data is in database
-            await self._verify_ai_storage_simple(intelligence.id)
-            
-        except Exception as commit_error:
-            logger.error(f"❌ CRITICAL: Commit failed in fallback storage: {str(commit_error)}")
-            await self.db.rollback()
-            raise commit_error
+                await self._verify_ai_storage_simple(intelligence.id)   
+            except Exception as commit_error:
+                logger.error(f"❌ CRITICAL: Commit failed in fallback storage: {str(commit_error)}")
+        try:
+           await self.db.rollback()
+        except (TypeError, AttributeError):
+            self.db.rollback()
+        raise commit_error
     
     async def _verify_ai_storage_simple(self, intelligence_id: uuid.UUID):
         """
@@ -726,11 +751,14 @@ class AnalysisHandler:
     async def _update_campaign_counters(self, campaign_id: str):
         """Update campaign counters (non-critical)"""
         try:
-            await update_campaign_counters(campaign_id, self.db)
-            await self.db.commit()
-            logger.info(f"📊 Campaign counters updated")
+                await update_campaign_counters(campaign_id, self.db)
+                try:
+                    await self.db.commit()
+                except (TypeError, AttributeError):
+                    self.db.commit()
+                logger.info(f"📊 Campaign counters updated")
         except Exception as counter_error:
-            logger.warning(f"⚠️ Campaign counter update failed (non-critical): {str(counter_error)}")
+                logger.warning(f"⚠️ Campaign counter update failed (non-critical): {str(counter_error)}")
     
     async def _handle_analysis_failure(self, intelligence: CampaignIntelligence, error: Exception):
         """Handle analysis failure"""
@@ -740,9 +768,15 @@ class AnalysisHandler:
                 "error": str(error),
                 "traceback": traceback.format_exc()
             })
-            await self.db.commit()
+            try:
+                await self.db.commit()
+            except (TypeError, AttributeError):
+                self.db.commit()
         except:
-            await self.db.rollback()
+            try:
+                await self.db.rollback()
+            except (TypeError, AttributeError):
+                self.db.rollback()
     
     def _prepare_analysis_response(
         self, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]
@@ -996,7 +1030,10 @@ async def store_analysis_with_bindparam(
 🔧 ANALYSIS HANDLER CRITICAL DATABASE COMMIT FIX COMPLETE:
 
 ✅ CRITICAL FIXES APPLIED:
-1. 🔥 Added missing await self.db.commit() in _store_ai_data_fallback method
+1. 🔥 Added missing try:
+    await self.db.commit()
+except (TypeError, AttributeError):
+    self.db.commit() in _store_ai_data_fallback method
 2. 🔥 Enhanced verification with detailed diagnostics showing exactly what's in database
 3. 🔥 Improved error handling with proper rollback on commit failures
 4. 🔥 Added immediate verification after storage to catch issues instantly
