@@ -174,7 +174,7 @@ class AnalysisHandler:
 
             # 🚨 EMERGENCY: Use raw SQL to completely bypass SQLAlchemy ORM async issues
             campaign_check_sql = text("""
-                SELECT id, name, company_id, created_at, updated_at, 
+                SELECT id, title, company_id, created_at, updated_at, 
                    campaign_type, status, description, target_audience
                 FROM campaigns 
                 WHERE id = :campaign_id AND company_id = :company_id
@@ -197,16 +197,17 @@ class AnalysisHandler:
 
             campaign_mock = SimpleNamespace()
             campaign_mock.id = campaign_row.id
-            campaign_mock.name = campaign_row.name
+            campaign_mock.title = campaign_row.title  # ✅ CORRECT: use 'title' not 'name'
+            campaign_mock.name = campaign_row.title   # ✅ Add 'name' alias for compatibility
             campaign_mock.company_id = campaign_row.company_id
-            campaign_mock.created_at = campaign_row.created_at
-            campaign_mock.updated_at = campaign_row.updated_at
             campaign_mock.campaign_type = campaign_row.campaign_type
             campaign_mock.status = campaign_row.status
             campaign_mock.description = campaign_row.description
             campaign_mock.target_audience = campaign_row.target_audience
+            campaign_mock.created_at = campaign_row.created_at
+            campaign_mock.updated_at = campaign_row.updated_at
 
-            logger.info(f"✅ Campaign access verified using raw SQL: {campaign_mock.name}")
+            logger.info(f"✅ Campaign access verified using raw SQL: {campaign_mock.title}")
             return campaign_mock
 
         except Exception as e:
