@@ -1,4 +1,4 @@
-# src/auth/routes.py
+# src/auth/routes.py - FIXED VERSION with synchronous database operations
 
 import os
 import logging
@@ -9,9 +9,9 @@ from fastapi import status as http_status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 
-from sqlalchemy.ext.asyncio import AsyncSession
+# ✅ FIXED: Use synchronous Session instead of AsyncSession
+from sqlalchemy.orm import Session, selectinload # Needed for eager loading of relationships
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload # Needed for eager loading of relationships
 
 # Import password hashing and JWT functions from your security module
 from src.core.security import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY
@@ -29,17 +29,15 @@ from jose import jwt
 # Set up logging for this module
 logger = logging.getLogger(__name__)
 
-# ✅ FIXED: Remove duplicate prefix (main.py already adds /api/auth)
+# ✅ FIXED: Add auth prefix to router
 router = APIRouter(
-    prefix="/auth",
+    prefix="/auth",  # ✅ ADDED: This makes routes /api/auth/login instead of /api/login
     tags=["Authentication"],
     responses={404: {"description": "Not found"}},
 )
 
 # HTTPBearer for extracting JWT tokens from Authorization header
 security = HTTPBearer()
-
-# ✅ REMOVED: Duplicate get_current_user function - now imported from dependencies
 
 # --- Pydantic Models for Request Body Validation ---
 
@@ -65,13 +63,13 @@ class UserLogin(BaseModel):
 # --- API Endpoints ---
 
 @router.post("/register", summary="Register a new user")
-async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
+async def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
     """
     Registers a new user with email and password, storing them directly in PostgreSQL.
     Automatically creates a new company for the first registered user.
     """
-    # Check if a user with this email already exists
-    existing_user = await db.scalar(select(User).where(User.email == user_data.email))
+    # ✅ FIXED: Remove await from synchronous database operations
+    existing_user = db.scalar(select(User).where(User.email == user_data.email))
     if existing_user:
         logger.warning(f"Registration attempt for existing email: {user_data.email}")
         raise HTTPException(
@@ -106,7 +104,7 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
             created_at=datetime.utcnow()
         )
         db.add(new_company)
-        await db.flush() # Flush to assign company_id before user creation if needed immediately
+        db.flush() # ✅ FIXED: Remove await - Flush to assign company_id before user creation if needed immediately
 
         # Create a new User object
         new_user = User(
@@ -122,9 +120,9 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
         )
         db.add(new_user)
         
-        await db.commit()
-        await db.refresh(new_user) # Refresh to get the generated ID and other defaults
-        await db.refresh(new_company)
+        db.commit() # ✅ FIXED: Remove await
+        db.refresh(new_user) # ✅ FIXED: Remove await - Refresh to get the generated ID and other defaults
+        db.refresh(new_company) # ✅ FIXED: Remove await
 
         # ✅ ADDED: Create access token immediately after registration
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -151,7 +149,7 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
         }
 
     except Exception as e:
-        await db.rollback() # Rollback in case of error
+        db.rollback() # ✅ FIXED: Remove await - Rollback in case of error
         logger.exception(f"Unexpected error during user registration for {user_data.email}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -162,13 +160,14 @@ async def register_user(user_data: UserRegister, db: AsyncSession = Depends(get_
 @router.post("/token", response_model=Token, summary="Login and obtain access token (OAuth2 standard)")
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)  # ✅ FIXED: Changed AsyncSession to Session
 ):
     """
     Authenticates a user and returns a JWT access token.
     Uses standard OAuth2 password flow.
     """
-    user = await db.scalar(select(User).where(User.email == form_data.username)) # form_data.username is the email
+    # ✅ FIXED: Remove await
+    user = db.scalar(select(User).where(User.email == form_data.username)) # form_data.username is the email
 
     # Use verify_password from src.core.security.py
     if not user or not verify_password(form_data.password, user.password_hash): # Use user.password_hash
@@ -202,11 +201,12 @@ async def login_for_access_token(
     }
 
 @router.post("/login", summary="Login an existing user (JSON body)")
-async def login_user_json(user_login: UserLogin, db: AsyncSession = Depends(get_db)):
+async def login_user_json(user_login: UserLogin, db: Session = Depends(get_db)):  # ✅ FIXED: Changed AsyncSession to Session
     """
     Logs in an existing user and returns an access token, accepting JSON body.
     """
-    user = await db.scalar(select(User).where(User.email == user_login.email))
+    # ✅ FIXED: Remove await
+    user = db.scalar(select(User).where(User.email == user_login.email))
 
     # Use verify_password from src.core.security.py
     if not user or not verify_password(user_login.password, user.password_hash): # Use user.password_hash
@@ -222,8 +222,8 @@ async def login_user_json(user_login: UserLogin, db: AsyncSession = Depends(get_
             detail="User account is inactive. Please contact support."
         )
 
-    # ✅ ADDED: Get company information for response
-    company = await db.scalar(select(Company).where(Company.id == user.company_id))
+    # ✅ ADDED: Get company information for response - FIXED: Remove await
+    company = db.scalar(select(Company).where(Company.id == user.company_id))
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -248,7 +248,7 @@ async def login_user_json(user_login: UserLogin, db: AsyncSession = Depends(get_
     }
 
 @router.get("/profile", summary="Get current user profile")
-async def get_user_profile(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_user_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):  # ✅ FIXED: Changed AsyncSession to Session
     """
     Get current user profile with company information.
     This endpoint can be used to validate tokens and get user data.
@@ -258,8 +258,8 @@ async def get_user_profile(current_user: User = Depends(get_current_user), db: A
         if hasattr(current_user, 'company') and current_user.company:
             company = current_user.company
         else:
-            # Fetch company separately if not loaded
-            company = await db.scalar(select(Company).where(Company.id == current_user.company_id))
+            # ✅ FIXED: Remove await - Fetch company separately if not loaded
+            company = db.scalar(select(Company).where(Company.id == current_user.company_id))
             if not company:
                 raise HTTPException(
                     status_code=http_status.HTTP_404_NOT_FOUND,
