@@ -170,7 +170,7 @@ async def update_campaign_counters(campaign_id: str, db: AsyncSession):
 # CAMPAIGN ROUTES - FIXED
 # ============================================================================
 
-@router.get("", response_model=List[CampaignResponse])
+@router.get("")  # Remove response_model temporarily
 async def get_campaigns(
     skip: int = 0,
     limit: int = 100,
@@ -178,107 +178,47 @@ async def get_campaigns(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get all campaigns for the current user's company - MINIMAL DEBUG VERSION"""
+    """Get all campaigns for the current user's company - NO RESPONSE MODEL"""
     try:
-        logger.info(f"🔍 DEBUG: Starting get_campaigns for user {current_user.id}")
+        print(f"🔍 get_campaigns called with skip={skip}, limit={limit}, status={status}")
+        print(f"🔍 User: {current_user.id}, Company: {current_user.company_id}")
         
-        # Test 1: Check if we can connect to database
-        try:
-            test_query = select(func.count(Campaign.id))
-            test_result = await db.execute(test_query)
-            total_campaigns = test_result.scalar()
-            logger.info(f"✅ DEBUG: Database connection OK, total campaigns in system: {total_campaigns}")
-        except Exception as db_error:
-            logger.error(f"❌ DEBUG: Database connection failed: {str(db_error)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database connection failed: {str(db_error)}"
-            )
+        # Simple query
+        query = select(Campaign).where(Campaign.company_id == current_user.company_id).limit(limit).offset(skip)
+        result = await db.execute(query)
+        campaigns = result.scalars().all()
         
-        # Test 2: Check if we can query campaigns for this company
-        try:
-            count_query = select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
-            count_result = await db.execute(count_query)
-            company_campaigns = count_result.scalar()
-            logger.info(f"✅ DEBUG: Found {company_campaigns} campaigns for company {current_user.company_id}")
-        except Exception as company_error:
-            logger.error(f"❌ DEBUG: Company campaign query failed: {str(company_error)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Company campaign query failed: {str(company_error)}"
-            )
+        print(f"🔍 Found {len(campaigns)} campaigns")
         
-        # Test 3: Try to get one campaign to examine its structure
-        try:
-            single_query = select(Campaign).where(Campaign.company_id == current_user.company_id).limit(1)
-            single_result = await db.execute(single_query)
-            sample_campaign = single_result.scalar_one_or_none()
-            
-            if sample_campaign:
-                logger.info(f"✅ DEBUG: Sample campaign found: ID={sample_campaign.id}, Title={sample_campaign.title}")
-                logger.info(f"✅ DEBUG: Sample campaign status type: {type(sample_campaign.status)}")
-                logger.info(f"✅ DEBUG: Sample campaign status value: {sample_campaign.status}")
-            else:
-                logger.info("ℹ️ DEBUG: No campaigns found for this company")
-                # Return empty list if no campaigns
-                return []
-                
-        except Exception as sample_error:
-            logger.error(f"❌ DEBUG: Sample campaign query failed: {str(sample_error)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Sample campaign query failed: {str(sample_error)}"
-            )
+        # Return simple dict instead of response model
+        simple_campaigns = []
+        for campaign in campaigns:
+            simple_campaigns.append({
+                "id": str(campaign.id),
+                "title": campaign.title,
+                "status": str(campaign.status) if campaign.status else "draft",
+                "created_at": campaign.created_at.isoformat() if campaign.created_at else None
+            })
         
-        # Test 4: Try to create a minimal response
-        try:
-            if sample_campaign:
-                # Try to create one campaign response
-                test_response = CampaignResponse(
-                    id=str(sample_campaign.id),
-                    title=sample_campaign.title or "Untitled",
-                    description=sample_campaign.description or "",
-                    keywords=[],
-                    target_audience=sample_campaign.target_audience,
-                    campaign_type="universal",
-                    status="draft",  # Hard-coded for now
-                    tone=sample_campaign.tone or "conversational",
-                    style=sample_campaign.style or "modern",
-                    created_at=sample_campaign.created_at,
-                    updated_at=sample_campaign.updated_at,
-                    workflow_state="basic_setup",  # Hard-coded for now
-                    completion_percentage=25.0,  # Hard-coded for now
-                    sources_count=0,
-                    intelligence_count=0,
-                    content_count=0
-                )
-                logger.info(f"✅ DEBUG: Successfully created test CampaignResponse")
-                return [test_response]
-            else:
-                return []
-                
-        except Exception as response_error:
-            logger.error(f"❌ DEBUG: CampaignResponse creation failed: {str(response_error)}")
-            logger.error(f"❌ DEBUG: Error type: {type(response_error)}")
-            import traceback
-            logger.error(f"❌ DEBUG: Traceback: {traceback.format_exc()}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Response creation failed: {str(response_error)}"
-            )
+        return {
+            "campaigns": simple_campaigns,
+            "count": len(simple_campaigns),
+            "user_id": str(current_user.id),
+            "company_id": str(current_user.company_id)
+        }
         
-    except HTTPException:
-        # Re-raise HTTP exceptions
-        raise
     except Exception as e:
-        logger.error(f"❌ DEBUG: Unexpected error in get_campaigns: {str(e)}")
-        logger.error(f"❌ DEBUG: Error type: {type(e)}")
+        print(f"❌ Error in get_campaigns: {str(e)}")
         import traceback
-        logger.error(f"❌ DEBUG: Full traceback: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unexpected error: {str(e)}"
-        )
+        print(f"❌ Traceback: {traceback.format_exc()}")
+        
+        # Return error as dict instead of raising exception
+        return {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "campaigns": [],
+            "count": 0
+        }
 
 @router.get("/debug/campaigns")
 async def debug_campaigns(
