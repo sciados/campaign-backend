@@ -138,7 +138,7 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
     
     # Content Information
     content_type = Column(String(50), nullable=False)
-    title = Column(String(500))
+    content_title = Column(String(500))
     content = Column(Text, nullable=False)
     content_metadata = Column(JSONB, default={})  # FIXED: Renamed from 'metadata' to avoid reserved name
     
