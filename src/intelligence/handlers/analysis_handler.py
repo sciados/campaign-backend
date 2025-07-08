@@ -168,48 +168,70 @@ class AnalysisHandler:
             return self._prepare_failure_response(intelligence, e)
     
     async def _verify_campaign_access(self, campaign_id: str) -> Campaign:
-        """🚨 EMERGENCY FIX: Verify user has access to the campaign using raw SQL"""
+        """🔥 PROPER: Verify user has access to the campaign and return real Campaign object"""
         try:
             logger.info(f"🔍 Verifying campaign access for: {campaign_id}")
-
-            # 🚨 EMERGENCY: Use raw SQL to completely bypass SQLAlchemy ORM async issues
-            campaign_check_sql = text("""
-                SELECT id, title, company_id, created_at, updated_at, 
-                   campaign_type, status, description, target_audience
-                FROM campaigns 
-                WHERE id = :campaign_id AND company_id = :company_id
-                LIMIT 1
-            """)
-
-            result = await self.db.execute(campaign_check_sql, {
-                'campaign_id': campaign_id,
-                'company_id': str(self.user.company_id)
-            })
-
-            campaign_row = result.fetchone()
-
-            if not campaign_row:
-                logger.error(f"❌ Campaign not found or access denied: {campaign_id}")
-                raise ValueError("Campaign not found or access denied")
-
-            # Create a mock Campaign object from the row data
-            from types import SimpleNamespace
-
-            campaign_mock = SimpleNamespace()
-            campaign_mock.id = campaign_row.id
-            campaign_mock.title = campaign_row.title  # ✅ CORRECT: use 'title' not 'name'
-            campaign_mock.name = campaign_row.title   # ✅ Add 'name' alias for compatibility
-            campaign_mock.company_id = campaign_row.company_id
-            campaign_mock.campaign_type = campaign_row.campaign_type
-            campaign_mock.status = campaign_row.status
-            campaign_mock.description = campaign_row.description
-            campaign_mock.target_audience = campaign_row.target_audience
-            campaign_mock.created_at = campaign_row.created_at
-            campaign_mock.updated_at = campaign_row.updated_at
-
-            logger.info(f"✅ Campaign access verified using raw SQL: {campaign_mock.title}")
-            return campaign_mock
-
+            
+            # METHOD 1: Try the proper SQLAlchemy ORM approach first
+            try:
+                logger.info("🔧 Attempting proper SQLAlchemy ORM approach...")
+                
+                campaign_query = select(Campaign).where(
+                    and_(
+                        Campaign.id == campaign_id,
+                        Campaign.company_id == self.user.company_id
+                    )
+                )
+                
+                campaign_result = await self.db.execute(campaign_query)
+                campaign = campaign_result.scalar_one_or_none()
+                
+                if campaign:
+                    logger.info(f"✅ Campaign access verified via ORM: {campaign.title}")
+                    return campaign
+                else:
+                    logger.error(f"❌ Campaign not found or access denied: {campaign_id}")
+                    raise ValueError("Campaign not found or access denied")
+                    
+            except Exception as orm_error:
+                logger.warning(f"⚠️ SQLAlchemy ORM approach failed: {str(orm_error)}")
+                logger.info("🔄 Falling back to raw SQL approach...")
+                
+                # METHOD 2: Fallback to raw SQL and construct Campaign object
+                campaign_check_sql = text("""
+                    SELECT id, title, company_id, campaign_type, status, description, 
+                           target_audience, created_at, updated_at
+                    FROM campaigns 
+                    WHERE id = :campaign_id AND company_id = :company_id
+                    LIMIT 1
+                """)
+                
+                result = await self.db.execute(campaign_check_sql, {
+                    'campaign_id': campaign_id,
+                    'company_id': str(self.user.company_id)
+                })
+                
+                campaign_row = result.fetchone()
+                
+                if not campaign_row:
+                    logger.error(f"❌ Campaign not found or access denied: {campaign_id}")
+                    raise ValueError("Campaign not found or access denied")
+                
+                # Create a real Campaign object from the row data
+                campaign = Campaign()
+                campaign.id = campaign_row.id
+                campaign.title = campaign_row.title
+                campaign.company_id = campaign_row.company_id
+                campaign.campaign_type = campaign_row.campaign_type
+                campaign.status = campaign_row.status
+                campaign.description = campaign_row.description
+                campaign.target_audience = campaign_row.target_audience
+                campaign.created_at = campaign_row.created_at
+                campaign.updated_at = campaign_row.updated_at
+                
+                logger.info(f"✅ Campaign access verified via raw SQL: {campaign.title}")
+                return campaign
+            
         except Exception as e:
             logger.error(f"❌ Error verifying campaign access: {str(e)}")
             logger.error(f"❌ Error type: {type(e).__name__}")
