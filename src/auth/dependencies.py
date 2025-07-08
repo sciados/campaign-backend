@@ -1,13 +1,13 @@
 """
-FastAPI dependencies for authentication and database
+FastAPI dependencies for authentication and database - FIXED VERSION
 """
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status  # ✅ Fixed import
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
+# ✅ FIXED: Use synchronous Session instead of AsyncSession
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from typing import Optional
 from uuid import UUID
 import structlog
@@ -22,7 +22,7 @@ security = HTTPBearer()
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)  # ✅ FIXED: Changed AsyncSession to Session
 ) -> User:
     """Get current authenticated user"""
 
@@ -49,8 +49,8 @@ async def get_current_user(
         except ValueError:
             raise credentials_exception
         
-        # Get user from database with company relationship
-        user = await db.scalar(
+        # ✅ FIXED: Remove await from database operation
+        user = db.scalar(
             select(User)
             .where(User.id == user_id)
             .options(selectinload(User.company))

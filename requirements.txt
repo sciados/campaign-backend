@@ -12,6 +12,7 @@ asyncpg==0.29.0
 sqlalchemy==2.0.23
 alembic==1.12.1
 psycopg2-binary==2.9.6
+structlog[dev]==23.2.0  # Updated: Use structlog for logging
 
 # Authentication & Security
 python-jose[cryptography]==3.3.0
