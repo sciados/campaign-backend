@@ -178,99 +178,106 @@ async def get_campaigns(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get all campaigns for the current user's company"""
+    """Get all campaigns for the current user's company - MINIMAL DEBUG VERSION"""
     try:
-        logger.info(f"Getting campaigns for user {current_user.id}, company {current_user.company_id}")
+        logger.info(f"🔍 DEBUG: Starting get_campaigns for user {current_user.id}")
         
-        # Build query for FULL Campaign objects (not just specific columns)
-        query = select(Campaign).where(Campaign.company_id == current_user.company_id)
+        # Test 1: Check if we can connect to database
+        try:
+            test_query = select(func.count(Campaign.id))
+            test_result = await db.execute(test_query)
+            total_campaigns = test_result.scalar()
+            logger.info(f"✅ DEBUG: Database connection OK, total campaigns in system: {total_campaigns}")
+        except Exception as db_error:
+            logger.error(f"❌ DEBUG: Database connection failed: {str(db_error)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database connection failed: {str(db_error)}"
+            )
         
-        # Add status filter if provided
-        if status:
-            try:
-                status_enum = normalize_campaign_status(status)
-                query = query.where(Campaign.status == status_enum)
-                logger.info(f"Applied status filter: {status}")
-            except Exception as status_error:
-                logger.warning(f"Invalid status filter '{status}': {status_error}")
-                # Don't fail the request, just ignore the filter
+        # Test 2: Check if we can query campaigns for this company
+        try:
+            count_query = select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
+            count_result = await db.execute(count_query)
+            company_campaigns = count_result.scalar()
+            logger.info(f"✅ DEBUG: Found {company_campaigns} campaigns for company {current_user.company_id}")
+        except Exception as company_error:
+            logger.error(f"❌ DEBUG: Company campaign query failed: {str(company_error)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Company campaign query failed: {str(company_error)}"
+            )
         
-        # Add pagination
-        query = query.offset(skip).limit(limit)
-        
-        # Execute query
-        result = await db.execute(query)
-        campaigns = result.scalars().all()
-        
-        logger.info(f"Found {len(campaigns)} campaigns")
-        
-        # Convert to response format with proper error handling
-        campaign_responses = []
-        for campaign in campaigns:
-            try:
-                # Safely handle status enum
-                try:
-                    if hasattr(campaign.status, 'value'):
-                        status_value = campaign.status.value
-                    else:
-                        status_value = str(campaign.status)
-                except (AttributeError, TypeError):
-                    status_value = "draft"  # Default fallback
+        # Test 3: Try to get one campaign to examine its structure
+        try:
+            single_query = select(Campaign).where(Campaign.company_id == current_user.company_id).limit(1)
+            single_result = await db.execute(single_query)
+            sample_campaign = single_result.scalar_one_or_none()
+            
+            if sample_campaign:
+                logger.info(f"✅ DEBUG: Sample campaign found: ID={sample_campaign.id}, Title={sample_campaign.title}")
+                logger.info(f"✅ DEBUG: Sample campaign status type: {type(sample_campaign.status)}")
+                logger.info(f"✅ DEBUG: Sample campaign status value: {sample_campaign.status}")
+            else:
+                logger.info("ℹ️ DEBUG: No campaigns found for this company")
+                # Return empty list if no campaigns
+                return []
                 
-                # Safely calculate completion percentage
-                try:
-                    completion_percentage = campaign.calculate_completion_percentage()
-                except (AttributeError, TypeError, Exception):
-                    completion_percentage = 25.0  # Default fallback
-                
-                # Safely get workflow state
-                try:
-                    if hasattr(campaign.workflow_state, 'value'):
-                        workflow_state = campaign.workflow_state.value
-                    else:
-                        workflow_state = str(campaign.workflow_state) if campaign.workflow_state else "basic_setup"
-                except (AttributeError, TypeError):
-                    workflow_state = "basic_setup"
-                
-                # Create response object with safe field access
-                campaign_response = CampaignResponse(
-                    id=str(campaign.id),
-                    title=campaign.title or "Untitled Campaign",
-                    description=campaign.description or "",
-                    keywords=campaign.keywords if isinstance(campaign.keywords, list) else [],
-                    target_audience=campaign.target_audience,
+        except Exception as sample_error:
+            logger.error(f"❌ DEBUG: Sample campaign query failed: {str(sample_error)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Sample campaign query failed: {str(sample_error)}"
+            )
+        
+        # Test 4: Try to create a minimal response
+        try:
+            if sample_campaign:
+                # Try to create one campaign response
+                test_response = CampaignResponse(
+                    id=str(sample_campaign.id),
+                    title=sample_campaign.title or "Untitled",
+                    description=sample_campaign.description or "",
+                    keywords=[],
+                    target_audience=sample_campaign.target_audience,
                     campaign_type="universal",
-                    status=status_value,
-                    tone=campaign.tone or "conversational",
-                    style=campaign.style or "modern",
-                    created_at=campaign.created_at,
-                    updated_at=campaign.updated_at,
-                    workflow_state=workflow_state,
-                    completion_percentage=completion_percentage,
-                    sources_count=getattr(campaign, 'sources_count', 0) or 0,
-                    intelligence_count=getattr(campaign, 'intelligence_extracted', 0) or 0,
-                    content_count=getattr(campaign, 'content_generated', 0) or 0
+                    status="draft",  # Hard-coded for now
+                    tone=sample_campaign.tone or "conversational",
+                    style=sample_campaign.style or "modern",
+                    created_at=sample_campaign.created_at,
+                    updated_at=sample_campaign.updated_at,
+                    workflow_state="basic_setup",  # Hard-coded for now
+                    completion_percentage=25.0,  # Hard-coded for now
+                    sources_count=0,
+                    intelligence_count=0,
+                    content_count=0
                 )
-                campaign_responses.append(campaign_response)
+                logger.info(f"✅ DEBUG: Successfully created test CampaignResponse")
+                return [test_response]
+            else:
+                return []
                 
-            except Exception as campaign_error:
-                logger.error(f"Error processing campaign {campaign.id}: {campaign_error}")
-                # Skip this campaign but continue with others
-                continue
+        except Exception as response_error:
+            logger.error(f"❌ DEBUG: CampaignResponse creation failed: {str(response_error)}")
+            logger.error(f"❌ DEBUG: Error type: {type(response_error)}")
+            import traceback
+            logger.error(f"❌ DEBUG: Traceback: {traceback.format_exc()}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Response creation failed: {str(response_error)}"
+            )
         
-        logger.info(f"Successfully processed {len(campaign_responses)} campaigns")
-        
-        # ✅ CRITICAL FIX: Add the missing return statement
-        return campaign_responses
-        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
-        logger.error(f"Error getting campaigns: {e}")
+        logger.error(f"❌ DEBUG: Unexpected error in get_campaigns: {str(e)}")
+        logger.error(f"❌ DEBUG: Error type: {type(e)}")
         import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        
+        logger.error(f"❌ DEBUG: Full traceback: {traceback.format_exc()}")
         raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get campaign stats: {str(e)}"
+            status_code=500,
+            detail=f"Unexpected error: {str(e)}"
         )
 
 @router.get("/debug/campaigns")
