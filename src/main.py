@@ -83,6 +83,9 @@ except ImportError as e:
 # ============================================================================
 
 # Import core routers
+# Replace the router import section in your main.py (around lines 75-90) with this:
+
+# Import core routers
 try:
     from src.auth.routes import router as auth_router
     logging.info("✅ Auth router imported successfully")
@@ -92,11 +95,11 @@ except ImportError as e:
     AUTH_ROUTER_AVAILABLE = False
 
 try:
-    from src.campaigns.routes import router as campaigns_router
+    from src.campaigns.routes import router as campaigns_router  # ✅ FIXED PATH
     logging.info("✅ Campaigns router imported successfully")
     CAMPAIGNS_ROUTER_AVAILABLE = True
 except ImportError as e:
-    logging.warning(f"⚠️ Campaigns router not available: {e}")
+    logging.error(f"❌ Campaigns router not available: {e}")
     CAMPAIGNS_ROUTER_AVAILABLE = False
 
 try:
