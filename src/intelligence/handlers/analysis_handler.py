@@ -168,29 +168,47 @@ class AnalysisHandler:
             return self._prepare_failure_response(intelligence, e)
     
     async def _verify_campaign_access(self, campaign_id: str) -> Campaign:
-        """🔥 FIXED: Verify user has access to the campaign"""
+        """🚨 EMERGENCY FIX: Verify user has access to the campaign using raw SQL"""
         try:
             logger.info(f"🔍 Verifying campaign access for: {campaign_id}")
-            
-            # 🔥 FIX: Proper async query handling
-            campaign_query = select(Campaign).where(
-                and_(
-                    Campaign.id == campaign_id,
-                    Campaign.company_id == self.user.company_id
-                )
-            )
-            
-            # 🔥 FIX: Execute query and get result properly
-            campaign_result = await self.db.execute(campaign_query)
-            campaign = campaign_result.scalar_one_or_none()
-            
-            if not campaign:
+
+            # 🚨 EMERGENCY: Use raw SQL to completely bypass SQLAlchemy ORM async issues
+            campaign_check_sql = text("""
+                SELECT id, name, company_id, created_at, updated_at, 
+                   campaign_type, status, description, target_audience
+                FROM campaigns 
+                WHERE id = :campaign_id AND company_id = :company_id
+                LIMIT 1
+            """)
+
+            result = await self.db.execute(campaign_check_sql, {
+                'campaign_id': campaign_id,
+                'company_id': str(self.user.company_id)
+            })
+
+            campaign_row = result.fetchone()
+
+            if not campaign_row:
                 logger.error(f"❌ Campaign not found or access denied: {campaign_id}")
                 raise ValueError("Campaign not found or access denied")
-            
-            logger.info(f"✅ Campaign access verified: {campaign.name}")
-            return campaign
-            
+
+            # Create a mock Campaign object from the row data
+            from types import SimpleNamespace
+
+            campaign_mock = SimpleNamespace()
+            campaign_mock.id = campaign_row.id
+            campaign_mock.name = campaign_row.name
+            campaign_mock.company_id = campaign_row.company_id
+            campaign_mock.created_at = campaign_row.created_at
+            campaign_mock.updated_at = campaign_row.updated_at
+            campaign_mock.campaign_type = campaign_row.campaign_type
+            campaign_mock.status = campaign_row.status
+            campaign_mock.description = campaign_row.description
+            campaign_mock.target_audience = campaign_row.target_audience
+
+            logger.info(f"✅ Campaign access verified using raw SQL: {campaign_mock.name}")
+            return campaign_mock
+
         except Exception as e:
             logger.error(f"❌ Error verifying campaign access: {str(e)}")
             logger.error(f"❌ Error type: {type(e).__name__}")
