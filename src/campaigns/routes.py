@@ -167,9 +167,185 @@ async def update_campaign_counters(campaign_id: str, db: AsyncSession):
         return False
 
 # ============================================================================
-# CAMPAIGN ROUTES - FIXED
+# CAMPAIGN ROUTES - FIXED WITH CORRECT ROUTE ORDER
 # ============================================================================
 
+# ✅ SPECIFIC ROUTES FIRST (MOVED TO TOP)
+@router.get("/debug/campaigns")
+async def debug_campaigns(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Debug endpoint to check campaign data structure"""
+    try:
+        # Get one campaign to examine its structure
+        query = select(Campaign).where(Campaign.company_id == current_user.company_id).limit(1)
+        result = await db.execute(query)
+        campaign = result.scalar_one_or_none()
+        
+        if not campaign:
+            return {"message": "No campaigns found", "user_id": str(current_user.id), "company_id": str(current_user.company_id)}
+        
+        # Examine the campaign object
+        campaign_dict = {}
+        for attr in dir(campaign):
+            if not attr.startswith('_') and not callable(getattr(campaign, attr)):
+                try:
+                    value = getattr(campaign, attr)
+                    if hasattr(value, 'value'):  # Enum
+                        campaign_dict[attr] = f"{value} (enum: {value.value})"
+                    else:
+                        campaign_dict[attr] = str(value)
+                except Exception as e:
+                    campaign_dict[attr] = f"Error: {str(e)}"
+        
+        return {
+            "campaign_id": str(campaign.id),
+            "campaign_attributes": campaign_dict,
+            "campaign_type": type(campaign).__name__,
+            "has_calculate_method": hasattr(campaign, 'calculate_completion_percentage'),
+            "status_type": type(campaign.status).__name__ if campaign.status else "None"
+        }
+        
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
+
+@router.get("/dashboard/stats")
+async def get_dashboard_stats(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get dashboard statistics"""
+    try:
+        logger.info(f"Getting dashboard stats for user {current_user.id}, company {current_user.company_id}")
+        
+        # Get basic campaign counts
+        total_query = select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
+        active_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.status == CampaignStatus.ACTIVE
+        )
+        draft_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.status == CampaignStatus.DRAFT
+        )
+        completed_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.status == CampaignStatus.COMPLETED
+        )
+        
+        # Execute queries
+        total_result = await db.execute(total_query)
+        active_result = await db.execute(active_query)
+        draft_result = await db.execute(draft_query)
+        completed_result = await db.execute(completed_query)
+        
+        total_campaigns_created = total_result.scalar() or 0
+        active_campaigns = active_result.scalar() or 0
+        draft_campaigns = draft_result.scalar() or 0
+        completed_campaigns = completed_result.scalar() or 0
+        
+        # Get content and intelligence counts
+        intelligence_query = select(func.count(CampaignIntelligence.id)).join(Campaign).where(
+            Campaign.company_id == current_user.company_id
+        )
+        content_query = select(func.count(GeneratedContent.id)).join(Campaign).where(
+            Campaign.company_id == current_user.company_id
+        )
+        
+        intelligence_result = await db.execute(intelligence_query)
+        content_result = await db.execute(content_query)
+        
+        total_sources = intelligence_result.scalar() or 0
+        total_content = content_result.scalar() or 0
+        
+        # Calculate average completion
+        avg_completion = 25.0 if total_campaigns_created > 0 else 0.0
+        
+        # Get recent campaigns for activity feed
+        recent_query = select(Campaign).where(
+            Campaign.company_id == current_user.company_id
+        ).order_by(Campaign.updated_at.desc()).limit(5)
+        
+        recent_result = await db.execute(recent_query)
+        recent_campaigns = recent_result.scalars().all()
+        
+        recent_activity = []
+        for campaign in recent_campaigns:
+            recent_activity.append({
+                "id": str(campaign.id),
+                "title": campaign.title,
+                "type": "campaign",
+                "action": "updated",
+                "timestamp": campaign.updated_at.isoformat() if campaign.updated_at else None,
+                "status": campaign.status.value if campaign.status else "draft"
+            })
+        
+        return {
+            "total_campaigns_created": total_campaigns_created,
+            "active_campaigns": active_campaigns,
+            "draft_campaigns": draft_campaigns,
+            "completed_campaigns": completed_campaigns,
+            "total_sources": total_sources,
+            "total_content": total_content,
+            "avg_completion": avg_completion,
+            "recent_activity": recent_activity,
+            "user_id": str(current_user.id),
+            "company_id": str(current_user.company_id),
+            "generated_at": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting dashboard stats: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get dashboard stats: {str(e)}"
+        )
+
+@router.get("/stats/overview")
+async def get_campaign_stats(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get campaign statistics overview"""
+    try:
+        # Get basic campaign counts
+        total_query = select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
+        active_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.status == CampaignStatus.ACTIVE
+        )
+        draft_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.status == CampaignStatus.DRAFT
+        )
+        
+        total_result = await db.execute(total_query)
+        active_result = await db.execute(active_query)
+        draft_result = await db.execute(draft_query)
+        
+        total_campaigns_created = total_result.scalar()
+        active_campaigns = active_result.scalar()
+        draft_campaigns = draft_result.scalar()
+        
+        return {
+            "total_campaigns_created": total_campaigns_created,
+            "active_campaigns": active_campaigns,
+            "draft_campaigns": draft_campaigns,
+            "completed_campaigns": total_campaigns_created - active_campaigns - draft_campaigns,
+            "total_sources": 0,  # Will be populated when intelligence is added back
+            "total_content": 0,  # Will be populated when intelligence is added back
+            "avg_completion": 25.0  # Basic completion for existing campaigns
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting campaign stats: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get campaign stats: {str(e)}"
+        )
+
+# ✅ LIST/CREATE ROUTES (THESE WORK WITH EMPTY PATH)
 @router.get("", response_model=List[CampaignResponse])
 async def get_campaigns(
     skip: int = 0,
@@ -269,45 +445,6 @@ async def get_campaigns(
             detail=f"Failed to retrieve campaigns: {str(e)}"
         )
 
-@router.get("/debug/campaigns")
-async def debug_campaigns(
-    db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Debug endpoint to check campaign data structure"""
-    try:
-        # Get one campaign to examine its structure
-        query = select(Campaign).where(Campaign.company_id == current_user.company_id).limit(1)
-        result = await db.execute(query)
-        campaign = result.scalar_one_or_none()
-        
-        if not campaign:
-            return {"message": "No campaigns found", "user_id": str(current_user.id), "company_id": str(current_user.company_id)}
-        
-        # Examine the campaign object
-        campaign_dict = {}
-        for attr in dir(campaign):
-            if not attr.startswith('_') and not callable(getattr(campaign, attr)):
-                try:
-                    value = getattr(campaign, attr)
-                    if hasattr(value, 'value'):  # Enum
-                        campaign_dict[attr] = f"{value} (enum: {value.value})"
-                    else:
-                        campaign_dict[attr] = str(value)
-                except Exception as e:
-                    campaign_dict[attr] = f"Error: {str(e)}"
-        
-        return {
-            "campaign_id": str(campaign.id),
-            "campaign_attributes": campaign_dict,
-            "campaign_type": type(campaign).__name__,
-            "has_calculate_method": hasattr(campaign, 'calculate_completion_percentage'),
-            "status_type": type(campaign.status).__name__ if campaign.status else "None"
-        }
-        
-    except Exception as e:
-        return {"error": str(e), "type": type(e).__name__}
-
 @router.post("", response_model=CampaignResponse)
 async def create_campaign(
     campaign_data: CampaignCreate,
@@ -369,6 +506,7 @@ async def create_campaign(
             detail=error_detail
         )
 
+# ✅ PARAMETERIZED ROUTES LAST (THESE MUST COME AFTER ALL SPECIFIC ROUTES)
 @router.get("/{campaign_id}", response_model=CampaignResponse)
 async def get_campaign(
     campaign_id: UUID,
@@ -1183,102 +1321,6 @@ async def duplicate_content(
         )
 
 # ============================================================================
-# DASHBOARD STATS ENDPOINT
-# ============================================================================
-
-@router.get("/dashboard/stats")
-async def get_dashboard_stats(
-    db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Get dashboard statistics"""
-    try:
-        logger.info(f"Getting dashboard stats for user {current_user.id}, company {current_user.company_id}")
-        
-        # Get basic campaign counts
-        total_query = select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
-        active_query = select(func.count(Campaign.id)).where(
-            Campaign.company_id == current_user.company_id,
-            Campaign.status == CampaignStatus.ACTIVE
-        )
-        draft_query = select(func.count(Campaign.id)).where(
-            Campaign.company_id == current_user.company_id,
-            Campaign.status == CampaignStatus.DRAFT
-        )
-        completed_query = select(func.count(Campaign.id)).where(
-            Campaign.company_id == current_user.company_id,
-            Campaign.status == CampaignStatus.COMPLETED
-        )
-        
-        # Execute queries
-        total_result = await db.execute(total_query)
-        active_result = await db.execute(active_query)
-        draft_result = await db.execute(draft_query)
-        completed_result = await db.execute(completed_query)
-        
-        total_campaigns_created = total_result.scalar() or 0
-        active_campaigns = active_result.scalar() or 0
-        draft_campaigns = draft_result.scalar() or 0
-        completed_campaigns = completed_result.scalar() or 0
-        
-        # Get content and intelligence counts
-        intelligence_query = select(func.count(CampaignIntelligence.id)).join(Campaign).where(
-            Campaign.company_id == current_user.company_id
-        )
-        content_query = select(func.count(GeneratedContent.id)).join(Campaign).where(
-            Campaign.company_id == current_user.company_id
-        )
-        
-        intelligence_result = await db.execute(intelligence_query)
-        content_result = await db.execute(content_query)
-        
-        total_sources = intelligence_result.scalar() or 0
-        total_content = content_result.scalar() or 0
-        
-        # Calculate average completion
-        avg_completion = 25.0 if total_campaigns_created > 0 else 0.0
-        
-        # Get recent campaigns for activity feed
-        recent_query = select(Campaign).where(
-            Campaign.company_id == current_user.company_id
-        ).order_by(Campaign.updated_at.desc()).limit(5)
-        
-        recent_result = await db.execute(recent_query)
-        recent_campaigns = recent_result.scalars().all()
-        
-        recent_activity = []
-        for campaign in recent_campaigns:
-            recent_activity.append({
-                "id": str(campaign.id),
-                "title": campaign.title,
-                "type": "campaign",
-                "action": "updated",
-                "timestamp": campaign.updated_at.isoformat() if campaign.updated_at else None,
-                "status": campaign.status.value if campaign.status else "draft"
-            })
-        
-        return {
-            "total_campaigns_created": total_campaigns_created,
-            "active_campaigns": active_campaigns,
-            "draft_campaigns": draft_campaigns,
-            "completed_campaigns": completed_campaigns,
-            "total_sources": total_sources,
-            "total_content": total_content,
-            "avg_completion": avg_completion,
-            "recent_activity": recent_activity,
-            "user_id": str(current_user.id),
-            "company_id": str(current_user.company_id),
-            "generated_at": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting dashboard stats: {e}")
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get dashboard stats: {str(e)}"
-        )
-
-# ============================================================================
 # WORKFLOW ENDPOINTS (EXISTING - KEEPING FOR COMPATIBILITY)
 # ============================================================================
 
@@ -1535,16 +1577,6 @@ async def get_campaign_intelligence(
                     "created_at": content.created_at.isoformat() if content.created_at else None
                 })
         
-        return {
-            "campaign_id": str(campaign_id),
-            "intelligence_sources": intelligence_sources,
-            "generated_content": generated_content,
-            "summary": {
-                "total_intelligence_sources": len(intelligence_sources),
-                "total_generated_content": len(generated_content),
-                "avg_confidence_score": sum(s.get("confidence_score", 0) for s in intelligence_sources) / len(intelligence_sources) if intelligence_sources else 0.0
-            }
-        }
         
     except HTTPException:
         raise
@@ -1553,51 +1585,4 @@ async def get_campaign_intelligence(
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get campaign intelligence: {str(e)}"
-        )
-
-# ============================================================================
-# STATS AND ANALYTICS ROUTES
-# ============================================================================
-
-@router.get("/stats/overview")
-async def get_campaign_stats(
-    db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Get campaign statistics overview"""
-    try:
-        # Get basic campaign counts
-        total_query = select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
-        active_query = select(func.count(Campaign.id)).where(
-            Campaign.company_id == current_user.company_id,
-            Campaign.status == CampaignStatus.ACTIVE
-        )
-        draft_query = select(func.count(Campaign.id)).where(
-            Campaign.company_id == current_user.company_id,
-            Campaign.status == CampaignStatus.DRAFT
-        )
-        
-        total_result = await db.execute(total_query)
-        active_result = await db.execute(active_query)
-        draft_result = await db.execute(draft_query)
-        
-        total_campaigns_created = total_result.scalar()
-        active_campaigns = active_result.scalar()
-        draft_campaigns = draft_result.scalar()
-        
-        return {
-            "total_campaigns_created": total_campaigns_created,
-            "active_campaigns": active_campaigns,
-            "draft_campaigns": draft_campaigns,
-            "completed_campaigns": total_campaigns_created - active_campaigns - draft_campaigns,
-            "total_sources": 0,  # Will be populated when intelligence is added back
-            "total_content": 0,  # Will be populated when intelligence is added back
-            "avg_completion": 25.0  # Basic completion for existing campaigns
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting campaign stats: {e}")
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get campaign stats: {str(e)}"
         )
