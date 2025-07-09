@@ -35,11 +35,11 @@ class AssetStatus(Enum):
 class CampaignAsset(BaseModel):
     """Enhanced campaign asset model with dual storage support"""
     
-    # ✅ CRITICAL FIX: Explicit table configuration to prevent conflicts
+    # ✅ FIXED: Remove conflicting parameters
     __tablename__ = "campaign_assets"
     __table_args__ = {
         'extend_existing': True,  # Allow extending existing table definition
-        'keep_existing': True     # Keep existing table if already defined
+        # ❌ REMOVED: 'keep_existing': True - this conflicts with extend_existing
     }
     
     # Basic asset information
