@@ -27,6 +27,7 @@ class ContentCategory(Enum):
     SYSTEM_GENERATED = "system_generated"
 
 class CampaignAsset(BaseModel):
+    __tablename__ = "campaign_assets"  # ← ADD THIS LINE
     """Enhanced campaign asset model with dual storage support"""
     
     # Basic asset information
