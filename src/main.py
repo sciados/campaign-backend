@@ -281,11 +281,16 @@ app.add_middleware(
         "https://rodgersdigital.com",
         "https://www.rodgersdigital.com",
         "https://*.vercel.app",
-        "https://campaign-frontend-production-e2db.up.railway.app"
+        "https://campaign-frontend-production-e2db.up.railway.app",
+        # Add these additional variations to be safe
+        "https://rodgersdigital.vercel.app",
+        "https://www.rodgersdigital.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    # Add these additional headers for better CORS handling
+    expose_headers=["*"],
 )
 
 app.add_middleware(
