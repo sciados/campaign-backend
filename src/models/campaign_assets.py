@@ -26,6 +26,14 @@ class ContentCategory(Enum):
     USER_UPLOADED = "user_uploaded"
     SYSTEM_GENERATED = "system_generated"
 
+class AssetStatus(Enum):
+    READY = "ready"
+    PROCESSING = "processing"
+    FAILED = "failed"
+    ARCHIVED = "archived"
+
+status = Column(String(20), default=AssetStatus.READY.value)  # AssetStatus enum
+
 class CampaignAsset(BaseModel):
     __tablename__ = "campaign_assets"  # ← ADD THIS LINE
     __table_args__ = {'extend_existing': True}  # ✅ Add this here
@@ -99,3 +107,10 @@ class CampaignAsset(BaseModel):
         """Update access statistics"""
         self.access_count += 1
         self.last_accessed = func.now()
+
+    def set_status(self, new_status: str):
+        """Safely set status if valid"""
+        if new_status in AssetStatus._value2member_map_:
+            self.status = new_status
+        else:
+            raise ValueError(f"Invalid status: {new_status}")
