@@ -28,6 +28,7 @@ class ContentCategory(Enum):
 
 class CampaignAsset(BaseModel):
     __tablename__ = "campaign_assets"  # ← ADD THIS LINE
+    __table_args__ = {'extend_existing': True}  # ✅ Add this here
     """Enhanced campaign asset model with dual storage support"""
     
     # Basic asset information

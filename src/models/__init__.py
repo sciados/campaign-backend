@@ -86,15 +86,36 @@ try:
         get_allowed_extensions
     )
     logger.debug("✅ Campaign asset models imported successfully")
-except ImportError as e:
-    logger.warning(f"⚠️ Campaign asset models not available: {e}")
-    CampaignAsset = None
-    AssetType = None
-    AssetStatus = None
-    get_asset_type_from_extension = None
-    validate_file_size = None
-    generate_file_hash = None
-    get_allowed_extensions = None
+except Exception as e:
+    logger.error(f"❌ Campaign asset models failed: {e}")
+    # Attempt to resolve metadata conflicts
+    try:
+        from .base import Base
+        if hasattr(Base, 'metadata'):
+            Base.metadata.clear()
+            logger.debug("🧹 SQLAlchemy metadata cleared (assets)")
+        
+        # Try importing again after clearing metadata
+        from .campaign_assets import (
+            CampaignAsset,
+            AssetType,
+            AssetStatus,
+            get_asset_type_from_extension,
+            validate_file_size,
+            generate_file_hash,
+            get_allowed_extensions
+        )
+        logger.info("✅ Campaign asset models imported successfully after metadata clear")
+    except Exception as retry_error:
+        logger.error(f"❌ Retry of campaign asset models failed: {retry_error}")
+        CampaignAsset = None
+        AssetType = None
+        AssetStatus = None
+        get_asset_type_from_extension = None
+        validate_file_size = None
+        generate_file_hash = None
+        get_allowed_extensions = None
+
 
 # ============================================================================
 # ✅ PHASE 5: Import intelligence models (depends on Campaign)
