@@ -1,4 +1,4 @@
-# src/models/campaign_assets.py - Enhanced version
+# src/models/campaign_assets.py - FIXED VERSION to resolve registry conflicts
 from sqlalchemy import Column, String, Integer, DateTime, Text, Boolean, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
@@ -32,12 +32,15 @@ class AssetStatus(Enum):
     FAILED = "failed"
     ARCHIVED = "archived"
 
-status = Column(String(20), default=AssetStatus.READY.value)  # AssetStatus enum
-
 class CampaignAsset(BaseModel):
-    __tablename__ = "campaign_assets"  # ← ADD THIS LINE
-    __table_args__ = {'extend_existing': True}  # ✅ Add this here
     """Enhanced campaign asset model with dual storage support"""
+    
+    # ✅ CRITICAL FIX: Explicit table configuration to prevent conflicts
+    __tablename__ = "campaign_assets"
+    __table_args__ = {
+        'extend_existing': True,  # Allow extending existing table definition
+        'keep_existing': True     # Keep existing table if already defined
+    }
     
     # Basic asset information
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -55,15 +58,15 @@ class CampaignAsset(BaseModel):
     # Legacy single storage (for backward compatibility)
     file_url = Column(Text, nullable=True)
     
-    # Enhanced dual storage URLs
+    # ✅ NEW: Enhanced dual storage URLs
     file_url_primary = Column(Text, nullable=True)      # Cloudflare R2
     file_url_backup = Column(Text, nullable=True)       # Backblaze B2
     
-    # Storage management
-    storage_status = Column(String(20), default="pending")           # StorageStatus enum
-    active_provider = Column(String(50), default="cloudflare_r2")    # Current serving provider
-    content_category = Column(String(20), default="user_uploaded")   # ContentCategory enum
-    failover_count = Column(Integer, default=0)                      # Track failover events
+    # ✅ NEW: Storage management fields
+    storage_status = Column(String(20), default=StorageStatus.PENDING.value)    # StorageStatus enum
+    active_provider = Column(String(50), default="cloudflare_r2")               # Current serving provider
+    content_category = Column(String(20), default=ContentCategory.USER_UPLOADED.value)  # ContentCategory enum
+    failover_count = Column(Integer, default=0)                                 # Track failover events
     
     # Metadata and tags
     asset_metadata = Column(JSON, default=dict)
@@ -71,7 +74,7 @@ class CampaignAsset(BaseModel):
     description = Column(Text, nullable=True)
     
     # Status and timestamps
-    status = Column(String(20), default="ready")
+    status = Column(String(20), default=AssetStatus.READY.value)  # Use enum value
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -97,11 +100,11 @@ class CampaignAsset(BaseModel):
     
     def is_fully_synced(self) -> bool:
         """Check if asset is fully synced across both providers"""
-        return self.storage_status == "fully_synced"
+        return self.storage_status == StorageStatus.FULLY_SYNCED.value
     
     def is_ai_generated(self) -> bool:
         """Check if asset is AI generated"""
-        return self.content_category == "ai_generated"
+        return self.content_category == ContentCategory.AI_GENERATED.value
     
     def update_access_stats(self):
         """Update access statistics"""
@@ -110,7 +113,81 @@ class CampaignAsset(BaseModel):
 
     def set_status(self, new_status: str):
         """Safely set status if valid"""
-        if new_status in AssetStatus._value2member_map_:
+        if new_status in [status.value for status in AssetStatus]:
             self.status = new_status
         else:
-            raise ValueError(f"Invalid status: {new_status}")
+            raise ValueError(f"Invalid status: {new_status}. Valid options: {[s.value for s in AssetStatus]}")
+    
+    def set_storage_status(self, new_status: str):
+        """Safely set storage status if valid"""
+        if new_status in [status.value for status in StorageStatus]:
+            self.storage_status = new_status
+        else:
+            raise ValueError(f"Invalid storage status: {new_status}. Valid options: {[s.value for s in StorageStatus]}")
+    
+    def set_content_category(self, new_category: str):
+        """Safely set content category if valid"""
+        if new_category in [cat.value for cat in ContentCategory]:
+            self.content_category = new_category
+        else:
+            raise ValueError(f"Invalid content category: {new_category}. Valid options: {[c.value for c in ContentCategory]}")
+
+# Utility functions for asset management
+def get_asset_type_from_extension(filename: str) -> str:
+    """Get asset type from file extension"""
+    extension = filename.lower().split('.')[-1] if '.' in filename else ''
+    
+    image_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp']
+    video_extensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv']
+    audio_extensions = ['mp3', 'wav', 'aac', 'ogg', 'flac', 'wma']
+    document_extensions = ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'xls', 'xlsx', 'ppt', 'pptx']
+    
+    if extension in image_extensions:
+        return AssetType.IMAGE.value
+    elif extension in video_extensions:
+        return AssetType.VIDEO.value
+    elif extension in audio_extensions:
+        return AssetType.AUDIO.value
+    elif extension in document_extensions:
+        return AssetType.DOCUMENT.value
+    else:
+        return AssetType.DOCUMENT.value  # Default fallback
+
+def validate_file_size(file_size: int, asset_type: str) -> bool:
+    """Validate file size based on asset type"""
+    max_sizes = {
+        AssetType.IMAGE.value: 10 * 1024 * 1024,      # 10MB
+        AssetType.DOCUMENT.value: 50 * 1024 * 1024,   # 50MB
+        AssetType.VIDEO.value: 200 * 1024 * 1024,     # 200MB
+        AssetType.AUDIO.value: 100 * 1024 * 1024,     # 100MB
+    }
+    
+    max_size = max_sizes.get(asset_type, 10 * 1024 * 1024)  # Default 10MB
+    return file_size <= max_size
+
+def generate_file_hash(content: bytes) -> str:
+    """Generate MD5 hash for file content"""
+    import hashlib
+    return hashlib.md5(content).hexdigest()
+
+def get_allowed_extensions() -> dict:
+    """Get allowed file extensions by type"""
+    return {
+        AssetType.IMAGE.value: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'],
+        AssetType.VIDEO.value: ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'],
+        AssetType.AUDIO.value: ['mp3', 'wav', 'aac', 'ogg', 'flac', 'wma'],
+        AssetType.DOCUMENT.value: ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'xls', 'xlsx', 'ppt', 'pptx', 'md']
+    }
+
+# Export all the necessary components
+__all__ = [
+    'CampaignAsset',
+    'AssetType',
+    'StorageStatus', 
+    'ContentCategory',
+    'AssetStatus',
+    'get_asset_type_from_extension',
+    'validate_file_size',
+    'generate_file_hash',
+    'get_allowed_extensions'
+]
