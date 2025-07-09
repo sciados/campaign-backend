@@ -42,7 +42,7 @@ try:
     # Campaign models
     try:
         from src.models.campaign import Campaign
-        from src.models.campaign_assets import CampaignAsset  # ✅ NEW: Enhanced with dual storage
+        from src.models import CampaignAsset  # ✅ NEW: Enhanced with dual storage
         from src.models.intelligence import CampaignIntelligence
         logging.info("✅ Campaign models imported successfully")
     except ImportError as e:

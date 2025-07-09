@@ -22,7 +22,7 @@ from datetime import datetime
 from src.core.database import get_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
-from src.models.campaign_assets import CampaignAsset
+from src.models import CampaignAsset
 from src.storage.document_manager import DocumentManager
 from src.storage.universal_dual_storage import get_storage_manager
 

@@ -22,7 +22,7 @@ from src.auth.dependencies import get_current_user
 from src.models.user import User
 from src.models.campaign import Campaign
 from src.models.intelligence import CampaignIntelligence, GeneratedContent
-from src.models.campaign_assets import CampaignAsset, AssetType
+from src.models import CampaignAsset, AssetType
 from storage.universal_dual_storage import get_storage_manager
 from ..generators.slideshow_video_generator import SlideshowVideoGenerator
 from typing import Dict, List, Any, Optional
