@@ -51,7 +51,7 @@ ffmpeg-python>=0.2.0
 python-magic>=0.4.24
 chardet==5.2.0
 
-# Cloud Storage (NEW - for dual storage system)
+# Cloud Storage - for dual storage system
 boto3>=1.26.0
 botocore>=1.29.0
 
@@ -70,27 +70,30 @@ groq>=0.4.0
 # For Railway deployment
 gunicorn==21.2.0
 
-# Missing dependencies for ultra-cheap image generation
+# Ultra-cheap image generation providers
 replicate>=0.20.0
 together>=0.2.0
 
-# Missing dependencies for slideshow video generation
-imageio>=2.31.0
-moviepy>=1.0.3
+# Document preview generation (FIXED)
+PyMuPDF>=1.23.0
 
-# Missing dependencies for document preview generation
-fitz>=0.0.1
-pymupdf>=1.23.0
-
-# Missing dependencies for markdown processing
+# Markdown processing
 markdown>=3.5.0
 
-# Missing dependencies for web scraping enhancements
-selenium>=4.15.0
-
-# Missing dependencies for advanced AI features
+# Advanced AI features
 tiktoken>=0.5.0
-langchain>=0.0.350
 
-# Missing dependencies for data processing
+# Data processing
 pandas>=2.0.0
+
+# Video processing enhancements
+imageio>=2.31.0
+
+# Web scraping enhancements (optional - only if needed)
+# selenium>=4.15.0
+
+# LangChain (optional - only if using advanced AI features)
+# langchain>=0.0.350
+
+# MoviePy (optional - only if using advanced video processing)
+# moviepy>=1.0.3
