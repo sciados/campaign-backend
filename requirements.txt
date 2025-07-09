@@ -4,7 +4,7 @@ uvicorn[standard]==0.24.0
 
 # Environment and Configuration
 python-dotenv==1.0.0
-pydantic>=2.8.0  # Updated: Allow compatible version with cohere
+pydantic>=2.8.0
 email-validator==2.1.0
 
 # Database
@@ -12,7 +12,6 @@ asyncpg==0.29.0
 sqlalchemy==2.0.23
 alembic==1.12.1
 psycopg2-binary==2.9.6
-structlog[dev]==23.2.0  # Updated: Use structlog for logging
 
 # Authentication & Security
 python-jose[cryptography]==3.3.0
@@ -23,33 +22,75 @@ python-multipart==0.0.6
 # AI Services
 openai==1.3.7
 anthropic==0.7.7
-cohere>=5.14.2  # Keep latest version
+cohere>=5.14.2
 
-# HTTP Client & Web Scraping - CORE DEPENDENCIES
+# HTTP Client & Web Scraping
 httpx==0.25.2
-aiohttp==3.9.1
+aiohttp>=3.9.1
 beautifulsoup4==4.12.2
 lxml==4.9.3
 requests==2.31.0
 asyncio-throttle==1.0.2
-certifi==2023.11.17  # ADD THIS - SSL certificates for Railway
-urllib3[secure]==2.1.0  
+certifi==2023.11.17
+urllib3[secure]==2.1.0
 
 # Document Processing
-PyPDF2==3.0.1
+PyPDF2>=3.0.0
 python-docx==1.1.0
 python-pptx==0.6.21
-aiofiles==23.2.0
+aiofiles>=23.2.0
+
+# Image Processing
+pillow>=9.0.0
+opencv-python>=4.5.0
+
+# Video Processing
+ffmpeg-python>=0.2.0
+
+# File Processing
+python-magic>=0.4.24
+chardet==5.2.0
+
+# Cloud Storage (NEW - for dual storage system)
+boto3>=1.26.0
+botocore>=1.29.0
+
+# Logging
+structlog[dev]==23.2.0
 
 # Additional utilities
-chardet==5.2.0
-urllib3==2.1.0
-structlog==23.2.0
 bleach==6.1.0
 setuptools>=65.0.0
 numpy>=1.24.0,<2.0.0
+
+# API Clients
 fal-client==0.7.0
 groq>=0.4.0
 
 # For Railway deployment
 gunicorn==21.2.0
+
+# Missing dependencies for ultra-cheap image generation
+replicate>=0.20.0
+together>=0.2.0
+
+# Missing dependencies for slideshow video generation
+imageio>=2.31.0
+moviepy>=1.0.3
+
+# Missing dependencies for document preview generation
+fitz>=0.0.1
+pymupdf>=1.23.0
+
+# Missing dependencies for markdown processing
+markdown>=3.5.0
+
+# Missing dependencies for web scraping enhancements
+selenium>=4.15.0
+
+# Missing dependencies for advanced AI features
+tiktoken>=0.5.0
+langchain>=0.0.350
+
+# Missing dependencies for data processing
+pandas>=2.0.0

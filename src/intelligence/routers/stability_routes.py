@@ -7,7 +7,8 @@ Stability AI Image Generation Routes - Integrated with YOUR existing files
 ✅ Uses YOUR GeneratedContent model from src/models/intelligence.py
 ✅ Follows YOUR existing router patterns
 """
-from fastapi import APIRouter, Depends, HTTPException, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, status as http_status, BackgroundTasks
+from intelligence.generators.ultra_cheap_image_generator import UltraCheapImageGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from typing import Dict, Any, List, Optional
@@ -22,6 +23,10 @@ from src.models.user import User
 from src.models.campaign import Campaign
 from src.models.intelligence import CampaignIntelligence, GeneratedContent
 from src.models.campaign_assets import CampaignAsset, AssetType
+from storage.universal_dual_storage import get_storage_manager
+from ..generators.slideshow_video_generator import SlideshowVideoGenerator
+from typing import Dict, List, Any, Optional
+
 
 # Import YOUR existing generators
 from ..generators.stability_ai_generator import StabilityAIGenerator
@@ -575,3 +580,149 @@ def _extract_product_name(intelligence_record) -> str:
     
     # Fallback
     return "PRODUCT"
+
+@router.post("/ultra-cheap/generate-single")
+async def generate_single_ultra_cheap_image(
+    request_data: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generate single image with ultra-cheap providers"""
+    
+    try:
+        generator = UltraCheapImageGenerator()
+        
+        result = await generator.generate_single_image(
+            prompt=request_data.get("prompt", "Professional product photography"),
+            platform=request_data.get("platform", "instagram"),
+            negative_prompt=request_data.get("negative_prompt", ""),
+            style_preset=request_data.get("style_preset", "photographic")
+        )
+        
+        # Save to dual storage if campaign_id provided
+        if request_data.get("campaign_id"):
+            storage_manager = get_storage_manager()
+            
+            storage_result = await storage_manager.save_content_dual_storage(
+                content_data=result["image_data"]["image_base64"],
+                content_type="image",
+                filename=f"ai_image_{result['platform']}.png",
+                user_id=str(current_user.id),
+                campaign_id=request_data["campaign_id"],
+                metadata={
+                    "ai_generated": True,
+                    "provider_used": result["provider_used"],
+                    "generation_cost": result["cost"],
+                    "prompt": result["prompt"]
+                }
+            )
+            
+            result["storage_result"] = storage_result
+        
+        return {
+            "success": True,
+            "image_result": result,
+            "user_id": str(current_user.id)
+        }
+        
+    except Exception as e:
+        logger.error(f"Ultra-cheap image generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
+
+@router.post("/ultra-cheap/generate-campaign")
+async def generate_campaign_ultra_cheap_images(
+    request_data: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generate complete campaign with ultra-cheap images"""
+    
+    try:
+        # Get campaign intelligence
+        campaign_id = request_data.get("campaign_id")
+        
+        if not campaign_id:
+            raise HTTPException(status_code=400, detail="campaign_id is required")
+        
+        # Get intelligence data from database
+        intelligence_query = select(CampaignIntelligence).where(
+            and_(
+                CampaignIntelligence.campaign_id == campaign_id,
+                CampaignIntelligence.user_id == current_user.id
+            )
+        )
+        intelligence_result = await db.execute(intelligence_query)
+        intelligence_record = intelligence_result.scalar_one_or_none()
+        
+        if not intelligence_record:
+            raise HTTPException(status_code=404, detail="Campaign intelligence not found")
+        
+        # Extract intelligence data
+        intelligence_data = {
+            "product_name": intelligence_record.source_title or "PRODUCT",
+            "offer_intelligence": intelligence_record.offer_intelligence or {},
+            "psychology_intelligence": intelligence_record.psychology_intelligence or {},
+            "content_intelligence": intelligence_record.content_intelligence or {}
+        }
+        
+        video_result = await SlideshowVideoGenerator.generate_slideshow_video(
+            intelligence_data=intelligence_data,
+            images=image_urls,
+            preferences=preferences
+        )
+        
+        # Save video to dual storage
+        storage_manager = get_storage_manager()
+        video_filename = f"slideshow_{campaign_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+        
+        storage_result = await storage_manager.save_content_dual_storage(
+            content_data=video_result["video_data"],
+            content_type="video",
+            filename=video_filename,
+            user_id=str(current_user.id),
+            campaign_id=campaign_id,
+            metadata={
+                "video_type": "slideshow",
+                "source_images": image_asset_ids,
+                "duration": video_result["duration"],
+                "provider_used": video_result["provider_used"],
+                "generation_cost": video_result["cost"]
+            }
+        )
+        
+        # Save to database
+        video_asset = CampaignAsset(
+            campaign_id=campaign_id,
+            uploaded_by=current_user.id,
+            company_id=current_user.company_id,
+            asset_name=storage_result["filename"],
+            original_filename=video_filename,
+            asset_type="video",
+            mime_type="video/mp4",
+            file_size=storage_result["file_size"],
+            file_url_primary=storage_result["providers"]["primary"]["url"],
+            file_url_backup=storage_result["providers"]["backup"]["url"],
+            storage_status=storage_result["storage_status"],
+            content_category="ai_generated",
+            asset_metadata=storage_result["metadata"]
+        )
+        
+        db.add(video_asset)
+        await db.commit()
+        
+        return {
+            "success": True,
+            "video_asset_id": str(video_asset.id),
+            "video_url": video_asset.get_serving_url(),
+            "duration": video_result["duration"],
+            "cost": video_result["cost"],
+            "provider_used": video_result["provider_used"],
+            "storage_status": video_asset.storage_status,
+            "file_size": video_asset.file_size
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Video generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Video generation failed: {str(e)}")

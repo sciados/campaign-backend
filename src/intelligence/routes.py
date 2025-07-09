@@ -1,6 +1,6 @@
 """
 File: src/intelligence/routes.py
-Main Intelligence Routes - Updated with Stability AI Integration
+Main Intelligence Routes - Updated with Ultra-Cheap AI and Storage Integration
 """
 from fastapi import APIRouter
 
@@ -13,7 +13,7 @@ from .routers import (
     clickbank_routes
 )
 
-# Import the new Stability AI routes (create this file)
+# Import the Stability AI routes (already exists)
 try:
     from .routers import stability_routes
     STABILITY_ROUTES_AVAILABLE = True
@@ -54,7 +54,7 @@ router.include_router(
     tags=["clickbank"]
 )
 
-# ✅ NEW: Include Stability AI routes if available
+# ✅ EXISTING: Include Stability AI routes if available
 if STABILITY_ROUTES_AVAILABLE:
     router.include_router(
         stability_routes.router,

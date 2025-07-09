@@ -171,6 +171,7 @@ __all__ = [
     'BlogPostGenerator',
     'LandingPageGenerator',
     'VideoScriptGenerator',
+    'UltraCheapImageGenerator'
     
     # Factory System
     'ContentGeneratorFactory',

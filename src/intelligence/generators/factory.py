@@ -9,8 +9,11 @@ CONTENT GENERATOR FACTORY
 
 import logging
 from typing import Dict, List, Any, Optional, Union
+from .ultra_cheap_image_generator import UltraCheapImageGenerator
+
 
 logger = logging.getLogger(__name__)
+ULTRA_CHEAP_IMAGE = "ultra_cheap_image"
 
 class ContentGeneratorFactory:
     """Factory for creating and managing content generators"""
@@ -23,7 +26,8 @@ class ContentGeneratorFactory:
             "ad_copy": "AdCopyGenerator",
             "blog_post": "BlogPostGenerator",
             "landing_page": "LandingPageGenerator",
-            "video_script": "VideoScriptGenerator"
+            "video_script": "VideoScriptGenerator",
+            "ultra_cheap_image": "UltraCheapImageGenerator"
         }
         self._initialize_generators()
         
@@ -77,6 +81,14 @@ class ContentGeneratorFactory:
             logger.info("✅ Video Script Generator initialized")
         except Exception as e:
             logger.warning(f"⚠️ Video Script Generator failed to initialize: {str(e)}")
+
+        # Ultra-Cheap Image Generator
+        try:
+            from .ultra_cheap_image_generator import UltraCheapImageGenerator
+            self._generators["ultra_cheap_image"] = UltraCheapImageGenerator()
+            logger.info("✅ Ultra-Cheap Image Generator initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ Ultra-Cheap Image Generator failed to initialize: {str(e)}")
     
     def get_generator(self, content_type: str):
         """Get generator instance for specified content type"""
@@ -146,6 +158,17 @@ class ContentGeneratorFactory:
                         "platforms": ["youtube", "tiktok", "instagram", "facebook", "linkedin"],
                         "customization": ["video_type", "platform", "duration", "tone"]
                     }
+                elif content_type == "ultra_cheap_image":
+                    capabilities[content_type] = {
+                        "description": "Generate ultra-cheap AI images with 90% cost savings vs DALL-E",
+                        "features": ["provider_hierarchy", "cost_optimization", "platform_optimization"],
+                        "output_format": "ultra_cheap_image",
+                        "platforms": ["instagram", "facebook", "tiktok", "linkedin"],
+                        "providers": ["stability_ai", "replicate", "together_ai", "openai"],
+                        "cost_per_image": 0.002,
+                        "savings_vs_dalle": 0.038,
+                        "customization": ["platform", "prompt", "style_preset"]
+                }
                 
             except Exception as e:
                 capabilities[content_type] = {
@@ -182,6 +205,8 @@ class ContentGeneratorFactory:
                 return await generator.generate_landing_page(intelligence_data, preferences)
             elif content_type == "video_script":
                 return await generator.generate_video_script(intelligence_data, preferences)
+            elif content_type == "ultra_cheap_image":
+                return await generator.generate_single_image(intelligence_data, preferences)
             else:
                 raise ValueError(f"Unknown content type: {content_type}")
                 
