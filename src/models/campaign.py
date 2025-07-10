@@ -122,28 +122,16 @@ class Campaign(BaseModel):
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
     # Clean relationships (will work once all models use proper imports)
-    user = relationship("User", back_populates="campaigns")
-    company = relationship("Company", back_populates="campaigns")
+    user = relationship("src.models.user.User", back_populates="campaigns")
+    company = relationship("src.models.company.Company", back_populates="campaigns")
     
     # Asset relationships
     assets = relationship("src.models.campaign_assets.CampaignAsset", back_populates="campaign", cascade="all, delete-orphan")
     
     # Intelligence and content relationships
-    intelligence_sources = relationship(
-        "CampaignIntelligence", 
-        back_populates="campaign", 
-        cascade="all, delete-orphan"
-    )
-    generated_content = relationship(
-        "GeneratedContent", 
-        back_populates="campaign", 
-        cascade="all, delete-orphan"
-    )
-    smart_urls = relationship(
-        "SmartURL", 
-        back_populates="campaign", 
-        cascade="all, delete-orphan"
-    )
+    intelligence_sources = relationship("src.models.intelligence.CampaignIntelligence", back_populates="campaign", cascade="all, delete-orphan")
+    generated_content = relationship("src.models.intelligence.GeneratedContent", back_populates="campaign", cascade="all, delete-orphan")
+    smart_urls = relationship("src.models.intelligence.SmartURL", back_populates="campaign", cascade="all, delete-orphan")
     
     def __init__(self, **kwargs):
         # Set default ID if not provided
