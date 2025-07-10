@@ -74,7 +74,7 @@ class Company(BaseModel, EnumSerializerMixin):
     # Clean relationships (will work once all models use proper imports)
     users = relationship("User", back_populates="company")
     campaigns = relationship("Campaign", back_populates="company")
-    assets = relationship("src.models.campaign_assets.CampaignAsset", back_populates="company")
+    # assets = relationship("src.models.campaign_assets.CampaignAsset", back_populates="company")
     memberships = relationship("CompanyMembership", back_populates="company")
     invitations = relationship("CompanyInvitation", back_populates="company")
     

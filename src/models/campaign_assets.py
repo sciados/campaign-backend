@@ -43,9 +43,9 @@ class CampaignAsset(BaseModel):
         # ❌ REMOVED: 'keep_existing': True - this conflicts with extend_existing
     }
     
-    campaign = relationship("src.models.campaign.Campaign", back_populates="assets")
-    uploader = relationship("src.models.user.User", back_populates="uploaded_assets")
-    company = relationship("src.models.company.Company", back_populates="assets")
+    # campaign = relationship("src.models.campaign.Campaign", back_populates="assets")
+    # uploader = relationship("src.models.user.User", back_populates="uploaded_assets")
+    # company = relationship("src.models.company.Company", back_populates="assets")
 
     # Basic asset information
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
