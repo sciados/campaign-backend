@@ -136,7 +136,7 @@ async def generate_content(
             result=result
         )
         
-        return ContentGenerationResponse(**result)
+        return result
         
     except ValueError as e:
         raise HTTPException(
