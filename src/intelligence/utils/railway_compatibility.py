@@ -1,10 +1,11 @@
 # src/intelligence/utils/railway_compatibility.py
 """
-RAILWAY COMPATIBILITY LAYER
+RAILWAY COMPATIBILITY LAYER - FIXED
 ✅ Fixes async/await issues for Railway deployment
 ✅ Handles ChunkedIteratorResult properly
 ✅ Provides backward compatibility with existing handlers
 ✅ Ultra-cheap AI integration support
+✅ FIXED: Correct method calls for generators
 """
 
 import asyncio
@@ -98,20 +99,23 @@ class EnhancedContentHandler:
         self._initialize_ultra_cheap_generators()
     
     def _initialize_ultra_cheap_generators(self):
-        """Initialize ultra-cheap generators with compatibility checks"""
+        """Initialize ultra-cheap generators with compatibility checks - FIXED"""
         
         generator_mappings = {
             "email_sequence": {
                 "module": "src.intelligence.generators.email_generator", 
-                "class": "EmailSequenceGenerator"
+                "class": "EmailSequenceGenerator",
+                "method": "generate_email_sequence"  # ✅ FIXED: Correct method name
             },
             "ad_copy": {
                 "module": "src.intelligence.generators.ad_copy_generator",
-                "class": "AdCopyGenerator"
+                "class": "AdCopyGenerator",
+                "method": "generate_ad_copy"  # ✅ FIXED: Correct method name
             },
             "social_media": {
                 "module": "src.intelligence.generators.social_media_generator",
-                "class": "SocialMediaGenerator"
+                "class": "SocialMediaGenerator",
+                "method": "generate_social_posts"  # ✅ FIXED: Correct method name
             }
         }
         
@@ -126,7 +130,12 @@ class EnhancedContentHandler:
                 
                 # Initialize generator
                 generator_instance = generator_class()
-                self.ultra_cheap_generators[content_type] = generator_instance
+                
+                # ✅ FIXED: Store with method info for correct method calls
+                self.ultra_cheap_generators[content_type] = {
+                    "instance": generator_instance,
+                    "method": config["method"]
+                }
                 
                 logger.info(f"✅ Ultra-cheap generator loaded: {content_type}")
                 
@@ -141,29 +150,58 @@ class EnhancedContentHandler:
         intelligence_data: Dict[str, Any],
         preferences: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """Generate content using ultra-cheap AI with Railway compatibility"""
+        """Generate content using ultra-cheap AI with Railway compatibility - FIXED"""
         
         if preferences is None:
             preferences = {}
         
-        # Check if we have an ultra-cheap generator for this content type
-        if content_type in self.ultra_cheap_generators:
-            generator = self.ultra_cheap_generators[content_type]
-            
-            try:
-                # Use compatibility layer for safe generation
-                result = await self.compatibility_layer.safe_generator_call(
-                    generator, "generate_content", intelligence_data, preferences
-                )
-                
-                if result and not result.get("error"):
-                    logger.info(f"✅ Ultra-cheap AI generation successful for {content_type}")
-                    return result
-                else:
-                    logger.warning(f"⚠️ Ultra-cheap generation failed for {content_type}, using fallback")
+        logger.info(f"🚂 Railway compatibility generation: {content_type}")
+        
+        try:
+            # ✅ FIXED: Use specific generator methods with correct parameters
+            if content_type == "email_sequence":
+                if "email_sequence" in self.ultra_cheap_generators:
+                    gen_info = self.ultra_cheap_generators["email_sequence"]
+                    generator = gen_info["instance"]
+                    method_name = gen_info["method"]  # "generate_email_sequence"
                     
-            except Exception as e:
-                logger.error(f"❌ Ultra-cheap generator error for {content_type}: {str(e)}")
+                    result = await self.compatibility_layer.safe_generator_call(
+                        generator, method_name, intelligence_data, preferences
+                    )
+                    if result and not result.get("error"):
+                        logger.info(f"✅ Ultra-cheap AI generation successful for {content_type}")
+                        return result
+                
+            elif content_type == "ad_copy":
+                if "ad_copy" in self.ultra_cheap_generators:
+                    gen_info = self.ultra_cheap_generators["ad_copy"]
+                    generator = gen_info["instance"]
+                    method_name = gen_info["method"]  # "generate_ad_copy"
+                    
+                    result = await self.compatibility_layer.safe_generator_call(
+                        generator, method_name, intelligence_data, preferences
+                    )
+                    if result and not result.get("error"):
+                        logger.info(f"✅ Ultra-cheap AI generation successful for {content_type}")
+                        return result
+                
+            elif content_type in ["SOCIAL_POSTS", "social_media"]:
+                if "social_media" in self.ultra_cheap_generators:
+                    gen_info = self.ultra_cheap_generators["social_media"]
+                    generator = gen_info["instance"]
+                    method_name = gen_info["method"]  # "generate_social_posts"
+                    
+                    result = await self.compatibility_layer.safe_generator_call(
+                        generator, method_name, intelligence_data, preferences
+                    )
+                    if result and not result.get("error"):
+                        logger.info(f"✅ Ultra-cheap AI generation successful for {content_type}")
+                        return result
+            
+            logger.warning(f"⚠️ Ultra-cheap generation not available for {content_type}, using fallback")
+                
+        except Exception as e:
+            logger.error(f"❌ Ultra-cheap generator error for {content_type}: {str(e)}")
         
         # Fallback to basic response
         return self._create_compatibility_fallback(content_type, intelligence_data, preferences)
