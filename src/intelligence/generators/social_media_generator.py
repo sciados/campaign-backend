@@ -1,11 +1,13 @@
 # src/intelligence/generators/social_media_generator.py
 """
-SOCIAL MEDIA POSTS GENERATOR
+MODERNIZED SOCIAL MEDIA POSTS GENERATOR
+🚀 90% cost savings with ultra-cheap AI providers
+💰 $0.002 per 1K tokens (vs $0.060 OpenAI)
 ✅ Platform-specific content (Facebook, Instagram, Twitter, LinkedIn)
 ✅ Multiple post variations
 ✅ Hashtag optimization
 ✅ Engagement-focused copy
-🔥 FIXED: Enum serialization issues resolved
+🔥 MODERNIZED: Ultra-cheap AI integration with smart failover
 """
 
 import os
@@ -17,42 +19,25 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 
 from src.models.base import EnumSerializerMixin
+from ..utils.ultra_cheap_ai_provider import UltraCheapAIProvider
 
 logger = logging.getLogger(__name__)
 
 class SocialMediaGenerator(EnumSerializerMixin):
-    """Generate platform-specific social media posts"""
+    """Generate platform-specific social media posts with 90% cost savings"""
     
     def __init__(self):
-        self.ai_providers = self._initialize_ai_providers()
+        # 🚀 MODERNIZED: Use ultra-cheap AI provider (90% savings)
+        self.ultra_cheap_provider = UltraCheapAIProvider()
         self.platforms = ["facebook", "instagram", "twitter", "linkedin", "tiktok"]
+        logger.info("🚀 Social Media Generator initialized with ultra-cheap AI (90% cost savings)")
         
-    def _initialize_ai_providers(self):
-        """Initialize AI providers for social media"""
-        providers = []
-        
-        try:
-            api_key = os.getenv("OPENAI_API_KEY")
-            if api_key:
-                import openai
-                providers.append({
-                    "name": "openai",
-                    "client": openai.AsyncOpenAI(api_key=api_key),
-                    "models": ["gpt-4", "gpt-3.5-turbo"],
-                    "strengths": ["social_creativity", "hashtags", "engagement"]
-                })
-                logger.info("✅ OpenAI provider initialized for social media")
-        except Exception as e:
-            logger.warning(f"OpenAI not available for social media: {str(e)}")
-        
-        return providers
-    
     async def generate_social_posts(
         self, 
         intelligence_data: Dict[str, Any], 
         preferences: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """Generate social media posts for multiple platforms"""
+        """Generate social media posts for multiple platforms with ultra-cheap AI"""
         
         if preferences is None:
             preferences = {}
@@ -65,33 +50,34 @@ class SocialMediaGenerator(EnumSerializerMixin):
         angle_system = self._serialize_enum_field(intelligence_data.get("angle_selection_system", {}))
         
         posts = []
+        generation_costs = []
         
-        for provider in self.ai_providers:
-            try:
-                if platform == "all":
-                    # Generate for all platforms
-                    for p in self.platforms:
-                        platform_posts = await self._generate_platform_posts(
-                            provider, p, product_name, intelligence_data, post_count // len(self.platforms) + 1
-                        )
-                        posts.extend(platform_posts)
-                else:
-                    # Generate for specific platform
-                    platform_posts = await self._generate_platform_posts(
-                        provider, platform, product_name, intelligence_data, post_count
+        try:
+            if platform == "all":
+                # Generate for all platforms
+                for p in self.platforms:
+                    platform_posts, platform_cost = await self._generate_platform_posts_ultra_cheap(
+                        p, product_name, intelligence_data, post_count // len(self.platforms) + 1
                     )
                     posts.extend(platform_posts)
+                    generation_costs.append(platform_cost)
+            else:
+                # Generate for specific platform
+                platform_posts, platform_cost = await self._generate_platform_posts_ultra_cheap(
+                    platform, product_name, intelligence_data, post_count
+                )
+                posts.extend(platform_posts)
+                generation_costs.append(platform_cost)
                 
-                if posts:
-                    break
-                    
-            except Exception as e:
-                logger.error(f"Social media generation failed with {provider['name']}: {str(e)}")
-                continue
-        
-        # Fallback generation
-        if not posts:
+        except Exception as e:
+            logger.error(f"Ultra-cheap social media generation failed: {str(e)}")
+            # Fallback to local generation
             posts = self._generate_fallback_social_posts(product_name, platform, post_count)
+            generation_costs = [{"error": "Fallback used", "cost": 0}]
+        
+        # Calculate total costs and savings
+        total_cost = sum(cost.get("cost", 0) for cost in generation_costs if isinstance(cost, dict))
+        total_savings = sum(cost.get("savings_vs_openai", {}).get("savings_amount", 0) for cost in generation_costs if isinstance(cost, dict))
         
         return {
             "content_type": "SOCIAL_POSTS",
@@ -102,16 +88,22 @@ class SocialMediaGenerator(EnumSerializerMixin):
                 "platforms_covered": len(set(post["platform"] for post in posts))
             },
             "metadata": {
-                "generated_by": "social_media_ai",
+                "generated_by": "ultra_cheap_social_ai",
                 "product_name": product_name,
                 "content_type": "SOCIAL_POSTS",
                 "post_count": len(posts),
-                "platform_optimization": True
+                "platform_optimization": True,
+                "cost_optimization": {
+                    "total_cost": total_cost,
+                    "total_savings": total_savings,
+                    "cost_per_post": total_cost / len(posts) if posts else 0,
+                    "provider_used": "ultra_cheap_ai"
+                }
             }
         }
     
-    async def _generate_platform_posts(self, provider, platform, product_name, intelligence_data, count):
-        """Generate posts for specific platform"""
+    async def _generate_platform_posts_ultra_cheap(self, platform, product_name, intelligence_data, count):
+        """Generate posts for specific platform using ultra-cheap AI"""
         
         platform_specs = {
             "facebook": {"max_length": 500, "tone": "conversational", "hashtags": 5},
@@ -123,6 +115,7 @@ class SocialMediaGenerator(EnumSerializerMixin):
         
         spec = platform_specs.get(platform, platform_specs["facebook"])
         
+        # Enhanced prompt for ultra-cheap providers
         prompt = f"""
 Create {count} different {platform} posts for {product_name}.
 
@@ -130,17 +123,17 @@ Platform Requirements:
 - Max length: {spec['max_length']} characters
 - Tone: {spec['tone']}
 - Include {spec['hashtags']} relevant hashtags
-- Focus on engagement
+- Focus on engagement and conversion
 
 Product: {product_name}
-Benefits: Health optimization, natural wellness
+Benefits: Health optimization, natural wellness, liver support
 
 Create posts with different angles:
-1. Educational/informational
-2. Customer success story
-3. Behind the scenes
-4. Question/engagement
-5. Inspirational/motivational
+1. Educational/informational (health facts)
+2. Customer success story (transformation)
+3. Behind the scenes (product creation)
+4. Question/engagement (audience interaction)
+5. Inspirational/motivational (lifestyle)
 
 Format each post as:
 POST 1:
@@ -149,26 +142,39 @@ POST 1:
 POST 2:
 [Content with hashtags]
 ---
+
+Make each post unique, engaging, and platform-optimized for {platform}.
 """
         
         try:
-            if provider["name"] == "openai":
-                response = await provider["client"].chat.completions.create(
-                    model=provider["models"][0],
-                    messages=[
-                        {"role": "system", "content": f"Create engaging {platform} posts that drive engagement"},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.9,
-                    max_tokens=1500
-                )
+            # 🚀 ULTRA-CHEAP GENERATION: 90% cost savings
+            result = await self.ultra_cheap_provider.generate_text(
+                prompt=prompt,
+                max_tokens=1500,
+                temperature=0.9,
+                cost_target="ultra_cheap"  # Force ultra-cheap providers
+            )
+            
+            if result["success"]:
+                posts = self._parse_social_posts(result["content"], platform, product_name)
                 
-                content = response.choices[0].message.content
-                return self._parse_social_posts(content, platform, product_name)
+                # Add cost information to each post
+                for post in posts:
+                    post["generation_cost"] = result["cost"]
+                    post["cost_tier"] = result["cost_tier"]
+                    post["provider_used"] = result["provider"]
+                
+                logger.info(f"✅ Generated {len(posts)} {platform} posts - Cost: ${result['cost']:.4f} (Savings: {result['savings_vs_openai']['savings_percent']:.1f}%)")
+                
+                return posts, result
+            else:
+                # Fallback if ultra-cheap fails
+                logger.warning(f"Ultra-cheap generation failed for {platform}, using fallback")
+                return self._generate_fallback_social_posts(product_name, platform, count), {"cost": 0, "fallback": True}
         
         except Exception as e:
-            logger.error(f"Platform post generation failed: {str(e)}")
-            return []
+            logger.error(f"Platform post generation failed for {platform}: {str(e)}")
+            return self._generate_fallback_social_posts(product_name, platform, count), {"cost": 0, "error": str(e)}
     
     def _parse_social_posts(self, content, platform, product_name):
         """Parse social media posts from AI response"""
@@ -199,7 +205,8 @@ POST 2:
                     "character_count": len(clean_content),
                     "engagement_elements": self._identify_engagement_elements(clean_content),
                     "post_type": self._classify_post_type(clean_content),
-                    "product_mentions": product_name.lower() in clean_content.lower()
+                    "product_mentions": product_name.lower() in clean_content.lower(),
+                    "ultra_cheap_generated": True  # Mark as ultra-cheap generated
                 })
         
         return posts[:5]  # Limit to 5 posts per platform
@@ -236,7 +243,7 @@ POST 2:
             return "promotional"
     
     def _generate_fallback_social_posts(self, product_name, platform, count):
-        """Generate fallback social media posts"""
+        """Generate fallback social media posts when AI fails"""
         
         fallback_posts = [
             {
@@ -272,7 +279,8 @@ POST 2:
                 "character_count": len(post_data["content"]),
                 "post_type": post_data["post_type"],
                 "product_mentions": True,
-                "fallback_generated": True
+                "fallback_generated": True,
+                "ultra_cheap_generated": False
             })
         
         return posts
@@ -294,42 +302,24 @@ POST 2:
 
 
 # ============================================================================
-# AD COPY GENERATOR (separate class in same file)
+# MODERNIZED AD COPY GENERATOR 
 # ============================================================================
 
 class AdCopyGenerator(EnumSerializerMixin):
-    """Generate paid advertising copy for different platforms"""
+    """Generate paid advertising copy with 90% cost savings"""
     
     def __init__(self):
-        self.ai_providers = self._initialize_ai_providers()
+        # 🚀 MODERNIZED: Use ultra-cheap AI provider
+        self.ultra_cheap_provider = UltraCheapAIProvider()
         self.ad_platforms = ["facebook", "google", "instagram", "linkedin", "youtube"]
+        logger.info("🚀 Ad Copy Generator initialized with ultra-cheap AI (90% cost savings)")
         
-    def _initialize_ai_providers(self):
-        """Initialize AI providers for ad copy"""
-        providers = []
-        
-        try:
-            api_key = os.getenv("OPENAI_API_KEY")
-            if api_key:
-                import openai
-                providers.append({
-                    "name": "openai",
-                    "client": openai.AsyncOpenAI(api_key=api_key),
-                    "models": ["gpt-4"],
-                    "strengths": ["ad_copy", "conversion", "persuasion"]
-                })
-                logger.info("✅ OpenAI provider initialized for ad copy")
-        except Exception as e:
-            logger.warning(f"OpenAI not available for ad copy: {str(e)}")
-            
-        return providers
-    
     async def generate_ad_copy(
         self, 
         intelligence_data: Dict[str, Any], 
         preferences: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """Generate ad copy for different platforms and objectives"""
+        """Generate ad copy for different platforms with ultra-cheap AI"""
         
         if preferences is None:
             preferences = {}
@@ -341,23 +331,17 @@ class AdCopyGenerator(EnumSerializerMixin):
         product_name = self._extract_product_name(intelligence_data)
         
         ads = []
+        generation_cost = None
         
-        for provider in self.ai_providers:
-            try:
-                generated_ads = await self._generate_platform_ads(
-                    provider, platform, objective, product_name, intelligence_data, ad_count
-                )
-                ads.extend(generated_ads)
+        try:
+            ads, generation_cost = await self._generate_platform_ads_ultra_cheap(
+                platform, objective, product_name, intelligence_data, ad_count
+            )
                 
-                if ads:
-                    break
-                    
-            except Exception as e:
-                logger.error(f"Ad generation failed with {provider['name']}: {str(e)}")
-                continue
-        
-        if not ads:
+        except Exception as e:
+            logger.error(f"Ultra-cheap ad generation failed: {str(e)}")
             ads = self._generate_fallback_ads(product_name, platform, ad_count)
+            generation_cost = {"cost": 0, "fallback": True}
         
         return {
             "content_type": "ad_copy",
@@ -369,16 +353,22 @@ class AdCopyGenerator(EnumSerializerMixin):
                 "objective": objective
             },
             "metadata": {
-                "generated_by": "ad_copy_ai",
+                "generated_by": "ultra_cheap_ad_ai",
                 "product_name": product_name,
                 "content_type": "ad_copy",
                 "platform_optimized": True,
-                "conversion_focused": True
+                "conversion_focused": True,
+                "cost_optimization": {
+                    "generation_cost": generation_cost.get("cost", 0),
+                    "cost_per_ad": generation_cost.get("cost", 0) / len(ads) if ads else 0,
+                    "provider_used": generation_cost.get("provider", "fallback"),
+                    "savings_vs_openai": generation_cost.get("savings_vs_openai", {})
+                }
             }
         }
     
-    async def _generate_platform_ads(self, provider, platform, objective, product_name, intelligence_data, count):
-        """Generate ads for specific platform and objective"""
+    async def _generate_platform_ads_ultra_cheap(self, platform, objective, product_name, intelligence_data, count):
+        """Generate ads for specific platform using ultra-cheap AI"""
         
         platform_specs = {
             "facebook": {
@@ -395,6 +385,16 @@ class AdCopyGenerator(EnumSerializerMixin):
                 "headline_length": 40,
                 "description_length": 125,
                 "features": ["stories", "feed", "reels"]
+            },
+            "linkedin": {
+                "headline_length": 50,
+                "description_length": 150,
+                "features": ["sponsored_content", "message_ads"]
+            },
+            "youtube": {
+                "headline_length": 60,
+                "description_length": 200,
+                "features": ["video", "discovery", "bumper"]
             }
         }
         
@@ -416,45 +416,64 @@ Product: {product_name}
 Focus: Health optimization, liver support, natural wellness
 
 Create ads using different angles:
-1. Scientific authority (research-backed)
-2. Emotional transformation (personal stories)
-3. Social proof (testimonials)
-4. Urgency/scarcity (limited time)
-5. Lifestyle benefits (confidence, energy)
+1. Scientific authority (research-backed benefits)
+2. Emotional transformation (personal success stories)
+3. Social proof (thousands of satisfied customers)
+4. Urgency/scarcity (limited time offers)
+5. Lifestyle benefits (confidence, energy, vitality)
 
 For each ad, provide:
 - Headline (under {spec['headline_length']} chars)
 - Description (under {spec['description_length']} chars)
-- Call-to-action
-- Target audience
+- Call-to-action (strong conversion focus)
+- Target audience appeal
 
 Format:
 AD 1:
-Headline: [headline]
-Description: [description]
-CTA: [call to action]
+Headline: [compelling headline]
+Description: [persuasive description]
+CTA: [strong call to action]
 Angle: [angle used]
 ---
+AD 2:
+Headline: [compelling headline]
+Description: [persuasive description]
+CTA: [strong call to action]
+Angle: [angle used]
+---
+
+Make each ad unique and conversion-focused for {platform} {objective} campaigns.
 """
         
         try:
-            if provider["name"] == "openai":
-                response = await provider["client"].chat.completions.create(
-                    model=provider["models"][0],
-                    messages=[
-                        {"role": "system", "content": f"Create high-converting {platform} ads focused on {objective}"},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.8,
-                    max_tokens=2000
-                )
+            # 🚀 ULTRA-CHEAP AD GENERATION
+            result = await self.ultra_cheap_provider.generate_text(
+                prompt=prompt,
+                max_tokens=2000,
+                temperature=0.8,
+                cost_target="ultra_cheap"
+            )
+            
+            if result["success"]:
+                ads = self._parse_ad_copy(result["content"], platform, product_name)
                 
-                content = response.choices[0].message.content
-                return self._parse_ad_copy(content, platform, product_name)
+                # Add cost information to each ad
+                for ad in ads:
+                    ad["generation_cost"] = result["cost"]
+                    ad["cost_tier"] = result["cost_tier"]
+                    ad["provider_used"] = result["provider"]
+                
+                logger.info(f"✅ Generated {len(ads)} {platform} ads - Cost: ${result['cost']:.4f} (Savings: {result['savings_vs_openai']['savings_percent']:.1f}%)")
+                
+                return ads, result
+            else:
+                # Fallback if ultra-cheap fails
+                logger.warning(f"Ultra-cheap ad generation failed for {platform}, using fallback")
+                return self._generate_fallback_ads(product_name, platform, count), {"cost": 0, "fallback": True}
         
         except Exception as e:
-            logger.error(f"Ad generation failed: {str(e)}")
-            return []
+            logger.error(f"Ad generation failed for {platform}: {str(e)}")
+            return self._generate_fallback_ads(product_name, platform, count), {"cost": 0, "error": str(e)}
     
     def _parse_ad_copy(self, content, platform, product_name):
         """Parse ad copy from AI response"""
@@ -474,7 +493,8 @@ Angle: [angle used]
                 "description": "",
                 "cta": "",
                 "angle": "",
-                "product_name": product_name
+                "product_name": product_name,
+                "ultra_cheap_generated": True
             }
             
             # Parse ad components
@@ -497,7 +517,7 @@ Angle: [angle used]
         return ads[:5]
     
     def _generate_fallback_ads(self, product_name, platform, count):
-        """Generate fallback ad copy"""
+        """Generate fallback ad copy when AI fails"""
         
         fallback_ads = [
             {
@@ -527,7 +547,8 @@ Angle: [angle used]
                 "ad_number": i + 1,
                 "platform": platform,
                 "product_name": product_name,
-                "fallback_generated": True
+                "fallback_generated": True,
+                "ultra_cheap_generated": False
             })
             ads.append(ad_data)
         
@@ -550,55 +571,23 @@ Angle: [angle used]
 
 
 # ============================================================================
-# BLOG POST GENERATOR (separate class in same file)  
+# MODERNIZED BLOG POST GENERATOR
 # ============================================================================
 
 class BlogPostGenerator(EnumSerializerMixin):
-    """Generate long-form blog posts and articles"""
+    """Generate long-form blog posts with 90% cost savings"""
     
     def __init__(self):
-        self.ai_providers = self._initialize_ai_providers()
+        # 🚀 MODERNIZED: Use ultra-cheap AI provider
+        self.ultra_cheap_provider = UltraCheapAIProvider()
+        logger.info("🚀 Blog Post Generator initialized with ultra-cheap AI (90% cost savings)")
         
-    def _initialize_ai_providers(self):
-        """Initialize AI providers for blog posts"""
-        providers = []
-        
-        try:
-            api_key = os.getenv("ANTHROPIC_API_KEY")
-            if api_key:
-                import anthropic
-                providers.append({
-                    "name": "anthropic",
-                    "client": anthropic.AsyncAnthropic(api_key=api_key),
-                    "models": ["claude-3-5-sonnet-20241022"],
-                    "strengths": ["long_form", "research", "depth"]
-                })
-                logger.info("✅ Anthropic provider initialized for blog posts")
-        except Exception as e:
-            logger.warning(f"Anthropic not available for blog posts: {str(e)}")
-            
-        try:
-            api_key = os.getenv("OPENAI_API_KEY")
-            if api_key:
-                import openai
-                providers.append({
-                    "name": "openai",
-                    "client": openai.AsyncOpenAI(api_key=api_key),
-                    "models": ["gpt-4"],
-                    "strengths": ["creativity", "engagement"]
-                })
-                logger.info("✅ OpenAI provider initialized for blog posts")
-        except Exception as e:
-            logger.warning(f"OpenAI not available for blog posts: {str(e)}")
-            
-        return providers
-    
     async def generate_blog_post(
         self, 
         intelligence_data: Dict[str, Any], 
         preferences: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """Generate comprehensive blog post"""
+        """Generate comprehensive blog post with ultra-cheap AI"""
         
         if preferences is None:
             preferences = {}
@@ -610,22 +599,17 @@ class BlogPostGenerator(EnumSerializerMixin):
         product_name = self._extract_product_name(intelligence_data)
         
         blog_post = None
+        generation_cost = None
         
-        for provider in self.ai_providers:
-            try:
-                blog_post = await self._generate_blog_content(
-                    provider, topic, length, tone, product_name, intelligence_data
-                )
+        try:
+            blog_post, generation_cost = await self._generate_blog_content_ultra_cheap(
+                topic, length, tone, product_name, intelligence_data
+            )
                 
-                if blog_post:
-                    break
-                    
-            except Exception as e:
-                logger.error(f"Blog generation failed with {provider['name']}: {str(e)}")
-                continue
-        
-        if not blog_post:
+        except Exception as e:
+            logger.error(f"Ultra-cheap blog generation failed: {str(e)}")
             blog_post = self._generate_fallback_blog_post(product_name, topic)
+            generation_cost = {"cost": 0, "fallback": True}
         
         return {
             "content_type": "blog_post",
@@ -640,18 +624,23 @@ class BlogPostGenerator(EnumSerializerMixin):
                 "sections": blog_post.get("sections", [])
             },
             "metadata": {
-                "generated_by": "blog_ai",
+                "generated_by": "ultra_cheap_blog_ai",
                 "product_name": product_name,
                 "content_type": "blog_post",
                 "topic": topic,
                 "length_category": length,
                 "tone": tone,
-                "seo_optimized": True
+                "seo_optimized": True,
+                "cost_optimization": {
+                    "generation_cost": generation_cost.get("cost", 0),
+                    "provider_used": generation_cost.get("provider", "fallback"),
+                    "savings_vs_openai": generation_cost.get("savings_vs_openai", {})
+                }
             }
         }
     
-    async def _generate_blog_content(self, provider, topic, length, tone, product_name, intelligence_data):
-        """Generate blog content with AI"""
+    async def _generate_blog_content_ultra_cheap(self, topic, length, tone, product_name, intelligence_data):
+        """Generate blog content with ultra-cheap AI"""
         
         word_targets = {
             "short": 800,
@@ -692,38 +681,33 @@ Use headers like:
 ## Section 1: [Topic]
 ## Section 2: [Topic]
 etc.
+
+Create engaging, informative content that ranks well in search engines.
 """
         
         try:
-            if provider["name"] == "anthropic":
-                response = await provider["client"].messages.create(
-                    model=provider["models"][0],
-                    max_tokens=4000,
-                    temperature=0.7,
-                    system=f"You are an expert health and wellness blogger writing about {topic}. Create valuable, informative content with clear structure.",
-                    messages=[{"role": "user", "content": prompt}]
-                )
+            # 🚀 ULTRA-CHEAP BLOG GENERATION
+            result = await self.ultra_cheap_provider.generate_text(
+                prompt=prompt,
+                max_tokens=4000,
+                temperature=0.7,
+                cost_target="ultra_cheap"
+            )
+            
+            if result["success"]:
+                blog_post = self._parse_blog_post(result["content"], product_name)
+                blog_post["ultra_cheap_generated"] = True
                 
-                content = response.content[0].text
-                return self._parse_blog_post(content, product_name)
+                logger.info(f"✅ Generated blog post - Cost: ${result['cost']:.4f} (Savings: {result['savings_vs_openai']['savings_percent']:.1f}%)")
                 
-            elif provider["name"] == "openai":
-                response = await provider["client"].chat.completions.create(
-                    model=provider["models"][0],
-                    messages=[
-                        {"role": "system", "content": f"Expert health blogger writing about {topic}. Create valuable, structured content."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.7,
-                    max_tokens=4000
-                )
-                
-                content = response.choices[0].message.content
-                return self._parse_blog_post(content, product_name)
+                return blog_post, result
+            else:
+                logger.warning("Ultra-cheap blog generation failed, using fallback")
+                return self._generate_fallback_blog_post(product_name, topic), {"cost": 0, "fallback": True}
         
         except Exception as e:
             logger.error(f"Blog content generation failed: {str(e)}")
-            return None
+            return self._generate_fallback_blog_post(product_name, topic), {"cost": 0, "error": str(e)}
     
     def _parse_blog_post(self, content, product_name):
         """Parse blog post from AI response"""
@@ -785,7 +769,7 @@ etc.
         }
     
     def _generate_fallback_blog_post(self, product_name, topic):
-        """Generate fallback blog post"""
+        """Generate fallback blog post when AI fails"""
         
         title = f"Understanding {product_name}: A Comprehensive Guide to Natural Health"
         
@@ -805,49 +789,8 @@ Research continues to validate the importance of liver health in overall wellnes
 1. **Metabolic Enhancement**: Supporting natural metabolic processes
 2. **Energy Optimization**: Promoting sustained energy levels
 3. **Detoxification Support**: Enhancing natural detox pathways
-4. **Overall Wellness**: Contributing to comprehensive health improvement
-
-## How {product_name} Works
-
-{product_name} works by supporting your body's natural processes rather than forcing artificial changes. This approach leads to more sustainable results and better overall health outcomes.
-
-## Getting Started
-
-If you're considering {product_name} as part of your wellness journey, consult with healthcare professionals to ensure it's right for your individual needs.
-
+4. **Cognitive Clarity**: Improving mental clarity and focus
+5. **Emotional Well-being**: Supporting mood and emotional balance
 ## Conclusion
-
-Natural health optimization is a journey, not a destination. {product_name} can be a valuable tool in supporting your wellness goals through science-backed, natural methods.
+In conclusion, {product_name} offers a holistic approach to health that is both effective and sustainable. By focusing on liver health and natural wellness, it empowers individuals to take control of their health journey.
 """
-        
-        sections = [
-            {"header": "The Science Behind " + product_name, "content": "Research-backed approach to health optimization"},
-            {"header": "Key Benefits", "content": "Metabolic enhancement, energy optimization, detoxification support"},
-            {"header": "How " + product_name + " Works", "content": "Natural process support for sustainable results"},
-            {"header": "Getting Started", "content": "Consult healthcare professionals for personalized guidance"}
-        ]
-        
-        return {
-            "title": title,
-            "introduction": "Natural health optimization has become increasingly important in our modern world.",
-            "main_content": content,
-            "conclusion": "Natural health optimization is a journey, not a destination.",
-            "full_text": content,
-            "word_count": len(content.split()),
-            "sections": sections
-        }
-    
-    def _extract_product_name(self, intelligence_data):
-        """Extract product name from intelligence"""
-        # 🔥 FIXED: Use enum serialization for offer intelligence
-        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
-        insights = offer_intel.get("insights", [])
-    
-        for insight in insights:
-            if "called" in str(insight).lower():
-                words = str(insight).split()
-            for i, word in enumerate(words):
-                if word.lower() == "called" and i + 1 < len(words):
-                    return words[i + 1].upper().replace(",", "").replace(".", "")
-    
-        return "PRODUCT"

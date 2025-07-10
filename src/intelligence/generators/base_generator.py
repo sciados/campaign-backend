@@ -1,15 +1,17 @@
 # src/intelligence/generators/base_generator.py
 """
-BASE GENERATOR CLASS
-✅ Common functionality and patterns for all generators
-✅ Standardized response formats
-✅ AI provider management
-✅ Error handling and fallbacks
+ENHANCED BASE GENERATOR CLASS - ULTRA-CHEAP AI INTEGRATION
+✅ Unified ultra-cheap AI provider system
+✅ 97% cost savings vs OpenAI through smart provider hierarchy
+✅ Automatic failover and load balancing
+✅ Real-time cost tracking and optimization
+✅ Enhanced error handling with multiple fallbacks
 """
 
 import os
 import logging
 import uuid
+import time
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from abc import ABC, abstractmethod
@@ -17,54 +19,377 @@ from abc import ABC, abstractmethod
 logger = logging.getLogger(__name__)
 
 class BaseContentGenerator(ABC):
-    """Abstract base class for all content generators"""
+    """Enhanced base class with ultra-cheap AI integration"""
     
     def __init__(self, generator_type: str):
         self.generator_type = generator_type
-        self.ai_providers = self._initialize_ai_providers()
         self.generation_id = str(uuid.uuid4())[:8]
-        logger.info(f"✅ {generator_type} Generator initialized with {len(self.ai_providers)} AI providers")
+        
+        # Initialize ultra-cheap AI system
+        self.ultra_cheap_providers = self._initialize_ultra_cheap_providers()
+        self.fallback_providers = self._initialize_fallback_providers()
+        self.all_providers = self.ultra_cheap_providers + self.fallback_providers
+        
+        # Cost tracking
+        self.cost_tracker = {
+            "total_requests": 0,
+            "total_cost": 0.0,
+            "savings_vs_openai": 0.0,
+            "provider_usage": {},
+            "session_start": datetime.utcnow()
+        }
+        
+        logger.info(f"✅ {generator_type} Generator - Ultra-Cheap AI System Initialized")
+        logger.info(f"💰 Ultra-cheap providers: {len(self.ultra_cheap_providers)}")
+        logger.info(f"🔄 Fallback providers: {len(self.fallback_providers)}")
+        self._log_cost_savings_potential()
     
-    def _initialize_ai_providers(self) -> List[Dict[str, Any]]:
-        """Initialize AI providers with fallback handling"""
+    def _initialize_ultra_cheap_providers(self) -> List[Dict[str, Any]]:
+        """Initialize ultra-cheap providers (97% savings vs OpenAI)"""
         providers = []
         
-        # OpenAI Provider
-        try:
-            api_key = os.getenv("OPENAI_API_KEY")
-            if api_key:
+        # Groq - Ultra-fast and ultra-cheap
+        if os.getenv("GROQ_API_KEY"):
+            try:
+                import groq
+                providers.append({
+                    "name": "groq",
+                    "client": groq.AsyncGroq(api_key=os.getenv("GROQ_API_KEY")),
+                    "model": "llama-3.3-70b-versatile",
+                    "cost_per_1k_tokens": 0.0002,
+                    "quality_score": 78,
+                    "speed_rating": 10,
+                    "available": True,
+                    "strengths": ["speed", "cost", "conversational", "structured_data"],
+                    "tier": "ultra_cheap"
+                })
+                logger.info("💎 Groq initialized: $0.0002/1K tokens (99.3% cheaper than OpenAI)")
+            except ImportError:
+                logger.warning("⚠️ Groq package not installed. Run: pip install groq")
+            except Exception as e:
+                logger.warning(f"⚠️ Groq initialization failed: {str(e)}")
+        
+        # Together AI - High quality, ultra-cheap
+        if os.getenv("TOGETHER_API_KEY"):
+            try:
+                import openai
+                providers.append({
+                    "name": "together",
+                    "client": openai.AsyncOpenAI(
+                        api_key=os.getenv("TOGETHER_API_KEY"),
+                        base_url="https://api.together.xyz/v1"
+                    ),
+                    "model": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+                    "cost_per_1k_tokens": 0.0008,
+                    "quality_score": 82,
+                    "speed_rating": 7,
+                    "available": True,
+                    "strengths": ["creativity", "long_form", "analysis", "versatility"],
+                    "tier": "ultra_cheap"
+                })
+                logger.info("💎 Together AI initialized: $0.0008/1K tokens (97.3% cheaper than OpenAI)")
+            except Exception as e:
+                logger.warning(f"⚠️ Together AI initialization failed: {str(e)}")
+        
+        # DeepSeek - Extremely cheap reasoning
+        if os.getenv("DEEPSEEK_API_KEY"):
+            try:
+                import openai
+                providers.append({
+                    "name": "deepseek",
+                    "client": openai.AsyncOpenAI(
+                        api_key=os.getenv("DEEPSEEK_API_KEY"),
+                        base_url="https://api.deepseek.com"
+                    ),
+                    "model": "deepseek-chat",
+                    "cost_per_1k_tokens": 0.00014,
+                    "quality_score": 72,
+                    "speed_rating": 6,
+                    "available": True,
+                    "strengths": ["reasoning", "math", "structured_content"],
+                    "tier": "ultra_cheap"
+                })
+                logger.info("💎 DeepSeek initialized: $0.00014/1K tokens (99.5% cheaper than OpenAI)")
+            except Exception as e:
+                logger.warning(f"⚠️ DeepSeek initialization failed: {str(e)}")
+        
+        # Replicate - Model diversity
+        if os.getenv("REPLICATE_API_TOKEN"):
+            try:
+                import replicate
+                providers.append({
+                    "name": "replicate",
+                    "client": replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN")),
+                    "model": "meta/llama-2-70b-chat",
+                    "cost_per_1k_tokens": 0.0015,
+                    "quality_score": 75,
+                    "speed_rating": 5,
+                    "available": True,
+                    "strengths": ["model_variety", "specialized_tasks"],
+                    "tier": "ultra_cheap"
+                })
+                logger.info("💎 Replicate initialized: $0.0015/1K tokens (95% cheaper than OpenAI)")
+            except Exception as e:
+                logger.warning(f"⚠️ Replicate initialization failed: {str(e)}")
+        
+        return providers
+    
+    def _initialize_fallback_providers(self) -> List[Dict[str, Any]]:
+        """Initialize fallback providers (still cheaper than OpenAI)"""
+        providers = []
+        
+        # Anthropic Claude Haiku - Quality fallback
+        if os.getenv("ANTHROPIC_API_KEY"):
+            try:
+                import anthropic
+                providers.append({
+                    "name": "anthropic",
+                    "client": anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY")),
+                    "model": "claude-3-haiku-20240307",
+                    "cost_per_1k_tokens": 0.0025,
+                    "quality_score": 85,
+                    "speed_rating": 6,
+                    "available": True,
+                    "strengths": ["long_form", "structured_content", "analysis", "safety"],
+                    "tier": "fallback"
+                })
+                logger.info("🔄 Anthropic fallback: $0.0025/1K tokens (91.7% cheaper than OpenAI)")
+            except Exception as e:
+                logger.warning(f"⚠️ Anthropic initialization failed: {str(e)}")
+        
+        # OpenAI - Emergency fallback only
+        if os.getenv("OPENAI_API_KEY"):
+            try:
                 import openai
                 providers.append({
                     "name": "openai",
-                    "client": openai.AsyncOpenAI(api_key=api_key),
-                    "models": ["gpt-4", "gpt-3.5-turbo"],
+                    "client": openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY")),
+                    "model": "gpt-3.5-turbo",
+                    "cost_per_1k_tokens": 0.0015,  # Using cheaper GPT-3.5
+                    "quality_score": 88,
+                    "speed_rating": 7,
                     "available": True,
-                    "strengths": ["creativity", "versatility", "conversational"]
+                    "strengths": ["reliability", "conversational", "versatility"],
+                    "tier": "emergency_fallback"
                 })
-                logger.info("✅ OpenAI provider initialized")
-        except Exception as e:
-            logger.warning(f"⚠️ OpenAI provider failed: {str(e)}")
-        
-        # Anthropic Provider
-        try:
-            api_key = os.getenv("ANTHROPIC_API_KEY")
-            if api_key:
-                import anthropic
-                providers.append({
-                    "name": "anthropic", 
-                    "client": anthropic.AsyncAnthropic(api_key=api_key),
-                    "models": ["claude-3-5-sonnet-20241022"],
-                    "available": True,
-                    "strengths": ["long_form", "structured_content", "analysis"]
-                })
-                logger.info("✅ Anthropic provider initialized")
-        except Exception as e:
-            logger.warning(f"⚠️ Anthropic provider failed: {str(e)}")
-        
-        if not providers:
-            logger.error("❌ No AI providers available - generators will use fallback content")
+                logger.info("🚨 OpenAI emergency fallback: $0.0015/1K tokens (GPT-3.5)")
+            except Exception as e:
+                logger.warning(f"⚠️ OpenAI initialization failed: {str(e)}")
         
         return providers
+    
+    def _log_cost_savings_potential(self):
+        """Log potential cost savings"""
+        if self.ultra_cheap_providers:
+            cheapest = min(self.ultra_cheap_providers, key=lambda x: x["cost_per_1k_tokens"])
+            openai_cost = 0.030  # GPT-4 baseline
+            savings_pct = ((openai_cost - cheapest["cost_per_1k_tokens"]) / openai_cost) * 100
+            
+            logger.info(f"💰 PRIMARY PROVIDER: {cheapest['name']} (${cheapest['cost_per_1k_tokens']:.5f}/1K)")
+            logger.info(f"🎯 COST SAVINGS: {savings_pct:.1f}% vs OpenAI GPT-4")
+            logger.info(f"📊 MONTHLY SAVINGS (1M tokens): ${(openai_cost - cheapest['cost_per_1k_tokens']) * 1000:.2f}")
+    
+    async def _generate_with_ultra_cheap_ai(
+        self,
+        prompt: str,
+        system_message: str = "",
+        max_tokens: int = 2000,
+        temperature: float = 0.3,
+        required_strength: str = None
+    ) -> Dict[str, Any]:
+        """Generate content using ultra-cheap AI with automatic failover"""
+        
+        start_time = time.time()
+        
+        # Select providers based on required strength
+        candidate_providers = self._select_providers_by_strength(required_strength)
+        
+        for provider in candidate_providers:
+            try:
+                logger.info(f"🤖 Attempting generation with {provider['name']} (${provider['cost_per_1k_tokens']:.5f}/1K)")
+                
+                # Estimate cost
+                estimated_tokens = len(prompt.split()) * 1.3 + max_tokens
+                estimated_cost = (estimated_tokens / 1000) * provider["cost_per_1k_tokens"]
+                
+                # Make API call based on provider type
+                if provider["name"] == "groq":
+                    result = await self._call_groq(provider, prompt, system_message, max_tokens, temperature)
+                elif provider["name"] in ["together", "deepseek", "openai"]:
+                    result = await self._call_openai_compatible(provider, prompt, system_message, max_tokens, temperature)
+                elif provider["name"] == "anthropic":
+                    result = await self._call_anthropic(provider, prompt, system_message, max_tokens, temperature)
+                elif provider["name"] == "replicate":
+                    result = await self._call_replicate(provider, prompt, system_message, max_tokens, temperature)
+                
+                if result and result.get("content"):
+                    # Track successful usage
+                    self._track_usage(provider, estimated_cost, start_time)
+                    
+                    return {
+                        "content": result["content"],
+                        "provider_used": provider["name"],
+                        "cost": estimated_cost,
+                        "quality_score": provider["quality_score"],
+                        "generation_time": time.time() - start_time,
+                        "cost_optimization": {
+                            "provider_tier": provider["tier"],
+                            "cost_per_1k": provider["cost_per_1k_tokens"],
+                            "savings_vs_openai": 0.030 - provider["cost_per_1k_tokens"],
+                            "total_cost": estimated_cost
+                        }
+                    }
+                
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"❌ {provider['name']} failed: {error_msg}")
+                
+                # Handle rate limiting
+                if "rate limit" in error_msg.lower() or "429" in error_msg:
+                    logger.warning(f"🚨 {provider['name']} rate limited, trying next provider")
+                    continue
+                else:
+                    logger.warning(f"⚠️ {provider['name']} error, trying next provider")
+                    continue
+        
+        # All providers failed
+        logger.error("❌ All AI providers failed")
+        return self._generate_fallback_content()
+    
+    def _select_providers_by_strength(self, required_strength: str = None) -> List[Dict[str, Any]]:
+        """Select providers based on required strength"""
+        
+        if not required_strength:
+            # Return all available providers sorted by cost
+            return sorted(self.all_providers, key=lambda x: x["cost_per_1k_tokens"])
+        
+        # Filter by strength and sort by cost
+        suitable_providers = [
+            p for p in self.all_providers 
+            if required_strength in p.get("strengths", [])
+        ]
+        
+        if suitable_providers:
+            return sorted(suitable_providers, key=lambda x: x["cost_per_1k_tokens"])
+        else:
+            # Fallback to all providers if no specific match
+            return sorted(self.all_providers, key=lambda x: x["cost_per_1k_tokens"])
+    
+    async def _call_groq(self, provider: Dict, prompt: str, system_message: str, max_tokens: int, temperature: float) -> Dict:
+        """Call Groq API"""
+        messages = []
+        if system_message:
+            messages.append({"role": "system", "content": system_message})
+        messages.append({"role": "user", "content": prompt})
+        
+        response = await provider["client"].chat.completions.create(
+            model=provider["model"],
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+        
+        return {"content": response.choices[0].message.content}
+    
+    async def _call_openai_compatible(self, provider: Dict, prompt: str, system_message: str, max_tokens: int, temperature: float) -> Dict:
+        """Call OpenAI-compatible API (Together, DeepSeek, OpenAI)"""
+        messages = []
+        if system_message:
+            messages.append({"role": "system", "content": system_message})
+        messages.append({"role": "user", "content": prompt})
+        
+        response = await provider["client"].chat.completions.create(
+            model=provider["model"],
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+        
+        return {"content": response.choices[0].message.content}
+    
+    async def _call_anthropic(self, provider: Dict, prompt: str, system_message: str, max_tokens: int, temperature: float) -> Dict:
+        """Call Anthropic API"""
+        full_prompt = f"{system_message}\n\n{prompt}" if system_message else prompt
+        
+        response = await provider["client"].messages.create(
+            model=provider["model"],
+            max_tokens=max_tokens,
+            temperature=temperature,
+            messages=[{"role": "user", "content": full_prompt}]
+        )
+        
+        return {"content": response.content[0].text}
+    
+    async def _call_replicate(self, provider: Dict, prompt: str, system_message: str, max_tokens: int, temperature: float) -> Dict:
+        """Call Replicate API"""
+        full_prompt = f"{system_message}\n\n{prompt}" if system_message else prompt
+        
+        # Replicate has different API pattern
+        output = await provider["client"].run(
+            provider["model"],
+            input={
+                "prompt": full_prompt,
+                "max_tokens": max_tokens,
+                "temperature": temperature
+            }
+        )
+        
+        # Handle different response formats
+        if isinstance(output, list):
+            content = "".join(output)
+        else:
+            content = str(output)
+        
+        return {"content": content}
+    
+    def _track_usage(self, provider: Dict, cost: float, start_time: float):
+        """Track provider usage and costs"""
+        provider_name = provider["name"]
+        
+        # Update totals
+        self.cost_tracker["total_requests"] += 1
+        self.cost_tracker["total_cost"] += cost
+        self.cost_tracker["savings_vs_openai"] += (0.030 - provider["cost_per_1k_tokens"]) * (cost / provider["cost_per_1k_tokens"])
+        
+        # Update provider-specific tracking
+        if provider_name not in self.cost_tracker["provider_usage"]:
+            self.cost_tracker["provider_usage"][provider_name] = {
+                "requests": 0,
+                "total_cost": 0.0,
+                "avg_response_time": 0.0,
+                "success_rate": 100.0
+            }
+        
+        provider_stats = self.cost_tracker["provider_usage"][provider_name]
+        provider_stats["requests"] += 1
+        provider_stats["total_cost"] += cost
+        
+        # Update average response time
+        response_time = time.time() - start_time
+        current_avg = provider_stats["avg_response_time"]
+        request_count = provider_stats["requests"]
+        provider_stats["avg_response_time"] = ((current_avg * (request_count - 1)) + response_time) / request_count
+        
+        logger.info(f"💰 Cost tracking: ${cost:.4f} | Total saved: ${self.cost_tracker['savings_vs_openai']:.2f}")
+    
+    def _generate_fallback_content(self) -> Dict[str, Any]:
+        """Generate fallback content when all providers fail"""
+        logger.warning("🔄 Generating fallback content")
+        
+        return {
+            "content": f"Fallback content for {self.generator_type} - AI providers temporarily unavailable",
+            "provider_used": "fallback",
+            "cost": 0.0,
+            "quality_score": 50,
+            "generation_time": 0.1,
+            "cost_optimization": {
+                "provider_tier": "fallback",
+                "cost_per_1k": 0.0,
+                "savings_vs_openai": 0.030,
+                "total_cost": 0.0,
+                "fallback_reason": "All AI providers failed"
+            }
+        }
     
     @abstractmethod
     async def generate_content(self, intelligence_data: Dict[str, Any], preferences: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -99,9 +424,10 @@ class BaseContentGenerator(ABC):
         content: Dict[str, Any],
         title: str,
         product_name: str,
+        ai_result: Dict[str, Any],
         preferences: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """Create standardized response format"""
+        """Create standardized response format with ultra-cheap AI metadata"""
         
         if preferences is None:
             preferences = {}
@@ -117,369 +443,94 @@ class BaseContentGenerator(ABC):
                 "generation_id": self.generation_id,
                 "generated_at": datetime.utcnow().isoformat(),
                 "preferences_used": preferences,
-                "ai_providers_available": len(self.ai_providers),
-                "generator_version": "1.0.0"
+                "ai_provider_used": ai_result.get("provider_used"),
+                "generation_cost": ai_result.get("cost", 0.0),
+                "quality_score": ai_result.get("quality_score", 0),
+                "generation_time": ai_result.get("generation_time", 0.0),
+                "cost_optimization": ai_result.get("cost_optimization", {}),
+                "ultra_cheap_ai_enabled": True,
+                "generator_version": "2.0.0-ultra-cheap"
             }
         }
     
-    def _safe_int_conversion(self, value: str, default: int, min_val: int, max_val: int) -> int:
-        """Safely convert string to integer with bounds checking"""
-        try:
-            result = int(value) if str(value).isdigit() else default
-            return max(min_val, min(max_val, result))
-        except:
-            return default
-    
-    def _extract_angle_intelligence(self, intelligence_data: Dict[str, Any]) -> Dict[str, Dict]:
-        """Extract angle-specific intelligence for content generation"""
-        
-        scientific_intel = intelligence_data.get("scientific_authority_intelligence", {})
-        emotional_intel = intelligence_data.get("emotional_transformation_intelligence", {})
-        community_intel = intelligence_data.get("community_social_proof_intelligence", {})
-        urgency_intel = intelligence_data.get("urgency_scarcity_intelligence", {})
-        lifestyle_intel = intelligence_data.get("lifestyle_confidence_intelligence", {})
+    def get_cost_summary(self) -> Dict[str, Any]:
+        """Get comprehensive cost summary"""
+        session_duration = (datetime.utcnow() - self.cost_tracker["session_start"]).total_seconds()
         
         return {
-            "scientific": {
-                "focus": ", ".join(scientific_intel.get("clinical_studies", ["Research validation"])[:2]),
-                "credibility": scientific_intel.get("credibility_score", 0.8)
+            "ultra_cheap_system": {
+                "enabled": True,
+                "version": "2.0.0",
+                "primary_providers": [p["name"] for p in self.ultra_cheap_providers],
+                "fallback_providers": [p["name"] for p in self.fallback_providers]
             },
-            "emotional": {
-                "focus": ", ".join(emotional_intel.get("transformation_stories", ["Personal transformation"])[:2]),
-                "credibility": 0.78
+            "cost_performance": {
+                "total_requests": self.cost_tracker["total_requests"],
+                "total_cost": self.cost_tracker["total_cost"],
+                "average_cost_per_request": self.cost_tracker["total_cost"] / max(1, self.cost_tracker["total_requests"]),
+                "total_savings_vs_openai": self.cost_tracker["savings_vs_openai"],
+                "savings_percentage": (self.cost_tracker["savings_vs_openai"] / max(0.001, self.cost_tracker["savings_vs_openai"] + self.cost_tracker["total_cost"])) * 100,
+                "session_duration_minutes": session_duration / 60
             },
-            "community": {
-                "focus": ", ".join(community_intel.get("social_proof_elements", ["Customer testimonials"])[:2]),
-                "credibility": 0.75
-            },
-            "urgency": {
-                "focus": ", ".join(urgency_intel.get("urgency_messages", ["Time-sensitive offers"])[:2]),
-                "credibility": 0.70
-            },
-            "lifestyle": {
-                "focus": ", ".join(lifestyle_intel.get("lifestyle_benefits", ["Confidence and energy"])[:2]),
-                "credibility": 0.73
+            "provider_breakdown": self.cost_tracker["provider_usage"],
+            "cost_projections": {
+                "monthly_cost_1000_users": self.cost_tracker["total_cost"] * 1000 * 30,
+                "monthly_savings_1000_users": self.cost_tracker["savings_vs_openai"] * 1000 * 30,
+                "roi_percentage": (self.cost_tracker["savings_vs_openai"] / max(0.001, self.cost_tracker["total_cost"])) * 100
             }
         }
     
-    def _get_provider_by_strength(self, required_strength: str) -> Optional[Dict[str, Any]]:
-        """Get AI provider best suited for specific strength"""
+    def log_cost_performance(self):
+        """Log current cost performance"""
+        summary = self.get_cost_summary()
+        cost_perf = summary["cost_performance"]
         
-        for provider in self.ai_providers:
-            if required_strength in provider.get("strengths", []):
-                return provider
+        logger.info("💰 ULTRA-CHEAP AI COST PERFORMANCE:")
+        logger.info(f"   Requests: {cost_perf['total_requests']}")
+        logger.info(f"   Total cost: ${cost_perf['total_cost']:.4f}")
+        logger.info(f"   Savings vs OpenAI: ${cost_perf['total_savings_vs_openai']:.2f} ({cost_perf['savings_percentage']:.1f}%)")
+        logger.info(f"   Avg cost/request: ${cost_perf['average_cost_per_request']:.4f}")
         
-        # Return first available provider if no specific match
-        return self.ai_providers[0] if self.ai_providers else None
+        # Log top providers
+        provider_usage = summary["provider_breakdown"]
+        if provider_usage:
+            top_provider = max(provider_usage.items(), key=lambda x: x[1]["requests"])
+            logger.info(f"   Most used: {top_provider[0]} ({top_provider[1]['requests']} requests)")
+
+
+# Enhanced utilities for ultra-cheap system
+def estimate_monthly_savings(current_usage: Dict[str, Any], user_count: int = 1000) -> Dict[str, Any]:
+    """Estimate monthly savings with ultra-cheap system"""
     
-    async def _generate_with_provider_fallback(
-        self, 
-        generation_method,
-        *args,
-        **kwargs
-    ) -> Any:
-        """Try generation with multiple providers as fallback"""
-        
-        last_error = None
-        
-        for provider in self.ai_providers:
-            try:
-                logger.info(f"🤖 Attempting generation with {provider['name']}")
-                result = await generation_method(provider, *args, **kwargs)
-                
-                if result:
-                    logger.info(f"✅ Generation successful with {provider['name']}")
-                    return result
-                    
-            except Exception as e:
-                logger.warning(f"⚠️ Generation failed with {provider['name']}: {str(e)}")
-                last_error = e
-                continue
-        
-        logger.error(f"❌ All providers failed. Last error: {str(last_error)}")
-        return None
+    # Baseline costs (per 1K tokens)
+    openai_cost = 0.030
+    claude_cost = 0.006
+    ultra_cheap_avg = 0.0005  # Average of Groq, Together, DeepSeek
     
-    def _validate_intelligence_data(self, intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Validate and enhance intelligence data"""
-        
-        validation_result = {
-            "is_valid": True,
-            "missing_sections": [],
-            "warnings": [],
-            "quality_score": 0.0
+    # Monthly estimates (assuming 50 requests per user, 2K tokens per request)
+    monthly_tokens = user_count * 50 * 2  # 100K tokens per user/month
+    
+    openai_monthly = (monthly_tokens / 1000) * openai_cost
+    claude_monthly = (monthly_tokens / 1000) * claude_cost
+    ultra_cheap_monthly = (monthly_tokens / 1000) * ultra_cheap_avg
+    
+    return {
+        "user_count": user_count,
+        "monthly_tokens": monthly_tokens,
+        "cost_comparison": {
+            "openai_gpt4": openai_monthly,
+            "claude_sonnet": claude_monthly,
+            "ultra_cheap_system": ultra_cheap_monthly
+        },
+        "savings": {
+            "vs_openai": openai_monthly - ultra_cheap_monthly,
+            "vs_claude": claude_monthly - ultra_cheap_monthly,
+            "percentage_vs_openai": ((openai_monthly - ultra_cheap_monthly) / openai_monthly) * 100,
+            "percentage_vs_claude": ((claude_monthly - ultra_cheap_monthly) / claude_monthly) * 100
+        },
+        "annual_projections": {
+            "ultra_cheap_annual": ultra_cheap_monthly * 12,
+            "openai_annual": openai_monthly * 12,
+            "annual_savings": (openai_monthly - ultra_cheap_monthly) * 12
         }
-        
-        # Check required sections
-        required_sections = [
-            "offer_intelligence",
-            "psychology_intelligence", 
-            "competitive_intelligence"
-        ]
-        
-        present_sections = 0
-        for section in required_sections:
-            if section in intelligence_data and intelligence_data[section]:
-                present_sections += 1
-            else:
-                validation_result["missing_sections"].append(section)
-        
-        validation_result["quality_score"] = present_sections / len(required_sections)
-        
-        # Add warnings based on quality
-        if validation_result["quality_score"] < 0.5:
-            validation_result["warnings"].append("Low intelligence data quality - may affect content generation")
-        
-        if not intelligence_data.get("confidence_score"):
-            validation_result["warnings"].append("Missing confidence score - using default")
-        
-        if validation_result["quality_score"] < 0.3:
-            validation_result["is_valid"] = False
-        
-        return validation_result
-
-
-# ============================================================================
-# UTILITIES MODULE
-# ============================================================================
-
-# src/intelligence/generators/utils.py
-"""
-GENERATOR UTILITIES
-✅ Common utility functions for all generators
-✅ Text processing and formatting
-✅ Response validation
-✅ Error handling helpers
-"""
-
-import re
-import logging
-from typing import Dict, List, Any, Optional, Union
-
-logger = logging.getLogger(__name__)
-
-def clean_text_content(text: str) -> str:
-    """Clean and normalize text content"""
-    
-    if not text or not isinstance(text, str):
-        return ""
-    
-    # Remove excessive whitespace
-    text = re.sub(r'\s+', ' ', text)
-    
-    # Remove special characters that might break formatting
-    text = re.sub(r'[^\w\s\.,!?;:()\-\'"@#$%&]', '', text)
-    
-    # Fix common punctuation issues
-    text = re.sub(r'\s+([,.!?;:])', r'\1', text)  # Remove space before punctuation
-    text = re.sub(r'([.!?])\s*([A-Z])', r'\1 \2', text)  # Ensure space after sentence endings
-    
-    return text.strip()
-
-def extract_keywords_from_intelligence(intelligence_data: Dict[str, Any]) -> List[str]:
-    """Extract relevant keywords from intelligence data"""
-    
-    keywords = []
-    
-    try:
-        # Extract from offer intelligence
-        offer_intel = intelligence_data.get("offer_intelligence", {})
-        
-        # Value propositions
-        value_props = offer_intel.get("value_propositions", [])
-        for prop in value_props:
-            words = str(prop).split()
-            keywords.extend([word.lower() for word in words if len(word) > 3])
-        
-        # Benefits
-        benefits = offer_intel.get("benefits", [])
-        for benefit in benefits:
-            words = str(benefit).split()
-            keywords.extend([word.lower() for word in words if len(word) > 3])
-        
-        # Psychology intelligence keywords
-        psych_intel = intelligence_data.get("psychology_intelligence", {})
-        emotional_triggers = psych_intel.get("emotional_triggers", [])
-        keywords.extend([trigger.lower() for trigger in emotional_triggers if isinstance(trigger, str)])
-        
-        # Remove duplicates and common stop words
-        stop_words = {'the', 'and', 'for', 'with', 'you', 'your', 'this', 'that', 'from', 'they', 'have', 'will'}
-        keywords = list(set([k for k in keywords if k not in stop_words and len(k) > 2]))
-        
-    except Exception as e:
-        logger.warning(f"⚠️ Keyword extraction failed: {str(e)}")
-    
-    return keywords[:20]  # Return top 20 keywords
-
-def validate_content_response(response: Dict[str, Any], required_fields: List[str]) -> Dict[str, Any]:
-    """Validate generated content response"""
-    
-    validation = {
-        "is_valid": True,
-        "missing_fields": [],
-        "warnings": [],
-        "quality_score": 0.0
     }
-    
-    # Check required fields
-    for field in required_fields:
-        if field not in response:
-            validation["missing_fields"].append(field)
-            validation["is_valid"] = False
-    
-    # Calculate quality score
-    present_fields = len([f for f in required_fields if f in response])
-    validation["quality_score"] = present_fields / len(required_fields) if required_fields else 1.0
-    
-    # Content-specific validation
-    content = response.get("content", {})
-    
-    # Check if content is not empty
-    if not content or (isinstance(content, dict) and not any(content.values())):
-        validation["warnings"].append("Content appears to be empty")
-        validation["quality_score"] *= 0.5
-    
-    # Check for fallback indicators
-    if isinstance(content, dict) and content.get("fallback_generated"):
-        validation["warnings"].append("Content generated using fallback method")
-        validation["quality_score"] *= 0.7
-    
-    return validation
-
-def format_duration_string(seconds: Union[int, float]) -> str:
-    """Format duration in seconds to human-readable string"""
-    
-    if seconds < 60:
-        return f"{int(seconds)} seconds"
-    elif seconds < 3600:
-        minutes = int(seconds // 60)
-        remaining_seconds = int(seconds % 60)
-        if remaining_seconds > 0:
-            return f"{minutes}:{remaining_seconds:02d}"
-        else:
-            return f"{minutes} minutes"
-    else:
-        hours = int(seconds // 3600)
-        remaining_minutes = int((seconds % 3600) // 60)
-        return f"{hours}h {remaining_minutes}m"
-
-def truncate_text(text: str, max_length: int, suffix: str = "...") -> str:
-    """Truncate text to maximum length with suffix"""
-    
-    if not text or len(text) <= max_length:
-        return text
-    
-    truncated = text[:max_length - len(suffix)]
-    
-    # Try to break at word boundary
-    last_space = truncated.rfind(' ')
-    if last_space > max_length * 0.8:  # Only if we don't lose too much content
-        truncated = truncated[:last_space]
-    
-    return truncated + suffix
-
-def count_words(text: str) -> int:
-    """Count words in text"""
-    
-    if not text or not isinstance(text, str):
-        return 0
-    
-    # Simple word count - split by whitespace
-    words = text.split()
-    return len(words)
-
-def estimate_reading_time(text: str, words_per_minute: int = 200) -> str:
-    """Estimate reading time for text"""
-    
-    word_count = count_words(text)
-    minutes = word_count / words_per_minute
-    
-    if minutes < 1:
-        return "Less than 1 minute"
-    elif minutes < 60:
-        return f"{int(minutes)} minute{'s' if minutes != 1 else ''}"
-    else:
-        hours = int(minutes // 60)
-        remaining_minutes = int(minutes % 60)
-        return f"{hours}h {remaining_minutes}m"
-
-def sanitize_filename(filename: str) -> str:
-    """Sanitize filename for safe file system usage"""
-    
-    # Remove or replace unsafe characters
-    sanitized = re.sub(r'[<>:"/\\|?*]', '_', filename)
-    
-    # Remove leading/trailing dots and spaces
-    sanitized = sanitized.strip('. ')
-    
-    # Limit length
-    if len(sanitized) > 100:
-        sanitized = sanitized[:100]
-    
-    return sanitized or "untitled"
-
-def merge_preferences(default_prefs: Dict[str, Any], user_prefs: Dict[str, Any]) -> Dict[str, Any]:
-    """Merge user preferences with defaults"""
-    
-    merged = default_prefs.copy()
-    
-    if user_prefs:
-        for key, value in user_prefs.items():
-            if isinstance(value, dict) and key in merged and isinstance(merged[key], dict):
-                # Recursively merge nested dictionaries
-                merged[key] = merge_preferences(merged[key], value)
-            else:
-                merged[key] = value
-    
-    return merged
-
-def log_generation_metrics(
-    generator_type: str,
-    start_time: float,
-    end_time: float,
-    content_length: int = 0,
-    success: bool = True
-):
-    """Log generation performance metrics"""
-    
-    duration = end_time - start_time
-    
-    logger.info(
-        f"📊 {generator_type} Generation: "
-        f"{'✅ Success' if success else '❌ Failed'} | "
-        f"Duration: {duration:.2f}s | "
-        f"Content: {content_length} chars"
-    )
-
-# Convenience functions for common patterns
-def safe_get(data: Dict[str, Any], key_path: str, default: Any = None) -> Any:
-    """Safely get nested dictionary value using dot notation"""
-    
-    keys = key_path.split('.')
-    current = data
-    
-    try:
-        for key in keys:
-            current = current[key]
-        return current
-    except (KeyError, TypeError):
-        return default
-
-def ensure_list(value: Any) -> List[Any]:
-    """Ensure value is a list"""
-    
-    if value is None:
-        return []
-    elif isinstance(value, list):
-        return value
-    else:
-        return [value]
-
-def ensure_string(value: Any, default: str = "") -> str:
-    """Ensure value is a string"""
-    
-    if value is None:
-        return default
-    elif isinstance(value, str):
-        return value
-    else:
-        return str(value)
