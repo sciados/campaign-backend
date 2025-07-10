@@ -1,6 +1,7 @@
 # src/models/campaign_assets.py - FIXED VERSION to resolve registry conflicts
-from sqlalchemy import Column, String, Integer, DateTime, Text, Boolean, JSON
+from sqlalchemy import Column, String, Integer, DateTime, Text, Boolean, JSON, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from enum import Enum
 from uuid import uuid4
@@ -42,11 +43,15 @@ class CampaignAsset(BaseModel):
         # ❌ REMOVED: 'keep_existing': True - this conflicts with extend_existing
     }
     
+    campaign = relationship("src.models.campaign.Campaign", back_populates="assets")
+    uploader = relationship("src.models.user.User", back_populates="uploaded_assets")
+    company = relationship("src.models.company.Company", back_populates="assets")
+
     # Basic asset information
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    campaign_id = Column(UUID(as_uuid=True), nullable=True)
-    uploaded_by = Column(UUID(as_uuid=True), nullable=False)
-    company_id = Column(UUID(as_uuid=True), nullable=False)
+    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=True)
+    uploaded_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
     # File information
     asset_name = Column(String(255), nullable=False)

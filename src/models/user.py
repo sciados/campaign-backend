@@ -47,7 +47,7 @@ class User(BaseModel):
     )
     
     # Asset relationships
-    uploaded_assets = relationship("CampaignAsset", back_populates="uploader")
+    uploaded_assets = relationship("src.models.campaign_assets.CampaignAsset", back_populates="uploader")
     
     # Invitations sent by this user (as inviter)
     sent_invitations = relationship(

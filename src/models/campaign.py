@@ -126,7 +126,7 @@ class Campaign(BaseModel):
     company = relationship("Company", back_populates="campaigns")
     
     # Asset relationships
-    assets = relationship("CampaignAsset", back_populates="campaign", cascade="all, delete-orphan")
+    assets = relationship("src.models.campaign_assets.CampaignAsset", back_populates="campaign", cascade="all, delete-orphan")
     
     # Intelligence and content relationships
     intelligence_sources = relationship(
