@@ -102,7 +102,7 @@ class BaseContentGenerator(ABC):
                         base_url="https://api.deepseek.com"
                     ),
                     "model": "deepseek-chat",
-                    "cost_per_1k_tokens": 0.00014,
+                    "cost_per_1k_tokens": 0.00024,
                     "quality_score": 72,
                     "speed_rating": 6,
                     "available": True,

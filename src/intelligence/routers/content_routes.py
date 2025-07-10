@@ -123,7 +123,7 @@ async def generate_with_ultra_cheap_ai(
         "ad_copy": "AdCopyGenerator",
         "blog_post": "BlogPostGenerator", 
         "email": "EmailGenerator",
-        "email_sequence": "EmailGenerator",
+        # "email_sequence": "EmailGenerator",
         "social_media": "EnhancedSocialMediaGenerator",
         "SOCIAL_POSTS": "EnhancedSocialMediaGenerator",
         "image": "UltraCheapImageGenerator",
