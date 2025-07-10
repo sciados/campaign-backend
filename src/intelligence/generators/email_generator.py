@@ -6,6 +6,7 @@ ENHANCED EMAIL SEQUENCE GENERATOR WITH ULTRA-CHEAP AI INTEGRATION
 ✅ 5 diverse angles with intelligence-driven content
 ✅ Automatic failover across 11 ultra-cheap providers
 ✅ Real-time cost tracking and optimization
+✅ Railway deployment compatible
 """
 
 import os
@@ -19,7 +20,6 @@ from datetime import datetime
 
 # Import enhanced base generator with ultra-cheap AI
 from .base_generator import BaseContentGenerator
-from ..utils.unified_ultra_cheap_provider import get_unified_provider, ultra_cheap_text_generation
 from src.models.base import EnumSerializerMixin
 
 logger = logging.getLogger(__name__)
@@ -665,6 +665,11 @@ Your {product_details['name']} Team""",
         }
 
 
+# Alias classes for backward compatibility
+EmailGenerator = EmailSequenceGenerator
+ContentGenerator = EmailSequenceGenerator
+ProductionEmailGenerator = EmailSequenceGenerator
+
 # Convenience functions for backward compatibility
 async def generate_email_sequence_with_ultra_cheap_ai(
     intelligence_data: Dict[str, Any],
@@ -685,7 +690,3 @@ def get_email_generator_cost_summary() -> Dict[str, Any]:
     """Get cost summary from email generator"""
     generator = EmailSequenceGenerator()
     return generator.get_cost_summary()
-
-# Backward compatibility aliases
-ContentGenerator = EmailSequenceGenerator
-ProductionEmailGenerator = EmailSequenceGenerator

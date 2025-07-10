@@ -1,148 +1,219 @@
 # src/intelligence/generators/__init__.py
 """
-Content Generators Package
-Comprehensive content generation system with multiple specialized generators
+Enhanced Generators with Ultra-Cheap AI Integration
+Railway deployment compatible
 """
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Package metadata
-__version__ = "1.0.0"
-__author__ = "CampaignForge Team"
-__description__ = "Comprehensive content generation system for marketing campaigns"
-
-# Initialize availability flags
-GENERATORS_AVAILABLE = {}
-
 # ============================================================================
-# CORE GENERATORS IMPORT
+# RAILWAY-COMPATIBLE GENERATOR IMPORTS
 # ============================================================================
 
-# Email Sequence Generator (Primary)
+# Export main generators
 try:
-    from .email_generator import EmailSequenceGenerator, CampaignAngleGenerator
-    GENERATORS_AVAILABLE["email_sequence"] = True
-    GENERATORS_AVAILABLE["campaign_angles"] = True
-    logger.info("✅ Email Sequence Generator and Campaign Angle Generator available")
+    from .email_generator import EmailSequenceGenerator, EmailGenerator
+    EMAIL_GENERATOR_AVAILABLE = True
+    logger.info("✅ Email generators imported successfully")
 except ImportError as e:
-    logger.warning(f"⚠️ Email generators not available: {str(e)}")
-    GENERATORS_AVAILABLE["email_sequence"] = False
-    GENERATORS_AVAILABLE["campaign_angles"] = False
-    
-    # Fallback classes
-    class EmailSequenceGenerator:
-        def __init__(self):
-            pass
-        async def generate_email_sequence(self, intelligence_data, preferences=None):
-            return {"error": "Email generator not available", "fallback": True}
-    
-    class CampaignAngleGenerator:
-        def __init__(self):
-            pass
-        async def generate_angles(self, intelligence_data, **kwargs):
-            return {"error": "Campaign angle generator not available", "fallback": True}
+    logger.warning(f"⚠️ Email generator import failed: {e}")
+    EMAIL_GENERATOR_AVAILABLE = False
 
-# Social Media Generator
+try:
+    from .ad_copy_generator import AdCopyGenerator
+    AD_COPY_GENERATOR_AVAILABLE = True
+    logger.info("✅ Ad copy generator imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Ad copy generator import failed: {e}")
+    AD_COPY_GENERATOR_AVAILABLE = False
+
 try:
     from .social_media_generator import SocialMediaGenerator
-    GENERATORS_AVAILABLE["SOCIAL_POSTS"] = True
-    logger.info("✅ Social Media Generator available")
+    SOCIAL_MEDIA_GENERATOR_AVAILABLE = True
+    logger.info("✅ Social media generator imported successfully")
 except ImportError as e:
-    logger.warning(f"⚠️ Social Media Generator not available: {str(e)}")
-    GENERATORS_AVAILABLE["SOCIAL_POSTS"] = False
-    
-    class SocialMediaGenerator:
-        def __init__(self):
-            pass
-        async def generate_social_posts(self, intelligence_data, preferences=None):
-            return {"error": "Social media generator not available", "fallback": True}
+    logger.warning(f"⚠️ Social media generator import failed: {e}")
+    SOCIAL_MEDIA_GENERATOR_AVAILABLE = False
 
-# Ad Copy Generator
+# Blog Post Generator (try multiple import paths)
 try:
-    # Try to import from dedicated file first, then from social_media_generator
-    try:
-        from .ad_copy_generator import AdCopyGenerator
-    except ImportError:
-        from .social_media_generator import AdCopyGenerator
-    GENERATORS_AVAILABLE["ad_copy"] = True
-    logger.info("✅ Ad Copy Generator available")
-except ImportError as e:
-    logger.warning(f"⚠️ Ad Copy Generator not available: {str(e)}")
-    GENERATORS_AVAILABLE["ad_copy"] = False
-    
-    class AdCopyGenerator:
-        def __init__(self):
-            pass
-        async def generate_ad_copy(self, intelligence_data, preferences=None):
-            return {"error": "Ad copy generator not available", "fallback": True}
-
-# Blog Post Generator
-try:
-    # Try to import from dedicated file first, then from social_media_generator
     try:
         from .blog_post_generator import BlogPostGenerator
     except ImportError:
         from .social_media_generator import BlogPostGenerator
-    GENERATORS_AVAILABLE["blog_post"] = True
-    logger.info("✅ Blog Post Generator available")
+    BLOG_POST_GENERATOR_AVAILABLE = True
+    logger.info("✅ Blog post generator imported successfully")
 except ImportError as e:
-    logger.warning(f"⚠️ Blog Post Generator not available: {str(e)}")
-    GENERATORS_AVAILABLE["blog_post"] = False
-    
-    class BlogPostGenerator:
-        def __init__(self):
-            pass
-        async def generate_blog_post(self, intelligence_data, preferences=None):
-            return {"error": "Blog post generator not available", "fallback": True}
+    logger.warning(f"⚠️ Blog post generator import failed: {e}")
+    BLOG_POST_GENERATOR_AVAILABLE = False
 
 # Landing Page Generator
 try:
     from .landing_page.core.generator import EnhancedLandingPageGenerator as LandingPageGenerator
-    GENERATORS_AVAILABLE["landing_page"] = True
-    logger.info("✅ Landing Page Generator available")
+    LANDING_PAGE_GENERATOR_AVAILABLE = True
+    logger.info("✅ Landing page generator imported successfully")
 except ImportError as e:
-    logger.warning(f"⚠️ Landing Page Generator not available: {str(e)}")
-    GENERATORS_AVAILABLE["landing_page"] = False
-    
-    class LandingPageGenerator:
-        def __init__(self):
-            pass
-        async def generate_landing_page(self, intelligence_data, preferences=None):
-            return {"error": "Landing page generator not available", "fallback": True}
+    logger.warning(f"⚠️ Landing page generator import failed: {e}")
+    LANDING_PAGE_GENERATOR_AVAILABLE = False
 
 # Video Script Generator
 try:
     from .video_script_generator import VideoScriptGenerator
-    GENERATORS_AVAILABLE["video_script"] = True
-    logger.info("✅ Video Script Generator available")
+    VIDEO_SCRIPT_GENERATOR_AVAILABLE = True
+    logger.info("✅ Video script generator imported successfully")
 except ImportError as e:
-    logger.warning(f"⚠️ Video Script Generator not available: {str(e)}")
-    GENERATORS_AVAILABLE["video_script"] = False
-    
-    class VideoScriptGenerator:
-        def __init__(self):
-            pass
-        async def generate_video_script(self, intelligence_data, preferences=None):
-            return {"error": "Video script generator not available", "fallback": True}
+    logger.warning(f"⚠️ Video script generator import failed: {e}")
+    VIDEO_SCRIPT_GENERATOR_AVAILABLE = False
 
-# ============================================================================
-# FACTORY SYSTEM
-# ============================================================================
-
-# Content Generator Factory
+# Campaign Angle Generator
 try:
-    from .factory import ContentGeneratorFactory, create_content_generator_factory
-    GENERATORS_AVAILABLE["factory"] = True
-    logger.info("✅ Content Generator Factory available")
+    from .email_generator import CampaignAngleGenerator
+    CAMPAIGN_ANGLE_GENERATOR_AVAILABLE = True
+    logger.info("✅ Campaign angle generator imported successfully")
 except ImportError as e:
-    logger.warning(f"⚠️ Content Generator Factory not available: {str(e)}")
-    GENERATORS_AVAILABLE["factory"] = False
+    logger.warning(f"⚠️ Campaign angle generator import failed: {e}")
+    CAMPAIGN_ANGLE_GENERATOR_AVAILABLE = False
+
+# Ultra-Cheap Image Generator
+try:
+    from .ultra_cheap_image_generator import UltraCheapImageGenerator
+    ULTRA_CHEAP_IMAGE_GENERATOR_AVAILABLE = True
+    logger.info("✅ Ultra-cheap image generator imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Ultra-cheap image generator import failed: {e}")
+    ULTRA_CHEAP_IMAGE_GENERATOR_AVAILABLE = False
+
+# Factory integration
+try:
+    from .factory import ContentGeneratorFactory
+    FACTORY_AVAILABLE = True
+    logger.info("✅ Content generator factory imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Factory import failed: {e}")
+    FACTORY_AVAILABLE = False
+
+# Railway compatibility
+try:
+    from ..utils.railway_compatibility import (
+        get_railway_compatibility_handler,
+        railway_safe_generate_content
+    )
+    RAILWAY_COMPATIBILITY_AVAILABLE = True
+    logger.info("✅ Railway compatibility imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Railway compatibility failed: {e}")
+    RAILWAY_COMPATIBILITY_AVAILABLE = False
+
+# ============================================================================
+# EXPORT CONFIGURATION
+# ============================================================================
+
+# Export what's available
+__all__ = []
+
+if EMAIL_GENERATOR_AVAILABLE:
+    __all__.extend(["EmailSequenceGenerator", "EmailGenerator"])
+
+if AD_COPY_GENERATOR_AVAILABLE:
+    __all__.append("AdCopyGenerator")
+
+if SOCIAL_MEDIA_GENERATOR_AVAILABLE:
+    __all__.append("SocialMediaGenerator")
+
+if BLOG_POST_GENERATOR_AVAILABLE:
+    __all__.append("BlogPostGenerator")
+
+if LANDING_PAGE_GENERATOR_AVAILABLE:
+    __all__.append("LandingPageGenerator")
+
+if VIDEO_SCRIPT_GENERATOR_AVAILABLE:
+    __all__.append("VideoScriptGenerator")
+
+if CAMPAIGN_ANGLE_GENERATOR_AVAILABLE:
+    __all__.append("CampaignAngleGenerator")
+
+if ULTRA_CHEAP_IMAGE_GENERATOR_AVAILABLE:
+    __all__.append("UltraCheapImageGenerator")
+
+if FACTORY_AVAILABLE:
+    __all__.append("ContentGeneratorFactory")
+
+if RAILWAY_COMPATIBILITY_AVAILABLE:
+    __all__.extend(["get_railway_compatibility_handler", "railway_safe_generate_content"])
+
+# ============================================================================
+# FALLBACK GENERATORS FOR RAILWAY COMPATIBILITY
+# ============================================================================
+
+# Create fallback generators for unavailable ones
+if not EMAIL_GENERATOR_AVAILABLE:
+    class EmailSequenceGenerator:
+        def __init__(self):
+            logger.warning("Using fallback EmailSequenceGenerator")
+        
+        async def generate_email_sequence(self, intelligence_data, preferences=None):
+            return {
+                "error": "Email generator not available",
+                "fallback": True,
+                "content": {"emails": []},
+                "metadata": {"status": "fallback"}
+            }
+        
+        async def generate_content(self, intelligence_data, preferences=None):
+            return await self.generate_email_sequence(intelligence_data, preferences)
     
-    # Fallback factory
+    class EmailGenerator:
+        def __init__(self):
+            logger.warning("Using fallback EmailGenerator")
+        
+        async def generate_content(self, intelligence_data, preferences=None):
+            generator = EmailSequenceGenerator()
+            return await generator.generate_content(intelligence_data, preferences)
+    
+    __all__.extend(["EmailSequenceGenerator", "EmailGenerator"])
+
+if not AD_COPY_GENERATOR_AVAILABLE:
+    class AdCopyGenerator:
+        def __init__(self):
+            logger.warning("Using fallback AdCopyGenerator")
+        
+        async def generate_ad_copy(self, intelligence_data, preferences=None):
+            return {
+                "error": "Ad copy generator not available",
+                "fallback": True,
+                "content": {"ads": []},
+                "metadata": {"status": "fallback"}
+            }
+        
+        async def generate_content(self, intelligence_data, preferences=None):
+            return await self.generate_ad_copy(intelligence_data, preferences)
+    
+    __all__.append("AdCopyGenerator")
+
+if not SOCIAL_MEDIA_GENERATOR_AVAILABLE:
+    class SocialMediaGenerator:
+        def __init__(self):
+            logger.warning("Using fallback SocialMediaGenerator")
+        
+        async def generate_social_posts(self, intelligence_data, preferences=None):
+            return {
+                "error": "Social media generator not available",
+                "fallback": True,
+                "content": {"posts": []},
+                "metadata": {"status": "fallback"}
+            }
+        
+        async def generate_content(self, intelligence_data, preferences=None):
+            return await self.generate_social_posts(intelligence_data, preferences)
+    
+    __all__.append("SocialMediaGenerator")
+
+if not FACTORY_AVAILABLE:
     class ContentGeneratorFactory:
         def __init__(self):
+            logger.warning("Using fallback ContentGeneratorFactory")
             self._generators = {}
         
         def get_generator(self, content_type):
@@ -152,48 +223,46 @@ except ImportError as e:
             return []
         
         async def generate_content(self, content_type, intelligence_data, preferences=None):
-            return {"error": "Factory system not available", "fallback": True}
+            return {
+                "error": "Factory system not available",
+                "fallback": True,
+                "content": {},
+                "metadata": {"status": "fallback"}
+            }
     
-    def create_content_generator_factory():
-        return ContentGeneratorFactory()
+    __all__.append("ContentGeneratorFactory")
+
+if not RAILWAY_COMPATIBILITY_AVAILABLE:
+    def get_railway_compatibility_handler():
+        class FallbackHandler:
+            def __init__(self):
+                self.ultra_cheap_generators = []
+            
+            async def generate_ultra_cheap_content(self, content_type, intelligence_data, preferences=None):
+                return {
+                    "error": "Railway compatibility not available",
+                    "fallback": True,
+                    "content": {},
+                    "metadata": {"status": "fallback"}
+                }
+        
+        return FallbackHandler()
+    
+    async def railway_safe_generate_content(content_type, intelligence_data, preferences=None):
+        handler = get_railway_compatibility_handler()
+        return await handler.generate_ultra_cheap_content(content_type, intelligence_data, preferences)
+    
+    __all__.extend(["get_railway_compatibility_handler", "railway_safe_generate_content"])
 
 # ============================================================================
-# PACKAGE EXPORTS
-# ============================================================================
-
-# Main exports for easy access
-__all__ = [
-    # Core Generators
-    'EmailSequenceGenerator',
-    'CampaignAngleGenerator',  # Added this!
-    'SocialMediaGenerator', 
-    'AdCopyGenerator',
-    'BlogPostGenerator',
-    'LandingPageGenerator',
-    'VideoScriptGenerator',
-    'UltraCheapImageGenerator'
-    
-    # Factory System
-    'ContentGeneratorFactory',
-    'create_content_generator_factory',
-    
-    # Utility Functions
-    'get_available_generators',
-    'get_generator_status',
-    'is_generator_available',
-    
-    # Backward Compatibility
-    'ContentGenerator',  # Alias for EmailSequenceGenerator
-    'ProductionEmailGenerator'  # Alias for EmailSequenceGenerator
-]
-
-# ============================================================================
-# BACKWARD COMPATIBILITY ALIASES
+# BACKWARD COMPATIBILITY
 # ============================================================================
 
 # Maintain backward compatibility with existing code
-ContentGenerator = EmailSequenceGenerator
-ProductionEmailGenerator = EmailSequenceGenerator
+if EMAIL_GENERATOR_AVAILABLE or 'EmailSequenceGenerator' in __all__:
+    ContentGenerator = EmailSequenceGenerator
+    ProductionEmailGenerator = EmailSequenceGenerator
+    __all__.extend(["ContentGenerator", "ProductionEmailGenerator"])
 
 # ============================================================================
 # UTILITY FUNCTIONS
@@ -201,145 +270,72 @@ ProductionEmailGenerator = EmailSequenceGenerator
 
 def get_available_generators() -> dict:
     """Get status of all available generators"""
-    return GENERATORS_AVAILABLE.copy()
+    return {
+        "email_sequence": EMAIL_GENERATOR_AVAILABLE,
+        "ad_copy": AD_COPY_GENERATOR_AVAILABLE,
+        "social_media": SOCIAL_MEDIA_GENERATOR_AVAILABLE,
+        "blog_post": BLOG_POST_GENERATOR_AVAILABLE,
+        "landing_page": LANDING_PAGE_GENERATOR_AVAILABLE,
+        "video_script": VIDEO_SCRIPT_GENERATOR_AVAILABLE,
+        "campaign_angles": CAMPAIGN_ANGLE_GENERATOR_AVAILABLE,
+        "ultra_cheap_image": ULTRA_CHEAP_IMAGE_GENERATOR_AVAILABLE,
+        "factory": FACTORY_AVAILABLE,
+        "railway_compatibility": RAILWAY_COMPATIBILITY_AVAILABLE
+    }
 
 def get_generator_status() -> dict:
     """Get detailed status of generator system"""
-    
-    available_count = sum(1 for available in GENERATORS_AVAILABLE.values() if available)
-    total_count = len(GENERATORS_AVAILABLE)
+    available_generators = get_available_generators()
+    available_count = sum(1 for available in available_generators.values() if available)
+    total_count = len(available_generators)
     
     return {
-        "package_version": __version__,
         "generators_available": available_count,
         "total_generators": total_count,
         "availability_rate": f"{(available_count/total_count)*100:.1f}%" if total_count > 0 else "0%",
-        "generator_status": GENERATORS_AVAILABLE,
-        "fully_operational": available_count == total_count,
-        "core_generators_available": GENERATORS_AVAILABLE.get("email_sequence", False),
-        "campaign_angles_available": GENERATORS_AVAILABLE.get("campaign_angles", False),
-        "factory_available": GENERATORS_AVAILABLE.get("factory", False),
-        "recommendations": _get_setup_recommendations()
+        "generator_status": available_generators,
+        "exports_available": len(__all__),
+        "railway_compatible": True,
+        "ultra_cheap_ai_enabled": available_count > 0
     }
 
 def is_generator_available(generator_type: str) -> bool:
     """Check if specific generator type is available"""
-    return GENERATORS_AVAILABLE.get(generator_type, False)
-
-def _get_setup_recommendations() -> list:
-    """Get setup recommendations based on availability"""
-    
-    recommendations = []
-    
-    if not GENERATORS_AVAILABLE.get("email_sequence", False):
-        recommendations.append("🚨 CRITICAL: Email Sequence Generator unavailable - core functionality affected")
-    
-    if not GENERATORS_AVAILABLE.get("campaign_angles", False):
-        recommendations.append("⚠️ Campaign Angle Generator unavailable - angle generation affected")
-    
-    if not GENERATORS_AVAILABLE.get("factory", False):
-        recommendations.append("⚠️ Factory system unavailable - use individual generators directly")
-    
-    missing_generators = [gen for gen, available in GENERATORS_AVAILABLE.items() if not available]
-    if missing_generators and len(missing_generators) < len(GENERATORS_AVAILABLE):
-        recommendations.append(f"💡 Consider installing missing dependencies for: {', '.join(missing_generators)}")
-    
-    if all(GENERATORS_AVAILABLE.values()):
-        recommendations.append("✅ All generators operational - system ready for production")
-    
-    if not any(GENERATORS_AVAILABLE.values()):
-        recommendations.append("❌ No generators available - check dependencies and installation")
-    
-    return recommendations
-
-def get_package_info() -> dict:
-    """Get comprehensive package information"""
-    
-    return {
-        "name": "Content Generators",
-        "version": __version__,
-        "author": __author__, 
-        "description": __description__,
-        "status": get_generator_status(),
-        "features": [
-            "Email sequence generation with 5 diverse angles",
-            "Campaign angle generation for strategic positioning",
-            "Social media posts for multiple platforms", 
-            "Ad copy generation with conversion optimization",
-            "Long-form blog post creation",
-            "Complete HTML landing page generation",
-            "Video scripts with scene breakdowns",
-            "Unified factory system for easy access",
-            "Fallback handling and error management"
-        ],
-        "supported_content_types": [
-            "email_sequence",
-            "campaign_angles",
-            "SOCIAL_POSTS",
-            "ad_copy", 
-            "blog_post",
-            "LANDING_PAGE",
-            "video_script"
-        ]
-    }
+    generator_status = get_available_generators()
+    return generator_status.get(generator_type, False)
 
 # ============================================================================
-# EASY ACCESS FUNCTIONS
-# ============================================================================
-
-async def generate_emails(intelligence_data: dict, preferences: dict = None) -> dict:
-    """Quick access function for email generation"""
-    generator = EmailSequenceGenerator()
-    return await generator.generate_email_sequence(intelligence_data, preferences)
-
-async def generate_campaign_angles(intelligence_data: list, **kwargs) -> dict:
-    """Quick access function for campaign angle generation"""
-    generator = CampaignAngleGenerator()
-    return await generator.generate_angles(intelligence_data, **kwargs)
-
-async def generate_social_posts(intelligence_data: dict, preferences: dict = None) -> dict:
-    """Quick access function for social media generation"""
-    generator = SocialMediaGenerator()
-    return await generator.generate_social_posts(intelligence_data, preferences)
-
-async def generate_ads(intelligence_data: dict, preferences: dict = None) -> dict:
-    """Quick access function for ad copy generation"""
-    generator = AdCopyGenerator()
-    return await generator.generate_ad_copy(intelligence_data, preferences)
-
-async def generate_blog(intelligence_data: dict, preferences: dict = None) -> dict:
-    """Quick access function for blog post generation"""
-    generator = BlogPostGenerator()
-    return await generator.generate_blog_post(intelligence_data, preferences)
-
-async def generate_landing_page(intelligence_data: dict, preferences: dict = None) -> dict:
-    """Quick access function for landing page generation"""
-    generator = LandingPageGenerator()
-    return await generator.generate_landing_page(intelligence_data, preferences)
-
-async def generate_video_script(intelligence_data: dict, preferences: dict = None) -> dict:
-    """Quick access function for video script generation"""
-    generator = VideoScriptGenerator()
-    return await generator.generate_video_script(intelligence_data, preferences)
-
-# ============================================================================
-# INITIALIZATION LOGGING
+# INITIALIZATION SUMMARY
 # ============================================================================
 
 # Log initialization status
-available_generators = [gen for gen, available in GENERATORS_AVAILABLE.items() if available]
-total_generators = len(GENERATORS_AVAILABLE)
+available_count = sum([
+    EMAIL_GENERATOR_AVAILABLE,
+    AD_COPY_GENERATOR_AVAILABLE, 
+    SOCIAL_MEDIA_GENERATOR_AVAILABLE,
+    BLOG_POST_GENERATOR_AVAILABLE,
+    LANDING_PAGE_GENERATOR_AVAILABLE,
+    VIDEO_SCRIPT_GENERATOR_AVAILABLE,
+    CAMPAIGN_ANGLE_GENERATOR_AVAILABLE,
+    ULTRA_CHEAP_IMAGE_GENERATOR_AVAILABLE,
+    FACTORY_AVAILABLE,
+    RAILWAY_COMPATIBILITY_AVAILABLE
+])
 
-if len(available_generators) == total_generators:
-    logger.info(f"🚀 Content Generators Package fully initialized - All {total_generators} generators available")
-elif len(available_generators) > 0:
-    logger.info(f"⚠️ Content Generators Package partially initialized - {len(available_generators)}/{total_generators} generators available")
-    logger.info(f"✅ Available: {', '.join(available_generators)}")
-    missing = [gen for gen, available in GENERATORS_AVAILABLE.items() if not available]
-    logger.warning(f"❌ Missing: {', '.join(missing)}")
+logger.info(f"✅ Generators module loaded: {len(__all__)} exports available")
+logger.info(f"🚀 Railway compatibility: {available_count}/10 generators operational")
+
+if RAILWAY_COMPATIBILITY_AVAILABLE:
+    logger.info("🌐 Railway compatibility layer: ACTIVE")
+if FACTORY_AVAILABLE:
+    logger.info("🏭 Factory system: OPERATIONAL")
+if available_count >= 5:
+    logger.info("✅ Core generators: SUFFICIENT for production")
+elif available_count >= 3:
+    logger.info("⚠️ Core generators: MINIMAL for basic operation") 
 else:
-    logger.error("❌ Content Generators Package initialization failed - No generators available")
+    logger.warning("❌ Core generators: INSUFFICIENT - check dependencies")
 
-# Success flag for external checking
-PACKAGE_INITIALIZED = len(available_generators) > 0
-PACKAGE_FULLY_OPERATIONAL = len(available_generators) == total_generators
+# Package initialization flag
+PACKAGE_INITIALIZED = available_count > 0
+ULTRA_CHEAP_AI_READY = EMAIL_GENERATOR_AVAILABLE or AD_COPY_GENERATOR_AVAILABLE or SOCIAL_MEDIA_GENERATOR_AVAILABLE
