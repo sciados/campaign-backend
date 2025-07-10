@@ -1042,6 +1042,99 @@ def _fallback_generate_enhancements(base_intel: Dict, opportunities: Dict) -> Di
         }
     }
 
+def get_load_balancing_stats() -> Dict[str, Any]:
+    """
+    Get load balancing statistics for API provider management
+    This function was missing and causing the import error
+    """
+    global _provider_usage_stats, _provider_performance_stats, _total_requests
+    global _successful_requests, _failed_requests
+    
+    # Calculate success rate
+    success_rate = (_successful_requests / _total_requests * 100) if _total_requests > 0 else 0
+    
+    # Calculate provider distribution
+    total_usage = sum(_provider_usage_stats.values()) if _provider_usage_stats else 0
+    provider_distribution = {}
+    
+    for provider, usage_count in _provider_usage_stats.items():
+        percentage = (usage_count / total_usage * 100) if total_usage > 0 else 0
+        provider_distribution[provider] = {
+            "usage_count": usage_count,
+            "usage_percentage": percentage,
+            "performance_data": _provider_performance_stats.get(provider, {})
+        }
+    
+    # Get current provider health if available
+    provider_health = {}
+    if ENHANCED_AI_SYSTEM_AVAILABLE:
+        try:
+            provider_health = get_provider_health_report()
+        except Exception as e:
+            logger.warning(f"Could not get provider health report: {e}")
+            provider_health = {"status": "health_check_unavailable"}
+    
+    return {
+        "load_balancing_stats": {
+            "total_requests": _total_requests,
+            "successful_requests": _successful_requests,
+            "failed_requests": _failed_requests,
+            "success_rate": success_rate,
+            "current_rotation_index": _provider_rotation_index,
+            "provider_distribution": provider_distribution,
+            "provider_health": provider_health,
+            "stats_timestamp": datetime.utcnow().isoformat()
+        },
+        "system_status": {
+            "enhanced_ai_system_available": ENHANCED_AI_SYSTEM_AVAILABLE,
+            "enhancement_modules_available": ENHANCEMENT_MODULES_AVAILABLE,
+            "load_balancing_active": True,
+            "mock_data_elimination_active": True
+        }
+    }
+
+def update_provider_performance(provider_name: str, success: bool, response_time: float = 0.0):
+    """
+    Update provider performance statistics
+    """
+    global _provider_performance_stats, _total_requests, _successful_requests, _failed_requests
+    
+    # Update global counters
+    _total_requests += 1
+    if success:
+        _successful_requests += 1
+    else:
+        _failed_requests += 1
+    
+    # Update provider-specific stats
+    if provider_name not in _provider_performance_stats:
+        _provider_performance_stats[provider_name] = {
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0,
+            "average_response_time": 0.0,
+            "last_used": None
+        }
+    
+    stats = _provider_performance_stats[provider_name]
+    stats["total_requests"] += 1
+    stats["last_used"] = datetime.utcnow().isoformat()
+    
+    if success:
+        stats["successful_requests"] += 1
+    else:
+        stats["failed_requests"] += 1
+    
+    # Update average response time
+    if response_time > 0:
+        current_avg = stats["average_response_time"]
+        total_requests = stats["total_requests"]
+        stats["average_response_time"] = ((current_avg * (total_requests - 1)) + response_time) / total_requests
+    
+    # Log performance update
+    success_rate = (stats["successful_requests"] / stats["total_requests"] * 100) if stats["total_requests"] > 0 else 0
+    logger.debug(f"🔄 Provider {provider_name}: {success_rate:.1f}% success rate, {stats['total_requests']} total requests")
+
 # ============================================================================
 # MONITORING AND STATISTICS
 # ============================================================================
