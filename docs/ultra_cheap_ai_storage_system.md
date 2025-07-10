@@ -209,10 +209,13 @@ TOGETHER_API_KEY=...         # Third option ($0.008/image)
 OPENAI_API_KEY=sk-...        # Fallback only ($0.040/image)
 
 # Cloudflare R2 (Add these)
-R2_ACCESS_KEY_ID=your_r2_access_key
-R2_SECRET_ACCESS_KEY=your_r2_secret_key
-R2_ACCOUNT_ID=your_account_id
+cloudflare-storage API token: 5CE6ZGzpBr-JyXMiBGn9PosSKe8AGrN_5z9LL6X9
+Token value: jmVyvvm8ictSaCYLihGOaqWLiiHOXnQLgUMwzLix
+R2_ACCESS_KEY_ID=f2d72bf04039d50c1008ef3ff91b9309
+R2_SECRET_ACCESS_KEY=a640cc08a32c4dee50228640d11040ac6033b6acec93952315ef92cd2bca7cb6
+R2_ACCOUNT_ID= shaunpgp@gmail.com
 R2_BUCKET_NAME=campaignforge-storage
+Use jurisdiction-specific endpoints for S3 clients: https://f90ef5581b1301b7b68addfc9fa42297.r2.cloudflarestorage.com
 
 # Backblaze B2 (Add these)
 B2_ACCESS_KEY_ID=your_b2_access_key
@@ -220,10 +223,15 @@ B2_SECRET_ACCESS_KEY=your_b2_secret_key
 B2_BUCKET_NAME=campaignforge-backup
 
 # Video Generation (Optional)
+MINIMAX - eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJHcm91cE5hbWUiOiJTaGF1biIsIlVzZXJOYW1lIjoiU2hhdW4iLCJBY2NvdW50IjoiIiwiU3ViamVjdElEIjoiMTkzNzgzOTY5MDcyMzg4OTY1NiIsIlBob25lIjoiIiwiR3JvdXBJRCI6IjE5Mzc4Mzk2OTA3MTk2OTUzNTIiLCJQYWdlTmFtZSI6IiIsIk1haWwiOiJzaGF1bnBncEBnbWFpbC5jb20iLCJDcmVhdGVUaW1lIjoiMjAyNS0wNy0xMCAyMzozMzo0MyIsIlRva2VuVHlwZSI6MSwiaXNzIjoibWluaW1heCJ9.XsP17nU-g4Ms6ZNlvdxlytKiVyDxpFqEpbgx7LueOxFK-IvQyT9zzGhxpMcTZu1nKTSrPCzxIrILKAkatDKsZ_VzAX5arRc3Dop9zaGHGPkxyvtFX3P5Ahkk-CN2DGsz9U0X2Y3l5bgVDT8AKNJXMaYGnKjn04IoXcvEvM_aRUNMc2l4un4GIr2bgAb6kMBTNJ7mYRZVMXmAv_RkS5bXyA-1D-a341u-o-vKzcF8_CCCr9aXE5ZkVFjFI3lCMPjkLjgsDM8MqDoZRhd5uevtKKYZmi51pAFl8_zk2EBRh6iP3usuuXg4FCTHtFrEJWtRHCogMJlpHBUSed8LPiNfVQ
+
 RUNWAYML_API_KEY=your_runwayml_key
+
 PIKA_LABS_API_KEY=your_pika_key
+
 STABLE_VIDEO_API_KEY=your_stable_video_key
 ```
+
 
 ### Dependencies to Add
 ```python
