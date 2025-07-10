@@ -2,6 +2,7 @@
 File: src/intelligence/schemas/responses.py
 Response Schemas - Pydantic models for API responses
 Extracted from main routes.py for better organization
+✅ UPDATED: Added ultra-cheap AI support to ContentGenerationResponse
 """
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
@@ -19,12 +20,29 @@ class AnalysisResponse(BaseModel):
 
 
 class ContentGenerationResponse(BaseModel):
-    """Response model for content generation"""
+    """
+    Response model for content generation
+    ✅ UPDATED: Enhanced with ultra-cheap AI support while maintaining backward compatibility
+    """
+    # ✅ EXISTING FIELDS (unchanged for backward compatibility)
     content_id: str
     content_type: str
     generated_content: Dict[str, Any]
     smart_url: Optional[str] = None
-    performance_predictions: Dict[str, Any]
+    performance_predictions: Dict[str, Any] = {}
+    
+    # ✅ NEW: Ultra-cheap AI fields (optional for backward compatibility)
+    ultra_cheap_ai_used: Optional[bool] = False
+    cost_savings: Optional[str] = "0%"
+    provider: Optional[str] = "unknown"
+    generation_method: Optional[str] = "standard"
+    generation_cost: Optional[float] = 0.0
+    estimated_openai_cost: Optional[float] = 0.0
+    savings_amount: Optional[float] = 0.0
+    
+    # ✅ NEW: Enhanced metadata (optional)
+    intelligence_sources_used: Optional[int] = 0
+    generation_metadata: Optional[Dict[str, Any]] = {}
 
 
 class IntelligenceSourceResponse(BaseModel):
@@ -47,7 +65,10 @@ class IntelligenceSourceResponse(BaseModel):
 
 
 class ContentItemResponse(BaseModel):
-    """Response model for content items"""
+    """
+    Response model for content items
+    ✅ UPDATED: Added ultra-cheap AI tracking
+    """
     id: str
     content_type: str
     content_title: str
@@ -61,6 +82,9 @@ class ContentItemResponse(BaseModel):
     generation_settings: Dict[str, Any]
     intelligence_used: Dict[str, Any]
     amplification_context: Dict[str, Any]
+    
+    # ✅ NEW: Ultra-cheap AI indicator (optional)
+    ultra_cheap_ai_used: Optional[bool] = False
 
 
 class CampaignIntelligenceResponse(BaseModel):
@@ -83,19 +107,35 @@ class AmplificationResponse(BaseModel):
 
 
 class SystemStatusResponse(BaseModel):
-    """Response model for system status"""
+    """
+    Response model for system status
+    ✅ UPDATED: Enhanced for ultra-cheap AI monitoring
+    """
     system_health: Dict[str, str]
     detailed_status: Dict[str, Any]
     recommendations: List[str]
+    
+    # ✅ NEW: Ultra-cheap AI system status (optional)
+    ultra_cheap_ai_status: Optional[str] = "unknown"
+    generators: Optional[Dict[str, Dict[str, Any]]] = {}
+    cost_analysis: Optional[Dict[str, Any]] = {}
+    monthly_projections: Optional[Dict[str, Any]] = {}
 
 
 class ContentTypesResponse(BaseModel):
-    """Response model for available content types"""
+    """
+    Response model for available content types
+    ✅ UPDATED: Added ultra-cheap AI capabilities info
+    """
     available_content_types: List[str]
     total_available: int
     capabilities: Dict[str, Any]
     factory_available: bool
     status: str
+    
+    # ✅ NEW: Ultra-cheap AI info (optional)
+    ultra_cheap_ai: Optional[bool] = False
+    cost_savings: Optional[str] = "0%"
 
 
 class ExportResponse(BaseModel):
@@ -143,3 +183,34 @@ class ErrorResponse(BaseModel):
     error_code: Optional[str] = None
     timestamp: Optional[str] = None
     request_id: Optional[str] = None
+
+
+# ✅ NEW: Ultra-cheap AI specific responses (for specialized endpoints)
+class UltraCheapStatusResponse(BaseModel):
+    """Response model for ultra-cheap AI status"""
+    ultra_cheap_ai_status: str
+    generators: Dict[str, Dict[str, Any]]
+    cost_analysis: Dict[str, Any]
+    monthly_projections: Dict[str, Any]
+
+
+class ContentListResponse(BaseModel):
+    """Response model for content list with ultra-cheap AI stats"""
+    campaign_id: str
+    total_content: int
+    content_items: List[Dict[str, Any]]
+    ultra_cheap_stats: Optional[Dict[str, Any]] = {}
+
+
+class ContentDetailResponse(BaseModel):
+    """Response model for detailed content view with ultra-cheap AI info"""
+    id: str
+    campaign_id: str
+    content_type: str
+    content_title: str
+    content_body: str
+    parsed_content: Dict[str, Any]
+    metadata: Dict[str, Any] = {}
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    ultra_cheap_info: Optional[Dict[str, Any]] = {}
