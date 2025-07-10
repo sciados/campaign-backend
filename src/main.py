@@ -117,6 +117,15 @@ AFFILIATE_ROUTER_AVAILABLE = False
 CLICKBANK_ADMIN_ROUTER_AVAILABLE = False
 
 try:
+    from src.intelligence.routers.content_routes import router as content_router
+    logging.info("✅ Content generation router imported successfully")
+    CONTENT_ROUTER_AVAILABLE = True
+except ImportError as e:
+    logging.error(f"❌ Content generation router not available: {e}")
+    content_router = None
+    CONTENT_ROUTER_AVAILABLE = False
+
+try:
     from src.intelligence.routers.analysis_routes import router as analysis_router
     logging.info("✅ Analysis router imported successfully")
     ANALYSIS_ROUTER_AVAILABLE = True
@@ -231,6 +240,8 @@ async def lifespan(app: FastAPI):
         features.append("Dashboard")
     if INTELLIGENCE_ROUTERS_AVAILABLE:
         features.append("Intelligence")
+    if CONTENT_ROUTER_AVAILABLE:
+        features.append("Content")
     if STABILITY_ROUTER_AVAILABLE:
         features.append("Ultra-Cheap AI Images")  # ✅ NEW
     if STORAGE_ROUTER_AVAILABLE:
@@ -239,6 +250,7 @@ async def lifespan(app: FastAPI):
         features.append("Document Management")  # ✅ NEW
     if CLICKBANK_MODELS_AVAILABLE:
         features.append("ClickBank Models")
+    
     
     logging.info(f"🎯 Available features: {', '.join(features)}")
     
@@ -348,6 +360,17 @@ if ANALYSIS_ROUTER_AVAILABLE and analysis_router:
     logging.info("📡 Analysis router registered at /api/intelligence/analysis")
     intelligence_routes_registered += 1
 
+if CONTENT_ROUTER_AVAILABLE and content_router:
+        app.include_router(content_router, prefix="/api/intelligence/content", tags=["intelligence", "content", "generation"])
+        logging.info("📡 Content generation router registered at /api/intelligence/content")
+        intelligence_routes_registered += 1
+    
+        # ✅ DEBUG: Show content routes
+        print(f"🔍 Content generation router has {len(content_router.routes)} routes:")
+        for route in content_router.routes:
+            if hasattr(route, 'path') and hasattr(route, 'methods'):
+                print(f"  {list(route.methods)} /api/intelligence/content{route.path}")
+
 if CLICKBANK_ROUTER_AVAILABLE and clickbank_router:
     app.include_router(clickbank_router, prefix="/api/intelligence/clickbank", tags=["intelligence", "clickbank"])
     logging.info("📡 ClickBank routes registered at /api/intelligence/clickbank")
@@ -441,7 +464,10 @@ async def health_check():
             "analysis": ANALYSIS_ROUTER_AVAILABLE,
             "clickbank_routes": CLICKBANK_ROUTER_AVAILABLE,
             "affiliate_links": AFFILIATE_ROUTER_AVAILABLE,
-            "clickbank_admin": CLICKBANK_ADMIN_ROUTER_AVAILABLE
+            "clickbank_admin": CLICKBANK_ADMIN_ROUTER_AVAILABLE,
+            "content_generation": CONTENT_ROUTER_AVAILABLE,
+            "content": CONTENT_ROUTER_AVAILABLE,
+            "ultra_cheap_ai": CONTENT_ROUTER_AVAILABLE
         },
         "cost_savings": {  # ✅ NEW: Cost information
             "ultra_cheap_images": "90% savings vs DALL-E ($0.002 vs $0.040)",
