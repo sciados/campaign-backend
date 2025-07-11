@@ -610,13 +610,25 @@ class ContentHandler(EnumSerializerMixin):
         return content_item
     
     def _parse_content_body(self, content_body: str) -> Dict[str, Any]:
-        """Parse content body JSON safely"""
+        """Parse content body JSON safely with better error handling"""
         try:
             if content_body:
-                return json.loads(content_body)
-        except json.JSONDecodeError:
-            return {"raw_content": content_body}
-        return {}
+                parsed = json.loads(content_body)
+                # Validate that it's proper content structure
+                if isinstance(parsed, dict) and parsed:
+                    return parsed
+                else:
+                    logger.warning("Content body is not a valid dict")
+                    return {"raw_content": content_body, "parsing_issue": "invalid_structure"}
+            else:
+                logger.warning("Content body is empty")
+                return {"parsing_issue": "empty_content"}
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}")
+            return {"raw_content": content_body, "parsing_issue": "json_decode_error"}
+        except Exception as e:
+            logger.error(f"Content parsing error: {e}")
+            return {"raw_content": content_body, "parsing_issue": "unknown_error"}
     
     def _generate_content_preview(self, item: GeneratedContent) -> str:
         """Generate a preview of the content"""

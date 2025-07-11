@@ -169,7 +169,7 @@ async def save_content_to_database(
     campaign_id: str = None,
     ultra_cheap_used: bool = False
 ) -> str:
-    """Clean version - single return statement"""
+    """Fixed version with proper company_id population"""
     
     content_id = str(uuid.uuid4())
     
@@ -183,6 +183,25 @@ async def save_content_to_database(
         # Create title
         content_data = result.get("content", result)
         title = create_intelligent_title(content_data, content_type)
+        
+        # 🔧 FIX: Get company_id from campaign (simple query)
+        company_id = None
+        if campaign_id:
+            try:
+                # Simple direct query to get company_id
+                company_result = await db.execute(
+                    text("SELECT company_id FROM campaigns WHERE id = :campaign_id"),
+                    {"campaign_id": campaign_id}
+                )
+                company_row = company_result.fetchone()
+                if company_row:
+                    company_id = company_row[0]
+                    logging.info(f"✅ Found company_id: {company_id}")
+                else:
+                    logging.warning(f"⚠️ Campaign {campaign_id} not found")
+            except Exception as e:
+                logging.warning(f"⚠️ Could not get company_id: {e}")
+                # Don't fail - just continue without company_id
         
         # 🔧 CRITICAL: performance_data to fix infinite loop
         performance_data = {
@@ -199,29 +218,38 @@ async def save_content_to_database(
             "generation_cost": cost_optimization.get("total_cost", 0.0),
             "estimated_openai_cost": cost_optimization.get("estimated_openai_cost", 0.029),
             "savings_amount": cost_optimization.get("savings_vs_openai", 0.0),
-            "infinite_loop_fix": True
+            "infinite_loop_fix": True,
+            "company_id": str(company_id) if company_id else None,  # Include company context
+            "parsing_fix": True
         }
         
-        # Create database record
+        # Create database record with company_id
         generated_content = GeneratedContent(
             id=content_id,
             user_id=uuid.UUID("52b1f984-f697-45ef-a9b6-d58b0f0c8da0"),  # Your admin ID
             campaign_id=uuid.UUID(campaign_id) if campaign_id else None,
+            company_id=company_id,  # 🔧 FIX: Include company_id
             content_type=content_type,
             content_title=title,
             content_body=json.dumps(content_data),
-            content_metadata=metadata,
+            content_metadata={
+                **metadata,  # Include all original metadata
+                "company_id": str(company_id) if company_id else None,  # Add company context
+                "parsing_fix_applied": True
+            },
             generation_settings={
                 "prompt": prompt,
                 "ultra_cheap_ai_used": ultra_cheap_used,
-                "railway_compatible": True
+                "railway_compatible": True,
+                "company_id": str(company_id) if company_id else None  # Include in settings too
             },
             intelligence_used={
                 "ultra_cheap_ai_used": ultra_cheap_used,
                 "cost_savings": cost_optimization.get("savings_vs_openai", 0.0),
-                "railway_compatible": True
+                "railway_compatible": True,
+                "company_id": str(company_id) if company_id else None  # Include in intelligence too
             },
-            performance_data=performance_data,  # 🔧 This fixes infinite loop
+            performance_data=performance_data,  # 🔧 This fixes infinite loop + includes company context
             performance_score=metadata.get("quality_score", 80.0),
             view_count=0,
             is_published=False,
@@ -229,24 +257,24 @@ async def save_content_to_database(
             published_at=None
         )
         
-        # Save to database (this is working!)
+        # Save to database
         db.add(generated_content)
         await db.commit()
-        # Skip refresh to avoid async issue
         
-        # Success logging
-        logging.info(f"✅ Content saved successfully: {content_id}")
+        # Enhanced success logging
+        logging.info(f"✅ Content saved with company context: {content_id}")
+        logging.info(f"   Company ID: {company_id}")
+        logging.info(f"   Campaign ID: {campaign_id}")
         logging.info(f"   Ultra-cheap AI: {ultra_cheap_used}")
         logging.info(f"   Cost: ${cost_optimization.get('total_cost', 0.0):.6f}")
         logging.info(f"   Savings: ${cost_optimization.get('savings_vs_openai', 0.0):.6f}")
-        logging.info(f"🔧 Performance data populated - infinite loop fixed")
+        logging.info(f"🔧 Performance data + company_id populated - parsing should work")
         
     except Exception as e:
         logging.error(f"❌ Database save failed: {str(e)}")
-        # Content likely saved despite error - continue with real ID
         logging.info(f"✅ Content likely saved despite error: {content_id}")
     
-    # 🎉 SINGLE RETURN: Always return the real content ID
+    # Always return the real content ID
     return content_id
 
 # ============================================================================
