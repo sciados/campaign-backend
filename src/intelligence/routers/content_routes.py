@@ -118,6 +118,16 @@ async def save_content_to_database(
                 "railway_compatible": True,
                 "optimization_applied": True
             },
+
+            performance_data={
+                "generation_time": metadata.get("generation_time", 0.0),
+                "total_tokens": metadata.get("total_tokens", 0),
+                "quality_score": metadata.get("quality_score", 80),
+                "ultra_cheap_ai_used": ultra_cheap_used,
+                "cost_efficiency": cost_optimization.get("savings_vs_openai", 0.0),
+                "provider_performance": metadata.get("ai_provider_used", "unknown"),
+                "railway_compatible": True
+            },
             performance_score=metadata.get("quality_score", 80.0),
             view_count=0,
             is_published=False,

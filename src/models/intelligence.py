@@ -155,6 +155,7 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
     # ✅ GENERATION TRACKING (match database exactly)
     generation_settings = Column(JSONB, default={})
     intelligence_used = Column(JSONB, default={})
+    performance_data = Column(JSONB, default={})  # Added back for compatibility
     
     # ✅ USER INTERACTION (match database exactly)
     user_rating = Column(Integer)  # 1-5 rating from users
