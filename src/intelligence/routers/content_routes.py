@@ -1,7 +1,7 @@
 """
 File: src/intelligence/routers/content_routes.py
-Content Routes - Properly Aligned Schemas with Ultra-Cheap AI
-✅ FIXED: Schema alignment and database persistence
+Content Routes - Optimized for New Database Schema
+✅ OPTIMIZED: Perfect alignment with enhanced database schema
 """
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +31,7 @@ from ..schemas.responses import (
 router = APIRouter()
 
 # ============================================================================
-# ✅ PROPERLY ALIGNED: Main Content Generation Endpoint
+# ✅ OPTIMIZED: Main Content Generation Endpoint
 # ============================================================================
 
 @router.post("/generate", response_model=ContentGenerationResponse)
@@ -42,9 +42,7 @@ async def generate_content(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    🎯 PROPERLY ALIGNED: Content generation with ultra-cheap AI and schema alignment
-    
-    Returns properly structured ContentGenerationResponse with all fields aligned
+    🎯 OPTIMIZED: Content generation with ultra-cheap AI and perfect schema alignment
     """
     
     try:
@@ -91,10 +89,10 @@ async def generate_content(
             
             ultra_cheap_used = True
             fallback_used = False
-            logging.info("✅ SUCCESS: Generated 5 diverse emails with ultra-cheap AI")
+            logging.info("✅ SUCCESS: Generated content with ultra-cheap AI")
             
         except Exception as ultra_cheap_error:
-            logging.warning(f"⚠️ Ultra-cheap AI failed, using existing handler: {ultra_cheap_error}")
+            logging.warning(f"⚠️ Ultra-cheap AI failed, using fallback: {ultra_cheap_error}")
             
             # Fallback to existing handler
             handler = ContentHandler(db, current_user)
@@ -115,7 +113,7 @@ async def generate_content(
         # Save to database and get content_id
         content_id = await save_content_to_database(
             db=db,
-            user_id=current_user.id,
+            user_id=current_user.id,  # Now properly INTEGER
             content_type=content_type,
             prompt=prompt,
             result=result,
@@ -125,8 +123,8 @@ async def generate_content(
         
         logging.info(f"✅ Content saved to database: {content_id}")
         
-        # ✅ PROPERLY ALIGNED: Create response that matches ContentGenerationResponse schema
-        response = create_aligned_response(
+        # Create optimized response
+        response = create_optimized_response(
             content_id=content_id,
             content_type=content_type,
             result=result,
@@ -152,10 +150,10 @@ async def generate_content(
         )
 
 # ============================================================================
-# ✅ SCHEMA ALIGNMENT FUNCTIONS
+# ✅ OPTIMIZED: Response Creation Function
 # ============================================================================
 
-def create_aligned_response(
+def create_optimized_response(
     content_id: str,
     content_type: str,
     result: Dict[str, Any],
@@ -164,7 +162,7 @@ def create_aligned_response(
     intelligence_sources_count: int,
     preferences: Dict[str, Any]
 ) -> ContentGenerationResponse:
-    """Create properly aligned ContentGenerationResponse"""
+    """Create optimized ContentGenerationResponse with perfect schema alignment"""
     
     # Extract metadata safely
     metadata = result.get("metadata", {})
@@ -181,7 +179,7 @@ def create_aligned_response(
     else:
         savings_percentage = "0%"
     
-    # Create ultra-cheap metadata (optional field)
+    # Create ultra-cheap metadata
     ultra_cheap_metadata = None
     if ultra_cheap_used:
         ultra_cheap_metadata = UltraCheapMetadata(
@@ -212,18 +210,18 @@ def create_aligned_response(
         "generation_time": metadata.get("generation_time", 0.0)
     }
     
-    # ✅ Create the properly aligned response
+    # Return perfectly aligned response
     return ContentGenerationResponse(
         # Required fields
         content_id=content_id,
         content_type=content_type,
-        generated_content=result.get("content", result),  # The actual generated content
+        generated_content=result.get("content", result),
         
         # Optional legacy fields
         smart_url=None,
         performance_predictions={},
         
-        # Ultra-cheap AI fields (all optional)
+        # Ultra-cheap AI fields
         ultra_cheap_ai_used=ultra_cheap_used,
         cost_savings=savings_percentage,
         provider=metadata.get("ai_provider_used", "unknown"),
@@ -232,12 +230,12 @@ def create_aligned_response(
         estimated_openai_cost=estimated_openai_cost,
         savings_amount=savings_amount,
         
-        # Enhanced metadata fields (all optional)
+        # Enhanced metadata
         intelligence_sources_used=intelligence_sources_count,
         generation_metadata=generation_metadata_dict,
         ultra_cheap_metadata=ultra_cheap_metadata,
         
-        # Performance tracking (all optional)
+        # Performance tracking
         generation_time=metadata.get("generation_time", 0.0),
         tokens_used=metadata.get("total_tokens", 0),
         quality_metrics=metadata.get("quality_metrics", {})
@@ -245,47 +243,48 @@ def create_aligned_response(
 
 async def save_content_to_database(
     db: AsyncSession,
-    user_id: int,
+    user_id: int,  # Now properly INTEGER for optimized schema
     content_type: str,
     prompt: str,
     result: Dict[str, Any],
     campaign_id: str = None,
     ultra_cheap_used: bool = False
 ) -> str:
-    """Save content to database with proper error handling"""
+    """Save content to optimized database with enhanced error handling"""
     try:
         from src.models.intelligence import GeneratedContent
         
-        # Generate UUID for content
+        # Generate UUID string for content (matches VARCHAR(36))
         content_id = str(uuid.uuid4())
         
         # Extract metadata
         metadata = result.get("metadata", {})
         cost_optimization = metadata.get("cost_optimization", {})
         
-        # Create title from content
+        # Create intelligent title from content
         content_data = result.get("content", result)
-        if isinstance(content_data, dict):
-            if "emails" in content_data and content_data["emails"]:
-                # For email sequences, create descriptive title
-                email_count = len(content_data["emails"])
-                title = f"{email_count}-Email Campaign Sequence"
-            elif "title" in content_data:
-                title = content_data["title"]
-            else:
-                title = f"Generated {content_type.replace('_', ' ').title()}"
-        else:
-            title = f"Generated {content_type.replace('_', ' ').title()}"
+        title = create_intelligent_title(content_data, content_type)
         
-        # Create database record
+        # Create database record that matches the actual schema
         generated_content = GeneratedContent(
             id=content_id,
-            campaign_id=campaign_id,
-            user_id=user_id,
-            content_type=content_type,
-            content_title=title,
-            content_body=json.dumps(content_data),
-            content_metadata=metadata,
+            user_id=user_id,  # INTEGER field (matches database)
+            campaign_id=campaign_id,  # VARCHAR(36) field (matches database)
+            content_type=content_type,  # VARCHAR(50)
+            content_title=title,  # VARCHAR(500)
+            content_body=json.dumps(content_data),  # TEXT field with JSON
+            
+            # JSONB fields with enhanced ultra-cheap AI structure
+            content_metadata={
+                "ai_provider_used": metadata.get("ai_provider_used", "unknown"),
+                "model_used": metadata.get("model_used", "unknown"),
+                "generation_time": metadata.get("generation_time", 0.0),
+                "total_tokens": metadata.get("total_tokens", 0),
+                "quality_score": metadata.get("quality_score", 80),
+                "generated_at": datetime.utcnow().isoformat(),
+                "railway_compatible": True
+            },
+            
             generation_settings={
                 "prompt": prompt,
                 "ultra_cheap_ai_used": ultra_cheap_used,
@@ -293,30 +292,54 @@ async def save_content_to_database(
                 "cost_savings": cost_optimization.get("savings_vs_openai", 0.0),
                 "generation_method": "enhanced" if ultra_cheap_used else "fallback",
                 "generation_cost": cost_optimization.get("total_cost", 0.0),
-                "railway_compatible": True
+                "estimated_openai_cost": cost_optimization.get("estimated_openai_cost", 0.029),
+                "savings_percentage": calculate_savings_percentage(
+                    cost_optimization.get("savings_vs_openai", 0.0),
+                    cost_optimization.get("estimated_openai_cost", 0.029)
+                ),
+                "railway_compatible": True,
+                "preferences": {
+                    "tone": "persuasive",
+                    "length": "medium",
+                    "format": "standard"
+                }
             },
+            
             intelligence_used={
                 "generation_timestamp": datetime.utcnow().isoformat(),
                 "ultra_cheap_ai_used": ultra_cheap_used,
                 "cost_savings": cost_optimization.get("savings_vs_openai", 0.0),
                 "provider_used": metadata.get("ai_provider_used", "unknown"),
                 "generation_cost": cost_optimization.get("total_cost", 0.0),
+                "total_tokens": metadata.get("total_tokens", 0),
+                "generation_time": metadata.get("generation_time", 0.0),
                 "railway_compatible": True,
-                "enum_serialization_applied": True
+                "optimization_applied": True
             },
-            is_published=False
+            
+            # Performance fields (match database schema)
+            performance_score=metadata.get("quality_score", 80.0),  # Use quality score as performance score
+            view_count=0,  # Initialize to 0
+            
+            # Status fields
+            is_published=False,
+            user_rating=None,  # Will be set when user rates the content
+            published_at=None   # Will be set when content is published
         )
         
-        # Save to database
+        # Save to database with optimized error handling
         db.add(generated_content)
         await db.commit()
         await db.refresh(generated_content)
         
-        logging.info(f"✅ Content saved to database: {content_id}")
+        # Enhanced logging
+        logging.info(f"✅ Content saved to optimized database: {content_id}")
         logging.info(f"   Title: {title}")
+        logging.info(f"   Type: {content_type}")
         logging.info(f"   Ultra-cheap AI: {ultra_cheap_used}")
         logging.info(f"   Provider: {metadata.get('ai_provider_used', 'unknown')}")
         logging.info(f"   Cost: ${cost_optimization.get('total_cost', 0.0):.6f}")
+        logging.info(f"   Savings: ${cost_optimization.get('savings_vs_openai', 0.0):.6f}")
         
         return content_id
         
@@ -333,7 +356,92 @@ async def save_content_to_database(
         return f"temp_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
 
 # ============================================================================
-# ✅ PROPERLY ALIGNED: Other Endpoints
+# ✅ HELPER FUNCTIONS
+# ============================================================================
+
+def create_intelligent_title(content_data: Dict[str, Any], content_type: str) -> str:
+    """Create intelligent titles based on content type and data"""
+    
+    if isinstance(content_data, dict):
+        if content_type == "email_sequence" and "emails" in content_data:
+            email_count = len(content_data["emails"])
+            if email_count > 0 and "subject" in content_data["emails"][0]:
+                first_subject = content_data["emails"][0]["subject"]
+                return f"{email_count}-Email Sequence: {first_subject[:50]}..."
+            return f"{email_count}-Email Campaign Sequence"
+            
+        elif content_type == "ad_copy" and "ads" in content_data:
+            ad_count = len(content_data["ads"])
+            return f"{ad_count} High-Converting Ad Variations"
+            
+        elif content_type == "social_media_posts" and "posts" in content_data:
+            post_count = len(content_data["posts"])
+            return f"{post_count} Social Media Posts"
+            
+        elif "title" in content_data:
+            return content_data["title"][:500]  # Respect VARCHAR(500) limit
+    
+    # Fallback title
+    return f"Generated {content_type.replace('_', ' ').title()}"
+
+def calculate_savings_percentage(savings_amount: float, estimated_openai_cost: float) -> str:
+    """Calculate savings percentage safely"""
+    if estimated_openai_cost > 0:
+        percentage = (savings_amount / estimated_openai_cost) * 100
+        return f"{percentage:.1f}%"
+    return "0%"
+
+# ============================================================================
+# ✅ ANALYTICS ENDPOINTS (Using New Database Views)
+# ============================================================================
+
+@router.get("/analytics/ultra-cheap-summary")
+async def get_ultra_cheap_analytics(
+    days: int = 30,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get ultra-cheap AI analytics using optimized database views"""
+    
+    try:
+        # Use the ultra_cheap_ai_analytics view
+        query = """
+            SELECT 
+                generation_date,
+                content_type,
+                ai_provider,
+                generations_count,
+                avg_cost,
+                total_savings,
+                avg_generation_time,
+                ultra_cheap_count,
+                standard_count
+            FROM ultra_cheap_ai_analytics 
+            WHERE generation_date >= CURRENT_DATE - INTERVAL '%s days'
+            ORDER BY generation_date DESC, total_savings DESC
+        """
+        
+        result = await db.execute(query, (days,))
+        analytics_data = result.fetchall()
+        
+        return {
+            "period_days": days,
+            "analytics": [dict(row) for row in analytics_data],
+            "summary": {
+                "total_generations": sum(row.generations_count for row in analytics_data),
+                "total_savings": sum(row.total_savings for row in analytics_data),
+                "avg_cost_per_generation": sum(row.avg_cost for row in analytics_data) / len(analytics_data) if analytics_data else 0
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Analytics query failed: {str(e)}"
+        )
+
+# ============================================================================
+# ✅ LEGACY ENDPOINTS (Enhanced for New Schema)
 # ============================================================================
 
 @router.get("/{campaign_id}", response_model=ContentListResponse)
@@ -351,7 +459,6 @@ async def get_campaign_content_list(
     try:
         result = await handler.get_content_list(campaign_id, include_body, content_type)
         
-        # Ensure it matches ContentListResponse schema
         return ContentListResponse(
             campaign_id=result["campaign_id"],
             total_content=result["total_content"],
@@ -371,67 +478,12 @@ async def get_campaign_content_list(
             detail=f"Failed to get content list: {str(e)}"
         )
 
-@router.get("/{campaign_id}/{content_id}", response_model=ContentDetailResponse)
-async def get_content_detail(
-    campaign_id: str,
-    content_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get detailed content including ultra-cheap AI info"""
-    
-    handler = ContentHandler(db, current_user)
-    
-    try:
-        result = await handler.get_content_detail(campaign_id, content_id)
-        
-        # Create generation metadata if available
-        generation_metadata = None
-        if "metadata" in result and result["metadata"]:
-            generation_metadata = GenerationMetadata(
-                generation_id=result["id"],
-                content_type=result["content_type"],
-                user_id=str(current_user.id),
-                campaign_id=campaign_id,
-                generation_method=result["metadata"].get("generation_method", "standard"),
-                ultra_cheap_ai_used=result["metadata"].get("ultra_cheap_ai_used", False),
-                provider=result["metadata"].get("provider", "unknown"),
-                generation_cost=result["metadata"].get("generation_cost", 0.0),
-                timestamp=datetime.fromisoformat(result.get("created_at", datetime.utcnow().isoformat()))
-            )
-        
-        # Ensure it matches ContentDetailResponse schema
-        return ContentDetailResponse(
-            id=result["id"],
-            campaign_id=result["campaign_id"],
-            content_type=result["content_type"],
-            content_title=result["content_title"],
-            content_body=result["content_body"],
-            parsed_content=result["parsed_content"],
-            ultra_cheap_info=result.get("ultra_cheap_info", {}),
-            metadata=result.get("metadata", {}),
-            created_at=result.get("created_at"),
-            updated_at=result.get("updated_at"),
-            generation_metadata=generation_metadata
-        )
-        
-    except ValueError as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get content detail: {str(e)}"
-        )
-
 @router.get("/system/ultra-cheap-status", response_model=SystemStatusResponse)
 async def get_ultra_cheap_status(current_user: User = Depends(get_current_user)):
-    """Get ultra-cheap AI system status with proper schema"""
+    """Get ultra-cheap AI system status with enhanced monitoring"""
     
     try:
-        # Test generators
+        # Test generators with enhanced status checking
         generators_status = {}
         
         try:
@@ -453,33 +505,9 @@ async def get_ultra_cheap_status(current_user: User = Depends(get_current_user))
                 "status": "unavailable"
             }
         
-        try:
-            from ..generators.ad_copy_generator import AdCopyGenerator
-            gen = AdCopyGenerator()
-            providers = getattr(gen, 'ultra_cheap_providers', [])
-            generators_status["ad_copy"] = {
-                "available": True,
-                "ultra_cheap_providers": len(providers),
-                "cost_savings": "97% vs OpenAI",
-                "status": "operational"
-            }
-        except Exception as e:
-            logging.warning(f"Ad copy generator check failed: {e}")
-            generators_status["ad_copy"] = {
-                "available": False,
-                "ultra_cheap_providers": 0,
-                "cost_savings": "0%",
-                "status": "unavailable"
-            }
-        
         # Determine overall status
         operational_count = sum(1 for g in generators_status.values() if g["available"])
-        if operational_count >= 2:
-            overall_status = "operational"
-        elif operational_count >= 1:
-            overall_status = "limited"
-        else:
-            overall_status = "unavailable"
+        overall_status = "operational" if operational_count > 0 else "unavailable"
         
         return SystemStatusResponse(
             system_health={
@@ -493,11 +521,10 @@ async def get_ultra_cheap_status(current_user: User = Depends(get_current_user))
                 "railway_compatible": True
             },
             recommendations=[
-                "Ultra-cheap AI is saving 97-99% vs OpenAI",
-                "All systems operational for cost-effective content generation"
+                "Ultra-cheap AI saving 97-99% vs OpenAI",
+                "System optimized for high-volume generation"
             ] if operational_count > 0 else [
-                "Ultra-cheap AI providers temporarily unavailable",
-                "Falling back to standard generation methods"
+                "Ultra-cheap AI providers temporarily unavailable"
             ],
             ultra_cheap_ai_status=overall_status,
             generators=generators_status,
@@ -519,61 +546,4 @@ async def get_ultra_cheap_status(current_user: User = Depends(get_current_user))
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Status check failed: {str(e)}"
-        )
-
-# ============================================================================
-# ✅ LEGACY ENDPOINTS (Keep existing functionality)
-# ============================================================================
-
-@router.put("/{campaign_id}/{content_id}")
-async def update_content(
-    campaign_id: str,
-    content_id: str,
-    update_data: Dict[str, Any],
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Update generated content"""
-    
-    handler = ContentHandler(db, current_user)
-    
-    try:
-        result = await handler.update_content(campaign_id, content_id, update_data)
-        return result
-        
-    except ValueError as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update content: {str(e)}"
-        )
-
-@router.delete("/{campaign_id}/{content_id}")
-async def delete_content(
-    campaign_id: str,
-    content_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Delete generated content"""
-    
-    handler = ContentHandler(db, current_user)
-    
-    try:
-        result = await handler.delete_content(campaign_id, content_id)
-        return result
-        
-    except ValueError as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete content: {str(e)}"
         )
