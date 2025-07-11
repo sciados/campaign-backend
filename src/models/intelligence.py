@@ -5,6 +5,7 @@ Intelligence models - UPDATED VERSION with schema-aligned GeneratedContent model
 ✅ ULTRA-CHEAP AI READY: Full cost tracking and analytics support
 """
 import json
+from uuid import uuid4
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -136,11 +137,14 @@ class CampaignIntelligence(BaseModel, EnumSerializerMixin):
 
 class GeneratedContent(BaseModel, EnumSerializerMixin):
     """
-    Track content generated from intelligence - SCHEMA ALIGNED VERSION
-    ✅ PERFECTLY ALIGNED: Matches your actual database schema exactly
+    Track content generated from intelligence - FULLY UUID CONSISTENT
+    ✅ PERFECTLY ALIGNED: All IDs are UUID for consistency
     ✅ ULTRA-CHEAP AI READY: Full cost tracking and analytics support
     """
     __tablename__ = "generated_content"
+    
+    # ✅ UUID PRIMARY KEY (consistent with all other tables)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     
     # ✅ CORE CONTENT FIELDS (match database exactly)
     content_type = Column(String(50), nullable=False)
@@ -163,13 +167,15 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
     performance_score = Column(Float)  # Added - exists in database
     view_count = Column(Integer, default=0)  # Added - exists in database
     
-    # ✅ FOREIGN KEYS (corrected data types to match database)
-    campaign_id = Column(String(36))  # VARCHAR in database, not UUID
-    user_id = Column(Integer, nullable=False)  # INTEGER in database, not UUID
+    # ✅ FOREIGN KEYS (UUID consistency across all tables)
+    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"))  # UUID to match campaigns table
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)  # UUID to match users table
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"))  # UUID to match companies table
     
-    # ✅ RELATIONSHIPS (updated for correct data types)
+    # ✅ RELATIONSHIPS (updated for UUID consistency)
     campaign = relationship("Campaign", back_populates="generated_content")
-    # Note: User relationship might need adjustment based on user table structure
+    user = relationship("User", back_populates="generated_content")
+    company = relationship("Company", back_populates="generated_content")
     
     def get_generation_metadata(self) -> Dict[str, Any]:
         """Get generation metadata with proper serialization"""

@@ -5,12 +5,14 @@ Content Routes - Optimized for New Database Schema
 """
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 from typing import Dict, Any, Optional, List
 import logging
 from datetime import datetime
 import asyncio
 import json
 import uuid
+from uuid import UUID
 
 from src.core.database import get_db
 from src.auth.dependencies import get_current_user
@@ -36,7 +38,7 @@ router = APIRouter()
 
 async def save_content_to_database(
     db: AsyncSession,
-    user_id: int,
+    user_id: UUID,  # Now properly UUID type
     content_type: str,
     prompt: str,
     result: Dict[str, Any],
@@ -69,16 +71,16 @@ async def save_content_to_database(
                 )
                 campaign_result = campaign_query.fetchone()
                 if campaign_result:
-                    company_id = str(campaign_result[0])
+                    company_id = campaign_result[0]  # Keep as UUID object
             except Exception as e:
                 logging.warning(f"Could not get company_id from campaign: {e}")
         
         # Create database record that matches the actual schema
         generated_content = GeneratedContent(
             id=content_id,
-            user_id=user_id,
-            campaign_id=campaign_id,
-            company_id=company_id,
+            user_id=user_id,  # UUID field (matches database)
+            campaign_id=uuid.UUID(campaign_id) if campaign_id else None,  # Convert to UUID
+            company_id=company_id,  # UUID field (matches database)
             content_type=content_type,
             content_title=title,
             content_body=json.dumps(content_data),
@@ -129,7 +131,7 @@ async def save_content_to_database(
         await db.refresh(generated_content)
         
         # Enhanced logging
-        logging.info(f"✅ Content saved to database: {content_id}")
+        logging.info(f"✅ Content saved to database: {generated_content.id}")
         logging.info(f"   Title: {title}")
         logging.info(f"   Type: {content_type}")
         logging.info(f"   Ultra-cheap AI: {ultra_cheap_used}")
@@ -137,7 +139,7 @@ async def save_content_to_database(
         logging.info(f"   Cost: ${cost_optimization.get('total_cost', 0.0):.6f}")
         logging.info(f"   Company ID: {company_id}")
         
-        return content_id
+        return str(generated_content.id)
         
     except Exception as e:
         logging.error(f"❌ Database save failed: {str(e)}")
