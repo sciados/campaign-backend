@@ -31,6 +31,160 @@ from ..schemas.responses import (
 router = APIRouter()
 
 # ============================================================================
+# ✅ HELPER FUNCTIONS (Moved to top to fix import order)
+# ============================================================================
+
+async def save_content_to_database(
+    db: AsyncSession,
+    user_id: int,
+    content_type: str,
+    prompt: str,
+    result: Dict[str, Any],
+    campaign_id: str = None,
+    ultra_cheap_used: bool = False
+) -> str:
+    """Save content to optimized database with enhanced error handling"""
+    try:
+        from src.models.intelligence import GeneratedContent
+        from sqlalchemy import text
+        
+        # Generate UUID string for content (matches VARCHAR(36))
+        content_id = str(uuid.uuid4())
+        
+        # Extract metadata
+        metadata = result.get("metadata", {})
+        cost_optimization = metadata.get("cost_optimization", {})
+        
+        # Create intelligent title from content
+        content_data = result.get("content", result)
+        title = create_intelligent_title(content_data, content_type)
+        
+        # Get company_id from campaign if available
+        company_id = None
+        if campaign_id:
+            try:
+                campaign_query = await db.execute(
+                    text("SELECT company_id FROM campaigns WHERE id = :campaign_id"),
+                    {"campaign_id": campaign_id}
+                )
+                campaign_result = campaign_query.fetchone()
+                if campaign_result:
+                    company_id = str(campaign_result[0])
+            except Exception as e:
+                logging.warning(f"Could not get company_id from campaign: {e}")
+        
+        # Create database record that matches the actual schema
+        generated_content = GeneratedContent(
+            id=content_id,
+            user_id=user_id,
+            campaign_id=campaign_id,
+            company_id=company_id,
+            content_type=content_type,
+            content_title=title,
+            content_body=json.dumps(content_data),
+            content_metadata={
+                "ai_provider_used": metadata.get("ai_provider_used", "unknown"),
+                "model_used": metadata.get("model_used", "unknown"),
+                "generation_time": metadata.get("generation_time", 0.0),
+                "total_tokens": metadata.get("total_tokens", 0),
+                "quality_score": metadata.get("quality_score", 80),
+                "generated_at": datetime.utcnow().isoformat(),
+                "railway_compatible": True
+            },
+            generation_settings={
+                "prompt": prompt,
+                "ultra_cheap_ai_used": ultra_cheap_used,
+                "provider": metadata.get("ai_provider_used", "unknown"),
+                "cost_savings": cost_optimization.get("savings_vs_openai", 0.0),
+                "generation_method": "enhanced" if ultra_cheap_used else "fallback",
+                "generation_cost": cost_optimization.get("total_cost", 0.0),
+                "estimated_openai_cost": cost_optimization.get("estimated_openai_cost", 0.029),
+                "savings_percentage": calculate_savings_percentage(
+                    cost_optimization.get("savings_vs_openai", 0.0),
+                    cost_optimization.get("estimated_openai_cost", 0.029)
+                ),
+                "railway_compatible": True
+            },
+            intelligence_used={
+                "generation_timestamp": datetime.utcnow().isoformat(),
+                "ultra_cheap_ai_used": ultra_cheap_used,
+                "cost_savings": cost_optimization.get("savings_vs_openai", 0.0),
+                "provider_used": metadata.get("ai_provider_used", "unknown"),
+                "generation_cost": cost_optimization.get("total_cost", 0.0),
+                "total_tokens": metadata.get("total_tokens", 0),
+                "generation_time": metadata.get("generation_time", 0.0),
+                "railway_compatible": True,
+                "optimization_applied": True
+            },
+            performance_score=metadata.get("quality_score", 80.0),
+            view_count=0,
+            is_published=False,
+            user_rating=None,
+            published_at=None
+        )
+        
+        # Save to database
+        db.add(generated_content)
+        await db.commit()
+        await db.refresh(generated_content)
+        
+        # Enhanced logging
+        logging.info(f"✅ Content saved to database: {content_id}")
+        logging.info(f"   Title: {title}")
+        logging.info(f"   Type: {content_type}")
+        logging.info(f"   Ultra-cheap AI: {ultra_cheap_used}")
+        logging.info(f"   Provider: {metadata.get('ai_provider_used', 'unknown')}")
+        logging.info(f"   Cost: ${cost_optimization.get('total_cost', 0.0):.6f}")
+        logging.info(f"   Company ID: {company_id}")
+        
+        return content_id
+        
+    except Exception as e:
+        logging.error(f"❌ Database save failed: {str(e)}")
+        logging.error(f"   Error type: {type(e).__name__}")
+        
+        # Rollback and return temp ID
+        try:
+            await db.rollback()
+        except Exception as rollback_error:
+            logging.error(f"   Rollback failed: {rollback_error}")
+            
+        return f"temp_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+
+
+def create_intelligent_title(content_data: Dict[str, Any], content_type: str) -> str:
+    """Create intelligent titles based on content type and data"""
+    if isinstance(content_data, dict):
+        if content_type == "email_sequence" and "emails" in content_data:
+            email_count = len(content_data["emails"])
+            if email_count > 0 and "subject" in content_data["emails"][0]:
+                first_subject = content_data["emails"][0]["subject"]
+                return f"{email_count}-Email Sequence: {first_subject[:50]}..."
+            return f"{email_count}-Email Campaign Sequence"
+            
+        elif content_type == "ad_copy" and "ads" in content_data:
+            ad_count = len(content_data["ads"])
+            return f"{ad_count} High-Converting Ad Variations"
+            
+        elif content_type == "social_media_posts" and "posts" in content_data:
+            post_count = len(content_data["posts"])
+            return f"{post_count} Social Media Posts"
+            
+        elif "title" in content_data:
+            return content_data["title"][:500]  # Respect VARCHAR(500) limit
+    
+    # Fallback title
+    return f"Generated {content_type.replace('_', ' ').title()}"
+
+
+def calculate_savings_percentage(savings_amount: float, estimated_openai_cost: float) -> str:
+    """Calculate savings percentage safely"""
+    if estimated_openai_cost > 0:
+        percentage = (savings_amount / estimated_openai_cost) * 100
+        return f"{percentage:.1f}%"
+    return "0%"
+
+# ============================================================================
 # ✅ OPTIMIZED: Main Content Generation Endpoint
 # ============================================================================
 
@@ -265,11 +419,29 @@ async def save_content_to_database(
         content_data = result.get("content", result)
         title = create_intelligent_title(content_data, content_type)
         
+        # Get company_id from campaign if available
+        company_id = None
+        if campaign_id:
+            try:
+                # Query to get company_id from campaign
+                from src.models.campaign import Campaign
+                from sqlalchemy import text
+                campaign_query = await db.execute(
+                    text("SELECT company_id FROM campaigns WHERE id = :campaign_id"),
+                    {"campaign_id": campaign_id}
+                )
+                campaign_result = campaign_query.fetchone()
+                if campaign_result:
+                    company_id = str(campaign_result[0])
+            except Exception as e:
+                logging.warning(f"Could not get company_id from campaign: {e}")
+        
         # Create database record that matches the actual schema
         generated_content = GeneratedContent(
             id=content_id,
             user_id=user_id,  # INTEGER field (matches database)
             campaign_id=campaign_id,  # VARCHAR(36) field (matches database)
+            company_id=company_id,  # VARCHAR(36) field (matches database)
             content_type=content_type,  # VARCHAR(50)
             content_title=title,  # VARCHAR(500)
             content_body=json.dumps(content_data),  # TEXT field with JSON
@@ -340,56 +512,56 @@ async def save_content_to_database(
         logging.info(f"   Provider: {metadata.get('ai_provider_used', 'unknown')}")
         logging.info(f"   Cost: ${cost_optimization.get('total_cost', 0.0):.6f}")
         logging.info(f"   Savings: ${cost_optimization.get('savings_vs_openai', 0.0):.6f}")
+        logging.info(f"   Company ID: {company_id}")
         
         return content_id
         
     except Exception as e:
         logging.error(f"❌ Database save failed: {str(e)}")
         logging.error(f"   Error type: {type(e).__name__}")
+        logging.error(f"   Content ID: {content_id if 'content_id' in locals() else 'Not generated'}")
+        logging.error(f"   Campaign ID: {campaign_id}")
+        logging.error(f"   Company ID: {company_id if 'company_id' in locals() else 'Not found'}")
         
         # Rollback and return temp ID
         try:
             await db.rollback()
-        except:
-            pass
+        except Exception as rollback_error:
+            logging.error(f"   Rollback failed: {rollback_error}")
             
         return f"temp_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-
-# ============================================================================
-# ✅ HELPER FUNCTIONS
-# ============================================================================
-
-def create_intelligent_title(content_data: Dict[str, Any], content_type: str) -> str:
-    """Create intelligent titles based on content type and data"""
-    
-    if isinstance(content_data, dict):
-        if content_type == "email_sequence" and "emails" in content_data:
-            email_count = len(content_data["emails"])
-            if email_count > 0 and "subject" in content_data["emails"][0]:
-                first_subject = content_data["emails"][0]["subject"]
-                return f"{email_count}-Email Sequence: {first_subject[:50]}..."
-            return f"{email_count}-Email Campaign Sequence"
+        
+        # Save to database with optimized error handling
+        db.add(generated_content)
+        await db.commit()
+        await db.refresh(generated_content)
+        
+        # Enhanced logging
+        logging.info(f"✅ Content saved to optimized database: {content_id}")
+        logging.info(f"   Title: {title}")
+        logging.info(f"   Type: {content_type}")
+        logging.info(f"   Ultra-cheap AI: {ultra_cheap_used}")
+        logging.info(f"   Provider: {metadata.get('ai_provider_used', 'unknown')}")
+        logging.info(f"   Cost: ${cost_optimization.get('total_cost', 0.0):.6f}")
+        logging.info(f"   Savings: ${cost_optimization.get('savings_vs_openai', 0.0):.6f}")
+        logging.info(f"   Company ID: {company_id}")
+        
+        return content_id
+        
+    except Exception as e:
+        logging.error(f"❌ Database save failed: {str(e)}")
+        logging.error(f"   Error type: {type(e).__name__}")
+        logging.error(f"   Content ID: {content_id}")
+        logging.error(f"   Campaign ID: {campaign_id}")
+        logging.error(f"   Company ID: {company_id}")
+        
+        # Rollback and return temp ID
+        try:
+            await db.rollback()
+        except Exception as rollback_error:
+            logging.error(f"   Rollback failed: {rollback_error}")
             
-        elif content_type == "ad_copy" and "ads" in content_data:
-            ad_count = len(content_data["ads"])
-            return f"{ad_count} High-Converting Ad Variations"
-            
-        elif content_type == "social_media_posts" and "posts" in content_data:
-            post_count = len(content_data["posts"])
-            return f"{post_count} Social Media Posts"
-            
-        elif "title" in content_data:
-            return content_data["title"][:500]  # Respect VARCHAR(500) limit
-    
-    # Fallback title
-    return f"Generated {content_type.replace('_', ' ').title()}"
-
-def calculate_savings_percentage(savings_amount: float, estimated_openai_cost: float) -> str:
-    """Calculate savings percentage safely"""
-    if estimated_openai_cost > 0:
-        percentage = (savings_amount / estimated_openai_cost) * 100
-        return f"{percentage:.1f}%"
-    return "0%"
+        return f"temp_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
 
 # ============================================================================
 # ✅ ANALYTICS ENDPOINTS (Using New Database Views)
