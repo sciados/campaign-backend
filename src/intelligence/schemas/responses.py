@@ -1,11 +1,48 @@
 """
 File: src/intelligence/schemas/responses.py
 Response Schemas - Pydantic models for API responses
-Extracted from main routes.py for better organization
-✅ UPDATED: Added ultra-cheap AI support to ContentGenerationResponse
+✅ ENHANCED: Complete ultra-cheap AI support with all missing classes
 """
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
+from datetime import datetime
+
+
+# ✅ NEW: Missing classes that other routers need
+class UltraCheapMetadata(BaseModel):
+    """Metadata for ultra-cheap AI operations"""
+    provider: str
+    model_used: str
+    cost_per_token: float
+    total_tokens: int
+    generation_cost: float
+    estimated_openai_cost: float
+    savings_amount: float
+    cost_savings_percentage: str
+    generation_time: float
+    tokens_per_second: float
+    provider_status: str = "active"
+
+
+class GenerationMetadata(BaseModel):
+    """Enhanced generation metadata for content creation"""
+    generation_id: str
+    content_type: str
+    user_id: Optional[str] = None
+    campaign_id: Optional[str] = None
+    generation_method: str = "standard"
+    ultra_cheap_ai_used: bool = False
+    provider: Optional[str] = None
+    model_used: Optional[str] = None
+    generation_cost: float = 0.0
+    estimated_openai_cost: float = 0.0
+    savings_amount: float = 0.0
+    cost_savings_percentage: str = "0%"
+    generation_time: float = 0.0
+    tokens_used: int = 0
+    quality_score: Optional[float] = None
+    generation_settings: Dict[str, Any] = {}
+    timestamp: Optional[datetime] = None
 
 
 class AnalysisResponse(BaseModel):
@@ -22,7 +59,7 @@ class AnalysisResponse(BaseModel):
 class ContentGenerationResponse(BaseModel):
     """
     Response model for content generation
-    ✅ UPDATED: Enhanced with ultra-cheap AI support while maintaining backward compatibility
+    ✅ ENHANCED: Complete ultra-cheap AI support with schema alignment
     """
     # ✅ EXISTING FIELDS (unchanged for backward compatibility)
     content_id: str
@@ -31,7 +68,7 @@ class ContentGenerationResponse(BaseModel):
     smart_url: Optional[str] = None
     performance_predictions: Dict[str, Any] = {}
     
-    # ✅ NEW: Ultra-cheap AI fields (optional for backward compatibility)
+    # ✅ ENHANCED: Ultra-cheap AI fields (optional for backward compatibility)
     ultra_cheap_ai_used: Optional[bool] = False
     cost_savings: Optional[str] = "0%"
     provider: Optional[str] = "unknown"
@@ -40,9 +77,15 @@ class ContentGenerationResponse(BaseModel):
     estimated_openai_cost: Optional[float] = 0.0
     savings_amount: Optional[float] = 0.0
     
-    # ✅ NEW: Enhanced metadata (optional)
+    # ✅ ENHANCED: Detailed metadata
     intelligence_sources_used: Optional[int] = 0
     generation_metadata: Optional[Dict[str, Any]] = {}
+    ultra_cheap_metadata: Optional[UltraCheapMetadata] = None
+    
+    # ✅ NEW: Performance tracking
+    generation_time: Optional[float] = 0.0
+    tokens_used: Optional[int] = 0
+    quality_metrics: Optional[Dict[str, Any]] = {}
 
 
 class IntelligenceSourceResponse(BaseModel):
@@ -67,7 +110,7 @@ class IntelligenceSourceResponse(BaseModel):
 class ContentItemResponse(BaseModel):
     """
     Response model for content items
-    ✅ UPDATED: Added ultra-cheap AI tracking
+    ✅ ENHANCED: Complete ultra-cheap AI tracking
     """
     id: str
     content_type: str
@@ -83,8 +126,9 @@ class ContentItemResponse(BaseModel):
     intelligence_used: Dict[str, Any]
     amplification_context: Dict[str, Any]
     
-    # ✅ NEW: Ultra-cheap AI indicator (optional)
+    # ✅ ENHANCED: Ultra-cheap AI tracking
     ultra_cheap_ai_used: Optional[bool] = False
+    generation_metadata: Optional[GenerationMetadata] = None
 
 
 class CampaignIntelligenceResponse(BaseModel):
@@ -109,13 +153,13 @@ class AmplificationResponse(BaseModel):
 class SystemStatusResponse(BaseModel):
     """
     Response model for system status
-    ✅ UPDATED: Enhanced for ultra-cheap AI monitoring
+    ✅ ENHANCED: Complete ultra-cheap AI monitoring
     """
     system_health: Dict[str, str]
     detailed_status: Dict[str, Any]
     recommendations: List[str]
     
-    # ✅ NEW: Ultra-cheap AI system status (optional)
+    # ✅ ENHANCED: Ultra-cheap AI system status
     ultra_cheap_ai_status: Optional[str] = "unknown"
     generators: Optional[Dict[str, Dict[str, Any]]] = {}
     cost_analysis: Optional[Dict[str, Any]] = {}
@@ -125,7 +169,7 @@ class SystemStatusResponse(BaseModel):
 class ContentTypesResponse(BaseModel):
     """
     Response model for available content types
-    ✅ UPDATED: Added ultra-cheap AI capabilities info
+    ✅ ENHANCED: Complete ultra-cheap AI capabilities info
     """
     available_content_types: List[str]
     total_available: int
@@ -133,9 +177,10 @@ class ContentTypesResponse(BaseModel):
     factory_available: bool
     status: str
     
-    # ✅ NEW: Ultra-cheap AI info (optional)
+    # ✅ ENHANCED: Ultra-cheap AI info
     ultra_cheap_ai: Optional[bool] = False
     cost_savings: Optional[str] = "0%"
+    ultra_cheap_providers: Optional[List[str]] = []
 
 
 class ExportResponse(BaseModel):
@@ -185,13 +230,16 @@ class ErrorResponse(BaseModel):
     request_id: Optional[str] = None
 
 
-# ✅ NEW: Ultra-cheap AI specific responses (for specialized endpoints)
+# ✅ ENHANCED: Ultra-cheap AI specific responses
 class UltraCheapStatusResponse(BaseModel):
     """Response model for ultra-cheap AI status"""
     ultra_cheap_ai_status: str
     generators: Dict[str, Dict[str, Any]]
     cost_analysis: Dict[str, Any]
     monthly_projections: Dict[str, Any]
+    provider_health: Dict[str, str]
+    cost_savings_today: float
+    total_tokens_saved: int
 
 
 class ContentListResponse(BaseModel):
@@ -200,6 +248,7 @@ class ContentListResponse(BaseModel):
     total_content: int
     content_items: List[Dict[str, Any]]
     ultra_cheap_stats: Optional[Dict[str, Any]] = {}
+    cost_summary: Optional[Dict[str, Any]] = {}
 
 
 class ContentDetailResponse(BaseModel):
@@ -214,3 +263,25 @@ class ContentDetailResponse(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     ultra_cheap_info: Optional[Dict[str, Any]] = {}
+    generation_metadata: Optional[GenerationMetadata] = None
+
+
+# ✅ NEW: Additional helper responses for better organization
+class CostAnalysisResponse(BaseModel):
+    """Response model for cost analysis"""
+    total_savings: float
+    cost_breakdown: Dict[str, float]
+    provider_comparison: Dict[str, Dict[str, Any]]
+    monthly_projection: Dict[str, float]
+    efficiency_metrics: Dict[str, Any]
+
+
+class ProviderStatusResponse(BaseModel):
+    """Response model for provider status"""
+    provider_name: str
+    status: str
+    response_time: float
+    cost_per_token: float
+    rate_limit_status: Dict[str, Any]
+    quality_score: float
+    last_used: Optional[str] = None
