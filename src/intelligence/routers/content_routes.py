@@ -490,8 +490,8 @@ async def generate_content(
         # 🔐 SECURE: Save to database with user authentication
         content_id = await save_content_to_database(
             db=db,
-            user_id=admin_user_id,
-            # user_id=current_user,
+            # user_id=admin_user_id,
+            user_id=current_user,
             # user_id=uuid.uuid4(),  # 🔐 CRITICAL: User context for security
             content_type=content_type,
             prompt=prompt,
