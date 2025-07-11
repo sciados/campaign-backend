@@ -167,6 +167,7 @@ async def save_content_to_database(
     prompt: str,
     result: Dict[str, Any],
     campaign_id: str = None,
+    # company_id: str = None,
     ultra_cheap_used: bool = False
 ) -> str:
     """Fixed version with proper company_id population"""
