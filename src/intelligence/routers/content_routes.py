@@ -296,6 +296,7 @@ async def generate_content(
         prompt = request_data.get("prompt", "")
         context = request_data.get("context", {})
         campaign_id = request_data.get("campaign_id")
+        company_id = request_data.get("company_id")  # Optional, can be
         
         logging.info(f"🎯 Enhanced content generation: {content_type}")
         
@@ -344,6 +345,7 @@ async def generate_content(
             handler_request = {
                 "content_type": content_type,
                 "campaign_id": campaign_id,
+                "company_id": company_id,
                 "preferences": {
                     "prompt": prompt,
                     "context": context,
@@ -363,6 +365,7 @@ async def generate_content(
             prompt=prompt,
             result=result,
             campaign_id=campaign_id,
+            company_id=company_id,
             ultra_cheap_used=ultra_cheap_used
         )
         
@@ -568,6 +571,7 @@ async def generate_content(
             handler_request = {
                 "content_type": content_type,
                 "campaign_id": campaign_id,
+                "company_id": context.get("company_id"),
                 "preferences": {
                     "prompt": prompt,
                     "context": context,
@@ -589,6 +593,7 @@ async def generate_content(
             prompt=prompt,
             result=result,
             campaign_id=campaign_id,
+            company_id=context.get("company_id"),  # Optional
             ultra_cheap_used=ultra_cheap_used
         )
         
