@@ -162,14 +162,14 @@ async def check_user_limits(db: AsyncSession, user: User, requested_generations:
 
 async def save_content_to_database(
     db: AsyncSession,
-    user_id: UUID,
+    user_id: UUID,  # Will receive your admin user ID
     content_type: str,
     prompt: str,
     result: Dict[str, Any],
     campaign_id: str = None,
     ultra_cheap_used: bool = False
 ) -> str:
-    """Railway-compatible version - no complex async patterns"""
+    """Fixed to use your admin user ID specifically"""
     try:
         from src.models.intelligence import GeneratedContent
         
@@ -177,14 +177,14 @@ async def save_content_to_database(
         metadata = result.get("metadata", {})
         cost_optimization = metadata.get("cost_optimization", {})
         
-        # 🚂 RAILWAY FIX: Skip user validation for now (we'll add it back later)
-        # The async user query is causing the issue on Railway
+        # 👤 USE YOUR ADMIN USER ID
+        admin_user_id = "52b1f984-f697-45ef-a9b6-d58b0f0c8da0"  # Your admin ID
         
         # Create title
         content_data = result.get("content", result)
         title = create_intelligent_title(content_data, content_type)
         
-        # 🔧 CRITICAL: Populate performance_data to prevent infinite loop
+        # 🔧 CRITICAL FIX: Populate performance_data to prevent infinite loop
         performance_data = {
             "generation_time": metadata.get("generation_time", 0.0),
             "total_tokens": metadata.get("total_tokens", 0),
@@ -203,22 +203,17 @@ async def save_content_to_database(
                 cost_optimization.get("savings_vs_openai", 0.0),
                 cost_optimization.get("estimated_openai_cost", 0.029)
             ),
-            "user_id": str(user_id),
-            "generated_by": "railway_user",  # Temporary placeholder
-            "user_tier": "standard",  # Temporary placeholder
-            "railway_deployment": True,
-            "async_issue_workaround": True
+            "user_id": admin_user_id,
+            "generated_by": "admin_user",
+            "user_email": "shaungpg@gmail.com"
         }
         
-        # 🚂 RAILWAY FIX: Simplified company_id handling
-        company_id = None  # We'll add proper validation back later
-        
-        # Create record with minimal dependencies
+        # Create record with your admin user ID
         generated_content = GeneratedContent(
             id=content_id,
-            user_id=user_id,
+            user_id=uuid.UUID(admin_user_id),  # 👤 Your admin user ID
             campaign_id=uuid.UUID(campaign_id) if campaign_id else None,
-            company_id=company_id,
+            # company_id can be None for now
             content_type=content_type,
             content_title=title,
             content_body=json.dumps(content_data),
@@ -231,8 +226,8 @@ async def save_content_to_database(
                 "quality_score": metadata.get("quality_score", 80),
                 "generated_at": datetime.utcnow().isoformat(),
                 "railway_compatible": True,
-                "railway_deployment": True,
-                "async_workaround": True
+                "admin_user": True,
+                "user_email": "shaungpg@gmail.com"
             },
             
             generation_settings={
@@ -248,7 +243,7 @@ async def save_content_to_database(
                     cost_optimization.get("estimated_openai_cost", 0.029)
                 ),
                 "railway_compatible": True,
-                "railway_deployment": True
+                "admin_user": True
             },
             
             intelligence_used={
@@ -261,8 +256,7 @@ async def save_content_to_database(
                 "generation_time": metadata.get("generation_time", 0.0),
                 "railway_compatible": True,
                 "optimization_applied": True,
-                "railway_deployment": True,
-                "async_workaround": True
+                "admin_user": True
             },
             
             # 🔧 CRITICAL: This fixes the infinite loop
@@ -275,28 +269,29 @@ async def save_content_to_database(
             published_at=None
         )
         
-        # 🚂 RAILWAY FIX: Simple database operations only
+        # Save to database
         db.add(generated_content)
         await db.commit()
         await db.refresh(generated_content)
         
         # Success logging
-        logging.info(f"✅ RAILWAY: Content saved successfully: {content_id}")
+        logging.info(f"✅ Content saved for ADMIN user: {content_id}")
+        logging.info(f"   Admin ID: {admin_user_id}")
+        logging.info(f"   Admin Email: shaungpg@gmail.com")
         logging.info(f"   Type: {content_type}")
         logging.info(f"   Ultra-cheap AI: {ultra_cheap_used}")
         logging.info(f"   Cost: ${cost_optimization.get('total_cost', 0.0):.6f}")
         logging.info(f"   Savings: ${cost_optimization.get('savings_vs_openai', 0.0):.6f}")
         logging.info(f"🔧 Performance data populated - infinite loop fixed")
-        logging.info(f"🚂 Railway deployment - async issues avoided")
+        logging.info(f"👤 Using admin account: shaungpg@gmail.com")
         
         return content_id
         
     except Exception as e:
-        logging.error(f"❌ RAILWAY: Content save failed: {str(e)}")
-        logging.error(f"   Error details: {type(e).__name__}")
-        logging.error(f"   Railway deployment issue")
+        logging.error(f"❌ Admin content save failed: {str(e)}")
+        logging.error(f"   Error type: {type(e).__name__}")
+        logging.error(f"   Admin ID: 52b1f984-f697-45ef-a9b6-d58b0f0c8da0")
         
-        # Simple rollback
         try:
             await db.rollback()
             logging.info("✅ Rollback successful")
@@ -305,7 +300,7 @@ async def save_content_to_database(
             
         raise HTTPException(
             status_code=500,
-            detail="Content generation failed - Railway deployment issue"
+            detail=f"Content generation failed: {str(e)}"
         )
 
 def create_optimized_response(
@@ -414,6 +409,9 @@ async def generate_content(
     🔧 FIXED: Now properly populates performance_data to prevent infinite loop
     🔐 SECURE: Ready for 1,000+ users with proper authentication and rate limiting
     """
+
+    admin_user_id = uuid.UUID("52b1f984-f697-45ef-a9b6-d58b0f0c8da0")
+    logging.info(f"👤 Using ADMIN user: shaungpg@gmail.com")
     
     try:
         # 🔐 CRITICAL: Validate user authentication for scale
@@ -492,7 +490,9 @@ async def generate_content(
         # 🔐 SECURE: Save to database with user authentication
         content_id = await save_content_to_database(
             db=db,
-            user_id=uuid.uuid4(),  # 🔐 CRITICAL: User context for security
+            user_id=admin_user_id,
+            # user_id=current_user,
+            # user_id=uuid.uuid4(),  # 🔐 CRITICAL: User context for security
             content_type=content_type,
             prompt=prompt,
             result=result,
