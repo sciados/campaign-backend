@@ -291,7 +291,7 @@ class ContentHandler(EnumSerializerMixin):
             "generation_settings": content_item.generation_settings or {},
             "intelligence_used": intelligence_used,
             "ultra_cheap_info": ultra_cheap_info,  # 🚀 NEW: Ultra-cheap AI details
-            "performance_data": content_item.performance_data or {},
+            "performance_data": getattr(content_item, 'performance_data', {}) or {},
             "user_rating": content_item.user_rating,
             "is_published": content_item.is_published,
             "published_at": content_item.published_at,
