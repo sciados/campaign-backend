@@ -235,7 +235,7 @@ class ContentHandler(EnumSerializerMixin):
                 "user_rating": item.user_rating,
                 "is_published": item.is_published,
                 "published_at": item.published_at,
-                "performance_data": item.performance_data or {},
+                "performance_data": getattr(item, 'performance_data', {}) or {},
                 "content_metadata": item.content_metadata or {},
                 "generation_settings": item.generation_settings or {},
                 "intelligence_used": intelligence_used,
@@ -534,7 +534,7 @@ class ContentHandler(EnumSerializerMixin):
                 "generation_cost": generation_cost,
                 "railway_compatible": True
             },
-            intelligence_source_id=intelligence_sources[0]["id"] if intelligence_sources else None,
+            # intelligence_source_id=intelligence_sources[0]["id"] if intelligence_sources else None,
             is_published=False
         )
         
