@@ -110,14 +110,14 @@ except ImportError as e:
     DASHBOARD_ROUTER_AVAILABLE = False
 
 # Waitlist router import
-    try:
-        from src.routes.waitlist import router as waitlist_router
-        logging.info("✅ Waitlist router imported successfully")
-        WAITLIST_ROUTER_AVAILABLE = True
-    except ImportError as e:
-        logging.warning(f"⚠️ Waitlist router not available: {e}")
-        waitlist_router = None
-        WAITLIST_ROUTER_AVAILABLE = False
+try:
+    from src.routes.waitlist import router as waitlist_router
+    logging.info("✅ Waitlist router imported successfully")
+    WAITLIST_ROUTER_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"⚠️ Waitlist router not available: {e}")
+    waitlist_router = None
+    WAITLIST_ROUTER_AVAILABLE = False
 
 # Import intelligence routers
 INTELLIGENCE_ROUTERS_AVAILABLE = False
@@ -350,15 +350,15 @@ else:
     logging.error("❌ Auth router not registered - authentication will not work")
 
 # Register waitlist router
-    if WAITLIST_ROUTER_AVAILABLE and waitlist_router:
-        app.include_router(waitlist_router, prefix="/api/waitlist", tags=["waitlist"])
-        logging.info("📡 Waitlist router registered at /api/waitlist")
+if WAITLIST_ROUTER_AVAILABLE and waitlist_router:
+    app.include_router(waitlist_router, prefix="/api/waitlist", tags=["waitlist"])
+    logging.info("📡 Waitlist router registered at /api/waitlist")
     
-    # Debug: Show waitlist routes
-        print(f"🔍 Waitlist router has {len(waitlist_router.routes)} routes:")
-        for route in waitlist_router.routes:
-            if hasattr(route, 'path') and hasattr(route, 'methods'):
-                print(f"  {list(route.methods)} /api/waitlist{route.path}")
+# Debug: Show waitlist routes
+    print(f"🔍 Waitlist router has {len(waitlist_router.routes)} routes:")
+    for route in waitlist_router.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            print(f"  {list(route.methods)} /api/waitlist{route.path}")
 
 if CAMPAIGNS_ROUTER_AVAILABLE:
     app.include_router(campaigns_router, prefix="/api/campaigns", tags=["campaigns"])
