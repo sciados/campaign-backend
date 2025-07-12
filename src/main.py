@@ -109,6 +109,15 @@ except ImportError as e:
     logging.warning(f"⚠️ Dashboard router not available: {e}")
     DASHBOARD_ROUTER_AVAILABLE = False
 
+try:
+    from src.admin.routes import router as admin_router
+    logging.info("✅ Admin router imported successfully")
+    ADMIN_ROUTER_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"⚠️ Admin router not available: {e}")
+    admin_router = None
+    ADMIN_ROUTER_AVAILABLE = False
+
 # Waitlist router import
 try:
     from src.routes.waitlist import router as waitlist_router
@@ -349,6 +358,17 @@ if AUTH_ROUTER_AVAILABLE:
 else:
     logging.error("❌ Auth router not registered - authentication will not work")
 
+# Add this with your other router registrations
+if ADMIN_ROUTER_AVAILABLE and admin_router:
+    app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+    logging.info("📡 Admin router registered at /api/admin")
+    
+    # Debug: Show admin routes
+    print(f"🔍 Admin router has {len(admin_router.routes)} routes:")
+    for route in admin_router.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            print(f"  {list(route.methods)} /api/admin{route.path}")
+
 # Register waitlist router
 if WAITLIST_ROUTER_AVAILABLE and waitlist_router:
     app.include_router(waitlist_router, prefix="/api/waitlist", tags=["waitlist"])
@@ -476,6 +496,7 @@ async def health_check():
             "authentication": AUTH_ROUTER_AVAILABLE,
             "campaigns": CAMPAIGNS_ROUTER_AVAILABLE,
             "dashboard": DASHBOARD_ROUTER_AVAILABLE,
+            "admin": ADMIN_ROUTER_AVAILABLE,
             "intelligence": INTELLIGENCE_ROUTERS_AVAILABLE,
             "stability_ai": STABILITY_ROUTER_AVAILABLE,  # ✅ NEW
             "ultra_cheap_images": STABILITY_ROUTER_AVAILABLE,  # ✅ NEW
