@@ -49,7 +49,7 @@ async def get_admin_stats(
     
     # Total counts
     # total_users = await db.scalar(select(func.count(User.id)))
-    result = await db.execute(select(func.count(User.id)))
+    result = db.execute(select(func.count(User.id)))
     total_users = result.scalar()
     total_companies = await db.scalar(select(func.count(Company.id)))
     total_campaigns_created = await db.scalar(select(func.count(Campaign.id)))
