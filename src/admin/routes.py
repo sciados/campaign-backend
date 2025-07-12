@@ -47,10 +47,9 @@ async def get_admin_stats(
     thirty_days_ago = now - timedelta(days=30)
     seven_days_ago = now - timedelta(days=7)
     
-    # Total counts
-    # total_users = await db.scalar(select(func.count(User.id)))
-    result = db.execute(select(func.count(User.id)))
-    total_users = result.scalar()
+    # ✅ FIXED: All database operations now use consistent await patterns
+    # Total counts - ALL using await db.scalar()
+    total_users = await db.scalar(select(func.count(User.id)))
     total_companies = await db.scalar(select(func.count(Company.id)))
     total_campaigns_created = await db.scalar(select(func.count(Campaign.id)))
     
@@ -69,12 +68,12 @@ async def get_admin_stats(
         select(func.count(User.id)).where(User.created_at >= seven_days_ago)
     )
     
-    # Subscription tier breakdown
-    tier_stats = await db.execute(
+    # ✅ FIXED: Subscription tier breakdown - using await db.execute()
+    tier_stats_result = await db.execute(
         select(Company.subscription_tier, func.count(Company.id))
         .group_by(Company.subscription_tier)
     )
-    subscription_breakdown = dict(tier_stats.all())
+    subscription_breakdown = dict(tier_stats_result.all())
     
     # Monthly recurring revenue estimate
     tier_pricing = {
