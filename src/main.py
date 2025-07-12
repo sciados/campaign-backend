@@ -109,6 +109,16 @@ except ImportError as e:
     logging.warning(f"⚠️ Dashboard router not available: {e}")
     DASHBOARD_ROUTER_AVAILABLE = False
 
+# Waitlist router import
+    try:
+        from src.routes.waitlist import router as waitlist_router
+        logging.info("✅ Waitlist router imported successfully")
+        WAITLIST_ROUTER_AVAILABLE = True
+    except ImportError as e:
+        logging.warning(f"⚠️ Waitlist router not available: {e}")
+        waitlist_router = None
+        WAITLIST_ROUTER_AVAILABLE = False
+
 # Import intelligence routers
 INTELLIGENCE_ROUTERS_AVAILABLE = False
 ANALYSIS_ROUTER_AVAILABLE = False
@@ -219,7 +229,7 @@ async def lifespan(app: FastAPI):
         logging.info("✅ Database connection verified")
     except Exception as e:
         logging.error(f"❌ Database connection failed: {e}")
-    
+
     # ✅ NEW: Test storage system health
     if STORAGE_ROUTER_AVAILABLE:
         try:
@@ -248,9 +258,10 @@ async def lifespan(app: FastAPI):
         features.append("Universal Dual Storage")  # ✅ NEW
     if DOCUMENT_ROUTER_AVAILABLE:
         features.append("Document Management")  # ✅ NEW
+    if WAITLIST_ROUTER_AVAILABLE:  # ✅ NEW
+        features.append("Waitlist System")
     if CLICKBANK_MODELS_AVAILABLE:
-        features.append("ClickBank Models")
-    
+        features.append("ClickBank Models")  # ✅ NEW    
     
     logging.info(f"🎯 Available features: {', '.join(features)}")
     
@@ -337,6 +348,17 @@ if AUTH_ROUTER_AVAILABLE:
             print(f"  Route object: {type(route)} - {route}")
 else:
     logging.error("❌ Auth router not registered - authentication will not work")
+
+# Register waitlist router
+    if WAITLIST_ROUTER_AVAILABLE and waitlist_router:
+        app.include_router(waitlist_router, prefix="/api/waitlist", tags=["waitlist"])
+        logging.info("📡 Waitlist router registered at /api/waitlist")
+    
+    # Debug: Show waitlist routes
+        print(f"🔍 Waitlist router has {len(waitlist_router.routes)} routes:")
+        for route in waitlist_router.routes:
+            if hasattr(route, 'path') and hasattr(route, 'methods'):
+                print(f"  {list(route.methods)} /api/waitlist{route.path}")
 
 if CAMPAIGNS_ROUTER_AVAILABLE:
     app.include_router(campaigns_router, prefix="/api/campaigns", tags=["campaigns"])
@@ -464,6 +486,7 @@ async def health_check():
             "analysis": ANALYSIS_ROUTER_AVAILABLE,
             "clickbank_routes": CLICKBANK_ROUTER_AVAILABLE,
             "affiliate_links": AFFILIATE_ROUTER_AVAILABLE,
+            "waitlist": WAITLIST_ROUTER_AVAILABLE,
             "clickbank_admin": CLICKBANK_ADMIN_ROUTER_AVAILABLE,
             "content_generation": CONTENT_ROUTER_AVAILABLE,
             "content": CONTENT_ROUTER_AVAILABLE,
@@ -535,7 +558,8 @@ async def system_status():
             "clickbank_admin": CLICKBANK_ADMIN_ROUTER_AVAILABLE,
             "stability_ai": STABILITY_ROUTER_AVAILABLE,  # ✅ NEW
             "storage": STORAGE_ROUTER_AVAILABLE,  # ✅ NEW
-            "documents": DOCUMENT_ROUTER_AVAILABLE  # ✅ NEW
+            "documents": DOCUMENT_ROUTER_AVAILABLE,  # ✅ NEW
+            "waitlist": WAITLIST_ROUTER_AVAILABLE  # ✅ NEW
         },
         "models": {
             "clickbank_available": CLICKBANK_MODELS_AVAILABLE,
