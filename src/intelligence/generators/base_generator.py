@@ -534,3 +534,72 @@ def estimate_monthly_savings(current_usage: Dict[str, Any], user_count: int = 10
             "annual_savings": (openai_monthly - ultra_cheap_monthly) * 12
         }
     }
+
+async def safe_generate_content(self, intelligence_data: Dict[str, Any], preferences: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    🔧 SAFETY WRAPPER: Ensures content generation never returns None
+    This method wraps the abstract generate_content method with safety checks
+    """
+    try:
+        # Call the actual implementation
+        result = await self.generate_content(intelligence_data, preferences)
+        
+        # 🔧 CRITICAL FIX: Ensure result is not None
+        if result is None:
+            logger.warning(f"Generator {self.generator_type} returned None, creating fallback")
+            return self._create_safe_fallback_response(intelligence_data, preferences)
+        
+        # Validate result structure
+        if not isinstance(result, dict):
+            logger.warning(f"Generator {self.generator_type} returned invalid type: {type(result)}")
+            return self._create_safe_fallback_response(intelligence_data, preferences)
+        
+        # Ensure required fields exist
+        if "content" not in result:
+            result["content"] = {"fallback_generated": True, "note": "Content structure was incomplete"}
+        
+        if "metadata" not in result:
+            result["metadata"] = {"generated_by": f"{self.generator_type}_generator"}
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"❌ Safe generation failed for {self.generator_type}: {str(e)}")
+        return self._create_safe_fallback_response(intelligence_data, preferences, str(e))
+
+def _create_safe_fallback_response(
+    self, 
+    intelligence_data: Dict[str, Any], 
+    preferences: Dict[str, Any] = None, 
+    error_message: str = None
+) -> Dict[str, Any]:
+    """Create a safe fallback response when generation fails"""
+    
+    product_name = self._extract_product_name(intelligence_data)
+    
+    if preferences is None:
+        preferences = {}
+    
+    return {
+        "content_type": self.generator_type,
+        "title": f"Safe Fallback {self.generator_type.title()} for {product_name}",
+        "content": {
+            "fallback_generated": True,
+            "product_name": product_name,
+            "note": f"Safe fallback content for {self.generator_type}",
+            "error_message": error_message if error_message else "Generation method returned None",
+            "generator_type": self.generator_type
+        },
+        "metadata": {
+            "generated_by": f"safe_fallback_{self.generator_type}_generator",
+            "product_name": product_name,
+            "content_type": self.generator_type,
+            "status": "safe_fallback",
+            "error": error_message,
+            "fallback_generated": True,
+            "ultra_cheap_ai_used": False,
+            "generation_cost": 0.0,
+            "generated_at": datetime.utcnow().isoformat(),
+            "safety_wrapper_applied": True
+        }
+    }

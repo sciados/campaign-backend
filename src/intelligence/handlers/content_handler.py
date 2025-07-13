@@ -1,30 +1,36 @@
 """
 File: src/intelligence/handlers/content_handler.py
-Content Handler - Contains content generation business logic
-Extracted from routes.py to improve maintainability
-🔥 FIXED: Enum serialization issues resolved
-🚀 ENHANCED: Ultra-cheap AI integration with Railway compatibility
-🔧 FIXED: Safe performance_data access to prevent infinite loop
+🔧 FIXED: Content Handler - Async Issue Resolution
+✅ FIXED: "object NoneType can't be used in 'await' expression" error
+✅ FIXED: Enhanced content generation function properly async
+✅ FIXED: Direct factory usage with proper error handling
 """
-from http.client import HTTPException
 import json
 import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from intelligence.utils.enum_serializer import EnumSerializerMixin
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from fastapi import HTTPException
 
 from src.models.user import User
 from src.models.campaign import Campaign
 from src.models.intelligence import CampaignIntelligence, GeneratedContent
 from ..utils.campaign_helpers import update_campaign_counters
+from ..utils.enum_serializer import EnumSerializerMixin
 
 logger = logging.getLogger(__name__)
 
-# 🚀 NEW: Enhanced content generation with ultra-cheap AI
-async def enhanced_content_generation(content_type: str, intelligence_data: Dict[str, Any], preferences: Dict[str, Any] = None):
-    """Enhanced content generation with ultra-cheap AI"""
+# 🔧 FIXED: Enhanced content generation with proper async handling
+async def enhanced_content_generation(
+    content_type: str, 
+    intelligence_data: Dict[str, Any], 
+    preferences: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    🔧 FIXED: Enhanced content generation with ultra-cheap AI and proper async handling
+    This function now properly handles async operations and prevents NoneType errors
+    """
     
     if preferences is None:
         preferences = {}
@@ -32,74 +38,126 @@ async def enhanced_content_generation(content_type: str, intelligence_data: Dict
     logger.info(f"🎯 Enhanced content generation: {content_type}")
     
     try:
-        # Try ultra-cheap AI generators first
-        if content_type == "email_sequence":
-            from src.intelligence.generators.email_generator import EmailSequenceGenerator
-            generator = EmailSequenceGenerator()
-            return await generator.generate_content(intelligence_data, preferences)
-            
-        elif content_type == "ad_copy":
-            from src.intelligence.generators.ad_copy_generator import AdCopyGenerator
-            generator = AdCopyGenerator()
-            return await generator.generate_content(intelligence_data, preferences)
-            
-        elif content_type in ["SOCIAL_POSTS", "social_media"]:
-            try:
-                from src.intelligence.generators.social_media_generator import SocialMediaGenerator
-                generator = SocialMediaGenerator()
-                return await generator.generate_content(intelligence_data, preferences)
-            except ImportError:
-                logger.warning("⚠️ Social media generator not available, using Railway compatibility")
+        # Import and use factory directly for reliable generation
+        from ..generators.factory import ContentGeneratorFactory
         
-        elif content_type == "blog_post":
-            try:
-                from src.intelligence.generators.blog_post_generator import BlogPostGenerator
-                generator = BlogPostGenerator()
-                return await generator.generate_content(intelligence_data, preferences)
-            except ImportError:
-                logger.warning("⚠️ Blog post generator not available, using Railway compatibility")
+        factory = ContentGeneratorFactory()
         
-        elif content_type == "LANDING_PAGE":
-            try:
-                from src.intelligence.generators.landing_page.core.generator import EnhancedLandingPageGenerator
-                generator = EnhancedLandingPageGenerator()
-                return await generator.generate_content(intelligence_data, preferences)
-            except ImportError:
-                logger.warning("⚠️ Landing page generator not available, using Railway compatibility")
+        # 🔧 CRITICAL FIX: Ensure factory method is properly awaited
+        result = await factory.generate_content(content_type, intelligence_data, preferences)
         
-        elif content_type == "video_script":
-            try:
-                from src.intelligence.generators.video_script_generator import VideoScriptGenerator
-                generator = VideoScriptGenerator()
-                return await generator.generate_content(intelligence_data, preferences)
-            except ImportError:
-                logger.warning("⚠️ Video script generator not available, using Railway compatibility")
+        # 🔧 CRITICAL FIX: Check for None result
+        if result is None:
+            raise ValueError(f"Factory returned None for content_type: {content_type}")
         
-        # Fallback to Railway compatibility layer
-        from src.intelligence.utils.railway_compatibility import railway_safe_generate_content
-        return await railway_safe_generate_content(content_type, intelligence_data, preferences)
+        # 🔧 CRITICAL FIX: Validate result structure
+        if not isinstance(result, dict):
+            raise ValueError(f"Factory returned invalid result type: {type(result)}")
+        
+        logger.info(f"✅ Enhanced generation successful: {content_type}")
+        return result
         
     except Exception as e:
         logger.error(f"❌ Enhanced generation failed for {content_type}: {str(e)}")
         
-        # Final fallback
-        from src.intelligence.utils.railway_compatibility import get_railway_compatibility_handler
-        handler = get_railway_compatibility_handler()
-        return await handler.generate_ultra_cheap_content(content_type, intelligence_data, preferences)
+        # 🔧 FIXED: Return proper fallback instead of raising
+        return await _generate_fallback_content(content_type, intelligence_data, str(e))
 
+async def _generate_fallback_content(
+    content_type: str, 
+    intelligence_data: Dict[str, Any], 
+    error_message: str
+) -> Dict[str, Any]:
+    """🔧 FIXED: Generate fallback content when primary generation fails"""
+    
+    # Extract product name safely
+    product_name = "PRODUCT"
+    try:
+        offer_intel = intelligence_data.get("offer_intelligence", {})
+        insights = offer_intel.get("insights", [])
+        for insight in insights:
+            if "called" in str(insight).lower():
+                words = str(insight).split()
+                for i, word in enumerate(words):
+                    if word.lower() == "called" and i + 1 < len(words):
+                        product_name = words[i + 1].upper().replace(",", "").replace(".", "")
+                        break
+    except:
+        pass
+    
+    # Generate content-type specific fallback
+    if content_type == "email_sequence":
+        fallback_content = {
+            "sequence_title": f"Email Sequence for {product_name}",
+            "emails": [
+                {
+                    "email_number": 1,
+                    "subject": f"Discover {product_name} Benefits",
+                    "body": f"Learn about the natural health benefits of {product_name} and how it can support your wellness journey.",
+                    "send_delay": "Day 1",
+                    "fallback_generated": True
+                }
+            ]
+        }
+    elif content_type == "SOCIAL_POSTS":
+        fallback_content = {
+            "posts": [
+                {
+                    "post_number": 1,
+                    "platform": "facebook",
+                    "content": f"Discover the natural benefits of {product_name} for your wellness journey! 🌿 #health #wellness",
+                    "fallback_generated": True
+                }
+            ]
+        }
+    elif content_type == "ad_copy":
+        fallback_content = {
+            "ads": [
+                {
+                    "ad_number": 1,
+                    "platform": "facebook",
+                    "headline": f"{product_name} - Natural Health Solution",
+                    "body": f"Experience the benefits of {product_name} for natural health optimization.",
+                    "fallback_generated": True
+                }
+            ]
+        }
+    else:
+        fallback_content = {
+            "fallback_generated": True,
+            "product_name": product_name,
+            "note": f"Fallback content for {content_type}"
+        }
+    
+    return {
+        "content_type": content_type,
+        "title": f"Fallback {content_type.title()} for {product_name}",
+        "content": fallback_content,
+        "metadata": {
+            "generated_by": "enhanced_fallback_generator",
+            "product_name": product_name,
+            "content_type": content_type,
+            "status": "fallback",
+            "error": error_message,
+            "fallback_generated": True,
+            "ultra_cheap_ai_used": False,
+            "generation_cost": 0.0,
+            "generated_at": datetime.utcnow().isoformat()
+        }
+    }
 
 class ContentHandler(EnumSerializerMixin):
-    """🔐 SECURE Content Handler - Ready for 1,000+ Users with proper authentication"""
+    """🔧 FIXED: Content Handler with proper async handling and error prevention"""
     
     def __init__(self, db: AsyncSession, user: User):
         self.db = db
-        self.user = user  # 🔐 REQUIRED: Current user context for security
+        self.user = user
         
-        # 🔐 CRITICAL: Validate user for scale
+        # Validate user for security
         if not user or not user.id:
             raise HTTPException(status_code=401, detail="Authentication required")
         
-        # 🚀 NEW: Initialize ultra-cheap AI tracking
+        # Initialize tracking
         self.ultra_cheap_ai_enabled = True
         self.generation_stats = {
             "total_generations": 0,
@@ -108,7 +166,6 @@ class ContentHandler(EnumSerializerMixin):
             "fallback_generations": 0
         }
     
-    # 🔥 CRITICAL FIX: Add enum serialization helper
     def _serialize_enum_field(self, field_value):
         """Serialize enum field to proper format for API response"""
         if field_value is None:
@@ -128,8 +185,8 @@ class ContentHandler(EnumSerializerMixin):
         return {}
     
     async def generate_content(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate content using intelligence data with ultra-cheap AI"""
-        logger.info(f"🎯 Content generation request received (Ultra-cheap AI enabled)")
+        """🔧 FIXED: Generate content with proper error handling and async operations"""
+        logger.info(f"🎯 Content generation request received")
         
         content_type = request_data.get("content_type", "email_sequence")
         campaign_id = request_data.get("campaign_id")
@@ -140,17 +197,21 @@ class ContentHandler(EnumSerializerMixin):
         # Track generation attempt
         self.generation_stats["total_generations"] += 1
         
-        # Verify campaign access
-        campaign = await self._verify_campaign_access(campaign_id)
-        
-        # Get intelligence data
-        intelligence_data = await self._prepare_intelligence_data(campaign_id, campaign)
-        
-        # 🚀 NEW: Use enhanced content generation with ultra-cheap AI
         try:
+            # Verify campaign access
+            campaign = await self._verify_campaign_access(campaign_id)
+            
+            # Get intelligence data
+            intelligence_data = await self._prepare_intelligence_data(campaign_id, campaign)
+            
+            # 🔧 FIXED: Use enhanced content generation with proper error handling
             result = await enhanced_content_generation(content_type, intelligence_data, preferences)
             
-            # Track ultra-cheap AI usage
+            # 🔧 CRITICAL FIX: Ensure result is not None
+            if result is None:
+                raise ValueError("Content generation returned None")
+            
+            # Track usage
             metadata = result.get("metadata", {})
             if metadata.get("ultra_cheap_ai_used", False):
                 self.generation_stats["ultra_cheap_generations"] += 1
@@ -158,51 +219,67 @@ class ContentHandler(EnumSerializerMixin):
                 self.generation_stats["cost_savings"] += cost_savings
                 logger.info(f"💰 Ultra-cheap AI used: ${cost_savings:.4f} saved")
             
-            # Check if fallback was used
-            if metadata.get("fallback", False):
+            if metadata.get("fallback_generated", False):
                 self.generation_stats["fallback_generations"] += 1
                 logger.warning(f"⚠️ Fallback generation used for {content_type}")
-        
-        except Exception as e:
-            logger.error(f"❌ Enhanced generation failed, using legacy method: {str(e)}")
-            # Fallback to legacy generation method
-            result = await self._generate_content_by_type(content_type, intelligence_data, preferences)
-            self.generation_stats["fallback_generations"] += 1
-        
-        # Save generated content
-        content_id = await self._save_generated_content(
-            campaign_id, content_type, result, preferences, intelligence_data
-        )
-        
-        # Update campaign counters
-        await self._update_campaign_counters(campaign_id)
-        
-        # Enhanced response with ultra-cheap AI stats
-        response = {
-            "content_id": content_id,
-            "content_type": content_type,
-            "generated_content": result,
-            "smart_url": None,
-            "performance_predictions": {},
-            "intelligence_sources_used": len(intelligence_data.get("intelligence_sources", [])),
-            "generation_metadata": {
-                "generated_at": datetime.utcnow().isoformat(),
-                "generator_used": f"{content_type}_generator",
-                "fallback_used": result.get("metadata", {}).get("fallback", False),
-                "ultra_cheap_ai_enabled": self.ultra_cheap_ai_enabled,
-                "ultra_cheap_ai_used": result.get("metadata", {}).get("ultra_cheap_ai_used", False),
-                "cost_savings": result.get("metadata", {}).get("cost_savings", 0.0),
-                "success": True
-            },
-            "ultra_cheap_stats": {
-                "total_generations": self.generation_stats["total_generations"],
-                "ultra_cheap_rate": f"{(self.generation_stats['ultra_cheap_generations'] / max(1, self.generation_stats['total_generations'])) * 100:.1f}%",
-                "total_cost_savings": f"${self.generation_stats['cost_savings']:.4f}",
-                "fallback_rate": f"{(self.generation_stats['fallback_generations'] / max(1, self.generation_stats['total_generations'])) * 100:.1f}%"
+            
+            # Save generated content
+            content_id = await self._save_generated_content(
+                campaign_id, content_type, result, preferences, intelligence_data
+            )
+            
+            # Update campaign counters
+            await self._update_campaign_counters(campaign_id)
+            
+            # Return response
+            response = {
+                "content_id": content_id,
+                "content_type": content_type,
+                "generated_content": result,
+                "smart_url": None,
+                "performance_predictions": {},
+                "intelligence_sources_used": len(intelligence_data.get("intelligence_sources", [])),
+                "generation_metadata": {
+                    "generated_at": datetime.utcnow().isoformat(),
+                    "generator_used": f"{content_type}_generator",
+                    "fallback_used": metadata.get("fallback_generated", False),
+                    "ultra_cheap_ai_enabled": self.ultra_cheap_ai_enabled,
+                    "ultra_cheap_ai_used": metadata.get("ultra_cheap_ai_used", False),
+                    "cost_savings": metadata.get("cost_savings", 0.0),
+                    "success": True
+                },
+                "ultra_cheap_stats": {
+                    "total_generations": self.generation_stats["total_generations"],
+                    "ultra_cheap_rate": f"{(self.generation_stats['ultra_cheap_generations'] / max(1, self.generation_stats['total_generations'])) * 100:.1f}%",
+                    "total_cost_savings": f"${self.generation_stats['cost_savings']:.4f}",
+                    "fallback_rate": f"{(self.generation_stats['fallback_generations'] / max(1, self.generation_stats['total_generations'])) * 100:.1f}%"
+                }
             }
-        }
-        
-        return response
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"❌ Content generation failed: {str(e)}")
+            self.generation_stats["fallback_generations"] += 1
+            
+            # Return error response instead of raising
+            return {
+                "content_id": None,
+                "content_type": content_type,
+                "generated_content": None,
+                "success": False,
+                "error": str(e),
+                "generation_metadata": {
+                    "generated_at": datetime.utcnow().isoformat(),
+                    "generator_used": "error_handler",
+                    "fallback_used": True,
+                    "ultra_cheap_ai_enabled": self.ultra_cheap_ai_enabled,
+                    "ultra_cheap_ai_used": False,
+                    "cost_savings": 0.0,
+                    "success": False,
+                    "error_message": str(e)
+                }
+            }
     
     async def get_content_list(
         self, campaign_id: str, include_body: bool = False, content_type: Optional[str] = None
@@ -211,12 +288,11 @@ class ContentHandler(EnumSerializerMixin):
         # Verify campaign access first
         await self._verify_campaign_access(campaign_id)
         
-        # 🔐 CRITICAL: Build query with security filters for scale
+        # Build query with security filters
         query = select(GeneratedContent).where(
             and_(
                 GeneratedContent.campaign_id == campaign_id,
-                GeneratedContent.company_id == self.user.company_id,  # 🔐 Company isolation
-                # Optional: GeneratedContent.user_id == self.user.id  # 🔐 User-level isolation
+                GeneratedContent.company_id == self.user.company_id,
             )
         ).order_by(GeneratedContent.created_at.desc())
         
@@ -245,13 +321,12 @@ class ContentHandler(EnumSerializerMixin):
                 "user_rating": item.user_rating,
                 "is_published": item.is_published,
                 "published_at": item.published_at,
-                # 🔧 CRITICAL FIX: Safe performance_data access to prevent infinite loop
+                # 🔧 CRITICAL FIX: Safe performance_data access
                 "performance_data": getattr(item, 'performance_data', {}) or {},
                 "content_metadata": item.content_metadata or {},
                 "generation_settings": item.generation_settings or {},
                 "intelligence_used": intelligence_used,
-                "ultra_cheap_ai_used": ultra_cheap_used,  # 🚀 NEW: Ultra-cheap AI indicator
-                # 🎯 USER CONTEXT for analytics
+                "ultra_cheap_ai_used": ultra_cheap_used,
                 "generated_by": item.content_metadata.get("user_email", "unknown") if item.content_metadata else "unknown",
                 "user_tier": item.generation_settings.get("user_tier", "standard") if item.generation_settings else "standard"
             }
@@ -267,12 +342,11 @@ class ContentHandler(EnumSerializerMixin):
             "campaign_id": campaign_id,
             "total_content": len(content_list),
             "content_items": content_list,
-            "ultra_cheap_stats": {  # 🚀 NEW: Ultra-cheap AI stats
+            "ultra_cheap_stats": {
                 "ultra_cheap_content_count": ultra_cheap_count,
                 "ultra_cheap_percentage": f"{(ultra_cheap_count / max(1, len(content_list))) * 100:.1f}%",
                 "cost_efficient_content": ultra_cheap_count
             },
-            # 🎯 USER CONTEXT for scale
             "user_context": {
                 "user_id": str(self.user.id),
                 "company_id": str(self.user.company_id) if hasattr(self.user, 'company_id') else None,
@@ -312,8 +386,8 @@ class ContentHandler(EnumSerializerMixin):
             "content_metadata": content_item.content_metadata or {},
             "generation_settings": content_item.generation_settings or {},
             "intelligence_used": intelligence_used,
-            "ultra_cheap_info": ultra_cheap_info,  # 🚀 NEW: Ultra-cheap AI details
-            # 🔧 CRITICAL FIX: Safe performance_data access to prevent infinite loop
+            "ultra_cheap_info": ultra_cheap_info,
+            # 🔧 CRITICAL FIX: Safe performance_data access
             "performance_data": getattr(content_item, 'performance_data', {}) or {},
             "user_rating": content_item.user_rating,
             "is_published": content_item.is_published,
@@ -369,12 +443,12 @@ class ContentHandler(EnumSerializerMixin):
     # Private helper methods
     
     async def _verify_campaign_access(self, campaign_id: str) -> Campaign:
-        """🔐 SECURE: Verify user has access to the campaign - CRITICAL for 1,000+ users"""
+        """🔐 SECURE: Verify user has access to the campaign"""
         campaign_result = await self.db.execute(
             select(Campaign).where(
                 and_(
                     Campaign.id == campaign_id,
-                    Campaign.company_id == self.user.company_id  # 🔐 Company isolation
+                    Campaign.company_id == self.user.company_id
                 )
             )
         )
@@ -412,7 +486,6 @@ class ContentHandler(EnumSerializerMixin):
         # Aggregate intelligence data from all sources
         for source in intelligence_sources:
             try:
-                # 🔥 CRITICAL FIX: Use enum serialization for all intelligence fields
                 source_data = {
                     "id": str(source.id),
                     "source_type": source.source_type.value if source.source_type else "unknown",
@@ -423,15 +496,11 @@ class ContentHandler(EnumSerializerMixin):
                     "content_intelligence": self._serialize_enum_field(source.content_intelligence),
                     "competitive_intelligence": self._serialize_enum_field(source.competitive_intelligence),
                     "brand_intelligence": self._serialize_enum_field(source.brand_intelligence),
-                    
-                    # 🔥 CRITICAL FIX: Also include AI-enhanced categories with enum serialization
                     "scientific_intelligence": self._serialize_enum_field(source.scientific_intelligence),
                     "credibility_intelligence": self._serialize_enum_field(source.credibility_intelligence),
                     "market_intelligence": self._serialize_enum_field(source.market_intelligence),
                     "emotional_transformation_intelligence": self._serialize_enum_field(source.emotional_transformation_intelligence),
                     "scientific_authority_intelligence": self._serialize_enum_field(source.scientific_authority_intelligence),
-                    
-                    # 🔥 CRITICAL FIX: Processing metadata with enum serialization
                     "processing_metadata": self._serialize_enum_field(source.processing_metadata),
                 }
                 intelligence_data["intelligence_sources"].append(source_data)
@@ -467,45 +536,21 @@ class ContentHandler(EnumSerializerMixin):
         
         target[category] = current_intel
     
-    async def _generate_content_by_type(
-        self, content_type: str, intelligence_data: Dict[str, Any], preferences: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Generate content using the appropriate generator (legacy method)"""
-        logger.warning(f"⚠️ Using legacy content generation for {content_type}")
-        
-        if content_type == "email_sequence":
-            from src.intelligence.generators.email_generator import EmailSequenceGenerator
-            generator = EmailSequenceGenerator()
-            return await generator.generate_email_sequence(intelligence_data, preferences)
-        
-        elif content_type == "SOCIAL_POSTS":
-            from src.intelligence.generators.social_media_generator import SocialMediaGenerator
-            generator = SocialMediaGenerator()
-            return await generator.generate_social_posts(intelligence_data, preferences)
-        
-        elif content_type == "ad_copy":
-            from src.intelligence.generators.ad_copy_generator import AdCopyGenerator
-            generator = AdCopyGenerator()
-            return await generator.generate_ad_copy(intelligence_data, preferences)
-        
-        else:
-            raise ValueError(f"Unknown content type: {content_type}")
-    
     async def _save_generated_content(
         self, campaign_id: str, content_type: str, result: Dict[str, Any], 
         preferences: Dict[str, Any], intelligence_data: Dict[str, Any]
     ) -> str:
-        """🔐 SECURE: Save generated content with ultra-cheap AI tracking and user context"""
+        """🔐 SECURE: Save generated content with ultra-cheap AI tracking"""
         intelligence_sources = intelligence_data.get("intelligence_sources", [])
         
-        # 🔥 CRITICAL FIX: Check for amplification data using enum serialization
+        # Check for amplification data
         amplified_sources = []
         for source in intelligence_sources:
             processing_metadata = self._serialize_enum_field(source.get("processing_metadata", {}))
             if processing_metadata.get("amplification_applied", False):
                 amplified_sources.append(source["id"])
         
-        # 🚀 NEW: Extract ultra-cheap AI metadata
+        # Extract ultra-cheap AI metadata
         metadata = result.get("metadata", {})
         ultra_cheap_ai_used = metadata.get("ultra_cheap_ai_used", False)
         cost_savings = metadata.get("cost_savings", 0.0)
@@ -514,8 +559,8 @@ class ContentHandler(EnumSerializerMixin):
         
         generated_content = GeneratedContent(
             campaign_id=campaign_id,
-            company_id=self.user.company_id,  # 🔐 CRITICAL: Company context for isolation
-            user_id=self.user.id,  # 🔐 CRITICAL: User context for attribution
+            company_id=self.user.company_id,
+            user_id=self.user.id,
             content_type=content_type,
             content_title=result.get("title", f"Generated {content_type.title()}"),
             content_body=json.dumps(result.get("content", {})),
@@ -529,19 +574,17 @@ class ContentHandler(EnumSerializerMixin):
                 "amplified_sources": amplified_sources,
                 "ai_categories_available": self._count_ai_categories(intelligence_sources),
                 "enum_serialization_applied": True,
-                # 🚀 NEW: Ultra-cheap AI tracking
                 "ultra_cheap_ai_used": ultra_cheap_ai_used,
                 "cost_savings": cost_savings,
                 "provider_used": provider_used,
                 "generation_cost": generation_cost,
                 "railway_compatible": True,
-                # 🎯 USER ANALYTICS for scaling
                 "user_session": str(self.user.id),
                 "company_session": str(self.user.company_id) if hasattr(self.user, 'company_id') else None,
                 "user_email": self.user.email,
                 "user_tier": getattr(self.user, 'tier', 'standard')
             },
-            # 🔧 CRITICAL FIX: Populate performance_data to prevent infinite loop + user context
+            # 🔧 CRITICAL FIX: Populate performance_data to prevent infinite loop
             performance_data={
                 "generation_time": metadata.get("generation_time", 0.0),
                 "total_tokens": metadata.get("total_tokens", 0),
@@ -550,7 +593,6 @@ class ContentHandler(EnumSerializerMixin):
                 "cost_efficiency": cost_savings,
                 "provider_performance": provider_used,
                 "railway_compatible": True,
-                # 🎯 USER CONTEXT for billing/analytics
                 "user_id": str(self.user.id),
                 "company_id": str(self.user.company_id) if hasattr(self.user, 'company_id') else None,
                 "generated_by": self.user.email,
@@ -564,8 +606,6 @@ class ContentHandler(EnumSerializerMixin):
         await self.db.refresh(generated_content)
         
         logger.info(f"✅ Content saved for user {self.user.email} with {len(amplified_sources)} amplified sources")
-        logger.info(f"🔧 Performance data populated to prevent infinite loop")
-        logger.info(f"🔐 User context applied for scaling: ultra-cheap AI: {ultra_cheap_ai_used}")
         return str(generated_content.id)
     
     def _count_ai_categories(self, intelligence_sources: List[Dict[str, Any]]) -> Dict[str, int]:
@@ -590,14 +630,13 @@ class ContentHandler(EnumSerializerMixin):
         return category_counts
     
     async def _get_content_with_verification(self, campaign_id: str, content_id: str) -> GeneratedContent:
-        """🔐 SECURE: Get content with full security verification for 1,000+ users"""
+        """🔐 SECURE: Get content with full security verification"""
         content_result = await self.db.execute(
             select(GeneratedContent).where(
                 and_(
                     GeneratedContent.id == content_id,
                     GeneratedContent.campaign_id == campaign_id,
-                    GeneratedContent.company_id == self.user.company_id  # 🔐 Company isolation
-                    # Optional: GeneratedContent.user_id == self.user.id  # 🔐 User-level isolation
+                    GeneratedContent.company_id == self.user.company_id
                 )
             )
         )
@@ -610,24 +649,19 @@ class ContentHandler(EnumSerializerMixin):
         return content_item
     
     def _parse_content_body(self, content_body: str) -> Dict[str, Any]:
-        """Parse content body JSON safely with better error handling"""
+        """Parse content body JSON safely"""
         try:
             if content_body:
                 parsed = json.loads(content_body)
-                # Validate that it's proper content structure
                 if isinstance(parsed, dict) and parsed:
                     return parsed
                 else:
-                    logger.warning("Content body is not a valid dict")
                     return {"raw_content": content_body, "parsing_issue": "invalid_structure"}
             else:
-                logger.warning("Content body is empty")
                 return {"parsing_issue": "empty_content"}
         except json.JSONDecodeError as e:
-            logger.error(f"JSON decode error: {e}")
             return {"raw_content": content_body, "parsing_issue": "json_decode_error"}
         except Exception as e:
-            logger.error(f"Content parsing error: {e}")
             return {"raw_content": content_body, "parsing_issue": "unknown_error"}
     
     def _generate_content_preview(self, item: GeneratedContent) -> str:
@@ -651,7 +685,7 @@ class ContentHandler(EnumSerializerMixin):
             return "Content available"
     
     async def _get_intelligence_source_info(self, intelligence_source_id: Optional[str]) -> Optional[Dict[str, Any]]:
-        """Get intelligence source information if available with enum serialization"""
+        """Get intelligence source information if available"""
         if not intelligence_source_id:
             return None
         
@@ -665,7 +699,6 @@ class ContentHandler(EnumSerializerMixin):
         if not intelligence_source:
             return None
         
-        # 🔥 CRITICAL FIX: Include amplification status with enum serialization
         processing_metadata = self._serialize_enum_field(intelligence_source.processing_metadata)
         amplification_applied = processing_metadata.get("amplification_applied", False)
         
@@ -693,8 +726,6 @@ class ContentHandler(EnumSerializerMixin):
         except Exception as counter_error:
             logger.warning(f"⚠️ Campaign counter update failed (non-critical): {str(counter_error)}")
     
-    # 🚀 NEW: Ultra-cheap AI statistics methods
-    
     def get_ultra_cheap_stats(self) -> Dict[str, Any]:
         """Get ultra-cheap AI usage statistics"""
         total = self.generation_stats["total_generations"]
@@ -721,62 +752,4 @@ class ContentHandler(EnumSerializerMixin):
             "fallback_rate": f"{fallback_rate:.1f}%",
             "efficiency_score": f"{efficiency_score:.1f}%",
             "status": "optimal" if fallback_rate < 10 else "good" if fallback_rate < 25 else "needs_attention"
-        }
-    
-    def reset_ultra_cheap_stats(self):
-        """Reset ultra-cheap AI statistics"""
-        self.generation_stats = {
-            "total_generations": 0,
-            "ultra_cheap_generations": 0,
-            "cost_savings": 0.0,
-            "fallback_generations": 0
-        }
-        logger.info("🔄 Ultra-cheap AI statistics reset")
-    
-    async def get_content_handler_status(self) -> Dict[str, Any]:
-        """Get comprehensive content handler status"""
-        return {
-            "handler_info": {
-                "version": "2.0.0-ultra-cheap-secure",
-                "ultra_cheap_ai_enabled": self.ultra_cheap_ai_enabled,
-                "railway_compatible": True,
-                "enum_serialization_fixed": True,
-                "infinite_loop_fix_applied": True,  # 🔧 Indicate fix status
-                "performance_data_safe_access": True,  # 🔧 Indicate fix status
-                "user_authentication_secured": True,  # 🔐 Indicate security status
-                "scale_ready": True,  # 🔐 Indicate scale readiness
-                "rate_limiting_enabled": True  # 🔐 Indicate rate limiting
-            },
-            "ultra_cheap_stats": self.get_ultra_cheap_stats(),
-            "supported_content_types": [
-                "email_sequence",
-                "ad_copy", 
-                "SOCIAL_POSTS",
-                "blog_post",
-                "LANDING_PAGE",
-                "video_script"
-            ],
-            "enhanced_features": [
-                "Ultra-cheap AI integration",
-                "Railway compatibility layer",
-                "Graceful fallback handling",
-                "Cost tracking and optimization",
-                "Enhanced error handling",
-                "Enum serialization fixes",
-                "Infinite loop prevention",  # 🔧 New feature
-                "Safe performance_data access",  # 🔧 New feature
-                "User authentication & authorization",  # 🔐 New feature
-                "Company data isolation",  # 🔐 New feature
-                "Rate limiting per user tier",  # 🔐 New feature
-                "Usage tracking for billing",  # 🔐 New feature
-                "Scale ready for 1,000+ users"  # 🔐 New feature
-            ],
-            # 🔐 USER CONTEXT
-            "current_user": {
-                "user_id": str(self.user.id),
-                "user_email": self.user.email,
-                "company_id": str(self.user.company_id) if hasattr(self.user, 'company_id') else None,
-                "user_tier": getattr(self.user, 'tier', 'standard'),
-                "access_level": getattr(self.user, 'role', 'user')
-            }
         }
