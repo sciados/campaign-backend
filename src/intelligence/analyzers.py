@@ -1,8 +1,9 @@
-# FIXED: src/intelligence/analyzers.py - Load Balanced Integration
+# COMPLETE: src/intelligence/analyzers.py - Product Name Placeholder Fix
 """
 Intelligence analysis engines - The core AI that extracts competitive insights
-Enhanced with product extractor integration and COMPLETE intelligence extraction
-UPDATED: Integrated with load balanced sequential system for optimal provider distribution
+🔥 FIXED: Product name placeholder issue - AI now uses actual product names
+📝 UPDATED: Enhanced prompts and post-processing to eliminate generic placeholders
+✅ COMPLETE: Full file with all methods and placeholder substitution system
 """
 import aiohttp
 import asyncio
@@ -45,7 +46,7 @@ except ImportError as e:
     LOAD_BALANCING_AVAILABLE = False
     logger.warning(f"⚠️ Load balancing system not available: {e}")
 
-# ✅ FIXED: Import product extractor with error handling (keep existing)
+# ✅ FIXED: Import product extractor with error handling
 try:
     from src.intelligence.extractors.product_extractor import ProductNameExtractor, extract_product_name
     PRODUCT_EXTRACTOR_AVAILABLE = True
@@ -76,7 +77,7 @@ class SalesPageAnalyzer:
             self.available_providers = []
             self._init_expensive_providers_fallback()
         
-        # ✅ Keep product extractor initialization (unchanged)
+        # ✅ Keep product extractor initialization
         if PRODUCT_EXTRACTOR_AVAILABLE:
             self.product_extractor = ProductNameExtractor()
             logger.info("✅ Product extractor initialized")
@@ -210,11 +211,11 @@ class SalesPageAnalyzer:
             structured_content = await self._extract_content_structure(page_content)
             logger.info("Content structure extraction completed")
             
-            # Step 2.5: Extract product name using advanced extractor
+            # Step 2.5: 🔥 FIXED: Extract product name using advanced extractor
             product_name = await self._extract_product_name(page_content, structured_content)
             logger.info(f"🎯 Product name extracted: '{product_name}'")
             
-            # Step 3: AI-powered intelligence extraction with load balancing
+            # Step 3: 🔥 FIXED: AI-powered intelligence extraction with product name
             intelligence = await self._extract_intelligence_with_load_balancing(structured_content, url, product_name)
             
             return intelligence
@@ -247,29 +248,54 @@ class SalesPageAnalyzer:
             return self._basic_product_extraction(page_content["content"], page_content["title"])
     
     def _basic_product_extraction(self, content: str, title: str) -> str:
-        """Basic product name extraction fallback"""
+        """🔥 ENHANCED: Basic product name extraction fallback with better patterns"""
         
-        # Try title first
+        # Try title first - look for proper nouns
         if title:
+            # Remove common words and look for capitalized words
             title_words = title.split()
             for word in title_words:
-                if (len(word) > 4 and 
+                if (len(word) > 3 and 
                     word[0].isupper() and 
-                    word.lower() not in ['the', 'and', 'for', 'with', 'health', 'natural']):
+                    word.lower() not in ['the', 'and', 'for', 'with', 'health', 'natural', 'best', 'free', 'join', 'sign', 'your', 'how', 'get', 'now']):
+                    logger.info(f"🎯 Extracted from title: '{word}'")
                     return word
         
-        # Basic pattern matching
+        # 🔥 ENHANCED: Better pattern matching for product names
         patterns = [
-            r'(?:introducing|try|get)\s+([A-Z][a-zA-Z]{3,15})',
-            r'([A-Z][a-zA-Z]{3,15})\s+(?:helps|supports|works)',
-            r'([A-Z][a-zA-Z]{3,15})\s*[™®©]'
+            r'(?:introducing|try|get|join)\s+([A-Z][a-zA-Z]{3,20})',
+            r'([A-Z][a-zA-Z]{3,20})\s+(?:helps|supports|works|offers|provides)',
+            r'([A-Z][a-zA-Z]{3,20})\s*[™®©]',
+            r'welcome\s+to\s+([A-Z][a-zA-Z]{3,20})',
+            r'([A-Z][a-zA-Z]{3,20})\s+(?:is|was|has)',
+            r'(?:about|from)\s+([A-Z][a-zA-Z]{3,20})',
+            r'([A-Z][a-zA-Z]{3,20})\s+(?:community|circle|program|system|course)'
         ]
         
         for pattern in patterns:
             matches = re.findall(pattern, content, re.IGNORECASE)
             if matches:
-                return matches[0] if isinstance(matches[0], str) else matches[0][0]
+                product_name = matches[0] if isinstance(matches[0], str) else matches[0][0]
+                # Filter out common false positives
+                if product_name.lower() not in ['your', 'this', 'that', 'here', 'there', 'what', 'when', 'where', 'mobile', 'email', 'phone', 'number']:
+                    logger.info(f"🎯 Extracted from content: '{product_name}'")
+                    return product_name
         
+        # Last resort - look for any capitalized word that appears multiple times
+        words = re.findall(r'\b[A-Z][a-zA-Z]{3,20}\b', content)
+        word_count = {}
+        for word in words:
+            if word.lower() not in ['your', 'this', 'that', 'here', 'there', 'what', 'when', 'where', 'mobile', 'email', 'phone', 'number']:
+                word_count[word] = word_count.get(word, 0) + 1
+        
+        if word_count:
+            # Get the most frequent proper noun
+            most_common = max(word_count, key=word_count.get)
+            if word_count[most_common] > 1:
+                logger.info(f"🎯 Extracted most frequent: '{most_common}'")
+                return most_common
+        
+        logger.warning("⚠️ Could not extract product name, using 'Product'")
         return "Product"
     
     async def _scrape_page(self, url: str) -> Dict[str, str]:
@@ -446,15 +472,15 @@ class SalesPageAnalyzer:
             
             logger.info(f"🎯 Load balancer selected: {provider_name} (${cost_per_1k:.5f}/1K tokens)")
             
-            # Create optimized prompt for intelligence extraction
+            # 🔥 FIXED: Create optimized prompt with product name enforcement
             analysis_prompt = self._create_intelligence_prompt(structured_content, url, product_name)
             
             # Make AI request using selected provider
             logger.info("💰 Making load balanced AI request...")
             result = await self._make_ai_request_with_provider(selected_provider, analysis_prompt)
             
-            # Parse AI response into structured intelligence
-            intelligence = self._parse_ai_analysis(result, structured_content)
+            # 🔥 FIXED: Parse AI response with product name substitution
+            intelligence = self._parse_ai_analysis(result, structured_content, product_name)
             
             # Add load balancing metadata
             intelligence.update({
@@ -497,7 +523,7 @@ class SalesPageAnalyzer:
             messages = [
                 {
                     "role": "system",
-                    "content": "You are an expert competitive intelligence analyst. Extract actionable insights for marketing campaigns. Provide specific, detailed analysis in each category."
+                    "content": "You are an expert competitive intelligence analyst. Extract actionable insights for marketing campaigns. Provide specific, detailed analysis in each category. Always use the actual product name provided, never generic terms like 'Your' or 'Product'."
                 },
                 {
                     "role": "user",
@@ -558,7 +584,7 @@ class SalesPageAnalyzer:
         logger.info(f"🤖 Using ultra-cheap provider: {provider_name} (${cost_per_1k:.5f}/1K tokens)")
         
         try:
-            # Create optimized prompt for intelligence extraction
+            # 🔥 FIXED: Create optimized prompt with product name enforcement
             analysis_prompt = self._create_intelligence_prompt(structured_content, url, product_name)
             
             # Make ultra-cheap AI request
@@ -578,9 +604,9 @@ class SalesPageAnalyzer:
             logger.info(f"💰 Cost: ${estimated_cost:.5f} (saved ${savings:.5f} vs OpenAI)")
             logger.info(f"🤖 Provider: {result.get('provider_used', 'unknown')}")
             
-            # Parse AI response into structured intelligence
+            # 🔥 FIXED: Parse AI response with product name substitution
             ai_analysis = result.get("response", "")
-            intelligence = self._parse_ai_analysis(ai_analysis, structured_content)
+            intelligence = self._parse_ai_analysis(ai_analysis, structured_content, product_name)
             
             # Add ultra-cheap metadata
             intelligence.update({
@@ -609,45 +635,55 @@ class SalesPageAnalyzer:
             return self._fallback_analysis(structured_content, url, product_name)
     
     def _create_intelligence_prompt(self, structured_content: Dict[str, Any], url: str, product_name: str) -> str:
-        """Create optimized prompt for AI providers"""
+        """🔥 FIXED: Create optimized prompt with product name enforcement - eliminates placeholders"""
         
-        # Optimized prompt that's shorter but still comprehensive
-        prompt = f"""Analyze this sales page and extract competitive intelligence in JSON format:
+        # 🔥 CRITICAL: Enhanced prompt that enforces actual product name usage
+        prompt = f"""Analyze this sales page for the specific product "{product_name}":
 
+CRITICAL INSTRUCTIONS:
+- The product name is "{product_name}" - use this EXACT name in all analysis
+- DO NOT use generic terms like "Your", "Product", "Your Product", or "[Product Name]"
+- Replace any generic references with the actual product name "{product_name}"
+- When extracting products list, use ["{product_name}"] not ["Your"] or ["Product"]
+
+ANALYSIS TARGET:
 URL: {url}
-Product: {product_name}
-Title: {structured_content['title']}
-Content: {structured_content['content'][:1500]}  # Truncated to save tokens
-Triggers: {structured_content['emotional_triggers'][:5]}  # Top 5 only
-Pricing: {structured_content['pricing_mentions'][:3]}  # Top 3 only
+Product Name: {product_name}
+Page Title: {structured_content['title']}
+Content: {structured_content['content'][:1500]}
+Emotional Triggers: {structured_content['emotional_triggers'][:5]}
+Pricing: {structured_content['pricing_mentions'][:3]}
 
-Extract key intelligence:
+Extract competitive intelligence using the ACTUAL product name "{product_name}":
 
 1. OFFER ANALYSIS:
-- Main product/service
-- Pricing strategy  
-- Key benefits claimed
-- Guarantees offered
+- Main product/service: Use "{product_name}" as the product name
+- Pricing strategy for {product_name}
+- Key benefits claimed for {product_name}
+- Guarantees offered for {product_name}
 
 2. PSYCHOLOGY ANALYSIS:
-- Emotional triggers used
-- Target audience
-- Pain points addressed
-- Persuasion techniques
+- Emotional triggers used to sell {product_name}
+- Target audience for {product_name}
+- Pain points {product_name} addresses
+- Persuasion techniques for {product_name}
 
 3. COMPETITIVE ANALYSIS:
-- Market positioning
-- Competitive advantages
-- Potential weaknesses
-- Opportunities for competitors
+- Market positioning of {product_name}
+- Competitive advantages of {product_name}
+- Potential weaknesses of {product_name}
+- Opportunities for competing with {product_name}
 
 4. CONTENT ANALYSIS:
-- Key messages
-- Success stories
-- Social proof elements
-- Call-to-action strategy
+- Key messages about {product_name}
+- Success stories related to {product_name}
+- Social proof elements for {product_name}
+- Call-to-action strategy for {product_name}
 
-Respond with structured JSON analysis. Be concise but actionable."""
+IMPORTANT: In your response, always use "{product_name}" as the actual product name. 
+Never use "Your", "Product", "Your Product", or generic placeholders.
+
+Respond with structured analysis using "{product_name}" throughout."""
 
         return prompt
     
@@ -711,60 +747,8 @@ Respond with structured JSON analysis. Be concise but actionable."""
     async def _extract_intelligence_openai(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
         """OpenAI-specific intelligence extraction (EXPENSIVE - original method)"""
         
-        analysis_prompt = f"""
-        Analyze this sales page content and extract comprehensive competitive intelligence:
-
-        URL: {url}
-        Title: {structured_content['title']}
-        Product Name: {product_name}
-        Content Preview: {structured_content['content'][:2000]}
-        Found Triggers: {structured_content['emotional_triggers']}
-        Pricing Mentions: {structured_content['pricing_mentions']}
-        
-        Extract intelligence in these categories (provide specific, actionable insights):
-
-        1. OFFER INTELLIGENCE:
-        - Main products/services offered (focus on {product_name})
-        - Pricing strategy and structure
-        - Bonuses and incentives
-        - Guarantees and risk reversal
-        - Value propositions and benefits
-
-        2. PSYCHOLOGY INTELLIGENCE:
-        - Emotional triggers used
-        - Persuasion techniques
-        - Target audience indicators
-        - Pain points addressed
-        - Social proof elements
-
-        3. COMPETITIVE INTELLIGENCE:
-        - Market positioning
-        - Competitive advantages claimed
-        - Potential weaknesses
-        - Market gaps and opportunities
-        - Improvement opportunities
-
-        4. CONTENT INTELLIGENCE:
-        - Key messages and headlines
-        - Content structure and flow
-        - Call-to-action strategy
-        - Success stories and testimonials
-        - Messaging hierarchy
-
-        5. BRAND INTELLIGENCE:
-        - Tone and voice characteristics
-        - Messaging style and approach
-        - Brand positioning strategy
-        - Authority and credibility signals
-
-        6. CAMPAIGN SUGGESTIONS:
-        - Alternative positioning ideas
-        - Content opportunities
-        - Marketing strategies
-        - Testing recommendations
-
-        Provide specific, actionable insights that can be used for competitive campaigns.
-        """
+        # 🔥 FIXED: Use enhanced prompt with product name enforcement
+        analysis_prompt = self._create_intelligence_prompt(structured_content, url, product_name)
         
         try:
             # Log expensive usage
@@ -777,7 +761,7 @@ Respond with structured JSON analysis. Be concise but actionable."""
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are an expert competitive intelligence analyst. Extract actionable insights for marketing campaigns. Provide specific, detailed analysis in each category."
+                        "content": f"You are an expert competitive intelligence analyst. Extract actionable insights for marketing campaigns. Always use the actual product name '{product_name}' provided, never generic terms like 'Your' or 'Product'. Provide specific, detailed analysis in each category."
                     },
                     {"role": "user", "content": analysis_prompt}
                 ],
@@ -787,8 +771,8 @@ Respond with structured JSON analysis. Be concise but actionable."""
             
             ai_analysis = response.choices[0].message.content
             
-            # Parse AI response into structured format
-            intelligence = self._parse_ai_analysis(ai_analysis, structured_content)
+            # 🔥 FIXED: Parse AI response with product name substitution
+            intelligence = self._parse_ai_analysis(ai_analysis, structured_content, product_name)
             
             # Add metadata with cost warning
             intelligence.update({
@@ -813,44 +797,48 @@ Respond with structured JSON analysis. Be concise but actionable."""
             logger.error(f"💸 EXPENSIVE OpenAI analysis failed: {str(e)}")
             return self._fallback_analysis(structured_content, url, product_name)
     
-    def _parse_ai_analysis(self, ai_response: str, structured_content: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse AI response into structured intelligence data"""
+    def _parse_ai_analysis(self, ai_response: str, structured_content: Dict[str, Any], product_name: str) -> Dict[str, Any]:
+        """🔥 FIXED: Parse AI response with product name substitution to eliminate placeholders"""
         
         # Initialize with COMPLETE structure
         parsed_data = {
             "offer_intelligence": {
-                "products": [],
+                "products": [product_name],  # 🔥 FIXED: Use actual product name
                 "pricing": structured_content.get("pricing_mentions", []),
                 "bonuses": [],
                 "guarantees": [],
-                "value_propositions": [],
+                "value_propositions": [f"Main product: {product_name}"],  # 🔥 FIXED: Use actual product name
                 "insights": []
             },
             "psychology_intelligence": {
                 "emotional_triggers": structured_content.get("emotional_triggers", []),
                 "pain_points": [],
-                "target_audience": "General audience",
+                "target_audience": f"Customers interested in {product_name}",  # 🔥 FIXED: Use actual product name
                 "persuasion_techniques": []
             },
             "competitive_intelligence": {
                 "opportunities": [],
                 "gaps": [],
-                "positioning": "Standard approach",
+                "positioning": f"{product_name} market positioning",  # 🔥 FIXED: Use actual product name
                 "advantages": [],
                 "weaknesses": []
             },
             "content_intelligence": {
-                "key_messages": [structured_content.get("title", "")],
+                "key_messages": [structured_content.get("title", f"{product_name} Page")],  # 🔥 FIXED: Use actual product name
                 "success_stories": [],
                 "social_proof": [],
-                "content_structure": "Standard sales page"
+                "content_structure": f"{product_name} sales page"  # 🔥 FIXED: Use actual product name
             },
             "brand_intelligence": {
                 "tone_voice": "Professional",
                 "messaging_style": "Direct",
-                "brand_positioning": "Market competitor"
+                "brand_positioning": f"{product_name} market competitor"  # 🔥 FIXED: Use actual product name
             }
         }
+        
+        # 🔥 CRITICAL: Apply placeholder substitution to AI response
+        if ai_response:
+            ai_response = self._substitute_placeholders(ai_response, product_name)
         
         # Extract insights from AI response
         lines = ai_response.split('\n')
@@ -860,6 +848,9 @@ Respond with structured JSON analysis. Be concise but actionable."""
             line = line.strip()
             if not line:
                 continue
+            
+            # 🔥 FIXED: Apply placeholder substitution to each line
+            line = self._substitute_placeholders(line, product_name)
             
             # Identify sections
             line_lower = line.lower()
@@ -878,6 +869,9 @@ Respond with structured JSON analysis. Be concise but actionable."""
             if line.startswith(('-', '•', '*')) and current_section:
                 insight = line[1:].strip()
                 if insight:
+                    # 🔥 FIXED: Apply placeholder substitution to insight
+                    insight = self._substitute_placeholders(insight, product_name)
+                    
                     # Route to appropriate sub-category
                     if current_section == "offer_intelligence":
                         parsed_data["offer_intelligence"]["insights"].append(insight)
@@ -888,7 +882,47 @@ Respond with structured JSON analysis. Be concise but actionable."""
                     elif current_section == "content_intelligence":
                         parsed_data["content_intelligence"]["key_messages"].append(insight)
         
+        # 🔥 FINAL: Apply placeholder substitution to entire parsed data
+        parsed_data = self._substitute_placeholders_recursive(parsed_data, product_name)
+        
         return parsed_data
+    
+    def _substitute_placeholders(self, text: str, product_name: str) -> str:
+        """🔥 NEW: Substitute placeholder text with actual product name"""
+        if not isinstance(text, str):
+            return text
+        
+        # Define placeholder patterns to replace
+        placeholders = [
+            "Your",
+            "PRODUCT",
+            "Product",
+            "[Product Name]",
+            "[Your Company]",
+            "[Company Name]",
+            "Your Product",
+            "Your Company",
+            "the product",
+            "this product"
+        ]
+        
+        result = text
+        for placeholder in placeholders:
+            # Replace exact matches at word boundaries
+            result = re.sub(r'\b' + re.escape(placeholder) + r'\b', product_name, result, flags=re.IGNORECASE)
+        
+        return result
+    
+    def _substitute_placeholders_recursive(self, data: Any, product_name: str) -> Any:
+        """🔥 NEW: Recursively substitute placeholders in nested data structures"""
+        if isinstance(data, dict):
+            return {k: self._substitute_placeholders_recursive(v, product_name) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [self._substitute_placeholders_recursive(item, product_name) for item in data]
+        elif isinstance(data, str):
+            return self._substitute_placeholders(data, product_name)
+        else:
+            return data
     
     def _calculate_confidence_score(self, intelligence: Dict[str, Any], structured_content: Dict[str, Any]) -> float:
         """Calculate realistic confidence score based on data richness"""
@@ -983,62 +1017,62 @@ Respond with structured JSON analysis. Be concise but actionable."""
         return final_score
     
     def _fallback_analysis(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
-        """Comprehensive fallback analysis with ALL intelligence categories populated"""
+        """🔥 FIXED: Comprehensive fallback analysis with actual product name - NO PLACEHOLDERS"""
         
         return {
             "offer_intelligence": {
-                "products": [product_name],
+                "products": [product_name],  # 🔥 FIXED: Use actual product name
                 "pricing": structured_content.get("pricing_mentions", []),
                 "bonuses": [],
                 "guarantees": [],
-                "value_propositions": [f"Main product: {product_name}"],
+                "value_propositions": [f"Main product: {product_name}"],  # 🔥 FIXED: Use actual product name
                 "insights": [
-                    f"Product analysis: {product_name} appears to be the main offering",
-                    f"Target audience: General consumers interested in {product_name}",
-                    f"Content focus: Product presentation and benefits"
+                    f"Product analysis: {product_name} appears to be the main offering",  # 🔥 FIXED
+                    f"Target audience: General consumers interested in {product_name}",  # 🔥 FIXED
+                    f"Content focus: {product_name} presentation and benefits"  # 🔥 FIXED
                 ]
             },
             "psychology_intelligence": {
                 "emotional_triggers": structured_content.get("emotional_triggers", []),
-                "pain_points": ["General consumer needs and challenges"],
-                "target_audience": "General audience",
-                "persuasion_techniques": ["Product benefits presentation", "Value proposition emphasis"]
+                "pain_points": [f"General consumer needs addressed by {product_name}"],  # 🔥 FIXED
+                "target_audience": f"Customers interested in {product_name}",  # 🔥 FIXED
+                "persuasion_techniques": [f"{product_name} benefits presentation", f"{product_name} value proposition emphasis"]  # 🔥 FIXED
             },
             "competitive_intelligence": {
                 "opportunities": [
-                    "Enhanced product positioning possible",
-                    "Competitive differentiation opportunities",
-                    "Market gap analysis needed"
+                    f"Enhanced {product_name} positioning possible",  # 🔥 FIXED
+                    f"Competitive differentiation opportunities for {product_name}",  # 🔥 FIXED
+                    f"{product_name} market gap analysis needed"  # 🔥 FIXED
                 ],
-                "gaps": ["Detailed competitive analysis requires AI providers"],
-                "positioning": "Standard market approach",
-                "advantages": [f"{product_name} unique selling proposition"],
-                "weaknesses": ["Limited analysis without AI providers"]
+                "gaps": [f"Detailed competitive analysis for {product_name} requires AI providers"],  # 🔥 FIXED
+                "positioning": f"{product_name} standard market approach",  # 🔥 FIXED
+                "advantages": [f"{product_name} unique selling proposition"],  # 🔥 FIXED
+                "weaknesses": [f"Limited {product_name} analysis without AI providers"]  # 🔥 FIXED
             },
             "content_intelligence": {
-                "key_messages": [structured_content.get("title", "Product Page")],
+                "key_messages": [structured_content.get("title", f"{product_name} Page")],  # 🔥 FIXED
                 "success_stories": [],
                 "social_proof": [],
-                "content_structure": f"Product page with {structured_content.get('word_count', 0)} words"
+                "content_structure": f"{product_name} page with {structured_content.get('word_count', 0)} words"  # 🔥 FIXED
             },
             "brand_intelligence": {
                 "tone_voice": "Professional",
                 "messaging_style": "Direct",
-                "brand_positioning": "Market competitor"
+                "brand_positioning": f"{product_name} market competitor"  # 🔥 FIXED
             },
             "campaign_suggestions": [
-                f"Develop unique positioning for {product_name}",
-                "Create compelling value propositions",
-                "Build competitive differentiation",
-                "Enhance social proof elements"
+                f"Develop unique positioning for {product_name}",  # 🔥 FIXED
+                f"Create compelling value propositions for {product_name}",  # 🔥 FIXED
+                f"Build competitive differentiation for {product_name}",  # 🔥 FIXED
+                f"Enhance social proof elements for {product_name}"  # 🔥 FIXED
             ],
             "source_url": url,
-            "page_title": structured_content.get("title", "Analyzed Page"),
-            "product_name": product_name,
+            "page_title": structured_content.get("title", f"{product_name} Analyzed Page"),  # 🔥 FIXED
+            "product_name": product_name,  # ✅ Correct
             "analysis_timestamp": datetime.utcnow().isoformat(),
             "confidence_score": 0.6,
             "raw_content": structured_content.get("content", "")[:1000],
-            "analysis_note": "Fallback analysis - AI providers recommended for enhanced insights",
+            "analysis_note": f"Fallback analysis for {product_name} - AI providers recommended for enhanced insights",  # 🔥 FIXED
             "load_balancing_analysis": {
                 "load_balancing_available": LOAD_BALANCING_AVAILABLE,
                 "load_balancing_enabled": False,
@@ -1047,7 +1081,7 @@ Respond with structured JSON analysis. Be concise but actionable."""
         }
     
     def _error_fallback_analysis(self, url: str, error_msg: str) -> Dict[str, Any]:
-        """Fallback when analysis completely fails"""
+        """🔥 FIXED: Fallback when analysis completely fails - uses generic product name"""
         
         return {
             "offer_intelligence": {
@@ -1120,19 +1154,22 @@ class EnhancedSalesPageAnalyzer(SalesPageAnalyzer):
             # Use existing analyze method as base
             base_analysis = await self.analyze(url)
             
-            # Add enhanced features
+            # Get actual product name from base analysis
+            product_name = base_analysis.get("product_name", "Product")
+            
+            # Add enhanced features with actual product name
             enhanced_intelligence = {
                 **base_analysis,
                 "intelligence_id": f"intel_{uuid.uuid4().hex[:8]}",
                 "analysis_depth": analysis_depth,
-                "campaign_angles": self._generate_basic_campaign_angles(base_analysis),
-                "actionable_insights": self._generate_actionable_insights(base_analysis),
-                "technical_analysis": self._analyze_technical_aspects(url)
+                "campaign_angles": self._generate_basic_campaign_angles(base_analysis, product_name),
+                "actionable_insights": self._generate_actionable_insights(base_analysis, product_name),
+                "technical_analysis": self._analyze_technical_aspects(url, product_name)
             }
             
             # Add VSL detection if requested (simplified for now)
             if include_vsl_detection:
-                enhanced_intelligence["vsl_analysis"] = self._detect_video_content(base_analysis)
+                enhanced_intelligence["vsl_analysis"] = self._detect_video_content(base_analysis, product_name)
             
             return enhanced_intelligence
             
@@ -1141,10 +1178,8 @@ class EnhancedSalesPageAnalyzer(SalesPageAnalyzer):
             # Return basic analysis on error
             return await self.analyze(url)
     
-    def _generate_basic_campaign_angles(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate basic campaign angles without AI"""
-        
-        product_name = analysis.get("product_name", "Product")
+    def _generate_basic_campaign_angles(self, analysis: Dict[str, Any], product_name: str) -> Dict[str, Any]:
+        """🔥 FIXED: Generate basic campaign angles with actual product name"""
         
         return {
             "primary_angle": f"Strategic competitive advantage through {product_name} intelligence",
@@ -1153,60 +1188,58 @@ class EnhancedSalesPageAnalyzer(SalesPageAnalyzer):
                 f"Competitive edge through {product_name} analysis", 
                 f"Data-driven {product_name} strategies"
             ],
-            "positioning_strategy": "Premium intelligence-driven solution",
-            "target_audience_insights": ["Business owners", "Marketing professionals"],
-            "messaging_framework": ["Problem identification", "Solution presentation", "Results proof"],
-            "differentiation_strategy": "Intelligence-based competitive advantage"
+            "positioning_strategy": f"Premium {product_name} intelligence-driven solution",
+            "target_audience_insights": [f"{product_name} business owners", f"{product_name} marketing professionals"],
+            "messaging_framework": [f"{product_name} problem identification", f"{product_name} solution presentation", f"{product_name} results proof"],
+            "differentiation_strategy": f"Intelligence-based {product_name} competitive advantage"
         }
     
-    def _generate_actionable_insights(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate actionable insights"""
-        
-        product_name = analysis.get("product_name", "Product")
+    def _generate_actionable_insights(self, analysis: Dict[str, Any], product_name: str) -> Dict[str, Any]:
+        """🔥 FIXED: Generate actionable insights with actual product name"""
         
         return {
             "immediate_opportunities": [
                 f"Create comparison content highlighting {product_name} advantages",
-                "Develop content addressing market gaps",
-                "Build authority through unique insights"
+                f"Develop content addressing {product_name} market gaps",
+                f"Build authority through unique {product_name} insights"
             ],
             "content_creation_ideas": [
                 f"{product_name} competitive analysis blog posts",
-                "Market insight newsletters",
-                "Educational video content"
+                f"{product_name} market insight newsletters",
+                f"{product_name} educational video content"
             ],
             "campaign_strategies": [
-                "Multi-touch educational campaign",
-                "Authority building content series",
-                "Competitive positioning campaign"
+                f"Multi-touch {product_name} educational campaign",
+                f"{product_name} authority building content series",
+                f"{product_name} competitive positioning campaign"
             ],
             "testing_recommendations": [
-                "A/B test different value propositions",
-                "Test messaging variations",
-                "Optimize conversion elements"
+                f"A/B test different {product_name} value propositions",
+                f"Test {product_name} messaging variations",
+                f"Optimize {product_name} conversion elements"
             ]
         }
     
-    def _analyze_technical_aspects(self, url: str) -> Dict[str, Any]:
-        """Analyze technical aspects"""
+    def _analyze_technical_aspects(self, url: str, product_name: str) -> Dict[str, Any]:
+        """🔥 FIXED: Analyze technical aspects with actual product name"""
         
         return {
-            "page_load_speed": "Analysis requires additional tools",
+            "page_load_speed": f"Analysis for {product_name} requires additional tools",
             "mobile_optimization": True,  # Assume modern sites are mobile-friendly
             "conversion_elements": [
-                "Call-to-action buttons",
-                "Trust signals",
-                "Contact information"
+                f"{product_name} call-to-action buttons",
+                f"{product_name} trust signals",
+                f"{product_name} contact information"
             ],
             "trust_signals": [
-                "Professional design",
-                "Contact information",
-                "Security indicators"
+                f"{product_name} professional design",
+                f"{product_name} contact information",
+                f"{product_name} security indicators"
             ]
         }
     
-    def _detect_video_content(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
-        """Basic video content detection"""
+    def _detect_video_content(self, analysis: Dict[str, Any], product_name: str) -> Dict[str, Any]:
+        """🔥 FIXED: Basic video content detection with actual product name"""
         
         content = analysis.get("raw_content", "").lower()
         
@@ -1220,7 +1253,7 @@ class EnhancedSalesPageAnalyzer(SalesPageAnalyzer):
             "video_type": "unknown",
             "transcript_available": False,
             "key_video_elements": [
-                "Video content detected" if has_video else "No video content found"
+                f"{product_name} video content detected" if has_video else f"No {product_name} video content found"
             ]
         }
 
