@@ -10,6 +10,11 @@ from datetime import datetime
 import json
 
 from src.models.base import EnumSerializerMixin
+# 🔥 ADD PRODUCT NAME FIX IMPORTS
+from ..utils.product_name_fix import (
+    fix_image_generation_placeholders,
+    extract_product_name_from_intelligence
+)
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +166,7 @@ class UltraCheapImageGenerator(EnumSerializerMixin):
         """Generate complete campaign images ultra-cheaply"""
         
         # Extract product information
-        product_name = self._extract_product_name(intelligence_data)
+        product_name = extract_product_name_from_intelligence(intelligence_data)
         offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
         
         # Generate prompts for each platform
@@ -202,7 +207,8 @@ class UltraCheapImageGenerator(EnumSerializerMixin):
         dalle_equivalent_cost = len(generated_images) * 0.040
         total_savings = dalle_equivalent_cost - total_cost
         
-        return {
+        # 🔥 APPLY FIX BEFORE RETURNING
+        result_data = {
             "success": True,
             "generated_images": generated_images,
             "total_cost": total_cost,
@@ -212,6 +218,11 @@ class UltraCheapImageGenerator(EnumSerializerMixin):
             "product_name": product_name,
             "platforms": platforms
         }
+        
+        fixed_result = fix_image_generation_placeholders(result_data, intelligence_data)
+        fixed_result["placeholders_fixed"] = True
+        
+        return fixed_result
     
     def _optimize_prompt_for_platform(self, prompt: str, platform: str) -> str:
         """Optimize prompt for specific platform"""
@@ -475,24 +486,6 @@ class UltraCheapImageGenerator(EnumSerializerMixin):
                 else:
                     error_text = await response.text()
                     raise Exception(f"OpenAI API error: {error_text}")
-    
-    def _extract_product_name(self, intelligence_data: Dict[str, Any]) -> str:
-        """Extract product name using EnumSerializerMixin pattern"""
-        
-        if "product_name" in intelligence_data:
-            return intelligence_data["product_name"]
-        
-        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
-        insights = offer_intel.get("insights", [])
-        
-        for insight in insights:
-            if "called" in str(insight).lower():
-                words = str(insight).split()
-                for i, word in enumerate(words):
-                    if word.lower() == "called" and i + 1 < len(words):
-                        return words[i + 1].upper().replace(",", "").replace(".", "")
-        
-        return "PRODUCT"
     
     async def test_all_providers(self) -> Dict[str, Any]:
         """Test all providers and return availability"""

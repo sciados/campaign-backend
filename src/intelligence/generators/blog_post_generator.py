@@ -6,6 +6,7 @@ BLOG POST GENERATOR
 ✅ Multiple lengths and tones
 ✅ Structured sections with headers
 🔥 FIXED: Enum serialization issues resolved
+🔥 FIXED: Product name placeholder elimination
 """
 
 import os
@@ -18,10 +19,21 @@ from datetime import datetime
 
 from src.models.base import EnumSerializerMixin
 
+from src.intelligence.utils.product_name_fix import (
+       substitute_product_placeholders,
+       substitute_placeholders_in_data,
+       extract_product_name_from_intelligence,
+       fix_email_sequence_placeholders,
+       fix_social_media_placeholders,
+       fix_ad_copy_placeholders,
+       fix_blog_post_placeholders,
+       validate_no_placeholders
+   )
+
 logger = logging.getLogger(__name__)
 
 class BlogPostGenerator(EnumSerializerMixin):
-    """Generate long-form blog posts and articles"""
+    """Generate long-form blog posts and articles with product name fixes"""
     
     def __init__(self):
         self.ai_providers = self._initialize_ai_providers()
@@ -65,23 +77,25 @@ class BlogPostGenerator(EnumSerializerMixin):
         intelligence_data: Dict[str, Any], 
         preferences: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """Generate comprehensive blog post"""
+        """Generate comprehensive blog post with product name fixes"""
         
         if preferences is None:
             preferences = {}
             
+        # 🔥 EXTRACT ACTUAL PRODUCT NAME FIRST
+        actual_product_name = extract_product_name_from_intelligence(intelligence_data)
+        logger.info(f"🎯 Blog Post Generator: Using product name '{actual_product_name}'")
+            
         topic = preferences.get("topic", "health_benefits")
         length = preferences.get("length", "medium")  # short, medium, long
         tone = preferences.get("tone", "informative")
-        
-        product_name = self._extract_product_name(intelligence_data)
         
         blog_post = None
         
         for provider in self.ai_providers:
             try:
                 blog_post = await self._generate_blog_content(
-                    provider, topic, length, tone, product_name, intelligence_data
+                    provider, topic, length, tone, actual_product_name, intelligence_data
                 )
                 
                 if blog_post:
@@ -92,33 +106,46 @@ class BlogPostGenerator(EnumSerializerMixin):
                 continue
         
         if not blog_post:
-            blog_post = self._generate_fallback_blog_post(product_name, topic)
+            blog_post = self._generate_fallback_blog_post(actual_product_name, topic)
+        
+        # 🔥 APPLY PRODUCT NAME FIXES TO BLOG POST
+        fixed_blog_post = fix_blog_post_placeholders(blog_post, intelligence_data)
+        
+        # 🔥 VALIDATE NO PLACEHOLDERS REMAIN
+        title_clean = validate_no_placeholders(fixed_blog_post.get("title", ""), actual_product_name)
+        content_clean = validate_no_placeholders(fixed_blog_post.get("full_text", ""), actual_product_name)
+        
+        if not title_clean or not content_clean:
+            logger.warning(f"⚠️ Placeholders found in blog post for '{actual_product_name}'")
+        else:
+            logger.info(f"✅ Blog post validation passed for '{actual_product_name}'")
         
         return {
             "content_type": "blog_post",
-            "title": blog_post.get("title", f"{product_name} Health Benefits"),
+            "title": fixed_blog_post.get("title", f"{actual_product_name} Health Benefits"),
             "content": {
-                "title": blog_post.get("title"),
-                "introduction": blog_post.get("introduction"),
-                "main_content": blog_post.get("main_content"),
-                "conclusion": blog_post.get("conclusion"),
-                "full_text": blog_post.get("full_text"),
-                "word_count": blog_post.get("word_count", 0),
-                "sections": blog_post.get("sections", [])
+                "title": fixed_blog_post.get("title"),
+                "introduction": fixed_blog_post.get("introduction"),
+                "main_content": fixed_blog_post.get("main_content"),
+                "conclusion": fixed_blog_post.get("conclusion"),
+                "full_text": fixed_blog_post.get("full_text"),
+                "word_count": fixed_blog_post.get("word_count", 0),
+                "sections": fixed_blog_post.get("sections", [])
             },
             "metadata": {
                 "generated_by": "blog_ai",
-                "product_name": product_name,
+                "product_name": actual_product_name,
                 "content_type": "blog_post",
                 "topic": topic,
                 "length_category": length,
                 "tone": tone,
-                "seo_optimized": True
+                "seo_optimized": True,
+                "placeholders_fixed": True
             }
         }
     
     async def _generate_blog_content(self, provider, topic, length, tone, product_name, intelligence_data):
-        """Generate blog content with AI"""
+        """Generate blog content with AI and product name enforcement"""
         
         word_targets = {
             "short": 800,
@@ -135,6 +162,9 @@ class BlogPostGenerator(EnumSerializerMixin):
         prompt = f"""
 Write a comprehensive {length} blog post about {topic} related to {product_name}.
 
+CRITICAL: Use ONLY the actual product name "{product_name}" throughout the entire blog post.
+NEVER use placeholders like "Your", "PRODUCT", "[Product]", "Your Company", etc.
+
 Requirements:
 - Target length: {target_words} words
 - Tone: {tone}
@@ -147,18 +177,21 @@ Product: {product_name}
 Scientific backing: {', '.join(scientific_intel.get('clinical_studies', ['Research-supported'])[:3])}
 
 Structure:
-1. Compelling headline (H1)
-2. Hook introduction (150-200 words)
-3. Main content sections (3-5 sections with H2 headers)
-4. Actionable conclusion
-5. Call-to-action
+1. Compelling headline (H1) featuring {product_name}
+2. Hook introduction (150-200 words) mentioning {product_name}
+3. Main content sections (3-5 sections with H2 headers) discussing {product_name}
+4. Actionable conclusion about {product_name}
+5. Call-to-action for {product_name}
 
 Focus on providing value while naturally mentioning {product_name} where relevant.
 Use headers like:
-# Main Title
-## Section 1: [Topic]
-## Section 2: [Topic]
+# Main Title about {product_name}
+## Section 1: How {product_name} Works
+## Section 2: Benefits of {product_name}
 etc.
+
+ABSOLUTELY FORBIDDEN: "Your", "PRODUCT", "[Product]", "Your Company", "the product"
+REQUIRED: Use "{product_name}" consistently throughout
 """
         
         try:
@@ -167,7 +200,7 @@ etc.
                     model=provider["models"][0],
                     max_tokens=4000,
                     temperature=0.7,
-                    system=f"You are an expert health and wellness blogger writing about {topic}. Create valuable, informative content with clear structure.",
+                    system=f"You are an expert health and wellness blogger writing about {topic}. Create valuable, informative content with clear structure. ALWAYS use the exact product name '{product_name}' - never use placeholders like 'Your', 'PRODUCT', or '[Product]'.",
                     messages=[{"role": "user", "content": prompt}]
                 )
                 
@@ -178,7 +211,7 @@ etc.
                 response = await provider["client"].chat.completions.create(
                     model=provider["models"][0],
                     messages=[
-                        {"role": "system", "content": f"Expert health blogger writing about {topic}. Create valuable, structured content."},
+                        {"role": "system", "content": f"Expert health blogger writing about {topic}. Create valuable, structured content. ALWAYS use the exact product name '{product_name}' - never use placeholders like 'Your', 'PRODUCT', or '[Product]'."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.7,
@@ -193,7 +226,7 @@ etc.
             return None
     
     def _parse_blog_post(self, content, product_name):
-        """Parse blog post from AI response"""
+        """Parse blog post from AI response with product name fixes"""
         
         lines = content.split('\n')
         
@@ -207,6 +240,9 @@ etc.
         if not title:
             title = f"The Complete Guide to {product_name} Benefits"
         
+        # 🔥 APPLY PRODUCT NAME FIXES TO TITLE
+        title = substitute_product_placeholders(title, product_name)
+        
         # Extract sections
         sections = []
         current_section = None
@@ -216,9 +252,12 @@ etc.
             if line.startswith('##') and not line.startswith('###'):
                 # Save previous section
                 if current_section:
+                    section_content_str = '\n'.join(section_content).strip()
+                    # 🔥 APPLY PRODUCT NAME FIXES TO SECTION CONTENT
+                    section_content_str = substitute_product_placeholders(section_content_str, product_name)
                     sections.append({
-                        "header": current_section,
-                        "content": '\n'.join(section_content).strip()
+                        "header": substitute_product_placeholders(current_section, product_name),
+                        "content": section_content_str
                     })
                 
                 # Start new section
@@ -229,9 +268,11 @@ etc.
         
         # Add last section
         if current_section:
+            section_content_str = '\n'.join(section_content).strip()
+            section_content_str = substitute_product_placeholders(section_content_str, product_name)
             sections.append({
-                "header": current_section,
-                "content": '\n'.join(section_content).strip()
+                "header": substitute_product_placeholders(current_section, product_name),
+                "content": section_content_str
             })
         
         # Simple content parsing for introduction, main content, conclusion
@@ -239,20 +280,26 @@ etc.
         
         introduction = paragraphs[1] if len(paragraphs) > 1 else paragraphs[0][:200] + "..."
         main_content = '\n\n'.join(paragraphs[2:-1]) if len(paragraphs) > 3 else content
-        conclusion = paragraphs[-1] if paragraphs else "Discover the benefits of natural health optimization."
+        conclusion = paragraphs[-1] if paragraphs else f"Discover the benefits of {product_name} for natural health optimization."
+        
+        # 🔥 APPLY PRODUCT NAME FIXES TO ALL CONTENT
+        introduction = substitute_product_placeholders(introduction, product_name)
+        main_content = substitute_product_placeholders(main_content, product_name)
+        conclusion = substitute_product_placeholders(conclusion, product_name)
+        full_text = substitute_product_placeholders(content, product_name)
         
         return {
             "title": title,
             "introduction": introduction,
             "main_content": main_content,
             "conclusion": conclusion,
-            "full_text": content,
-            "word_count": len(content.split()),
+            "full_text": full_text,
+            "word_count": len(full_text.split()),
             "sections": sections
         }
     
     def _generate_fallback_blog_post(self, product_name, topic):
-        """Generate fallback blog post"""
+        """Generate fallback blog post with actual product name"""
         
         title = f"Understanding {product_name}: A Comprehensive Guide to Natural Health"
         
@@ -269,16 +316,16 @@ Research continues to validate the importance of liver health in overall wellnes
 
 ### Key Benefits
 
-1. **Metabolic Enhancement**: Supporting natural metabolic processes
-2. **Energy Optimization**: Promoting sustained energy levels
-3. **Detoxification Support**: Enhancing natural detox pathways
-4. **Overall Wellness**: Contributing to comprehensive health improvement
+1. **Metabolic Enhancement**: Supporting natural metabolic processes with {product_name}
+2. **Energy Optimization**: Promoting sustained energy levels through {product_name}
+3. **Detoxification Support**: Enhancing natural detox pathways with {product_name}
+4. **Overall Wellness**: Contributing to comprehensive health improvement through {product_name}
 
 ## How {product_name} Works
 
 {product_name} works by supporting your body's natural processes rather than forcing artificial changes. This approach leads to more sustainable results and better overall health outcomes.
 
-## Getting Started
+## Getting Started with {product_name}
 
 If you're considering {product_name} as part of your wellness journey, consult with healthcare professionals to ensure it's right for your individual needs.
 
@@ -288,33 +335,23 @@ Natural health optimization is a journey, not a destination. {product_name} can 
 """
         
         sections = [
-            {"header": "The Science Behind " + product_name, "content": "Research-backed approach to health optimization"},
-            {"header": "Key Benefits", "content": "Metabolic enhancement, energy optimization, detoxification support"},
-            {"header": "How " + product_name + " Works", "content": "Natural process support for sustainable results"},
-            {"header": "Getting Started", "content": "Consult healthcare professionals for personalized guidance"}
+            {"header": f"The Science Behind {product_name}", "content": "Research-backed approach to health optimization"},
+            {"header": "Key Benefits", "content": f"Metabolic enhancement, energy optimization, detoxification support through {product_name}"},
+            {"header": f"How {product_name} Works", "content": "Natural process support for sustainable results"},
+            {"header": f"Getting Started with {product_name}", "content": "Consult healthcare professionals for personalized guidance"}
         ]
         
         return {
             "title": title,
-            "introduction": "Natural health optimization has become increasingly important in our modern world.",
+            "introduction": f"Natural health optimization has become increasingly important in our modern world. {product_name} represents a science-backed approach to wellness.",
             "main_content": content,
-            "conclusion": "Natural health optimization is a journey, not a destination.",
+            "conclusion": f"Natural health optimization is a journey, not a destination. {product_name} can be a valuable tool in supporting your wellness goals.",
             "full_text": content,
             "word_count": len(content.split()),
             "sections": sections
         }
     
     def _extract_product_name(self, intelligence_data):
-        """Extract product name from intelligence"""
-        # 🔥 FIXED: Use enum serialization for offer intelligence
-        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
-        insights = offer_intel.get("insights", [])
-        
-        for insight in insights:
-            if "called" in str(insight).lower():
-                words = str(insight).split()
-                for i, word in enumerate(words):
-                    if word.lower() == "called" and i + 1 < len(words):
-                        return words[i + 1].upper().replace(",", "").replace(".", "")
-        
-        return "PRODUCT"
+        """Extract product name from intelligence - DEPRECATED: Use utility function instead"""
+        # 🔥 UPDATED: Use the proper utility function
+        return extract_product_name_from_intelligence(intelligence_data)

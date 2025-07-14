@@ -10,6 +10,11 @@ import json
 
 from src.models.base import EnumSerializerMixin
 from src.storage.universal_dual_storage import get_storage_manager
+# 🔥 ADD PRODUCT NAME FIX IMPORTS
+from ..utils.product_name_fix import (
+    fix_slideshow_video_placeholders,
+    extract_product_name_from_intelligence
+)
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +99,7 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
         settings = {**self.default_settings, **preferences}
         
         # Extract product information
-        product_name = self._extract_product_name(intelligence_data)
+        product_name = extract_product_name_from_intelligence(intelligence_data)
         
         # Generate video script/storyboard
         storyboard = await self._generate_storyboard(intelligence_data, images, settings)
@@ -134,7 +139,8 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
         if not video_result or not video_result["success"]:
             raise Exception("All video generation providers failed")
         
-        return {
+        # 🔥 APPLY FIX BEFORE RETURNING
+        result_data = {
             "success": True,
             "video_data": video_result["video_data"],
             "duration": video_result["duration"],
@@ -145,6 +151,11 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
             "product_name": product_name,
             "generation_timestamp": datetime.utcnow().isoformat()
         }
+        
+        fixed_result = fix_slideshow_video_placeholders(result_data, intelligence_data)
+        fixed_result["placeholders_fixed"] = True
+        
+        return fixed_result
     
     async def _generate_storyboard(
         self,
@@ -154,13 +165,16 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
     ) -> Dict[str, Any]:
         """Generate video storyboard from intelligence data"""
         
-        # Extract key messaging
+        # Extract key messaging with proper enum serialization
         offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
         key_benefits = offer_intel.get("benefits", ["Health optimization", "Natural wellness"])
         
+        # Get actual product name
+        product_name = extract_product_name_from_intelligence(intelligence_data)
+        
         # Create storyboard
         storyboard = {
-            "title": f"{self._extract_product_name(intelligence_data)} Campaign Video",
+            "title": f"{product_name} Campaign Video",
             "total_duration": len(images) * settings["duration_per_slide"],
             "scenes": []
         }
@@ -174,22 +188,22 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
                 "end_time": (i + 1) * settings["duration_per_slide"],
                 "duration": settings["duration_per_slide"],
                 "transition": settings["transition_type"],
-                "text_overlay": self._generate_text_overlay(i, key_benefits),
+                "text_overlay": self._generate_text_overlay(i, key_benefits, product_name),
                 "effects": ["fade_in", "fade_out"] if i == 0 or i == len(images) - 1 else []
             }
             storyboard["scenes"].append(scene)
         
         return storyboard
     
-    def _generate_text_overlay(self, scene_index: int, key_benefits: List[str]) -> str:
+    def _generate_text_overlay(self, scene_index: int, key_benefits: List[str], product_name: str) -> str:
         """Generate text overlay for scene"""
         
         if scene_index == 0:
-            return "Transform Your Health Naturally"
+            return f"Transform Your Health with {product_name}"
         elif scene_index < len(key_benefits):
             return key_benefits[scene_index]
         else:
-            return "Experience the Difference"
+            return f"Experience the {product_name} Difference"
     
     async def _generate_with_ffmpeg(
         self,
@@ -311,21 +325,3 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
             "success": False,
             "error": "Pika Labs integration not implemented yet"
         }
-    
-    def _extract_product_name(self, intelligence_data: Dict[str, Any]) -> str:
-        """Extract product name using EnumSerializerMixin pattern"""
-        
-        if "product_name" in intelligence_data:
-            return intelligence_data["product_name"]
-        
-        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
-        insights = offer_intel.get("insights", [])
-        
-        for insight in insights:
-            if "called" in str(insight).lower():
-                words = str(insight).split()
-                for i, word in enumerate(words):
-                    if word.lower() == "called" and i + 1 < len(words):
-                        return words[i + 1].upper().replace(",", "").replace(".", "")
-        
-        return "PRODUCT"

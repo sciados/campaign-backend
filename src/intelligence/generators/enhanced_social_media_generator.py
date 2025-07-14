@@ -9,6 +9,7 @@ MODERNIZED ENHANCED SOCIAL MEDIA GENERATOR
 ✅ AI-generated visuals and video concepts
 ✅ Ready-to-publish formats
 🔥 MODERNIZED: Ultra-cheap AI integration with smart failover
+🔥 FIXED: Product name placeholder elimination
 """
 
 import os
@@ -22,10 +23,21 @@ from datetime import datetime
 from src.models.base import EnumSerializerMixin
 from ..utils.ultra_cheap_ai_provider import UltraCheapAIProvider
 
+from src.intelligence.utils.product_name_fix import (
+       substitute_product_placeholders,
+       substitute_placeholders_in_data,
+       extract_product_name_from_intelligence,
+       fix_email_sequence_placeholders,
+       fix_social_media_placeholders,
+       fix_ad_copy_placeholders,
+       fix_blog_post_placeholders,
+       validate_no_placeholders
+   )
+
 logger = logging.getLogger(__name__)
 
 class EnhancedSocialMediaGenerator(EnumSerializerMixin):
-    """Generate platform-specific social media content including visuals with 90% cost savings"""
+    """Generate platform-specific social media content including visuals with 90% cost savings and product name fixes"""
     
     def __init__(self):
         # 🚀 MODERNIZED: Use ultra-cheap AI provider (90% savings)
@@ -91,10 +103,14 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         intelligence_data: Dict[str, Any], 
         preferences: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """Generate complete social media campaign across platforms with ultra-cheap AI"""
+        """Generate complete social media campaign across platforms with ultra-cheap AI and product name fixes"""
         
         if preferences is None:
             preferences = {}
+        
+        # 🔥 EXTRACT ACTUAL PRODUCT NAME FIRST
+        actual_product_name = extract_product_name_from_intelligence(intelligence_data)
+        logger.info(f"🎯 Enhanced Social Media Generator: Using product name '{actual_product_name}'")
             
         platforms = preferences.get("platforms", ["instagram", "facebook", "tiktok"])
         content_count = preferences.get("content_count", 5)
@@ -102,6 +118,8 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         
         # 🔥 FIXED: Extract intelligence from Global Cache with enum serialization
         campaign_intelligence = self._extract_campaign_intelligence(intelligence_data)
+        # Override with actual product name
+        campaign_intelligence["product_name"] = actual_product_name
         
         campaign_content = {}
         total_costs = []
@@ -122,24 +140,70 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
                 campaign_content[platform] = self._generate_fallback_platform_content(platform, campaign_intelligence)
                 total_costs.append({"cost": 0, "fallback": True})
         
+        # 🔥 APPLY PRODUCT NAME FIXES TO ALL CAMPAIGN CONTENT
+        fixed_campaign_content = {}
+        for platform, content in campaign_content.items():
+            fixed_posts = []
+            for post in content.get("posts", []):
+                fixed_post = post.copy()
+                # Apply fixes to text content
+                for field in ["caption", "script", "text_content"]:
+                    if field in fixed_post and fixed_post[field]:
+                        fixed_post[field] = substitute_product_placeholders(fixed_post[field], actual_product_name)
+                
+                # Apply fixes to visual concepts
+                if "visual_concept" in fixed_post and isinstance(fixed_post["visual_concept"], dict):
+                    if "description" in fixed_post["visual_concept"]:
+                        fixed_post["visual_concept"]["description"] = substitute_product_placeholders(
+                            fixed_post["visual_concept"]["description"], actual_product_name
+                        )
+                
+                # Apply fixes to video concepts
+                if "video_concept" in fixed_post and isinstance(fixed_post["video_concept"], dict):
+                    if "description" in fixed_post["video_concept"]:
+                        fixed_post["video_concept"]["description"] = substitute_product_placeholders(
+                            fixed_post["video_concept"]["description"], actual_product_name
+                        )
+                
+                fixed_posts.append(fixed_post)
+            
+            content["posts"] = fixed_posts
+            fixed_campaign_content[platform] = content
+        
+        # 🔥 VALIDATE NO PLACEHOLDERS REMAIN
+        total_validation_issues = 0
+        for platform, content in fixed_campaign_content.items():
+            for post in content.get("posts", []):
+                for field in ["caption", "script", "text_content"]:
+                    if field in post and post[field]:
+                        is_clean = validate_no_placeholders(post[field], actual_product_name)
+                        if not is_clean:
+                            total_validation_issues += 1
+                            logger.warning(f"⚠️ Placeholders found in {platform} post {post.get('post_number', 'unknown')} field '{field}'")
+        
+        if total_validation_issues == 0:
+            logger.info(f"✅ All campaign content validated clean for '{actual_product_name}'")
+        
         # Calculate total campaign costs and savings
         total_cost = sum(cost.get("cost", 0) for cost in total_costs)
         total_savings = sum(cost.get("savings_vs_openai", {}).get("savings_amount", 0) for cost in total_costs)
         
         return {
             "content_type": "social_media_campaign",
-            "title": f"{campaign_intelligence['product_name']} Social Media Campaign",
+            "title": f"{actual_product_name} Social Media Campaign",
             "content": {
-                "platforms": campaign_content,
+                "platforms": fixed_campaign_content,
                 "campaign_intelligence": campaign_intelligence,
-                "total_pieces": sum(len(content["posts"]) for content in campaign_content.values()),
-                "ready_to_publish": True
+                "total_pieces": sum(len(content["posts"]) for content in fixed_campaign_content.values()),
+                "ready_to_publish": True,
+                "product_name_used": actual_product_name,
+                "placeholders_fixed": True
             },
             "metadata": {
                 "generated_by": "ultra_cheap_enhanced_social_ai",
-                "product_name": campaign_intelligence["product_name"],
+                "product_name": actual_product_name,
                 "platforms_covered": len(platforms),
-                "content_types_generated": self._count_content_types(campaign_content),
+                "content_types_generated": self._count_content_types(fixed_campaign_content),
                 "campaign_theme": campaign_theme,
                 "cost_optimization": {
                     "total_campaign_cost": total_cost,
@@ -151,10 +215,10 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         }
     
     def _extract_campaign_intelligence(self, intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract key intelligence for social media campaigns with enum serialization"""
+        """Extract key intelligence for social media campaigns with enum serialization and product name fixes"""
         
-        # Extract product name
-        product_name = self._extract_product_name(intelligence_data)
+        # Extract actual product name
+        actual_product_name = extract_product_name_from_intelligence(intelligence_data)
         
         # 🔥 FIXED: Extract key benefits from scientific intelligence with enum serialization
         scientific_intel = self._serialize_enum_field(intelligence_data.get("scientific_intelligence", {}))
@@ -173,7 +237,7 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         key_messages = content_intel.get("key_messages", [])
         
         return {
-            "product_name": product_name,
+            "product_name": actual_product_name,
             "key_benefits": key_benefits,
             "emotional_triggers": emotional_triggers,
             "social_proof": social_proof,
@@ -189,8 +253,9 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         count: int, 
         theme: str
     ) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
-        """Generate content for specific platform using ultra-cheap AI"""
+        """Generate content for specific platform using ultra-cheap AI with product name enforcement"""
         
+        actual_product_name = intelligence["product_name"]
         spec = self.platform_specs.get(platform, self.platform_specs["facebook"])
         
         posts = []
@@ -204,6 +269,12 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
                     post, cost = await self._generate_video_post_ultra_cheap(platform, intelligence, theme, i)
                 else:
                     post, cost = await self._generate_mixed_post_ultra_cheap(platform, intelligence, theme, i)
+                
+                # 🔥 APPLY PRODUCT NAME FIXES TO GENERATED POST
+                if post:
+                    for field in ["caption", "script", "text_content"]:
+                        if field in post and post[field]:
+                            post[field] = substitute_product_placeholders(post[field], actual_product_name)
                 
                 posts.append(post)
                 costs.append(cost)
@@ -230,15 +301,15 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         theme: str, 
         post_number: int
     ) -> tuple[Dict[str, Any], Dict[str, Any]]:
-        """Generate image-based social media post using ultra-cheap AI"""
+        """Generate image-based social media post using ultra-cheap AI with product name enforcement"""
         
         spec = self.platform_specs[platform]
-        product_name = intelligence["product_name"]
+        actual_product_name = intelligence["product_name"]
         
         total_cost = 0
         generation_costs = []
         
-        # Step 1: Generate visual concept using ultra-cheap text AI
+        # Step 1: Generate visual concept using ultra-cheap text AI with product name enforcement
         visual_concept_result = await self._generate_visual_concept_ultra_cheap(
             platform, intelligence, theme, post_number
         )
@@ -250,17 +321,20 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         else:
             visual_concept = self._fallback_visual_concept(intelligence, theme)
         
-        # Step 2: Generate caption using ultra-cheap AI
+        # Step 2: Generate caption using ultra-cheap AI with product name enforcement
         caption_result = await self._generate_caption_ultra_cheap(
             platform, intelligence, visual_concept, spec["text_limit"]
         )
         
         if caption_result["success"]:
             caption = caption_result["content"]
+            # 🔥 APPLY PRODUCT NAME FIXES
+            caption = substitute_product_placeholders(caption, actual_product_name)
             total_cost += caption_result["cost"]
             generation_costs.append(caption_result)
         else:
             caption = self._fallback_caption(intelligence, platform)
+            caption = substitute_product_placeholders(caption, actual_product_name)
         
         # Step 3: Generate hashtags using ultra-cheap AI
         hashtags_result = await self._generate_hashtags_ultra_cheap(
@@ -302,7 +376,8 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
             "publishing_notes": f"Optimized for {platform} {spec['content_types'][0]}",
             "engagement_elements": self._identify_engagement_elements(caption),
             "ultra_cheap_generated": True,
-            "generation_cost": total_cost
+            "generation_cost": total_cost,
+            "product_name": actual_product_name
         }
         
         cost_summary = {
@@ -316,6 +391,271 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         
         return post, cost_summary
     
+    async def _generate_caption_ultra_cheap(
+        self, 
+        platform: str, 
+        intelligence: Dict[str, Any], 
+        concept: Dict[str, Any], 
+        text_limit: int
+    ) -> Dict[str, Any]:
+        """Generate engaging caption using ultra-cheap AI with product name enforcement"""
+        
+        actual_product_name = intelligence["product_name"]
+        key_benefits = intelligence["key_benefits"]
+        
+        prompt = f"""
+        Write an engaging {platform} caption for {actual_product_name}.
+        
+        CRITICAL: Use ONLY the actual product name "{actual_product_name}" throughout the caption.
+        NEVER use placeholders like "Your", "PRODUCT", "[Product]", "Your Company", etc.
+        
+        Product: {actual_product_name}
+        Key Benefits: {', '.join(key_benefits[:3])}
+        Character Limit: {text_limit}
+        
+        Create a caption that:
+        1. Hooks attention in first line
+        2. Provides value
+        3. Mentions {actual_product_name} naturally
+        4. Includes call-to-action
+        5. Encourages engagement
+        
+        Style: Conversational and authentic for {platform}
+        
+        ABSOLUTELY FORBIDDEN: "Your", "PRODUCT", "[Product]", "Your Company", "the product"
+        REQUIRED: Use "{actual_product_name}" consistently
+        """
+        
+        result = await self.ultra_cheap_provider.generate_text(
+            prompt=prompt,
+            max_tokens=300,
+            temperature=0.9,
+            cost_target="ultra_cheap"
+        )
+        
+        # Ensure caption fits character limit
+        if result["success"] and len(result["content"]) > text_limit:
+            result["content"] = result["content"][:text_limit-3] + "..."
+        
+        return result
+    
+    async def _generate_video_script_ultra_cheap(
+        self, 
+        platform: str, 
+        intelligence: Dict[str, Any], 
+        concept: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate video script using ultra-cheap AI with product name enforcement"""
+        
+        actual_product_name = intelligence["product_name"]
+        
+        prompt = f"""
+        Write a {platform} video script for {actual_product_name}.
+        
+        CRITICAL: Use ONLY the actual product name "{actual_product_name}" throughout the script.
+        NEVER use placeholders like "Your", "PRODUCT", "[Product]", "Your Company", etc.
+        
+        Product: {actual_product_name}
+        Concept: {str(concept)[:200]}
+        Platform: {platform}
+        
+        Script format:
+        [0-3s] Hook
+        [4-10s] Problem/benefit
+        [11-20s] Solution with {actual_product_name}
+        [21-30s] Call-to-action
+        
+        Keep energetic and engaging for {platform}.
+        
+        ABSOLUTELY FORBIDDEN: "Your", "PRODUCT", "[Product]", "Your Company", "the product"
+        REQUIRED: Use "{actual_product_name}" consistently
+        """
+        
+        return await self.ultra_cheap_provider.generate_text(
+            prompt=prompt,
+            max_tokens=400,
+            temperature=0.8,
+            cost_target="ultra_cheap"
+        )
+    
+    async def _generate_text_content_ultra_cheap(
+        self, 
+        platform: str, 
+        intelligence: Dict[str, Any], 
+        theme: str, 
+        limit: int
+    ) -> Dict[str, Any]:
+        """Generate text content using ultra-cheap AI with product name enforcement"""
+        
+        actual_product_name = intelligence["product_name"]
+        key_benefits = intelligence["key_benefits"]
+        
+        prompt = f"""
+        Write engaging {platform} text post for {actual_product_name}.
+        
+        CRITICAL: Use ONLY the actual product name "{actual_product_name}" throughout the post.
+        NEVER use placeholders like "Your", "PRODUCT", "[Product]", "Your Company", etc.
+        
+        Product: {actual_product_name}
+        Benefits: {', '.join(key_benefits[:3])}
+        Theme: {theme}
+        Character Limit: {limit}
+        
+        Create post that:
+        1. Grabs attention immediately
+        2. Provides value/insight
+        3. Naturally mentions {actual_product_name}
+        4. Encourages engagement
+        5. Fits {platform} style
+        
+        Be conversational and authentic.
+        
+        ABSOLUTELY FORBIDDEN: "Your", "PRODUCT", "[Product]", "Your Company", "the product"
+        REQUIRED: Use "{actual_product_name}" consistently
+        """
+        
+        result = await self.ultra_cheap_provider.generate_text(
+            prompt=prompt,
+            max_tokens=300,
+            temperature=0.9,
+            cost_target="ultra_cheap"
+        )
+        
+        # Ensure content fits character limit
+        if result["success"] and len(result["content"]) > limit:
+            result["content"] = result["content"][:limit-3] + "..."
+        
+        return result
+    
+    # Fallback methods when ultra-cheap AI fails - with product name fixes
+    def _fallback_caption(self, intelligence: Dict[str, Any], platform: str) -> str:
+        """Fallback caption with actual product name"""
+        actual_product_name = intelligence["product_name"]
+        
+        captions = {
+            "instagram": f"Transform your health journey with {actual_product_name} 🌿 Natural wellness made simple. What's your health goal this month? 💪",
+            "tiktok": f"POV: You discovered {actual_product_name} and your energy levels are through the roof! ✨ #health #wellness",
+            "facebook": f"Looking for natural health support? {actual_product_name} combines science with nature for optimal wellness. Learn more in comments!",
+            "linkedin": f"Investing in your health is investing in your success. {actual_product_name} supports professionals who prioritize wellness.",
+            "twitter": f"Game-changer alert: {actual_product_name} is transforming how we approach natural health 🙌",
+            "pinterest": f"Save this: {actual_product_name} - your natural path to better health and energy. Click to learn more!"
+        }
+        
+        return captions.get(platform, f"Discover the benefits of {actual_product_name} for natural health optimization.")
+    
+    def _fallback_hashtags(self, intelligence: Dict[str, Any], platform: str) -> List[str]:
+        """Fallback hashtags with actual product name"""
+        actual_product_name = intelligence["product_name"]
+        
+        base_tags = ["#health", "#wellness", "#natural", "#supplement", "#healthylifestyle"]
+        product_tags = [f"#{actual_product_name.lower().replace(' ', '')}", "#liverhealth", "#energy"]
+        
+        platform_tags = {
+            "instagram": ["#instagood", "#photooftheday"],
+            "tiktok": ["#fyp", "#viral"],
+            "facebook": ["#sponsored"],
+            "linkedin": ["#healthtech", "#business"],
+            "twitter": ["#HealthTech"],
+            "pinterest": ["#naturalhealth", "#wellnesstips"]
+        }
+        
+        all_tags = base_tags + product_tags + platform_tags.get(platform, [])
+        return all_tags[:10]
+    
+    def _fallback_visual_concept(self, intelligence: Dict[str, Any], theme: str) -> Dict[str, Any]:
+        """Fallback visual concept with actual product name"""
+        actual_product_name = intelligence["product_name"]
+        return {
+            "main_focus": f"{actual_product_name} product shot",
+            "style": "clean and professional",
+            "colors": "natural greens and whites", 
+            "text_overlay": actual_product_name,
+            "composition": "centered product with lifestyle background",
+            "description": f"Professional product photography of {actual_product_name}"
+        }
+    
+    def _fallback_video_concept(self, intelligence: Dict[str, Any], platform: str) -> Dict[str, Any]:
+        """Fallback video concept with actual product name"""
+        actual_product_name = intelligence["product_name"]
+        return {
+            "concept": f"Short {platform} video showcasing {actual_product_name} benefits",
+            "style": "dynamic and engaging",
+            "duration": "15-30 seconds" if platform == "tiktok" else "30-60 seconds",
+            "focus": f"{actual_product_name} benefits"
+        }
+    
+    def _fallback_video_script(self, intelligence: Dict[str, Any], platform: str) -> str:
+        """Fallback video script with actual product name"""
+        actual_product_name = intelligence["product_name"]
+        return f"Transform your health with {actual_product_name}! Discover natural wellness that actually works. Ready to feel amazing? Link in bio!"
+    
+    def _fallback_video_shots(self, intelligence: Dict[str, Any]) -> List[Dict[str, str]]:
+        """Fallback video shots with actual product name"""
+        actual_product_name = intelligence["product_name"]
+        return [
+            {"shot": 1, "description": f"Close-up of {actual_product_name} product", "duration": "3 seconds"},
+            {"shot": 2, "description": "Person looking energetic and healthy", "duration": "5 seconds"},
+            {"shot": 3, "description": f"{actual_product_name} in lifestyle setting", "duration": "4 seconds"}
+        ]
+    
+    def _fallback_text_content(self, intelligence: Dict[str, Any], platform: str) -> str:
+        """Fallback text content with actual product name"""
+        actual_product_name = intelligence["product_name"]
+        return f"Ready to transform your health naturally? {actual_product_name} is here to support your wellness journey with science-backed ingredients. What's your biggest health goal this year?"
+    
+    def _fallback_visual_suggestion(self, intelligence: Dict[str, Any]) -> Dict[str, str]:
+        """Fallback visual suggestion with actual product name"""
+        actual_product_name = intelligence["product_name"]
+        return {
+            "suggestion": f"Product shot of {actual_product_name} with natural background",
+            "style": "clean and professional",
+            "optional": True
+        }
+    
+    def _generate_fallback_platform_content(self, platform: str, intelligence: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate fallback content for entire platform with actual product name"""
+        
+        actual_product_name = intelligence["product_name"]
+        posts = []
+        for i in range(3):  # Generate 3 fallback posts
+            post = self._generate_fallback_post(platform, intelligence, i)
+            posts.append(post)
+        
+        return {
+            "platform": platform,
+            "posts": posts,
+            "platform_optimization": self._get_platform_optimization(platform),
+            "publishing_schedule": self._suggest_publishing_schedule(platform, 3),
+            "fallback_generated": True
+        }
+    
+    def _generate_fallback_post(self, platform: str, intelligence: Dict[str, Any], post_number: int) -> Dict[str, Any]:
+        """Generate single fallback post with actual product name"""
+        
+        actual_product_name = intelligence["product_name"]
+        
+        fallback_content = [
+            f"Discover the natural benefits of {actual_product_name} for your wellness journey! 🌿",
+            f"What's your biggest health goal this month? {actual_product_name} might be the support you need! 💪",
+            f"Real results, real people. See why thousands choose {actual_product_name} for their health journey! ⭐"
+        ]
+        
+        content = fallback_content[post_number % len(fallback_content)]
+        
+        return {
+            "post_type": "text_post",
+            "platform": platform,
+            "post_number": post_number + 1,
+            "text_content": content,
+            "hashtags": self._fallback_hashtags(intelligence, platform)[:5],
+            "engagement_elements": self._identify_engagement_elements(content),
+            "fallback_generated": True,
+            "ultra_cheap_generated": False,
+            "generation_cost": 0,
+            "product_name": actual_product_name
+        }
+    
+    # Additional generation methods with product name fixes
     async def _generate_video_post_ultra_cheap(
         self, 
         platform: str, 
@@ -323,10 +663,10 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         theme: str, 
         post_number: int
     ) -> tuple[Dict[str, Any], Dict[str, Any]]:
-        """Generate video-based social media post using ultra-cheap AI"""
+        """Generate video-based social media post using ultra-cheap AI with product name enforcement"""
         
         spec = self.platform_specs[platform]
-        product_name = intelligence["product_name"]
+        actual_product_name = intelligence["product_name"]
         
         total_cost = 0
         generation_costs = []
@@ -350,10 +690,13 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         
         if script_result["success"]:
             script = script_result["content"]
+            # 🔥 APPLY PRODUCT NAME FIXES
+            script = substitute_product_placeholders(script, actual_product_name)
             total_cost += script_result["cost"]
             generation_costs.append(script_result)
         else:
             script = self._fallback_video_script(intelligence, platform)
+            script = substitute_product_placeholders(script, actual_product_name)
         
         # Generate visual shots breakdown
         shots_result = await self._generate_video_shots_ultra_cheap(video_concept, intelligence)
@@ -372,9 +715,12 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         
         if caption_result["success"]:
             caption = caption_result["content"]
+            # 🔥 APPLY PRODUCT NAME FIXES
+            caption = substitute_product_placeholders(caption, actual_product_name)
             total_cost += caption_result["cost"]
         else:
             caption = self._fallback_caption(intelligence, platform)
+            caption = substitute_product_placeholders(caption, actual_product_name)
         
         # Generate hashtags
         hashtags_result = await self._generate_hashtags_ultra_cheap(
@@ -402,7 +748,8 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
             "publishing_notes": f"Optimized for {platform} {spec['content_types'][0]}",
             "engagement_elements": self._identify_engagement_elements(caption),
             "ultra_cheap_generated": True,
-            "generation_cost": total_cost
+            "generation_cost": total_cost,
+            "product_name": actual_product_name
         }
         
         cost_summary = {
@@ -440,10 +787,10 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         theme: str, 
         post_number: int
     ) -> tuple[Dict[str, Any], Dict[str, Any]]:
-        """Generate text-focused post using ultra-cheap AI"""
+        """Generate text-focused post using ultra-cheap AI with product name enforcement"""
         
         spec = self.platform_specs[platform]
-        product_name = intelligence["product_name"]
+        actual_product_name = intelligence["product_name"]
         
         total_cost = 0
         generation_costs = []
@@ -455,10 +802,13 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         
         if text_result["success"]:
             text_content = text_result["content"]
+            # 🔥 APPLY PRODUCT NAME FIXES
+            text_content = substitute_product_placeholders(text_content, actual_product_name)
             total_cost += text_result["cost"]
             generation_costs.append(text_result)
         else:
             text_content = self._fallback_text_content(intelligence, platform)
+            text_content = substitute_product_placeholders(text_content, actual_product_name)
         
         # Generate hashtags
         hashtags_result = await self._generate_hashtags_ultra_cheap(
@@ -491,7 +841,8 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
             "publishing_notes": f"Text-focused post for {platform}",
             "engagement_elements": self._identify_engagement_elements(text_content),
             "ultra_cheap_generated": True,
-            "generation_cost": total_cost
+            "generation_cost": total_cost,
+            "product_name": actual_product_name
         }
         
         cost_summary = {
@@ -503,7 +854,7 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         
         return post, cost_summary
     
-    # Ultra-cheap AI generation methods
+    # Ultra-cheap AI generation methods with product name enforcement
     async def _generate_visual_concept_ultra_cheap(
         self, 
         platform: str, 
@@ -511,28 +862,34 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         theme: str, 
         post_number: int
     ) -> Dict[str, Any]:
-        """Generate visual concept using ultra-cheap AI"""
+        """Generate visual concept using ultra-cheap AI with product name enforcement"""
         
-        product_name = intelligence["product_name"]
+        actual_product_name = intelligence["product_name"]
         key_benefits = intelligence["key_benefits"]
         
         prompt = f"""
-        Create a visual concept for a {platform} post about {product_name}.
+        Create a visual concept for a {platform} post about {actual_product_name}.
         
-        Product: {product_name}
+        CRITICAL: Use ONLY the actual product name "{actual_product_name}" throughout the concept.
+        NEVER use placeholders like "Your", "PRODUCT", "[Product]", "Your Company", etc.
+        
+        Product: {actual_product_name}
         Key Benefits: {', '.join(key_benefits[:3])}
         Theme: {theme}
         Platform: {platform}
         
         Generate a visual concept with:
-        1. Main visual focus (what's the hero?)
+        1. Main visual focus (what's the hero featuring {actual_product_name}?)
         2. Style/mood (modern, natural, scientific?)
         3. Colors (brand palette)
-        4. Text overlay (if any)
+        4. Text overlay (featuring {actual_product_name} if any)
         5. Composition (layout)
         
         Make it {platform}-optimized and engaging.
         Keep response under 200 words.
+        
+        ABSOLUTELY FORBIDDEN: "Your", "PRODUCT", "[Product]", "Your Company", "the product"
+        REQUIRED: Use "{actual_product_name}" consistently
         """
         
         return await self.ultra_cheap_provider.generate_text(
@@ -542,47 +899,45 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
             cost_target="ultra_cheap"
         )
     
-    async def _generate_caption_ultra_cheap(
+    async def _generate_video_concept_ultra_cheap(
         self, 
         platform: str, 
         intelligence: Dict[str, Any], 
-        concept: Dict[str, Any], 
-        text_limit: int
+        theme: str, 
+        post_number: int
     ) -> Dict[str, Any]:
-        """Generate engaging caption using ultra-cheap AI"""
+        """Generate video concept using ultra-cheap AI with product name enforcement"""
         
-        product_name = intelligence["product_name"]
-        key_benefits = intelligence["key_benefits"]
+        actual_product_name = intelligence["product_name"]
         
         prompt = f"""
-        Write an engaging {platform} caption for {product_name}.
+        Create a {platform} video concept for {actual_product_name}.
         
-        Product: {product_name}
-        Key Benefits: {', '.join(key_benefits[:3])}
-        Character Limit: {text_limit}
+        CRITICAL: Use ONLY the actual product name "{actual_product_name}" throughout the concept.
+        NEVER use placeholders like "Your", "PRODUCT", "[Product]", "Your Company", etc.
         
-        Create a caption that:
-        1. Hooks attention in first line
-        2. Provides value
-        3. Mentions {product_name} naturally
-        4. Includes call-to-action
-        5. Encourages engagement
+        Product: {actual_product_name}
+        Theme: {theme}
+        Platform: {platform}
         
-        Style: Conversational and authentic for {platform}
+        Include:
+        1. Video hook (first 3 seconds featuring {actual_product_name})
+        2. Main message about {actual_product_name}
+        3. Visual style
+        4. Call-to-action for {actual_product_name}
+        
+        Keep under 150 words for {platform}.
+        
+        ABSOLUTELY FORBIDDEN: "Your", "PRODUCT", "[Product]", "Your Company", "the product"
+        REQUIRED: Use "{actual_product_name}" consistently
         """
         
-        result = await self.ultra_cheap_provider.generate_text(
+        return await self.ultra_cheap_provider.generate_text(
             prompt=prompt,
             max_tokens=300,
-            temperature=0.9,
+            temperature=0.8,
             cost_target="ultra_cheap"
         )
-        
-        # Ensure caption fits character limit
-        if result["success"] and len(result["content"]) > text_limit:
-            result["content"] = result["content"][:text_limit-3] + "..."
-        
-        return result
     
     async def _generate_hashtags_ultra_cheap(
         self, 
@@ -591,19 +946,19 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         theme: str, 
         limit: int
     ) -> Dict[str, Any]:
-        """Generate relevant hashtags using ultra-cheap AI"""
+        """Generate relevant hashtags using ultra-cheap AI with product name"""
         
-        product_name = intelligence["product_name"]
+        actual_product_name = intelligence["product_name"]
         
         prompt = f"""
-        Generate {limit} relevant hashtags for {platform} post about {product_name}.
+        Generate {limit} relevant hashtags for {platform} post about {actual_product_name}.
         
-        Product: {product_name}
+        Product: {actual_product_name}
         Theme: {theme}
         Platform: {platform}
         
         Include mix of:
-        - Product hashtags
+        - Product hashtags (#{actual_product_name.lower().replace(' ', '')})
         - Health/wellness hashtags
         - Platform-specific trending tags
         - Niche community hashtags
@@ -638,9 +993,9 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         visual_concept: Dict[str, Any], 
         intelligence: Dict[str, Any]
     ) -> str:
-        """Generate image prompt for ultra-cheap image generation"""
+        """Generate image prompt for ultra-cheap image generation with product name"""
         
-        product_name = intelligence["product_name"]
+        actual_product_name = intelligence["product_name"]
         
         if isinstance(visual_concept, dict):
             concept_text = visual_concept.get("description", str(visual_concept))
@@ -649,7 +1004,7 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         
         # Create optimized prompt for ultra-cheap image providers
         prompt_parts = [
-            f"Professional marketing image for {product_name}",
+            f"Professional marketing image for {actual_product_name}",
             "health and wellness product",
             "clean modern style",
             "natural colors",
@@ -660,90 +1015,23 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         
         return ", ".join(prompt_parts)
     
-    async def _generate_video_concept_ultra_cheap(
-        self, 
-        platform: str, 
-        intelligence: Dict[str, Any], 
-        theme: str, 
-        post_number: int
-    ) -> Dict[str, Any]:
-        """Generate video concept using ultra-cheap AI"""
-        
-        product_name = intelligence["product_name"]
-        
-        prompt = f"""
-        Create a {platform} video concept for {product_name}.
-        
-        Product: {product_name}
-        Theme: {theme}
-        Platform: {platform}
-        
-        Include:
-        1. Video hook (first 3 seconds)
-        2. Main message
-        3. Visual style
-        4. Call-to-action
-        
-        Keep under 150 words for {platform}.
-        """
-        
-        return await self.ultra_cheap_provider.generate_text(
-            prompt=prompt,
-            max_tokens=300,
-            temperature=0.8,
-            cost_target="ultra_cheap"
-        )
-    
-    async def _generate_video_script_ultra_cheap(
-        self, 
-        platform: str, 
-        intelligence: Dict[str, Any], 
-        concept: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Generate video script using ultra-cheap AI"""
-        
-        product_name = intelligence["product_name"]
-        
-        prompt = f"""
-        Write a {platform} video script for {product_name}.
-        
-        Product: {product_name}
-        Concept: {str(concept)[:200]}
-        Platform: {platform}
-        
-        Script format:
-        [0-3s] Hook
-        [4-10s] Problem/benefit
-        [11-20s] Solution with {product_name}
-        [21-30s] Call-to-action
-        
-        Keep energetic and engaging for {platform}.
-        """
-        
-        return await self.ultra_cheap_provider.generate_text(
-            prompt=prompt,
-            max_tokens=400,
-            temperature=0.8,
-            cost_target="ultra_cheap"
-        )
-    
     async def _generate_video_shots_ultra_cheap(
         self, 
         concept: Dict[str, Any], 
         intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate video shots breakdown using ultra-cheap AI"""
+        """Generate video shots breakdown using ultra-cheap AI with product name"""
         
-        product_name = intelligence["product_name"]
+        actual_product_name = intelligence["product_name"]
         
         prompt = f"""
-        Create video shots breakdown for {product_name} video.
+        Create video shots breakdown for {actual_product_name} video.
         
         Concept: {str(concept)[:200]}
-        Product: {product_name}
+        Product: {actual_product_name}
         
         Format each shot:
-        Shot 1: [Description] - [Duration]
+        Shot 1: [Description featuring {actual_product_name}] - [Duration]
         Shot 2: [Description] - [Duration]
         etc.
         
@@ -772,67 +1060,24 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         
         return result
     
-    async def _generate_text_content_ultra_cheap(
-        self, 
-        platform: str, 
-        intelligence: Dict[str, Any], 
-        theme: str, 
-        limit: int
-    ) -> Dict[str, Any]:
-        """Generate text content using ultra-cheap AI"""
-        
-        product_name = intelligence["product_name"]
-        key_benefits = intelligence["key_benefits"]
-        
-        prompt = f"""
-        Write engaging {platform} text post for {product_name}.
-        
-        Product: {product_name}
-        Benefits: {', '.join(key_benefits[:3])}
-        Theme: {theme}
-        Character Limit: {limit}
-        
-        Create post that:
-        1. Grabs attention immediately
-        2. Provides value/insight
-        3. Naturally mentions {product_name}
-        4. Encourages engagement
-        5. Fits {platform} style
-        
-        Be conversational and authentic.
-        """
-        
-        result = await self.ultra_cheap_provider.generate_text(
-            prompt=prompt,
-            max_tokens=300,
-            temperature=0.9,
-            cost_target="ultra_cheap"
-        )
-        
-        # Ensure content fits character limit
-        if result["success"] and len(result["content"]) > limit:
-            result["content"] = result["content"][:limit-3] + "..."
-        
-        return result
-    
     async def _suggest_supporting_visual_ultra_cheap(
         self, 
         text: str, 
         intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Suggest supporting visual using ultra-cheap AI"""
+        """Suggest supporting visual using ultra-cheap AI with product name"""
         
-        product_name = intelligence["product_name"]
+        actual_product_name = intelligence["product_name"]
         
         prompt = f"""
-        Suggest a supporting visual for this text post about {product_name}:
+        Suggest a supporting visual for this text post about {actual_product_name}:
         
         Text: {text[:200]}
-        Product: {product_name}
+        Product: {actual_product_name}
         
         Suggest:
         1. Visual type (photo, graphic, illustration)
-        2. Main focus
+        2. Main focus featuring {actual_product_name}
         3. Style
         4. Colors
         
@@ -856,129 +1101,6 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
             result["content"] = suggestion
         
         return result
-    
-    # Fallback methods when ultra-cheap AI fails
-    def _fallback_visual_concept(self, intelligence: Dict[str, Any], theme: str) -> Dict[str, Any]:
-        """Fallback visual concept"""
-        return {
-            "main_focus": f"{intelligence['product_name']} product shot",
-            "style": "clean and professional",
-            "colors": "natural greens and whites", 
-            "text_overlay": intelligence['product_name'],
-            "composition": "centered product with lifestyle background",
-            "description": f"Professional product photography of {intelligence['product_name']}"
-        }
-    
-    def _fallback_caption(self, intelligence: Dict[str, Any], platform: str) -> str:
-        """Fallback caption"""
-        product_name = intelligence["product_name"]
-        
-        captions = {
-            "instagram": f"Transform your health journey with {product_name} 🌿 Natural wellness made simple. What's your health goal this month? 💪",
-            "tiktok": f"POV: You discovered {product_name} and your energy levels are through the roof! ✨ #health #wellness",
-            "facebook": f"Looking for natural health support? {product_name} combines science with nature for optimal wellness. Learn more in comments!",
-            "linkedin": f"Investing in your health is investing in your success. {product_name} supports professionals who prioritize wellness.",
-            "twitter": f"Game-changer alert: {product_name} is transforming how we approach natural health 🙌",
-            "pinterest": f"Save this: {product_name} - your natural path to better health and energy. Click to learn more!"
-        }
-        
-        return captions.get(platform, f"Discover the benefits of {product_name} for natural health optimization.")
-    
-    def _fallback_hashtags(self, intelligence: Dict[str, Any], platform: str) -> List[str]:
-        """Fallback hashtags"""
-        product_name = intelligence["product_name"]
-        
-        base_tags = ["#health", "#wellness", "#natural", "#supplement", "#healthylifestyle"]
-        product_tags = [f"#{product_name.lower()}", "#liverhealth", "#energy"]
-        
-        platform_tags = {
-            "instagram": ["#instagood", "#photooftheday"],
-            "tiktok": ["#fyp", "#viral"],
-            "facebook": ["#sponsored"],
-            "linkedin": ["#healthtech", "#business"],
-            "twitter": ["#HealthTech"],
-            "pinterest": ["#naturalhealth", "#wellnesstips"]
-        }
-        
-        all_tags = base_tags + product_tags + platform_tags.get(platform, [])
-        return all_tags[:10]
-    
-    def _fallback_video_concept(self, intelligence: Dict[str, Any], platform: str) -> Dict[str, Any]:
-        """Fallback video concept"""
-        return {
-            "concept": f"Short {platform} video showcasing {intelligence['product_name']} benefits",
-            "style": "dynamic and engaging",
-            "duration": "15-30 seconds" if platform == "tiktok" else "30-60 seconds",
-            "focus": "product benefits"
-        }
-    
-    def _fallback_video_script(self, intelligence: Dict[str, Any], platform: str) -> str:
-        """Fallback video script"""
-        product_name = intelligence["product_name"]
-        return f"Transform your health with {product_name}! Discover natural wellness that actually works. Ready to feel amazing? Link in bio!"
-    
-    def _fallback_video_shots(self, intelligence: Dict[str, Any]) -> List[Dict[str, str]]:
-        """Fallback video shots"""
-        product_name = intelligence["product_name"]
-        return [
-            {"shot": 1, "description": f"Close-up of {product_name} product", "duration": "3 seconds"},
-            {"shot": 2, "description": "Person looking energetic and healthy", "duration": "5 seconds"},
-            {"shot": 3, "description": "Product in lifestyle setting", "duration": "4 seconds"}
-        ]
-    
-    def _fallback_text_content(self, intelligence: Dict[str, Any], platform: str) -> str:
-        """Fallback text content"""
-        product_name = intelligence["product_name"]
-        return f"Ready to transform your health naturally? {product_name} is here to support your wellness journey with science-backed ingredients. What's your biggest health goal this year?"
-    
-    def _fallback_visual_suggestion(self, intelligence: Dict[str, Any]) -> Dict[str, str]:
-        """Fallback visual suggestion"""
-        return {
-            "suggestion": f"Product shot of {intelligence['product_name']} with natural background",
-            "style": "clean and professional",
-            "optional": True
-        }
-    
-    def _generate_fallback_platform_content(self, platform: str, intelligence: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate fallback content for entire platform"""
-        
-        posts = []
-        for i in range(3):  # Generate 3 fallback posts
-            post = self._generate_fallback_post(platform, intelligence, i)
-            posts.append(post)
-        
-        return {
-            "platform": platform,
-            "posts": posts,
-            "platform_optimization": self._get_platform_optimization(platform),
-            "publishing_schedule": self._suggest_publishing_schedule(platform, 3),
-            "fallback_generated": True
-        }
-    
-    def _generate_fallback_post(self, platform: str, intelligence: Dict[str, Any], post_number: int) -> Dict[str, Any]:
-        """Generate single fallback post"""
-        
-        product_name = intelligence["product_name"]
-        
-        fallback_content = [
-            f"Discover the natural benefits of {product_name} for your wellness journey! 🌿",
-            f"What's your biggest health goal this month? {product_name} might be the support you need! 💪",
-            f"Real results, real people. See why thousands choose {product_name} for their health journey! ⭐"
-        ]
-        
-        content = fallback_content[post_number % len(fallback_content)]
-        
-        return {
-            "post_type": "text_post",
-            "platform": platform,
-            "post_number": post_number + 1,
-            "text_content": content,
-            "hashtags": self._fallback_hashtags(intelligence, platform)[:5],
-            "engagement_elements": self._identify_engagement_elements(content),
-            "fallback_generated": True,
-            "ultra_cheap_generated": False,
-            "generation_cost": 0
-        }
     
     def _calculate_post_savings(self, actual_cost: float) -> Dict[str, Any]:
         """Calculate savings vs OpenAI for a single post"""
@@ -1101,28 +1223,8 @@ class EnhancedSocialMediaGenerator(EnumSerializerMixin):
         
         return counts
     
-    def _extract_product_name(self, intelligence_data: Dict[str, Any]) -> str:
-        """Extract product name from intelligence data"""
-        
-        # Try multiple sources for product name
-        if "product_name" in intelligence_data:
-            return intelligence_data["product_name"]
-        
-        # 🔥 FIXED: Use enum serialization for offer intelligence
-        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
-        insights = offer_intel.get("insights", [])
-        
-        for insight in insights:
-            if "called" in str(insight).lower():
-                words = str(insight).split()
-                for i, word in enumerate(words):
-                    if word.lower() == "called" and i + 1 < len(words):
-                        return words[i + 1].upper().replace(",", "").replace(".", "")
-        
-        return "PRODUCT"
-    
     def _extract_usps(self, intelligence_data: Dict[str, Any]) -> List[str]:
-        """Extract unique selling points from intelligence with enum serialization"""
+        """Extract unique selling points from intelligence with enum serialization and product name fixes"""
         
         usps = []
         
