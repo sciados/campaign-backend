@@ -3,6 +3,7 @@
 Generates comprehensive credibility and authority signals using ULTRA-CHEAP AI providers
 UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
 FIXED: Added throttling and proper error handling
+🔥 FIXED: Added product name fix to prevent AI-generated placeholders
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -10,6 +11,13 @@ from datetime import datetime
 import json
 
 from ...utils.ai_throttle import safe_ai_call
+# 🔥 ADD THESE IMPORTS
+from ...utils.product_name_fix import (
+    extract_product_name_from_intelligence,
+    extract_company_name_from_intelligence,
+    substitute_placeholders_in_data,
+    validate_no_placeholders
+)
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +78,24 @@ class CredibilityIntelligenceEnhancer:
         
         return selected_provider
     
-    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
-        """Call the ultra-cheap AI provider with throttling and error handling"""
+    async def _call_ultra_cheap_ai(self, prompt: str, intelligence: Dict[str, Any]) -> Any:
+        """
+        🔥 FIXED: Call AI provider with automatic product name fix
+        This ensures all AI responses use actual product names instead of placeholders
+        """
+        
+        # 🔥 Extract actual product name before AI call
+        product_name = extract_product_name_from_intelligence(intelligence)
+        company_name = extract_company_name_from_intelligence(intelligence)
+        
+        # 🔥 Enhance prompt to include actual product name
+        enhanced_prompt = f"""
+        IMPORTANT: You are analyzing a product called "{product_name}". 
+        Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", or similar.
+        
+        {prompt}
+        """
         
         provider_name = self.available_provider["name"]
         client = self.available_provider["client"]
@@ -80,11 +104,11 @@ class CredibilityIntelligenceEnhancer:
         messages = [
             {
                 "role": "system",
-                "content": "You are a credibility and trust expert providing strategic insights. Always respond with valid JSON when requested. Be thorough and realistic."
+                "content": f"You are an expert analyst for '{product_name}'. Always use the actual product name '{product_name}' in responses. Never use placeholders. Always respond with valid JSON when requested."
             },
             {
                 "role": "user", 
-                "content": prompt
+                "content": enhanced_prompt
             }
         ]
         
@@ -101,7 +125,7 @@ class CredibilityIntelligenceEnhancer:
         model = model_map.get(provider_name, "gpt-3.5-turbo")
         
         # Make the safe AI call with automatic throttling and JSON validation
-        return await safe_ai_call(
+        raw_result = await safe_ai_call(
             client=client,
             provider_name=provider_name,
             model=model,
@@ -109,6 +133,22 @@ class CredibilityIntelligenceEnhancer:
             temperature=0.2,
             max_tokens=2000
         )
+        
+        # 🔥 Apply product name fix to AI response
+        if raw_result:
+            fixed_result = substitute_placeholders_in_data(raw_result, product_name, company_name)
+            
+            # 🔥 Validate that placeholders were removed
+            if isinstance(fixed_result, str):
+                is_clean = validate_no_placeholders(fixed_result, product_name)
+                if not is_clean:
+                    logger.warning(f"⚠️ AI response still contains placeholders after fix")
+            
+            # 🔥 Log the fix application
+            logger.info(f"🔧 Applied product name fix: {product_name}")
+            return fixed_result
+        
+        return raw_result
     
     async def generate_credibility_intelligence(
         self, 
@@ -127,27 +167,31 @@ class CredibilityIntelligenceEnhancer:
             logger.info(f"🏆 Starting credibility intelligence generation with {provider_name}")
             
             # Extract product information
-            product_name = product_data.get("product_name", "Product")
+            product_name = extract_product_name_from_intelligence(base_intelligence)
+            
+            # 🔥 Log product name extraction
+            logger.info(f"🎯 Using product name: '{product_name}' for credibility generation")
+            
             offer_intel = base_intelligence.get("offer_intelligence", {})
             content_intel = base_intelligence.get("content_intelligence", {})
             
             # Generate trust indicators using ultra-cheap AI
-            trust_indicators = await self._generate_trust_indicators(product_name, offer_intel)
+            trust_indicators = await self._generate_trust_indicators(product_name, offer_intel, base_intelligence)
             
             # Generate authority signals using ultra-cheap AI
-            authority_signals = await self._generate_authority_signals(product_name, offer_intel)
+            authority_signals = await self._generate_authority_signals(product_name, offer_intel, base_intelligence)
             
             # Generate social proof enhancement using ultra-cheap AI
-            social_proof = await self._generate_social_proof_enhancement(product_name, content_intel)
+            social_proof = await self._generate_social_proof_enhancement(product_name, content_intel, base_intelligence)
             
             # Generate credibility scoring using ultra-cheap AI
-            credibility_scoring = await self._generate_credibility_scoring(product_name, base_intelligence)
+            credibility_scoring = await self._generate_credibility_scoring(product_name, base_intelligence, base_intelligence)
             
             # Generate reputation factors using ultra-cheap AI
-            reputation_factors = await self._generate_reputation_factors(product_name, offer_intel)
+            reputation_factors = await self._generate_reputation_factors(product_name, offer_intel, base_intelligence)
             
             # Generate expertise indicators using ultra-cheap AI
-            expertise_indicators = await self._generate_expertise_indicators(product_name, offer_intel)
+            expertise_indicators = await self._generate_expertise_indicators(product_name, offer_intel, base_intelligence)
             
             # Calculate overall credibility score
             overall_credibility = self._calculate_overall_credibility_score(
@@ -166,6 +210,8 @@ class CredibilityIntelligenceEnhancer:
                 "generated_at": datetime.utcnow().isoformat(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.88,
+                "product_name_fix_applied": True,  # 🔥 Track that fix was applied
+                "actual_product_name": product_name,  # 🔥 Track actual product name used
                 "ultra_cheap_optimization": {
                     "provider_used": provider_name,
                     "cost_per_1k_tokens": self.available_provider.get("cost_per_1k_tokens", 0),
@@ -175,6 +221,10 @@ class CredibilityIntelligenceEnhancer:
                     "speed_rating": self.available_provider.get("speed_rating", 0)
                 }
             }
+            
+            # 🔥 Apply final product name fix to entire result
+            company_name = extract_company_name_from_intelligence(base_intelligence)
+            final_result = substitute_placeholders_in_data(credibility_intelligence, product_name, company_name)
             
             # Log successful generation with cost data
             total_items = (
@@ -189,8 +239,9 @@ class CredibilityIntelligenceEnhancer:
             logger.info(f"✅ Credibility intelligence generated using {provider_name}")
             logger.info(f"📊 Generated {total_items} credibility items")
             logger.info(f"💰 Cost optimization: {self._calculate_cost_savings():.1f}% savings")
+            logger.info(f"🔧 Product name fix: Applied '{product_name}' throughout content")
             
-            return credibility_intelligence
+            return final_result
             
         except Exception as e:
             logger.error(f"❌ Ultra-cheap credibility intelligence generation failed: {str(e)}")
@@ -215,7 +266,8 @@ class CredibilityIntelligenceEnhancer:
     async def _generate_trust_indicators(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate trust indicators and trust-building elements using ultra-cheap AI"""
         
@@ -224,6 +276,9 @@ class CredibilityIntelligenceEnhancer:
         
         prompt = f"""
         As a trust and credibility expert, analyze trust indicators for a product called "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Current guarantees and value propositions:
         Guarantees: {json.dumps(guarantees, indent=2)}
@@ -251,7 +306,7 @@ class CredibilityIntelligenceEnhancer:
         
         try:
             logger.info(f"🔒 Generating trust indicators with {self.available_provider.get('name')}")
-            trust_indicators = await self._call_ultra_cheap_ai(prompt)
+            trust_indicators = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(trust_indicators, str):
                 trust_indicators = json.loads(trust_indicators)
@@ -267,12 +322,16 @@ class CredibilityIntelligenceEnhancer:
     async def _generate_authority_signals(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate authority signals and expertise markers using ultra-cheap AI"""
         
         prompt = f"""
         As an authority and expertise analyst, identify authority signals for a product called "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Product context:
         {json.dumps(offer_intel, indent=2)}
@@ -300,7 +359,7 @@ class CredibilityIntelligenceEnhancer:
         
         try:
             logger.info(f"👑 Generating authority signals with {self.available_provider.get('name')}")
-            authority_signals = await self._call_ultra_cheap_ai(prompt)
+            authority_signals = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(authority_signals, str):
                 authority_signals = json.loads(authority_signals)
@@ -316,7 +375,8 @@ class CredibilityIntelligenceEnhancer:
     async def _generate_social_proof_enhancement(
         self, 
         product_name: str, 
-        content_intel: Dict[str, Any]
+        content_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate enhanced social proof elements using ultra-cheap AI"""
         
@@ -325,6 +385,9 @@ class CredibilityIntelligenceEnhancer:
         
         prompt = f"""
         As a social proof strategist, enhance social proof elements for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Existing social proof:
         {json.dumps(existing_social_proof, indent=2)}
@@ -355,7 +418,7 @@ class CredibilityIntelligenceEnhancer:
         
         try:
             logger.info(f"👥 Generating social proof enhancement with {self.available_provider.get('name')}")
-            social_proof = await self._call_ultra_cheap_ai(prompt)
+            social_proof = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(social_proof, str):
                 social_proof = json.loads(social_proof)
@@ -371,17 +434,21 @@ class CredibilityIntelligenceEnhancer:
     async def _generate_credibility_scoring(
         self, 
         product_name: str, 
-        base_intelligence: Dict[str, Any]
+        data: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate credibility scoring analysis using ultra-cheap AI"""
         
-        confidence_score = base_intelligence.get("confidence_score", 0.0)
+        confidence_score = data.get("confidence_score", 0.0)
         
         prompt = f"""
         As a credibility assessment expert, analyze credibility factors for "{product_name}".
         
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
+        
         Current confidence score: {confidence_score}
-        Base intelligence: {json.dumps(base_intelligence, indent=2)[:1000]}
+        Base intelligence: {json.dumps(data, indent=2)[:1000]}
         
         Generate credibility scoring including:
         1. Credibility strength assessment
@@ -406,7 +473,7 @@ class CredibilityIntelligenceEnhancer:
         
         try:
             logger.info(f"📊 Generating credibility scoring with {self.available_provider.get('name')}")
-            credibility_scoring = await self._call_ultra_cheap_ai(prompt)
+            credibility_scoring = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(credibility_scoring, str):
                 credibility_scoring = json.loads(credibility_scoring)
@@ -422,12 +489,16 @@ class CredibilityIntelligenceEnhancer:
     async def _generate_reputation_factors(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate reputation factors analysis using ultra-cheap AI"""
         
         prompt = f"""
         As a reputation management expert, analyze reputation factors for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Product information:
         {json.dumps(offer_intel, indent=2)}
@@ -455,7 +526,7 @@ class CredibilityIntelligenceEnhancer:
         
         try:
             logger.info(f"🌟 Generating reputation factors with {self.available_provider.get('name')}")
-            reputation_factors = await self._call_ultra_cheap_ai(prompt)
+            reputation_factors = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(reputation_factors, str):
                 reputation_factors = json.loads(reputation_factors)
@@ -471,12 +542,16 @@ class CredibilityIntelligenceEnhancer:
     async def _generate_expertise_indicators(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate expertise indicators using ultra-cheap AI"""
         
         prompt = f"""
         As an expertise assessment specialist, identify expertise indicators for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Product context:
         {json.dumps(offer_intel, indent=2)}
@@ -504,7 +579,7 @@ class CredibilityIntelligenceEnhancer:
         
         try:
             logger.info(f"🎓 Generating expertise indicators with {self.available_provider.get('name')}")
-            expertise_indicators = await self._call_ultra_cheap_ai(prompt)
+            expertise_indicators = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(expertise_indicators, str):
                 expertise_indicators = json.loads(expertise_indicators)
@@ -545,9 +620,11 @@ class CredibilityIntelligenceEnhancer:
     def _generate_fallback_credibility_intelligence(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate fallback credibility intelligence with ultra-cheap metadata"""
         
+        # 🔥 Extract product name from product_data
         product_name = product_data.get("product_name", "Product")
         
-        return {
+        # Generate fallback data
+        fallback_data = {
             "trust_indicators": self._fallback_trust_indicators(),
             "authority_signals": self._fallback_authority_signals(),
             "social_proof_enhancement": self._fallback_social_proof_enhancement(),
@@ -558,6 +635,8 @@ class CredibilityIntelligenceEnhancer:
             "generated_at": datetime.utcnow().isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.70,
+            "product_name_fix_applied": True,
+            "actual_product_name": product_name,
             "ultra_cheap_optimization": {
                 "provider_used": "fallback_static",
                 "cost_per_1k_tokens": 0.0,
@@ -567,6 +646,13 @@ class CredibilityIntelligenceEnhancer:
                 "fallback_reason": "No ultra-cheap providers available"
             }
         }
+        
+        # 🔥 Apply product name fix to fallback data
+        company_name = extract_company_name_from_intelligence(product_data)
+        final_fallback = substitute_placeholders_in_data(fallback_data, product_name, company_name)
+        
+        logger.info(f"🔧 Applied product name fix to fallback data: '{product_name}'")
+        return final_fallback
     
     def _fallback_trust_indicators(self) -> Dict[str, Any]:
         """Fallback trust indicators"""

@@ -4,6 +4,7 @@ Generates enhanced content intelligence using ULTRA-CHEAP AI providers
 UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
 FIXED: Added throttling and proper error handling
 FIXED: Now uses centralized AI system with automatic provider failover
+🔥 FIXED: Added product name fix to prevent AI-generated placeholders
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -11,6 +12,13 @@ from datetime import datetime
 import json
 
 from ...utils.ai_throttle import safe_ai_call
+# 🔥 ADD THESE IMPORTS
+from ...utils.product_name_fix import (
+    extract_product_name_from_intelligence,
+    extract_company_name_from_intelligence,
+    substitute_placeholders_in_data,
+    validate_no_placeholders
+)
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +79,24 @@ class ContentIntelligenceEnhancer:
         
         return selected_provider
     
-    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
-        """Call the ultra-cheap AI provider with throttling and error handling"""
+    async def _call_ultra_cheap_ai(self, prompt: str, intelligence: Dict[str, Any]) -> Any:
+        """
+        🔥 FIXED: Call AI provider with automatic product name fix
+        This ensures all AI responses use actual product names instead of placeholders
+        """
+        
+        # 🔥 Extract actual product name before AI call
+        product_name = extract_product_name_from_intelligence(intelligence)
+        company_name = extract_company_name_from_intelligence(intelligence)
+        
+        # 🔥 Enhance prompt to include actual product name
+        enhanced_prompt = f"""
+        IMPORTANT: You are analyzing a product called "{product_name}". 
+        Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", or similar.
+        
+        {prompt}
+        """
         
         provider_name = self.available_provider["name"]
         client = self.available_provider["client"]
@@ -81,11 +105,11 @@ class ContentIntelligenceEnhancer:
         messages = [
             {
                 "role": "system",
-                "content": "You are a content and messaging expert. Always respond with valid JSON when requested. Be creative but strategic."
+                "content": f"You are an expert analyst for '{product_name}'. Always use the actual product name '{product_name}' in responses. Never use placeholders. Always respond with valid JSON when requested."
             },
             {
                 "role": "user", 
-                "content": prompt
+                "content": enhanced_prompt
             }
         ]
         
@@ -102,7 +126,7 @@ class ContentIntelligenceEnhancer:
         model = model_map.get(provider_name, "gpt-3.5-turbo")
         
         # Make the safe AI call with automatic throttling and JSON validation
-        return await safe_ai_call(
+        raw_result = await safe_ai_call(
             client=client,
             provider_name=provider_name,
             model=model,
@@ -110,6 +134,22 @@ class ContentIntelligenceEnhancer:
             temperature=0.4,
             max_tokens=2000
         )
+        
+        # 🔥 Apply product name fix to AI response
+        if raw_result:
+            fixed_result = substitute_placeholders_in_data(raw_result, product_name, company_name)
+            
+            # 🔥 Validate that placeholders were removed
+            if isinstance(fixed_result, str):
+                is_clean = validate_no_placeholders(fixed_result, product_name)
+                if not is_clean:
+                    logger.warning(f"⚠️ AI response still contains placeholders after fix")
+            
+            # 🔥 Log the fix application
+            logger.info(f"🔧 Applied product name fix: {product_name}")
+            return fixed_result
+        
+        return raw_result
     
     async def generate_content_intelligence(
         self, 
@@ -128,24 +168,28 @@ class ContentIntelligenceEnhancer:
             logger.info(f"📝 Starting content intelligence generation with {provider_name}")
             
             # Extract product information
-            product_name = product_data.get("product_name", "Product")
+            product_name = extract_product_name_from_intelligence(base_intelligence)
+            
+            # 🔥 Log product name extraction
+            logger.info(f"🎯 Using product name: '{product_name}' for content generation")
+            
             base_content = base_intelligence.get("content_intelligence", {})
             offer_intel = base_intelligence.get("offer_intelligence", {})
             
             # Generate enhanced key messages using ultra-cheap AI
-            key_messages = await self._generate_enhanced_key_messages(product_name, base_content, offer_intel)
+            key_messages = await self._generate_enhanced_key_messages(product_name, base_content, offer_intel, base_intelligence)
             
             # Generate social proof amplification using ultra-cheap AI
-            social_proof = await self._generate_social_proof_amplification(product_name, base_content)
+            social_proof = await self._generate_social_proof_amplification(product_name, base_content, base_intelligence)
             
             # Generate success story frameworks using ultra-cheap AI
-            success_stories = await self._generate_success_story_frameworks(product_name, base_content)
+            success_stories = await self._generate_success_story_frameworks(product_name, base_content, base_intelligence)
             
             # Generate messaging hierarchy using ultra-cheap AI
-            messaging_hierarchy = await self._generate_messaging_hierarchy(product_name, offer_intel)
+            messaging_hierarchy = await self._generate_messaging_hierarchy(product_name, offer_intel, base_intelligence)
             
             # Generate engagement optimization using ultra-cheap AI
-            engagement_optimization = await self._generate_engagement_optimization(product_name, base_intelligence)
+            engagement_optimization = await self._generate_engagement_optimization(product_name, base_intelligence, base_intelligence)
             
             # Calculate content performance score
             content_performance = self._calculate_content_performance_score(
@@ -163,6 +207,8 @@ class ContentIntelligenceEnhancer:
                 "generated_at": datetime.utcnow().isoformat(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.83,
+                "product_name_fix_applied": True,  # 🔥 Track that fix was applied
+                "actual_product_name": product_name,  # 🔥 Track actual product name used
                 "ultra_cheap_optimization": {
                     "provider_used": provider_name,
                     "cost_per_1k_tokens": self.available_provider.get("cost_per_1k_tokens", 0),
@@ -172,6 +218,10 @@ class ContentIntelligenceEnhancer:
                     "speed_rating": self.available_provider.get("speed_rating", 0)
                 }
             }
+            
+            # 🔥 Apply final product name fix to entire result
+            company_name = extract_company_name_from_intelligence(base_intelligence)
+            final_result = substitute_placeholders_in_data(content_intelligence, product_name, company_name)
             
             # Log successful generation with cost data
             total_items = (
@@ -185,8 +235,9 @@ class ContentIntelligenceEnhancer:
             logger.info(f"✅ Content intelligence generated using {provider_name}")
             logger.info(f"📊 Generated {total_items} content items")
             logger.info(f"💰 Cost optimization: {self._calculate_cost_savings():.1f}% savings")
+            logger.info(f"🔧 Product name fix: Applied '{product_name}' throughout content")
             
-            return content_intelligence
+            return final_result
             
         except Exception as e:
             logger.error(f"❌ Ultra-cheap content intelligence generation failed: {str(e)}")
@@ -212,7 +263,8 @@ class ContentIntelligenceEnhancer:
         self, 
         product_name: str, 
         base_content: Dict[str, Any],
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate enhanced key messaging using ultra-cheap AI"""
         
@@ -221,6 +273,9 @@ class ContentIntelligenceEnhancer:
         
         prompt = f"""
         As a messaging strategist, enhance key messages for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Existing messages: {json.dumps(existing_messages, indent=2)}
         Value propositions: {json.dumps(value_props, indent=2)}
@@ -245,7 +300,7 @@ class ContentIntelligenceEnhancer:
         
         try:
             logger.info(f"💬 Generating key messages with {self.available_provider.get('name')}")
-            key_messages = await self._call_ultra_cheap_ai(prompt)
+            key_messages = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(key_messages, str):
                 key_messages = json.loads(key_messages)
@@ -261,7 +316,8 @@ class ContentIntelligenceEnhancer:
     async def _generate_social_proof_amplification(
         self, 
         product_name: str, 
-        base_content: Dict[str, Any]
+        base_content: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate social proof amplification strategies using ultra-cheap AI"""
         
@@ -269,6 +325,9 @@ class ContentIntelligenceEnhancer:
         
         prompt = f"""
         As a social proof expert, amplify social proof for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Existing social proof: {json.dumps(existing_social_proof, indent=2)}
         
@@ -292,7 +351,7 @@ class ContentIntelligenceEnhancer:
         
         try:
             logger.info(f"👥 Generating social proof amplification with {self.available_provider.get('name')}")
-            social_proof = await self._call_ultra_cheap_ai(prompt)
+            social_proof = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(social_proof, str):
                 social_proof = json.loads(social_proof)
@@ -308,7 +367,8 @@ class ContentIntelligenceEnhancer:
     async def _generate_success_story_frameworks(
         self, 
         product_name: str, 
-        base_content: Dict[str, Any]
+        base_content: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate success story frameworks using ultra-cheap AI"""
         
@@ -316,6 +376,9 @@ class ContentIntelligenceEnhancer:
         
         prompt = f"""
         As a storytelling expert, create success story frameworks for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Existing stories: {json.dumps(existing_stories, indent=2)}
         
@@ -339,7 +402,7 @@ class ContentIntelligenceEnhancer:
         
         try:
             logger.info(f"📖 Generating success story frameworks with {self.available_provider.get('name')}")
-            success_stories = await self._call_ultra_cheap_ai(prompt)
+            success_stories = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(success_stories, str):
                 success_stories = json.loads(success_stories)
@@ -355,12 +418,16 @@ class ContentIntelligenceEnhancer:
     async def _generate_messaging_hierarchy(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate messaging hierarchy optimization using ultra-cheap AI"""
         
         prompt = f"""
         As a messaging architect, create messaging hierarchy for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Product context: {json.dumps(offer_intel, indent=2)}
         
@@ -384,7 +451,7 @@ class ContentIntelligenceEnhancer:
         
         try:
             logger.info(f"🏗️ Generating messaging hierarchy with {self.available_provider.get('name')}")
-            messaging_hierarchy = await self._call_ultra_cheap_ai(prompt)
+            messaging_hierarchy = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(messaging_hierarchy, str):
                 messaging_hierarchy = json.loads(messaging_hierarchy)
@@ -400,12 +467,16 @@ class ContentIntelligenceEnhancer:
     async def _generate_engagement_optimization(
         self, 
         product_name: str, 
-        base_intelligence: Dict[str, Any]
+        base_intelligence: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate engagement optimization strategies using ultra-cheap AI"""
         
         prompt = f"""
         As an engagement expert, optimize content engagement for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Generate engagement optimization including:
         1. Attention-grabbing techniques
@@ -427,7 +498,7 @@ class ContentIntelligenceEnhancer:
         
         try:
             logger.info(f"🎯 Generating engagement optimization with {self.available_provider.get('name')}")
-            engagement_optimization = await self._call_ultra_cheap_ai(prompt)
+            engagement_optimization = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(engagement_optimization, str):
                 engagement_optimization = json.loads(engagement_optimization)
@@ -468,9 +539,11 @@ class ContentIntelligenceEnhancer:
     def _generate_fallback_content_intelligence(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate fallback content intelligence with ultra-cheap metadata"""
         
+        # 🔥 Extract product name from product_data
         product_name = product_data.get("product_name", "Product")
         
-        return {
+        # Generate fallback data
+        fallback_data = {
             "enhanced_key_messages": self._fallback_key_messages(product_name),
             "social_proof_amplification": self._fallback_social_proof_amplification(),
             "success_story_frameworks": self._fallback_success_story_frameworks(),
@@ -480,6 +553,8 @@ class ContentIntelligenceEnhancer:
             "generated_at": datetime.utcnow().isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.68,
+            "product_name_fix_applied": True,
+            "actual_product_name": product_name,
             "ultra_cheap_optimization": {
                 "provider_used": "fallback_static",
                 "cost_per_1k_tokens": 0.0,
@@ -489,6 +564,13 @@ class ContentIntelligenceEnhancer:
                 "fallback_reason": "No ultra-cheap providers available"
             }
         }
+        
+        # 🔥 Apply product name fix to fallback data
+        company_name = extract_company_name_from_intelligence(product_data)
+        final_fallback = substitute_placeholders_in_data(fallback_data, product_name, company_name)
+        
+        logger.info(f"🔧 Applied product name fix to fallback data: '{product_name}'")
+        return final_fallback
     
     def _fallback_key_messages(self, product_name: str) -> Dict[str, Any]:
         """Fallback key messages"""

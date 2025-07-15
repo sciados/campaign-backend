@@ -228,6 +228,14 @@ def fix_email_sequence_placeholders(emails: List[Dict], intelligence: Dict[str, 
         if "preview_text" in email:
             fixed_email["preview_text"] = substitute_product_placeholders(email["preview_text"], product_name, company_name)
         
+        # Copy all other fields
+        for key, value in email.items():
+            if key not in fixed_email:
+                if isinstance(value, str):
+                    fixed_email[key] = substitute_product_placeholders(value, product_name, company_name)
+                else:
+                    fixed_email[key] = value
+        
         fixed_emails.append(fixed_email)
     
     logger.info(f"📧 Fixed {len(fixed_emails)} emails with product name: {product_name}")
@@ -252,6 +260,14 @@ def fix_social_media_placeholders(posts: List[Dict], intelligence: Dict[str, Any
         # Additional social-specific fixes
         if "caption" in post:
             fixed_post["caption"] = substitute_product_placeholders(post["caption"], product_name, company_name)
+        
+        # Copy all other fields
+        for key, value in post.items():
+            if key not in fixed_post:
+                if isinstance(value, str):
+                    fixed_post[key] = substitute_product_placeholders(value, product_name, company_name)
+                else:
+                    fixed_post[key] = value
         
         fixed_posts.append(fixed_post)
     
@@ -278,6 +294,14 @@ def fix_ad_copy_placeholders(ads: List[Dict], intelligence: Dict[str, Any]) -> L
         # Additional ad-specific fixes
         if "primary_text" in ad:
             fixed_ad["primary_text"] = substitute_product_placeholders(ad["primary_text"], product_name, company_name)
+        
+        # Copy all other fields
+        for key, value in ad.items():
+            if key not in fixed_ad:
+                if isinstance(value, str):
+                    fixed_ad[key] = substitute_product_placeholders(value, product_name, company_name)
+                else:
+                    fixed_ad[key] = value
         
         fixed_ads.append(fixed_ad)
     
@@ -308,11 +332,19 @@ def fix_blog_post_placeholders(blog_post: Dict, intelligence: Dict[str, Any]) ->
             for section in blog_post["sections"]
         ]
     
+    # Copy all other fields
+    for key, value in blog_post.items():
+        if key not in fixed_blog_post:
+            if isinstance(value, str):
+                fixed_blog_post[key] = substitute_product_placeholders(value, product_name, company_name)
+            else:
+                fixed_blog_post[key] = value
+    
     logger.info(f"📝 Fixed blog post with product name: {product_name}")
     return fixed_blog_post
 
 # ============================================================================
-# SPECIFIC CONTENT TYPE FIXES
+# ADDITIONAL CONTENT TYPE FIXES
 # ============================================================================
 
 def fix_video_script_placeholders(script_data: Dict, intelligence: Dict[str, Any]) -> Dict:
@@ -322,31 +354,30 @@ def fix_video_script_placeholders(script_data: Dict, intelligence: Dict[str, Any
     product_name = extract_product_name_from_intelligence(intelligence)
     company_name = extract_company_name_from_intelligence(intelligence)
     
+    if isinstance(script_data, str):
+        return substitute_product_placeholders(script_data, product_name, company_name)
+    
     fixed_script = {}
     
-    # Fix main script content
-    if isinstance(script_data, dict):
-        for key, value in script_data.items():
-            if key == "segments" and isinstance(value, list):
-                # Fix video segments
-                fixed_segments = []
-                for segment in value:
-                    fixed_segment = {
-                        "segment_type": segment.get("segment_type", ""),
-                        "time_range": segment.get("time_range", ""),
-                        "narration": substitute_product_placeholders(segment.get("narration", ""), product_name, company_name),
-                        "visual_cues": [substitute_product_placeholders(cue, product_name, company_name) for cue in segment.get("visual_cues", [])],
-                        "text_overlays": [substitute_product_placeholders(overlay, product_name, company_name) for overlay in segment.get("text_overlays", [])]
-                    }
-                    fixed_segments.append(fixed_segment)
-                fixed_script[key] = fixed_segments
-            elif isinstance(value, str):
-                fixed_script[key] = substitute_product_placeholders(value, product_name, company_name)
-            else:
-                fixed_script[key] = value
-    else:
-        # If script_data is a string, fix it directly
-        fixed_script = substitute_product_placeholders(str(script_data), product_name, company_name)
+    for key, value in script_data.items():
+        if key == "segments" and isinstance(value, list):
+            # Fix video segments
+            fixed_segments = []
+            for segment in value:
+                fixed_segment = {}
+                for seg_key, seg_value in segment.items():
+                    if isinstance(seg_value, str):
+                        fixed_segment[seg_key] = substitute_product_placeholders(seg_value, product_name, company_name)
+                    elif isinstance(seg_value, list):
+                        fixed_segment[seg_key] = [substitute_product_placeholders(item, product_name, company_name) if isinstance(item, str) else item for item in seg_value]
+                    else:
+                        fixed_segment[seg_key] = seg_value
+                fixed_segments.append(fixed_segment)
+            fixed_script[key] = fixed_segments
+        elif isinstance(value, str):
+            fixed_script[key] = substitute_product_placeholders(value, product_name, company_name)
+        else:
+            fixed_script[key] = value
     
     logger.info(f"🎬 Fixed video script with product name: {product_name}")
     return fixed_script
@@ -358,64 +389,21 @@ def fix_slideshow_video_placeholders(video_data: Dict, intelligence: Dict[str, A
     product_name = extract_product_name_from_intelligence(intelligence)
     company_name = extract_company_name_from_intelligence(intelligence)
     
-    fixed_video_data = {}
-    
-    for key, value in video_data.items():
-        if key == "storyboard" and isinstance(value, dict):
-            # Fix storyboard content
-            fixed_storyboard = {}
-            for sb_key, sb_value in value.items():
-                if sb_key == "title":
-                    fixed_storyboard[sb_key] = substitute_product_placeholders(sb_value, product_name, company_name)
-                elif sb_key == "scenes" and isinstance(sb_value, list):
-                    # Fix individual scenes
-                    fixed_scenes = []
-                    for scene in sb_value:
-                        fixed_scene = {}
-                        for scene_key, scene_value in scene.items():
-                            if scene_key in ["text_overlay"] and isinstance(scene_value, str):
-                                fixed_scene[scene_key] = substitute_product_placeholders(scene_value, product_name, company_name)
-                            else:
-                                fixed_scene[scene_key] = scene_value
-                        fixed_scenes.append(fixed_scene)
-                    fixed_storyboard[sb_key] = fixed_scenes
-                else:
-                    fixed_storyboard[sb_key] = sb_value
-            fixed_video_data[key] = fixed_storyboard
-        elif isinstance(value, str):
-            fixed_video_data[key] = substitute_product_placeholders(value, product_name, company_name)
-        else:
-            fixed_video_data[key] = value
+    # Apply recursive substitution to the entire video data structure
+    fixed_video_data = substitute_placeholders_in_data(video_data, product_name, company_name)
     
     logger.info(f"📹 Fixed slideshow video data with product name: {product_name}")
     return fixed_video_data
 
-def fix_image_generation_placeholders(image_data: Dict, intelligence: Dict[str, Any]) -> Dict:
+def fix_landing_page_placeholders(page_data: Dict, intelligence: Dict[str, Any]) -> Dict:
     """
-    🔥 IMAGE GENERATION FIX: Apply product name fix to image generation data
+    🔥 LANDING PAGE FIX: Apply product name fix to landing page data
     """
     product_name = extract_product_name_from_intelligence(intelligence)
     company_name = extract_company_name_from_intelligence(intelligence)
     
-    fixed_image_data = {}
+    # Apply recursive substitution to the entire page data structure
+    fixed_page_data = substitute_placeholders_in_data(page_data, product_name, company_name)
     
-    for key, value in image_data.items():
-        if key == "generated_images" and isinstance(value, list):
-            # Fix image prompts and metadata
-            fixed_images = []
-            for image in value:
-                fixed_image = {}
-                for img_key, img_value in image.items():
-                    if img_key == "prompt" and isinstance(img_value, str):
-                        fixed_image[img_key] = substitute_product_placeholders(img_value, product_name, company_name)
-                    else:
-                        fixed_image[img_key] = img_value
-                fixed_images.append(fixed_image)
-            fixed_image_data[key] = fixed_images
-        elif isinstance(value, str):
-            fixed_image_data[key] = substitute_product_placeholders(value, product_name, company_name)
-        else:
-            fixed_image_data[key] = value
-    
-    logger.info(f"🖼️ Fixed image generation data with product name: {product_name}")
-    return fixed_image_data
+    logger.info(f"🏗️ Fixed landing page data with product name: {product_name}")
+    return fixed_page_data

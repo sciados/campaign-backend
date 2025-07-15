@@ -3,6 +3,7 @@
 Generates scientific authority and expertise positioning using ULTRA-CHEAP AI providers
 UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
 FIXED: Now uses centralized AI system with automatic provider failover
+🔥 FIXED: Added product name fix to prevent AI-generated placeholders
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -10,6 +11,13 @@ from datetime import datetime
 import json
 
 from ...utils.ai_throttle import safe_ai_call
+# 🔥 ADD THESE IMPORTS
+from ...utils.product_name_fix import (
+    extract_product_name_from_intelligence,
+    extract_company_name_from_intelligence,
+    substitute_placeholders_in_data,
+    validate_no_placeholders
+)
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +78,24 @@ class ScientificAuthorityEnhancer:
         
         return selected_provider
         
-    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
-        """Call the ultra-cheap AI provider with throttling and error handling"""
+    async def _call_ultra_cheap_ai(self, prompt: str, intelligence: Dict[str, Any]) -> Any:
+        """
+        🔥 FIXED: Call AI provider with automatic product name fix
+        This ensures all AI responses use actual product names instead of placeholders
+        """
+        
+        # 🔥 Extract actual product name before AI call
+        product_name = extract_product_name_from_intelligence(intelligence)
+        company_name = extract_company_name_from_intelligence(intelligence)
+        
+        # 🔥 Enhance prompt to include actual product name
+        enhanced_prompt = f"""
+        IMPORTANT: You are analyzing a product called "{product_name}". 
+        Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", or similar.
+        
+        {prompt}
+        """
         
         provider_name = self.available_provider["name"]
         client = self.available_provider["client"]
@@ -80,11 +104,11 @@ class ScientificAuthorityEnhancer:
         messages = [
             {
                 "role": "system",
-                "content": "You are an expert analyst. Always respond with valid JSON when requested. Be thorough but concise."
+                "content": f"You are an expert analyst for '{product_name}'. Always use the actual product name '{product_name}' in responses. Never use placeholders. Always respond with valid JSON when requested."
             },
             {
                 "role": "user", 
-                "content": prompt
+                "content": enhanced_prompt
             }
         ]
         
@@ -101,7 +125,7 @@ class ScientificAuthorityEnhancer:
         model = model_map.get(provider_name, "gpt-3.5-turbo")
         
         # Make the safe AI call with automatic throttling and JSON validation
-        return await safe_ai_call(
+        raw_result = await safe_ai_call(
             client=client,
             provider_name=provider_name,
             model=model,
@@ -109,6 +133,22 @@ class ScientificAuthorityEnhancer:
             temperature=0.3,
             max_tokens=2000
         )
+        
+        # 🔥 Apply product name fix to AI response
+        if raw_result:
+            fixed_result = substitute_placeholders_in_data(raw_result, product_name, company_name)
+            
+            # 🔥 Validate that placeholders were removed
+            if isinstance(fixed_result, str):
+                is_clean = validate_no_placeholders(fixed_result, product_name)
+                if not is_clean:
+                    logger.warning(f"⚠️ AI response still contains placeholders after fix")
+            
+            # 🔥 Log the fix application
+            logger.info(f"🔧 Applied product name fix: {product_name}")
+            return fixed_result
+        
+        return raw_result
     
     async def generate_scientific_authority_intelligence(
         self, 
@@ -127,22 +167,25 @@ class ScientificAuthorityEnhancer:
             logger.info(f"🎓 Starting authority intelligence generation with {provider_name}")
             
             # Extract product information
-            product_name = product_data.get("product_name", "Product")
+            product_name = extract_product_name_from_intelligence(base_intelligence)
+            
+            # 🔥 Log product name extraction
+            logger.info(f"🎯 Using product name: '{product_name}' for authority generation")
             
             # Generate research validation framework using ultra-cheap AI
-            research_validation = await self._generate_research_validation_framework(product_name, base_intelligence)
+            research_validation = await self._generate_research_validation_framework(product_name, base_intelligence, base_intelligence)
             
             # Generate professional authority markers using ultra-cheap AI
-            professional_authority = await self._generate_professional_authority_markers(product_name, base_intelligence)
+            professional_authority = await self._generate_professional_authority_markers(product_name, base_intelligence, base_intelligence)
             
             # Generate expertise demonstration using ultra-cheap AI
-            expertise_demonstration = await self._generate_expertise_demonstration(product_name, base_intelligence)
+            expertise_demonstration = await self._generate_expertise_demonstration(product_name, base_intelligence, base_intelligence)
             
             # Generate thought leadership positioning using ultra-cheap AI
-            thought_leadership = await self._generate_thought_leadership_positioning(product_name, base_intelligence)
+            thought_leadership = await self._generate_thought_leadership_positioning(product_name, base_intelligence, base_intelligence)
             
             # Generate scientific credibility framework using ultra-cheap AI
-            scientific_credibility = await self._generate_scientific_credibility_framework(product_name, base_intelligence)
+            scientific_credibility = await self._generate_scientific_credibility_framework(product_name, base_intelligence, base_intelligence)
             
             # Calculate authority strength score
             authority_strength = self._calculate_authority_strength_score(
@@ -160,6 +203,8 @@ class ScientificAuthorityEnhancer:
                 "generated_at": datetime.utcnow().isoformat(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.89,
+                "product_name_fix_applied": True,  # 🔥 Track that fix was applied
+                "actual_product_name": product_name,  # 🔥 Track actual product name used
                 "ultra_cheap_optimization": {
                     "provider_used": provider_name,
                     "cost_per_1k_tokens": self.available_provider.get("cost_per_1k_tokens", 0),
@@ -169,6 +214,10 @@ class ScientificAuthorityEnhancer:
                     "speed_rating": self.available_provider.get("speed_rating", 0)
                 }
             }
+            
+            # 🔥 Apply final product name fix to entire result
+            company_name = extract_company_name_from_intelligence(base_intelligence)
+            final_result = substitute_placeholders_in_data(authority_intelligence, product_name, company_name)
             
             # Log successful generation with cost data
             total_items = (
@@ -182,8 +231,9 @@ class ScientificAuthorityEnhancer:
             logger.info(f"✅ Authority intelligence generated using {provider_name}")
             logger.info(f"📊 Generated {total_items} authority items")
             logger.info(f"💰 Cost optimization: {self._calculate_cost_savings():.1f}% savings")
+            logger.info(f"🔧 Product name fix: Applied '{product_name}' throughout content")
             
-            return authority_intelligence
+            return final_result
             
         except Exception as e:
             logger.error(f"❌ Ultra-cheap authority intelligence generation failed: {str(e)}")
@@ -208,7 +258,8 @@ class ScientificAuthorityEnhancer:
     async def _generate_research_validation_framework(
         self, 
         product_name: str, 
-        base_intelligence: Dict[str, Any]
+        base_intelligence: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate research validation framework using ultra-cheap AI"""
         
@@ -217,6 +268,9 @@ class ScientificAuthorityEnhancer:
         
         prompt = f"""
         As a research validation expert, create a research framework for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Existing scientific context: {json.dumps(scientific_intel, indent=2)}
         
@@ -240,7 +294,7 @@ class ScientificAuthorityEnhancer:
         
         try:
             logger.info(f"🔬 Generating research validation with {self.available_provider.get('name')}")
-            research_validation = await self._call_ultra_cheap_ai(prompt)
+            research_validation = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(research_validation, str):
                 research_validation = json.loads(research_validation)
@@ -256,7 +310,8 @@ class ScientificAuthorityEnhancer:
     async def _generate_professional_authority_markers(
         self, 
         product_name: str, 
-        base_intelligence: Dict[str, Any]
+        base_intelligence: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate professional authority markers using ultra-cheap AI"""
         
@@ -264,6 +319,9 @@ class ScientificAuthorityEnhancer:
         
         prompt = f"""
         As a professional authority strategist, develop authority markers for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Existing credibility context: {json.dumps(credibility_intel, indent=2)}
         
@@ -289,7 +347,7 @@ class ScientificAuthorityEnhancer:
         
         try:
             logger.info(f"🏆 Generating professional authority with {self.available_provider.get('name')}")
-            professional_authority = await self._call_ultra_cheap_ai(prompt)
+            professional_authority = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(professional_authority, str):
                 professional_authority = json.loads(professional_authority)
@@ -305,12 +363,16 @@ class ScientificAuthorityEnhancer:
     async def _generate_expertise_demonstration(
         self, 
         product_name: str, 
-        base_intelligence: Dict[str, Any]
+        base_intelligence: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate expertise demonstration strategies using ultra-cheap AI"""
         
         prompt = f"""
         As an expertise communication specialist, develop demonstration strategies for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Generate expertise demonstration including:
         1. Technical knowledge showcase
@@ -334,7 +396,7 @@ class ScientificAuthorityEnhancer:
         
         try:
             logger.info(f"🎯 Generating expertise demonstration with {self.available_provider.get('name')}")
-            expertise_demonstration = await self._call_ultra_cheap_ai(prompt)
+            expertise_demonstration = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(expertise_demonstration, str):
                 expertise_demonstration = json.loads(expertise_demonstration)
@@ -350,7 +412,8 @@ class ScientificAuthorityEnhancer:
     async def _generate_thought_leadership_positioning(
         self, 
         product_name: str, 
-        base_intelligence: Dict[str, Any]
+        base_intelligence: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate thought leadership positioning using ultra-cheap AI"""
         
@@ -358,6 +421,9 @@ class ScientificAuthorityEnhancer:
         
         prompt = f"""
         As a thought leadership strategist, develop positioning for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Market context: {json.dumps(market_intel, indent=2)}
         
@@ -383,7 +449,7 @@ class ScientificAuthorityEnhancer:
         
         try:
             logger.info(f"💡 Generating thought leadership with {self.available_provider.get('name')}")
-            thought_leadership = await self._call_ultra_cheap_ai(prompt)
+            thought_leadership = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(thought_leadership, str):
                 thought_leadership = json.loads(thought_leadership)
@@ -399,12 +465,16 @@ class ScientificAuthorityEnhancer:
     async def _generate_scientific_credibility_framework(
         self, 
         product_name: str, 
-        base_intelligence: Dict[str, Any]
+        base_intelligence: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate scientific credibility framework using ultra-cheap AI"""
         
         prompt = f"""
         As a scientific credibility expert, develop credibility framework for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Generate scientific credibility framework including:
         1. Scientific method adherence
@@ -428,7 +498,7 @@ class ScientificAuthorityEnhancer:
         
         try:
             logger.info(f"🔒 Generating scientific credibility with {self.available_provider.get('name')}")
-            scientific_credibility = await self._call_ultra_cheap_ai(prompt)
+            scientific_credibility = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(scientific_credibility, str):
                 scientific_credibility = json.loads(scientific_credibility)
@@ -469,9 +539,11 @@ class ScientificAuthorityEnhancer:
     def _generate_fallback_authority_intelligence(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate fallback authority intelligence with ultra-cheap metadata"""
         
+        # 🔥 Extract product name from product_data
         product_name = product_data.get("product_name", "Product")
         
-        return {
+        # Generate fallback data
+        fallback_data = {
             "research_validation_framework": self._fallback_research_validation_framework(),
             "professional_authority_markers": self._fallback_professional_authority_markers(),
             "expertise_demonstration": self._fallback_expertise_demonstration(),
@@ -481,6 +553,8 @@ class ScientificAuthorityEnhancer:
             "generated_at": datetime.utcnow().isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.78,
+            "product_name_fix_applied": True,
+            "actual_product_name": product_name,
             "ultra_cheap_optimization": {
                 "provider_used": "fallback_static",
                 "cost_per_1k_tokens": 0.0,
@@ -490,6 +564,13 @@ class ScientificAuthorityEnhancer:
                 "fallback_reason": "No ultra-cheap providers available"
             }
         }
+        
+        # 🔥 Apply product name fix to fallback data
+        company_name = extract_company_name_from_intelligence(product_data)
+        final_fallback = substitute_placeholders_in_data(fallback_data, product_name, company_name)
+        
+        logger.info(f"🔧 Applied product name fix to fallback data: '{product_name}'")
+        return final_fallback
     
     def _fallback_research_validation_framework(self) -> Dict[str, Any]:
         """Fallback research validation framework"""

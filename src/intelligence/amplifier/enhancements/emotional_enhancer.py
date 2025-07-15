@@ -3,6 +3,7 @@
 Generates emotional journey mapping and psychological insights using ULTRA-CHEAP AI providers
 FIXED: Removed duplicate AI calling methods, using centralized ai_throttle for consistency
 UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
+🔥 FIXED: Added product name fix to prevent AI-generated placeholders
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -11,6 +12,13 @@ import json
 
 # FIXED: Import centralized AI throttling system
 from ...utils.ai_throttle import safe_ai_call
+# 🔥 ADD THESE IMPORTS
+from ...utils.product_name_fix import (
+    extract_product_name_from_intelligence,
+    extract_company_name_from_intelligence,
+    substitute_placeholders_in_data,
+    validate_no_placeholders
+)
 
 logger = logging.getLogger(__name__)
 
@@ -71,15 +79,28 @@ class EmotionalTransformationEnhancer:
         
         return selected_provider
     
-    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
+    async def _call_ultra_cheap_ai(self, prompt: str, intelligence: Dict[str, Any]) -> Any:
         """
-        FIXED: Call the ultra-cheap AI provider using centralized ai_throttle system
-        This replaces the duplicate method and ensures consistent error handling
+        🔥 FIXED: Call AI provider with automatic product name fix
+        This ensures all AI responses use actual product names instead of placeholders
         """
         
         if not self.available_provider:
             raise Exception("No AI provider available")
             
+        # 🔥 Extract actual product name before AI call
+        product_name = extract_product_name_from_intelligence(intelligence)
+        company_name = extract_company_name_from_intelligence(intelligence)
+        
+        # 🔥 Enhance prompt to include actual product name
+        enhanced_prompt = f"""
+        IMPORTANT: You are analyzing a product called "{product_name}". 
+        Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", or similar.
+        
+        {prompt}
+        """
+        
         provider_name = self.available_provider["name"]
         client = self.available_provider["client"]
         
@@ -87,11 +108,11 @@ class EmotionalTransformationEnhancer:
         messages = [
             {
                 "role": "system",
-                "content": "You are an emotional psychology expert providing strategic insights. Always respond with valid JSON when requested. Be empathetic but comprehensive."
+                "content": f"You are an expert analyst for '{product_name}'. Always use the actual product name '{product_name}' in responses. Never use placeholders. Always respond with valid JSON when requested."
             },
             {
                 "role": "user", 
-                "content": prompt
+                "content": enhanced_prompt
             }
         ]
         
@@ -108,7 +129,7 @@ class EmotionalTransformationEnhancer:
         model = model_map.get(provider_name, "gpt-3.5-turbo")
         
         # Make the safe AI call with automatic throttling and JSON validation
-        result = await safe_ai_call(
+        raw_result = await safe_ai_call(
             client=client,
             provider_name=provider_name,
             model=model,
@@ -118,15 +139,29 @@ class EmotionalTransformationEnhancer:
         )
         
         # Handle fallback responses
-        if isinstance(result, dict) and result.get("fallback"):
+        if isinstance(raw_result, dict) and raw_result.get("fallback"):
             logger.warning(f"⚠️ AI call returned fallback for {provider_name}")
             # Extract any useful fallback data
-            if "fallback_data" in result:
-                return result["fallback_data"]
+            if "fallback_data" in raw_result:
+                raw_result = raw_result["fallback_data"]
             else:
                 raise Exception("AI call failed and no fallback data available")
         
-        return result
+        # 🔥 Apply product name fix to AI response
+        if raw_result:
+            fixed_result = substitute_placeholders_in_data(raw_result, product_name, company_name)
+            
+            # 🔥 Validate that placeholders were removed
+            if isinstance(fixed_result, str):
+                is_clean = validate_no_placeholders(fixed_result, product_name)
+                if not is_clean:
+                    logger.warning(f"⚠️ AI response still contains placeholders after fix")
+            
+            # 🔥 Log the fix application
+            logger.info(f"🔧 Applied product name fix: {product_name}")
+            return fixed_result
+        
+        return raw_result
     
     async def generate_emotional_transformation_intelligence(
         self, 
@@ -145,24 +180,28 @@ class EmotionalTransformationEnhancer:
             logger.info(f"💭 Starting emotional transformation intelligence with {provider_name}")
             
             # Extract product information
-            product_name = product_data.get("product_name", "Product")
+            product_name = extract_product_name_from_intelligence(base_intelligence)
+            
+            # 🔥 Log product name extraction
+            logger.info(f"🎯 Using product name: '{product_name}' for emotional generation")
+            
             psych_intel = base_intelligence.get("psychology_intelligence", {})
             offer_intel = base_intelligence.get("offer_intelligence", {})
             
             # Generate emotional journey mapping using centralized AI system
-            emotional_journey = await self._generate_emotional_journey_mapping(product_name, psych_intel, offer_intel)
+            emotional_journey = await self._generate_emotional_journey_mapping(product_name, psych_intel, offer_intel, base_intelligence)
             
             # Generate psychological triggers using centralized AI system
-            psychological_triggers = await self._generate_psychological_triggers(product_name, psych_intel)
+            psychological_triggers = await self._generate_psychological_triggers(product_name, psych_intel, base_intelligence)
             
             # Generate emotional value propositions using centralized AI system
-            emotional_value_props = await self._generate_emotional_value_propositions(product_name, offer_intel)
+            emotional_value_props = await self._generate_emotional_value_propositions(product_name, offer_intel, base_intelligence)
             
             # Generate transformation narratives using centralized AI system
-            transformation_narratives = await self._generate_transformation_narratives(product_name, base_intelligence)
+            transformation_narratives = await self._generate_transformation_narratives(product_name, base_intelligence, base_intelligence)
             
             # Generate emotional engagement strategies using centralized AI system
-            engagement_strategies = await self._generate_emotional_engagement_strategies(product_name, psych_intel)
+            engagement_strategies = await self._generate_emotional_engagement_strategies(product_name, psych_intel, base_intelligence)
             
             # Calculate emotional impact score
             emotional_impact = self._calculate_emotional_impact_score(
@@ -180,6 +219,8 @@ class EmotionalTransformationEnhancer:
                 "generated_at": datetime.utcnow().isoformat(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.86,
+                "product_name_fix_applied": True,  # 🔥 Track that fix was applied
+                "actual_product_name": product_name,  # 🔥 Track actual product name used
                 "ultra_cheap_optimization": {
                     "provider_used": provider_name,
                     "cost_per_1k_tokens": self.available_provider.get("cost_per_1k_tokens", 0),
@@ -189,6 +230,10 @@ class EmotionalTransformationEnhancer:
                     "speed_rating": self.available_provider.get("speed_rating", 0)
                 }
             }
+            
+            # 🔥 Apply final product name fix to entire result
+            company_name = extract_company_name_from_intelligence(base_intelligence)
+            final_result = substitute_placeholders_in_data(emotional_intelligence, product_name, company_name)
             
             # Log successful generation with cost data
             total_items = (
@@ -202,8 +247,9 @@ class EmotionalTransformationEnhancer:
             logger.info(f"✅ Emotional intelligence generated using {provider_name}")
             logger.info(f"📊 Generated {total_items} emotional items")
             logger.info(f"💰 Cost optimization: {self._calculate_cost_savings():.1f}% savings")
+            logger.info(f"🔧 Product name fix: Applied '{product_name}' throughout content")
             
-            return emotional_intelligence
+            return final_result
             
         except Exception as e:
             logger.error(f"❌ Ultra-cheap emotional intelligence generation failed: {str(e)}")
@@ -229,7 +275,8 @@ class EmotionalTransformationEnhancer:
         self, 
         product_name: str, 
         psych_intel: Dict[str, Any],
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate detailed emotional journey mapping using centralized AI system"""
         
@@ -239,6 +286,9 @@ class EmotionalTransformationEnhancer:
         
         prompt = f"""
         As an emotional journey expert, map the customer emotional journey for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Customer pain points: {json.dumps(pain_points, indent=2)}
         Emotional triggers: {json.dumps(emotional_triggers, indent=2)}
@@ -260,7 +310,7 @@ class EmotionalTransformationEnhancer:
         
         try:
             logger.info(f"🗺️ Generating emotional journey with {self.available_provider.get('name')}")
-            emotional_journey = await self._call_ultra_cheap_ai(prompt)
+            emotional_journey = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             # Handle string responses
             if isinstance(emotional_journey, str):
@@ -281,7 +331,8 @@ class EmotionalTransformationEnhancer:
     async def _generate_psychological_triggers(
         self, 
         product_name: str, 
-        psych_intel: Dict[str, Any]
+        psych_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate psychological triggers analysis using centralized AI system"""
         
@@ -290,6 +341,9 @@ class EmotionalTransformationEnhancer:
         
         prompt = f"""
         As a behavioral psychologist, analyze psychological triggers for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Existing triggers: {json.dumps(existing_triggers, indent=2)}
         Target audience: {target_audience}
@@ -308,7 +362,7 @@ class EmotionalTransformationEnhancer:
         
         try:
             logger.info(f"🧠 Generating psychological triggers with {self.available_provider.get('name')}")
-            psychological_triggers = await self._call_ultra_cheap_ai(prompt)
+            psychological_triggers = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             # Handle string responses
             if isinstance(psychological_triggers, str):
@@ -329,7 +383,8 @@ class EmotionalTransformationEnhancer:
     async def _generate_emotional_value_propositions(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate emotional value propositions using centralized AI system"""
         
@@ -338,6 +393,9 @@ class EmotionalTransformationEnhancer:
         
         prompt = f"""
         As an emotional messaging expert, create emotional value propositions for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Functional value propositions: {json.dumps(value_props, indent=2)}
         Product benefits: {json.dumps(benefits, indent=2)}
@@ -355,7 +413,7 @@ class EmotionalTransformationEnhancer:
         
         try:
             logger.info(f"💝 Generating emotional value propositions with {self.available_provider.get('name')}")
-            emotional_value_props = await self._call_ultra_cheap_ai(prompt)
+            emotional_value_props = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             # Handle string responses
             if isinstance(emotional_value_props, str):
@@ -376,12 +434,16 @@ class EmotionalTransformationEnhancer:
     async def _generate_transformation_narratives(
         self, 
         product_name: str, 
-        base_intelligence: Dict[str, Any]
+        base_intelligence: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate transformation narratives using centralized AI system"""
         
         prompt = f"""
         As a transformation storytelling expert, create narratives for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Generate transformation narratives. Format as JSON:
         {{
@@ -396,7 +458,7 @@ class EmotionalTransformationEnhancer:
         
         try:
             logger.info(f"📖 Generating transformation narratives with {self.available_provider.get('name')}")
-            transformation_narratives = await self._call_ultra_cheap_ai(prompt)
+            transformation_narratives = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             # Handle string responses
             if isinstance(transformation_narratives, str):
@@ -417,12 +479,16 @@ class EmotionalTransformationEnhancer:
     async def _generate_emotional_engagement_strategies(
         self, 
         product_name: str, 
-        psych_intel: Dict[str, Any]
+        psych_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate emotional engagement strategies using centralized AI system"""
         
         prompt = f"""
         As an emotional engagement strategist, develop strategies for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Generate emotional engagement strategies. Format as JSON:
         {{
@@ -437,7 +503,7 @@ class EmotionalTransformationEnhancer:
         
         try:
             logger.info(f"🤝 Generating emotional engagement with {self.available_provider.get('name')}")
-            engagement_strategies = await self._call_ultra_cheap_ai(prompt)
+            engagement_strategies = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             # Handle string responses
             if isinstance(engagement_strategies, str):
@@ -483,9 +549,11 @@ class EmotionalTransformationEnhancer:
     def _generate_fallback_emotional_intelligence(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate fallback emotional intelligence with ultra-cheap metadata"""
         
+        # 🔥 Extract product name from product_data
         product_name = product_data.get("product_name", "Product")
         
-        return {
+        # Generate fallback data
+        fallback_data = {
             "emotional_journey_mapping": self._fallback_emotional_journey_mapping(),
             "psychological_triggers": self._fallback_psychological_triggers(),
             "emotional_value_propositions": self._fallback_emotional_value_propositions(),
@@ -495,6 +563,8 @@ class EmotionalTransformationEnhancer:
             "generated_at": datetime.utcnow().isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.74,
+            "product_name_fix_applied": True,
+            "actual_product_name": product_name,
             "ultra_cheap_optimization": {
                 "provider_used": "fallback_static",
                 "cost_per_1k_tokens": 0.0,
@@ -504,6 +574,13 @@ class EmotionalTransformationEnhancer:
                 "fallback_reason": "No ultra-cheap providers available"
             }
         }
+        
+        # 🔥 Apply product name fix to fallback data
+        company_name = extract_company_name_from_intelligence(product_data)
+        final_fallback = substitute_placeholders_in_data(fallback_data, product_name, company_name)
+        
+        logger.info(f"🔧 Applied product name fix to fallback data: '{product_name}'")
+        return final_fallback
     
     def _fallback_emotional_journey_mapping(self) -> Dict[str, Any]:
         """Fallback emotional journey mapping"""

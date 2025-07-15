@@ -4,6 +4,7 @@ Generates comprehensive market analysis and competitive intelligence using ULTRA
 FIXED: Added missing _generate_market_analysis method and completed implementation
 UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
 FIXED: Now uses centralized AI system with automatic provider failover
+🔥 FIXED: Added product name fix to prevent AI-generated placeholders
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -12,6 +13,13 @@ import json
 import re
 
 from ...utils.ai_throttle import safe_ai_call
+# 🔥 ADD THESE IMPORTS
+from ...utils.product_name_fix import (
+    extract_product_name_from_intelligence,
+    extract_company_name_from_intelligence,
+    substitute_placeholders_in_data,
+    validate_no_placeholders
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,8 +80,24 @@ class MarketIntelligenceEnhancer:
         
         return selected_provider
     
-    async def _call_ultra_cheap_ai(self, prompt: str) -> Any:
-        """Call the ultra-cheap AI provider with throttling and error handling"""
+    async def _call_ultra_cheap_ai(self, prompt: str, intelligence: Dict[str, Any]) -> Any:
+        """
+        🔥 FIXED: Call AI provider with automatic product name fix
+        This ensures all AI responses use actual product names instead of placeholders
+        """
+        
+        # 🔥 Extract actual product name before AI call
+        product_name = extract_product_name_from_intelligence(intelligence)
+        company_name = extract_company_name_from_intelligence(intelligence)
+        
+        # 🔥 Enhance prompt to include actual product name
+        enhanced_prompt = f"""
+        IMPORTANT: You are analyzing a product called "{product_name}". 
+        Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", or similar.
+        
+        {prompt}
+        """
         
         provider_name = self.available_provider["name"]
         client = self.available_provider["client"]
@@ -82,11 +106,11 @@ class MarketIntelligenceEnhancer:
         messages = [
             {
                 "role": "system",
-                "content": "You are a market research expert providing strategic insights. Always respond with valid JSON when requested. Be thorough and analytical."
+                "content": f"You are an expert analyst for '{product_name}'. Always use the actual product name '{product_name}' in responses. Never use placeholders. Always respond with valid JSON when requested."
             },
             {
                 "role": "user", 
-                "content": prompt
+                "content": enhanced_prompt
             }
         ]
         
@@ -103,7 +127,7 @@ class MarketIntelligenceEnhancer:
         model = model_map.get(provider_name, "gpt-3.5-turbo")
         
         # Make the safe AI call with automatic throttling and JSON validation
-        return await safe_ai_call(
+        raw_result = await safe_ai_call(
             client=client,
             provider_name=provider_name,
             model=model,
@@ -111,6 +135,22 @@ class MarketIntelligenceEnhancer:
             temperature=0.2,
             max_tokens=2000
         )
+        
+        # 🔥 Apply product name fix to AI response
+        if raw_result:
+            fixed_result = substitute_placeholders_in_data(raw_result, product_name, company_name)
+            
+            # 🔥 Validate that placeholders were removed
+            if isinstance(fixed_result, str):
+                is_clean = validate_no_placeholders(fixed_result, product_name)
+                if not is_clean:
+                    logger.warning(f"⚠️ AI response still contains placeholders after fix")
+            
+            # 🔥 Log the fix application
+            logger.info(f"🔧 Applied product name fix: {product_name}")
+            return fixed_result
+        
+        return raw_result
     
     async def generate_market_intelligence(
         self, 
@@ -129,27 +169,31 @@ class MarketIntelligenceEnhancer:
             logger.info(f"📈 Starting market intelligence generation with {provider_name}")
             
             # Extract product information
-            product_name = product_data.get("product_name", "Product")
+            product_name = extract_product_name_from_intelligence(base_intelligence)
+            
+            # 🔥 Log product name extraction
+            logger.info(f"🎯 Using product name: '{product_name}' for market generation")
+            
             offer_intel = base_intelligence.get("offer_intelligence", {})
             competitive_intel = base_intelligence.get("competitive_intelligence", {})
             
             # Generate market size and trends using ultra-cheap AI
-            market_analysis = await self._generate_market_analysis(product_name, offer_intel)
+            market_analysis = await self._generate_market_analysis(product_name, offer_intel, base_intelligence)
             
             # Generate competitive landscape using ultra-cheap AI
-            competitive_landscape = await self._generate_competitive_landscape(product_name, competitive_intel)
+            competitive_landscape = await self._generate_competitive_landscape(product_name, competitive_intel, base_intelligence)
             
             # Generate pricing analysis using ultra-cheap AI
-            pricing_analysis = await self._generate_pricing_analysis(product_name, offer_intel)
+            pricing_analysis = await self._generate_pricing_analysis(product_name, offer_intel, base_intelligence)
             
             # Generate target market insights using ultra-cheap AI
-            target_market = await self._generate_target_market_insights(product_name, offer_intel)
+            target_market = await self._generate_target_market_insights(product_name, offer_intel, base_intelligence)
             
             # Generate market opportunities using ultra-cheap AI
-            market_opportunities = await self._generate_market_opportunities(product_name, competitive_intel)
+            market_opportunities = await self._generate_market_opportunities(product_name, competitive_intel, base_intelligence)
             
             # Generate market positioning using ultra-cheap AI
-            market_positioning = await self._generate_market_positioning(product_name, offer_intel)
+            market_positioning = await self._generate_market_positioning(product_name, offer_intel, base_intelligence)
             
             # Calculate market intelligence score
             market_intelligence_score = self._calculate_market_intelligence_score(
@@ -168,6 +212,8 @@ class MarketIntelligenceEnhancer:
                 "generated_at": datetime.utcnow().isoformat(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.82,
+                "product_name_fix_applied": True,  # 🔥 Track that fix was applied
+                "actual_product_name": product_name,  # 🔥 Track actual product name used
                 "ultra_cheap_optimization": {
                     "provider_used": provider_name,
                     "cost_per_1k_tokens": self.available_provider.get("cost_per_1k_tokens", 0),
@@ -177,6 +223,10 @@ class MarketIntelligenceEnhancer:
                     "speed_rating": self.available_provider.get("speed_rating", 0)
                 }
             }
+            
+            # 🔥 Apply final product name fix to entire result
+            company_name = extract_company_name_from_intelligence(base_intelligence)
+            final_result = substitute_placeholders_in_data(market_intelligence, product_name, company_name)
             
             # Log successful generation with cost data
             total_items = (
@@ -191,8 +241,9 @@ class MarketIntelligenceEnhancer:
             logger.info(f"✅ Market intelligence generated using {provider_name}")
             logger.info(f"📊 Generated {total_items} market items")
             logger.info(f"💰 Cost optimization: {self._calculate_cost_savings():.1f}% savings")
+            logger.info(f"🔧 Product name fix: Applied '{product_name}' throughout content")
             
-            return market_intelligence
+            return final_result
             
         except Exception as e:
             logger.error(f"❌ Ultra-cheap market intelligence generation failed: {str(e)}")
@@ -218,7 +269,8 @@ class MarketIntelligenceEnhancer:
     async def _generate_market_analysis(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         🔥 CRITICAL FIX: Generate market analysis intelligence using ultra-cheap AI
@@ -231,6 +283,9 @@ class MarketIntelligenceEnhancer:
         
         prompt = f"""
         As a market research analyst, analyze the market for a product called "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Product value propositions: {json.dumps(value_props, indent=2)}
         Pricing information: {json.dumps(pricing_info, indent=2)}
@@ -261,7 +316,7 @@ class MarketIntelligenceEnhancer:
         
         try:
             logger.info(f"📊 Generating market analysis with {self.available_provider.get('name')}")
-            market_analysis = await self._call_ultra_cheap_ai(prompt)
+            market_analysis = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(market_analysis, str):
                 market_analysis = json.loads(market_analysis)
@@ -277,7 +332,8 @@ class MarketIntelligenceEnhancer:
     async def _generate_competitive_landscape(
         self, 
         product_name: str, 
-        competitive_intel: Dict[str, Any]
+        competitive_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate competitive landscape analysis using ultra-cheap AI"""
         
@@ -285,6 +341,9 @@ class MarketIntelligenceEnhancer:
         
         prompt = f"""
         As a competitive intelligence analyst, analyze the competitive landscape for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Existing competitor information: {json.dumps(existing_competitors, indent=2)}
         
@@ -308,7 +367,7 @@ class MarketIntelligenceEnhancer:
         
         try:
             logger.info(f"🏁 Generating competitive landscape with {self.available_provider.get('name')}")
-            competitive_landscape = await self._call_ultra_cheap_ai(prompt)
+            competitive_landscape = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(competitive_landscape, str):
                 competitive_landscape = json.loads(competitive_landscape)
@@ -324,7 +383,8 @@ class MarketIntelligenceEnhancer:
     async def _generate_pricing_analysis(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate pricing analysis using ultra-cheap AI"""
         
@@ -333,6 +393,9 @@ class MarketIntelligenceEnhancer:
         
         prompt = f"""
         As a pricing strategist, analyze pricing for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Current pricing: {json.dumps(pricing_info, indent=2)}
         Value propositions: {json.dumps(value_props, indent=2)}
@@ -357,7 +420,7 @@ class MarketIntelligenceEnhancer:
         
         try:
             logger.info(f"💰 Generating pricing analysis with {self.available_provider.get('name')}")
-            pricing_analysis = await self._call_ultra_cheap_ai(prompt)
+            pricing_analysis = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(pricing_analysis, str):
                 pricing_analysis = json.loads(pricing_analysis)
@@ -373,7 +436,8 @@ class MarketIntelligenceEnhancer:
     async def _generate_target_market_insights(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate target market insights using ultra-cheap AI"""
         
@@ -381,6 +445,9 @@ class MarketIntelligenceEnhancer:
         
         prompt = f"""
         As a market segmentation expert, analyze target market for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Product benefits: {json.dumps(value_props, indent=2)}
         
@@ -405,7 +472,7 @@ class MarketIntelligenceEnhancer:
         
         try:
             logger.info(f"🎯 Generating target market insights with {self.available_provider.get('name')}")
-            target_market = await self._call_ultra_cheap_ai(prompt)
+            target_market = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(target_market, str):
                 target_market = json.loads(target_market)
@@ -421,12 +488,16 @@ class MarketIntelligenceEnhancer:
     async def _generate_market_opportunities(
         self, 
         product_name: str, 
-        competitive_intel: Dict[str, Any]
+        competitive_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate market opportunities using ultra-cheap AI"""
         
         prompt = f"""
         As a business development strategist, identify market opportunities for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Competitive context: {json.dumps(competitive_intel, indent=2)}
         
@@ -451,7 +522,7 @@ class MarketIntelligenceEnhancer:
         
         try:
             logger.info(f"🚀 Generating market opportunities with {self.available_provider.get('name')}")
-            market_opportunities = await self._call_ultra_cheap_ai(prompt)
+            market_opportunities = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(market_opportunities, str):
                 market_opportunities = json.loads(market_opportunities)
@@ -467,7 +538,8 @@ class MarketIntelligenceEnhancer:
     async def _generate_market_positioning(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate market positioning using ultra-cheap AI"""
         
@@ -475,6 +547,9 @@ class MarketIntelligenceEnhancer:
         
         prompt = f"""
         As a positioning strategist, develop market positioning for "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Value propositions: {json.dumps(value_props, indent=2)}
         
@@ -499,7 +574,7 @@ class MarketIntelligenceEnhancer:
         
         try:
             logger.info(f"📍 Generating market positioning with {self.available_provider.get('name')}")
-            market_positioning = await self._call_ultra_cheap_ai(prompt)
+            market_positioning = await self._call_ultra_cheap_ai(prompt, intelligence)
             
             if isinstance(market_positioning, str):
                 market_positioning = json.loads(market_positioning)
@@ -540,9 +615,11 @@ class MarketIntelligenceEnhancer:
     def _generate_fallback_market_intelligence(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate fallback market intelligence with ultra-cheap metadata"""
         
+        # 🔥 Extract product name from product_data
         product_name = product_data.get("product_name", "Product")
         
-        return {
+        # Generate fallback data
+        fallback_data = {
             "market_analysis": self._fallback_market_analysis(product_name),
             "competitive_landscape": self._fallback_competitive_landscape(),
             "pricing_analysis": self._fallback_pricing_analysis(),
@@ -553,6 +630,8 @@ class MarketIntelligenceEnhancer:
             "generated_at": datetime.utcnow().isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.65,
+            "product_name_fix_applied": True,
+            "actual_product_name": product_name,
             "ultra_cheap_optimization": {
                 "provider_used": "fallback_static",
                 "cost_per_1k_tokens": 0.0,
@@ -562,6 +641,13 @@ class MarketIntelligenceEnhancer:
                 "fallback_reason": "No ultra-cheap providers available"
             }
         }
+        
+        # 🔥 Apply product name fix to fallback data
+        company_name = extract_company_name_from_intelligence(product_data)
+        final_fallback = substitute_placeholders_in_data(fallback_data, product_name, company_name)
+        
+        logger.info(f"🔧 Applied product name fix to fallback data: '{product_name}'")
+        return final_fallback
     
     def _fallback_market_analysis(self, product_name: str) -> Dict[str, Any]:
         """Fallback market analysis"""

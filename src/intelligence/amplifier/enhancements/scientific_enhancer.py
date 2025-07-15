@@ -3,6 +3,7 @@
 Generates comprehensive scientific backing for health claims using ULTRA-CHEAP AI providers
 🔥 FIXED: Multi-provider failover - automatically switches between Groq, DeepSeek, Together
 UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
+🔥 FIXED: Added product name fix to prevent AI-generated placeholders
 """
 import logging
 import asyncio
@@ -11,6 +12,13 @@ from datetime import datetime
 import json
 
 from ...utils.ai_throttle import safe_ai_call
+# 🔥 ADD THESE IMPORTS
+from ...utils.product_name_fix import (
+    extract_product_name_from_intelligence,
+    extract_company_name_from_intelligence,
+    substitute_placeholders_in_data,
+    validate_no_placeholders
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,14 +67,27 @@ class ScientificIntelligenceEnhancer:
         logger.info(f"✅ Found {len(sorted_providers)} ultra-cheap providers for scientific enhancement")
         return sorted_providers
     
-    async def _call_ultra_cheap_ai_with_failover(self, prompt: str) -> Any:
+    async def _call_ultra_cheap_ai_with_failover(self, prompt: str, intelligence: Dict[str, Any]) -> Any:
         """
-        🔥 FIXED: Call ultra-cheap AI with automatic failover across ALL providers
+        🔥 FIXED: Call ultra-cheap AI with automatic failover across ALL providers and product name fix
         Tries Groq → DeepSeek → Together automatically when one fails
         """
         
         if not self.available_providers:
             raise Exception("No ultra-cheap AI providers available")
+            
+        # 🔥 Extract actual product name before AI call
+        product_name = extract_product_name_from_intelligence(intelligence)
+        company_name = extract_company_name_from_intelligence(intelligence)
+        
+        # 🔥 Enhance prompt to include actual product name
+        enhanced_prompt = f"""
+        IMPORTANT: You are analyzing a product called "{product_name}". 
+        Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", or similar.
+        
+        {prompt}
+        """
             
         last_error = None
         
@@ -87,11 +108,11 @@ class ScientificIntelligenceEnhancer:
                 messages = [
                     {
                         "role": "system",
-                        "content": "You are a scientific researcher providing evidence-based information. Always respond with valid JSON when requested. Be concise but comprehensive."
+                        "content": f"You are an expert analyst for '{product_name}'. Always use the actual product name '{product_name}' in responses. Never use placeholders. Always respond with valid JSON when requested."
                     },
                     {
                         "role": "user", 
-                        "content": prompt
+                        "content": enhanced_prompt
                     }
                 ]
                 
@@ -108,7 +129,7 @@ class ScientificIntelligenceEnhancer:
                 model = model_map.get(provider_name, "gpt-3.5-turbo")
                 
                 # Make the safe AI call with automatic throttling and JSON validation
-                result = await safe_ai_call(
+                raw_result = await safe_ai_call(
                     client=client,
                     provider_name=provider_name,
                     model=model,
@@ -118,7 +139,7 @@ class ScientificIntelligenceEnhancer:
                 )
                 
                 # Check if result indicates fallback/error
-                if isinstance(result, dict) and result.get("fallback"):
+                if isinstance(raw_result, dict) and raw_result.get("fallback"):
                     logger.warning(f"⚠️ {provider_name}: Returned fallback response, trying next provider")
                     last_error = Exception(f"{provider_name} returned fallback response")
                     
@@ -126,10 +147,24 @@ class ScientificIntelligenceEnhancer:
                         await asyncio.sleep(1)  # Brief delay before trying next provider
                         continue
                     else:
-                        return result  # Return fallback on final attempt
+                        raw_result = raw_result  # Return fallback on final attempt
                 
-                logger.info(f"✅ Scientific AI success: {provider_name} (${cost_per_1k:.5f}/1K)")
-                return result
+                # 🔥 Apply product name fix to AI response
+                if raw_result:
+                    fixed_result = substitute_placeholders_in_data(raw_result, product_name, company_name)
+                    
+                    # 🔥 Validate that placeholders were removed
+                    if isinstance(fixed_result, str):
+                        is_clean = validate_no_placeholders(fixed_result, product_name)
+                        if not is_clean:
+                            logger.warning(f"⚠️ AI response still contains placeholders after fix")
+                    
+                    # 🔥 Log the fix application
+                    logger.info(f"🔧 Applied product name fix: {product_name}")
+                    logger.info(f"✅ Scientific AI success: {provider_name} (${cost_per_1k:.5f}/1K)")
+                    return fixed_result
+                
+                return raw_result
                 
             except Exception as e:
                 error_msg = str(e)
@@ -172,23 +207,27 @@ class ScientificIntelligenceEnhancer:
             logger.info(f"🎯 Primary provider: {primary_provider}, {len(self.available_providers)-1} backups available")
             
             # Extract product information
-            product_name = product_data.get("product_name", "Product")
+            product_name = extract_product_name_from_intelligence(base_intelligence)
+            
+            # 🔥 Log product name extraction
+            logger.info(f"🎯 Using product name: '{product_name}' for scientific generation")
+            
             offer_intel = base_intelligence.get("offer_intelligence", {})
             
             # Generate scientific backing using ultra-cheap AI with failover
-            scientific_backing = await self._generate_scientific_backing(product_name, offer_intel)
+            scientific_backing = await self._generate_scientific_backing(product_name, offer_intel, base_intelligence)
             
             # Generate ingredient research using ultra-cheap AI with failover
-            ingredient_research = await self._generate_ingredient_research(product_name, offer_intel)
+            ingredient_research = await self._generate_ingredient_research(product_name, offer_intel, base_intelligence)
             
             # Generate mechanism of action using ultra-cheap AI with failover
-            mechanism_research = await self._generate_mechanism_research(product_name, offer_intel)
+            mechanism_research = await self._generate_mechanism_research(product_name, offer_intel, base_intelligence)
             
             # Generate clinical evidence using ultra-cheap AI with failover
-            clinical_evidence = await self._generate_clinical_evidence(product_name, offer_intel)
+            clinical_evidence = await self._generate_clinical_evidence(product_name, offer_intel, base_intelligence)
             
             # Generate safety profile using ultra-cheap AI with failover
-            safety_profile = await self._generate_safety_profile(product_name, offer_intel)
+            safety_profile = await self._generate_safety_profile(product_name, offer_intel, base_intelligence)
             
             # Calculate research quality score
             research_quality = self._calculate_research_quality_score(
@@ -209,6 +248,8 @@ class ScientificIntelligenceEnhancer:
                 "generated_at": datetime.utcnow().isoformat(),
                 "ai_provider": provider_used,
                 "enhancement_confidence": 0.85,
+                "product_name_fix_applied": True,  # 🔥 Track that fix was applied
+                "actual_product_name": product_name,  # 🔥 Track actual product name used
                 "ultra_cheap_optimization": {
                     "primary_provider": primary_provider,
                     "backup_providers": [p.get("name") for p in self.available_providers[1:]],
@@ -220,6 +261,10 @@ class ScientificIntelligenceEnhancer:
                     "failover_enabled": True
                 }
             }
+            
+            # 🔥 Apply final product name fix to entire result
+            company_name = extract_company_name_from_intelligence(base_intelligence)
+            final_result = substitute_placeholders_in_data(scientific_intelligence, product_name, company_name)
             
             # Log successful generation with cost data
             total_items = (
@@ -233,8 +278,9 @@ class ScientificIntelligenceEnhancer:
             logger.info(f"📊 Generated {total_items} intelligence items")
             logger.info(f"💰 Cost optimization: {self._calculate_cost_savings():.1f}% savings")
             logger.info(f"🛡️ Failover protection: {len(self.available_providers)} providers available")
+            logger.info(f"🔧 Product name fix: Applied '{product_name}' throughout content")
             
-            return scientific_intelligence
+            return final_result
             
         except Exception as e:
             logger.error(f"❌ Ultra-cheap scientific intelligence generation failed: {str(e)}")
@@ -259,7 +305,8 @@ class ScientificIntelligenceEnhancer:
     async def _generate_scientific_backing(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> List[str]:
         """Generate scientific backing statements using ultra-cheap AI with failover"""
         
@@ -269,6 +316,9 @@ class ScientificIntelligenceEnhancer:
         
         prompt = f"""
         As a scientific researcher, provide evidence-based backing for a health product called "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Product claims and benefits:
         {json.dumps(value_props + benefits, indent=2)}
@@ -292,7 +342,7 @@ class ScientificIntelligenceEnhancer:
         
         try:
             logger.info(f"🧬 Generating scientific backing with multi-provider failover")
-            scientific_backing = await self._call_ultra_cheap_ai_with_failover(prompt)
+            scientific_backing = await self._call_ultra_cheap_ai_with_failover(prompt, intelligence)
             
             # Parse JSON response
             if isinstance(scientific_backing, str):
@@ -309,12 +359,16 @@ class ScientificIntelligenceEnhancer:
     async def _generate_ingredient_research(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate ingredient research information using ultra-cheap AI with failover"""
         
         prompt = f"""
         As a nutritional scientist, provide research-based information about potential ingredients for a product called "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Based on the product name and common health supplement categories, generate ingredient research that includes:
         
@@ -336,7 +390,7 @@ class ScientificIntelligenceEnhancer:
         
         try:
             logger.info(f"🧪 Generating ingredient research with multi-provider failover")
-            ingredient_research = await self._call_ultra_cheap_ai_with_failover(prompt)
+            ingredient_research = await self._call_ultra_cheap_ai_with_failover(prompt, intelligence)
             
             if isinstance(ingredient_research, str):
                 ingredient_research = json.loads(ingredient_research)
@@ -352,7 +406,8 @@ class ScientificIntelligenceEnhancer:
     async def _generate_mechanism_research(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate mechanism of action research using ultra-cheap AI with failover"""
         
@@ -361,6 +416,9 @@ class ScientificIntelligenceEnhancer:
         
         prompt = f"""
         As a biochemist, explain the potential mechanisms of action for a {product_category} product called "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Provide research-based explanations of:
         1. Primary biological pathways involved
@@ -381,7 +439,7 @@ class ScientificIntelligenceEnhancer:
         
         try:
             logger.info(f"⚙️ Generating mechanism research with multi-provider failover")
-            mechanism_research = await self._call_ultra_cheap_ai_with_failover(prompt)
+            mechanism_research = await self._call_ultra_cheap_ai_with_failover(prompt, intelligence)
             
             if isinstance(mechanism_research, str):
                 mechanism_research = json.loads(mechanism_research)
@@ -397,12 +455,16 @@ class ScientificIntelligenceEnhancer:
     async def _generate_clinical_evidence(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate clinical evidence information using ultra-cheap AI with failover"""
         
         prompt = f"""
         As a clinical researcher, provide information about the types of clinical evidence typically relevant for products like "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Include:
         1. Types of clinical studies relevant to this product category
@@ -423,7 +485,7 @@ class ScientificIntelligenceEnhancer:
         
         try:
             logger.info(f"🔬 Generating clinical evidence with multi-provider failover")
-            clinical_evidence = await self._call_ultra_cheap_ai_with_failover(prompt)
+            clinical_evidence = await self._call_ultra_cheap_ai_with_failover(prompt, intelligence)
             
             if isinstance(clinical_evidence, str):
                 clinical_evidence = json.loads(clinical_evidence)
@@ -439,12 +501,16 @@ class ScientificIntelligenceEnhancer:
     async def _generate_safety_profile(
         self, 
         product_name: str, 
-        offer_intel: Dict[str, Any]
+        offer_intel: Dict[str, Any],
+        intelligence: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate safety profile information using ultra-cheap AI with failover"""
         
         prompt = f"""
         As a safety researcher, provide general safety considerations for a product like "{product_name}".
+        
+        IMPORTANT: Always use the actual product name "{product_name}" in your response.
+        Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Include:
         1. General safety considerations for this product category
@@ -465,7 +531,7 @@ class ScientificIntelligenceEnhancer:
         
         try:
             logger.info(f"🛡️ Generating safety profile with multi-provider failover")
-            safety_profile = await self._call_ultra_cheap_ai_with_failover(prompt)
+            safety_profile = await self._call_ultra_cheap_ai_with_failover(prompt, intelligence)
             
             if isinstance(safety_profile, str):
                 safety_profile = json.loads(safety_profile)
@@ -523,9 +589,11 @@ class ScientificIntelligenceEnhancer:
     def _generate_fallback_scientific_intelligence(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate fallback scientific intelligence with multi-provider metadata"""
         
+        # 🔥 Extract product name from product_data
         product_name = product_data.get("product_name", "Product")
         
-        return {
+        # Generate fallback data
+        fallback_data = {
             "scientific_backing": self._fallback_scientific_backing(product_name),
             "ingredient_research": self._fallback_ingredient_research(product_name),
             "mechanism_of_action": self._fallback_mechanism_research("supplement"),
@@ -535,6 +603,8 @@ class ScientificIntelligenceEnhancer:
             "generated_at": datetime.utcnow().isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.6,
+            "product_name_fix_applied": True,
+            "actual_product_name": product_name,
             "ultra_cheap_optimization": {
                 "provider_used": "fallback_static",
                 "total_providers_available": len(self.available_providers),
@@ -545,6 +615,13 @@ class ScientificIntelligenceEnhancer:
                 "fallback_reason": "All ultra-cheap providers failed"
             }
         }
+        
+        # 🔥 Apply product name fix to fallback data
+        company_name = extract_company_name_from_intelligence(product_data)
+        final_fallback = substitute_placeholders_in_data(fallback_data, product_name, company_name)
+        
+        logger.info(f"🔧 Applied product name fix to fallback data: '{product_name}'")
+        return final_fallback
     
     def _fallback_scientific_backing(self, product_name: str) -> List[str]:
         """Fallback scientific backing"""
