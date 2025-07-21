@@ -48,6 +48,22 @@ class ContentGeneratorFactory:
     def _initialize_generators(self):
         """Initialize all available generators with ultra-cheap AI"""
         
+        # AdCopy Generator
+        try:
+            from .ad_copy_generator import AdCopyGenerator
+            self._generators["ad_copy"] = AdCopyGenerator()
+            logger.info("✅ AdCopy Generator: Ultra-cheap AI enabled")
+        except Exception as e:
+            logger.warning(f"⚠️ AdCopy Generator failed: {str(e)}")
+
+        # Blog Post Generator
+        try:
+            from .blog_post_generator import BlogPostGenerator
+            self._generators["blog_post"] = BlogPostGenerator()
+            logger.info("✅ Blog Post Generator: Ultra-cheap AI enabled")
+        except Exception as e:
+            logger.warning(f"⚠️ Blog Post Generator failed: {str(e)}")
+        
         # Email Sequence Generator
         try:
             from .email_generator import EmailSequenceGenerator
@@ -56,20 +72,10 @@ class ContentGeneratorFactory:
         except Exception as e:
             logger.warning(f"⚠️ Email Sequence Generator failed: {str(e)}")
         
-        # Social Media Generator (includes Ad Copy and Blog Post)
-        try:
-            from .social_media_generator import SocialMediaGenerator, AdCopyGenerator, BlogPostGenerator
-            self._generators["SOCIAL_POSTS"] = SocialMediaGenerator()
-            self._generators["ad_copy"] = AdCopyGenerator()
-            self._generators["blog_post"] = BlogPostGenerator()
-            logger.info("✅ Social Media Generators: Ultra-cheap AI enabled")
-        except Exception as e:
-            logger.warning(f"⚠️ Social Media Generators failed: {str(e)}")
-        
         #  Social Media Generator
         try:
-            from .social_media_generator import EnhancedSocialMediaGenerator
-            self._generators["enhanced_social"] = EnhancedSocialMediaGenerator()
+            from .social_media_generator import SocialMediaGenerator
+            self._generators["enhanced_social"] = SocialMediaGenerator()
             logger.info("✅  Social Media Generator: Ultra-cheap AI enabled")
         except Exception as e:
             logger.warning(f"⚠️  Social Media Generator failed: {str(e)}")
