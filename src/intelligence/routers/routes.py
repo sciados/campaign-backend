@@ -5,7 +5,7 @@ Reduced from 1000+ lines to ~50 lines
 """
 from fastapi import APIRouter
 
-from intelligence.routers import analysis_routes, content_routes, management_routes, debug_routes, universal_test_routes
+from intelligence.routers import analysis_routes, content_routes, management_routes, debug_routes, universal_test_routes, r2_debug_routes
 
 # Create main router
 router = APIRouter(tags=["intelligence"])
@@ -39,4 +39,10 @@ router.include_router(
     universal_test_routes.router,
     prefix="/universal",
     tags=["intelligence-test"]
+)
+
+router.include_router(
+    r2_debug_routes.router,
+    prefix="/r2-debug",
+    tags=["intelligence-r2-debug"]
 )
