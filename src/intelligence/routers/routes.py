@@ -1,16 +1,25 @@
 """
 File: src/intelligence/routes.py
-Main Intelligence Routes - Refactored Version
-Reduced from 1000+ lines to ~50 lines
+Main Intelligence Routes - Fixed Import Version
 """
 from fastapi import APIRouter
 
-from intelligence.routers import analysis_routes, content_routes, management_routes, debug_routes, universal_test_routes, r2_debug_routes
+# Import existing routers
+from ..routers import (
+    analysis_routes, 
+    content_routes, 
+    management_routes, 
+    debug_routes
+)
+
+# Import the specific router objects from new files
+from .universal_test_routes import universal_test_router
+from .r2_debug_routes import debug_router as r2_debug_router
 
 # Create main router
 router = APIRouter(tags=["intelligence"])
 
-# Include sub-routers with proper prefixes
+# Include existing sub-routers
 router.include_router(
     analysis_routes.router,
     prefix="/analysis",
@@ -35,14 +44,13 @@ router.include_router(
     tags=["intelligence-debug"]
 )
 
+# Include new test routers
 router.include_router(
-    universal_test_routes.router,
-    prefix="/universal",
-    tags=["intelligence-test"]
+    universal_test_router,
+    tags=["universal-product-extraction"]
 )
 
 router.include_router(
-    r2_debug_routes.router,
-    prefix="/r2-debug",
-    tags=["intelligence-r2-debug"]
+    r2_debug_router,
+    tags=["r2-debug"]
 )
