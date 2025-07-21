@@ -23,8 +23,7 @@ def _lazy_import_analyzers():
         from src.intelligence.analyzers import (
             SalesPageAnalyzer, 
             DocumentAnalyzer, 
-            WebAnalyzer, 
-            EnhancedSalesPageAnalyzer, 
+            WebAnalyzer,
             VSLAnalyzer
         )
         
@@ -36,7 +35,6 @@ def _lazy_import_analyzers():
             'SalesPageAnalyzer': SalesPageAnalyzer,
             'DocumentAnalyzer': DocumentAnalyzer,
             'WebAnalyzer': WebAnalyzer,
-            'EnhancedSalesPageAnalyzer': EnhancedSalesPageAnalyzer,
             'VSLAnalyzer': VSLAnalyzer
         }
         
@@ -114,7 +112,6 @@ def get_analyzer(analysis_type: str = "sales_page"):
         "sales_page": analyzers['SalesPageAnalyzer'],
         "website": analyzers['WebAnalyzer'],
         "document": analyzers['DocumentAnalyzer'],
-        "enhanced_sales_page": analyzers['EnhancedSalesPageAnalyzer'],
         "vsl": analyzers['VSLAnalyzer'],
         "video_sales_letter": analyzers['VSLAnalyzer']
     }

@@ -121,14 +121,6 @@ except ImportError as e:
     logging.warning(f"⚠️ Analysis router not available: {e}")
     analysis_router = None
 
-try:
-    from src.intelligence.routers.affiliate_links import router as affiliate_router
-    logging.info("✅ Affiliate links router imported successfully")
-    AFFILIATE_ROUTER_AVAILABLE = True
-except ImportError as e:
-    logging.warning(f"⚠️ Affiliate links router not available: {e}")
-    affiliate_router = None
-
 # ✅ NEW: Import enhanced stability routes (with ultra-cheap image generation)
 try:
     from src.intelligence.routers.stability_routes import router as stability_router
@@ -215,10 +207,10 @@ async def lifespan(app: FastAPI):
     if AI_MONITORING_ROUTER_AVAILABLE:
         try:
             from src.intelligence.utils.smart_router import get_smart_router
-            from src.intelligence.generators.factory import get_enhanced_factory
+            from src.intelligence.generators.factory import get_factory
             
             smart_router = get_smart_router()
-            enhanced_factory = get_enhanced_factory()
+            enhanced_factory = get_factory()
             
             # Store in app state for access
             app.state.smart_router = smart_router
@@ -394,11 +386,6 @@ if CONTENT_ROUTER_AVAILABLE and content_router:
         for route in content_router.routes:
             if hasattr(route, 'path') and hasattr(route, 'methods'):
                 print(f"  {list(route.methods)} /api/intelligence/content{route.path}")
-
-if AFFILIATE_ROUTER_AVAILABLE and affiliate_router:
-    app.include_router(affiliate_router, prefix="/api/intelligence/affiliate", tags=["intelligence", "affiliate"])
-    logging.info("📡 Affiliate links router registered at /api/intelligence/affiliate")
-    intelligence_routes_registered += 1
 
 # ✅ NEW: Register enhanced stability routes (with ultra-cheap image generation)
 if STABILITY_ROUTER_AVAILABLE and stability_router:

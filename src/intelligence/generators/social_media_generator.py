@@ -253,7 +253,7 @@ class SocialMediaGenerator(EnumSerializerMixin, DynamicRoutingMixin):
         if preferences is None:
             preferences = {}
         
-        # Enhanced preferences with intelligent defaults
+        # Preferences with intelligent defaults
         enhanced_preferences = {
             "platforms": preferences.get("platforms", ["instagram", "facebook", "tiktok", "linkedin"]),
             "content_count": preferences.get("content_count", 5),
@@ -1423,7 +1423,7 @@ class SocialMediaGenerator(EnumSerializerMixin, DynamicRoutingMixin):
                 "posting_frequency": "1-3 times daily",
                 "trend_strategy": "Use trending sounds and effects",
                 "hashtag_strategy": "3-5 relevant hashtags max",
-                "dynamic_routing_benefits": "Enhanced video concept generation"
+                "dynamic_routing_benefits": "Video concept generation"
             },
             "facebook": {
                 "best_times": "9am-10am, 3pm-4pm",
@@ -1437,7 +1437,7 @@ class SocialMediaGenerator(EnumSerializerMixin, DynamicRoutingMixin):
                 "posting_frequency": "3-5 times weekly",
                 "content_strategy": "Professional insights, industry news",
                 "hashtag_strategy": "3-5 professional hashtags",
-                "dynamic_routing_benefits": "Enhanced professional content tone"
+                "dynamic_routing_benefits": "Professional content tone"
             },
             "twitter": {
                 "best_times": "12pm-3pm, 5pm-6pm",
@@ -1451,7 +1451,7 @@ class SocialMediaGenerator(EnumSerializerMixin, DynamicRoutingMixin):
                 "posting_frequency": "5-10 pins daily",
                 "pin_strategy": "Fresh pins daily, seasonal content",
                 "hashtag_strategy": "10-20 relevant hashtags",
-                "dynamic_routing_benefits": "Enhanced visual concept generation"
+                "dynamic_routing_benefits": "Visual concept generation"
             }
         }
         
@@ -1600,7 +1600,7 @@ class SocialMediaGenerator(EnumSerializerMixin, DynamicRoutingMixin):
         }
 
 
-# 🚀 NEW: Enhanced convenience functions with dynamic routing (moved outside class)
+# 🚀 NEW: Convenience functions with dynamic routing (moved outside class)
 async def generate_enhanced_social_campaign_with_routing(
     intelligence_data: Dict[str, Any],
     platforms: List[str] = None,
