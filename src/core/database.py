@@ -66,7 +66,7 @@ async_engine = create_async_engine(
 metadata = MetaData()
 
 #  Base class
-classBase:
+class Base:
     """ base class with conflict resolution"""
     
     @classmethod
@@ -103,7 +103,7 @@ classBase:
 # Create declarative base with enhanced functionality
 Base = declarative_base(
     metadata=metadata,
-    cls=EnhancedBase
+    cls=Base
 )
 
 # ============================================================================
