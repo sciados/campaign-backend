@@ -10,7 +10,7 @@ from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-classLandingPageGenerator:
+class LandingPageGenerator:
     """
      Landing Page Generator
     

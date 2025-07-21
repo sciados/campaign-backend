@@ -129,7 +129,7 @@ try:
         SmartURL,
         IntelligenceSourceType,
         AnalysisStatus,
-        EnhancedAnalysisRequest
+        AnalysisRequest
     )
     logger.debug("✅ Intelligence models imported successfully")
 except ImportError as e:
@@ -139,7 +139,7 @@ except ImportError as e:
     SmartURL = None
     IntelligenceSourceType = None
     AnalysisStatus = None
-    EnhancedAnalysisRequest = None
+    AnalysisRequest = None
 
 # ============================================================================
 # ✅ PHASE 6: Import models LAST (most likely to have conflicts)
@@ -240,7 +240,7 @@ _intelligence_exports = [
     'SmartURL',
     'IntelligenceSourceType',
     'AnalysisStatus',
-    'EnhancedAnalysisRequest',
+    'AnalysisRequest',
 ] if CampaignIntelligence is not None else []
 
 # Utility exports (always available)
