@@ -69,7 +69,7 @@ except ImportError as e:
 
 # Campaign Angle Generator
 try:
-    from .email_generator import CampaignAngleGenerator
+    from .campaign_angle_generator import CampaignAngleGenerator
     CAMPAIGN_ANGLE_GENERATOR_AVAILABLE = True
     logger.info("✅ Campaign angle generator imported successfully")
 except ImportError as e:

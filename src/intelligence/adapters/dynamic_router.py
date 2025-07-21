@@ -1,10 +1,10 @@
 # src/intelligence/adapters/dynamic_router.py
 """
-DYNAMIC AI ROUTER - INTELLIGENT PROVIDER SELECTION
-🎯 Automatically routes to optimal AI provider based on real-time data
+DYNAMIC AI ROUTER - CIRCULAR IMPORT FREE VERSION
+🎯 Automatically selects optimal providers with clean architecture
 💰 Maximizes cost savings while maintaining quality
-🔄 Adapts to provider availability and performance changes
-⚡ Falls back gracefully when providers are unavailable
+🔄 No circular imports through lazy loading
+⚡ Intelligent fallback and error handling
 """
 
 import asyncio
@@ -14,9 +14,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 import os
-
-from ..monitoring.ai_monitor import get_ai_monitor
-from ..generators.base_generator import BaseContentGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +28,13 @@ class ProviderSelection:
     selection_reason: str
 
 class DynamicAIRouter:
-    """Intelligent router that selects optimal AI providers automatically"""
+    """Intelligent router that selects optimal AI providers (no circular imports)"""
     
     def __init__(self):
-        self.monitor = None
+        # Lazy-loaded AI monitor to prevent circular imports
+        self._monitor = None
+        self._monitor_loaded = False
+        
         self.cache_ttl = 300  # 5 minutes cache
         self.provider_cache = {}
         self.last_cache_update = {}
@@ -104,10 +104,29 @@ class DynamicAIRouter:
             }
         }
         
-        logger.info("🤖 Dynamic AI Router initialized")
+        logger.info("🤖 Dynamic AI Router initialized (Circular Import Free)")
+    
+    async def _get_ai_monitor(self):
+        """Lazy load AI monitor to prevent circular imports"""
+        if not self._monitor_loaded:
+            try:
+                # Import only when needed
+                from ..monitoring.ai_monitor import get_ai_monitor
+                self._monitor = await get_ai_monitor()
+                logger.debug("🔄 AI monitor loaded successfully")
+            except ImportError as e:
+                logger.warning(f"⚠️ AI monitor not available: {e}")
+                self._monitor = None
+            except Exception as e:
+                logger.warning(f"⚠️ AI monitor initialization failed: {e}")
+                self._monitor = None
+            finally:
+                self._monitor_loaded = True
+        
+        return self._monitor
     
     async def get_optimal_provider(self, content_type: str, task_complexity: str = "standard") -> ProviderSelection:
-        """Get optimal provider for content type with intelligent selection"""
+        """Get optimal provider for content type with intelligent selection (no circular imports)"""
         
         # Check cache first
         cache_key = f"{content_type}_{task_complexity}"
@@ -115,28 +134,26 @@ class DynamicAIRouter:
             logger.debug(f"📋 Using cached provider for {content_type}")
             return self.provider_cache[cache_key]
         
-        # Get AI monitor
-        if not self.monitor:
-            self.monitor = await get_ai_monitor()
-        
-        # Get optimal provider from monitoring system
-        try:
-            optimal_config = await self.monitor.get_optimal_provider(content_type)
-            
-            if optimal_config:
-                provider_selection = await self._create_provider_selection(
-                    optimal_config, content_type, task_complexity
-                )
+        # Try AI monitor for optimal selection
+        monitor = await self._get_ai_monitor()
+        if monitor:
+            try:
+                optimal_config = await monitor.get_optimal_provider(content_type)
                 
-                # Cache the selection
-                self.provider_cache[cache_key] = provider_selection
-                self.last_cache_update[cache_key] = datetime.utcnow()
+                if optimal_config:
+                    provider_selection = await self._create_provider_selection(
+                        optimal_config, content_type, task_complexity
+                    )
+                    
+                    # Cache the selection
+                    self.provider_cache[cache_key] = provider_selection
+                    self.last_cache_update[cache_key] = datetime.utcnow()
+                    
+                    logger.info(f"🎯 Selected {provider_selection.provider_name} for {content_type} ({provider_selection.selection_reason})")
+                    return provider_selection
                 
-                logger.info(f"🎯 Selected {provider_selection.provider_name} for {content_type} ({provider_selection.selection_reason})")
-                return provider_selection
-            
-        except Exception as e:
-            logger.warning(f"⚠️ Monitor selection failed for {content_type}: {str(e)}")
+            except Exception as e:
+                logger.warning(f"⚠️ Monitor selection failed for {content_type}: {str(e)}")
         
         # Fallback to manual selection
         return await self._fallback_provider_selection(content_type, task_complexity)
@@ -283,11 +300,11 @@ class DynamicAIRouter:
     async def _fallback_provider_selection(self, content_type: str, task_complexity: str) -> ProviderSelection:
         """Fallback provider selection when monitoring system is unavailable"""
         
-        # Predefined fallback hierarchy based on your Railway environment
+        # Predefined fallback hierarchy based on Railway environment
         fallback_hierarchy = {
             "text": ["groq", "deepseek", "together", "anthropic"],
             "image": ["stability", "replicate", "fal"],
-            "video": ["replicate", "stability"]  # For video generation
+            "video": ["replicate", "stability"]
         }
         
         content_category = "text" if content_type in ["email_sequence", "ad_copy", "social_media", "blog_post", "landing_page"] else content_type
@@ -375,8 +392,9 @@ class DynamicAIRouter:
     async def _log_successful_usage(self, provider_selection: ProviderSelection, content_type: str):
         """Log successful provider usage for monitoring"""
         try:
-            if self.monitor:
-                await self.monitor.log_usage_success(
+            monitor = await self._get_ai_monitor()
+            if monitor:
+                await monitor.log_usage_success(
                     provider_selection.provider_name,
                     content_type,
                     datetime.utcnow()
@@ -387,8 +405,9 @@ class DynamicAIRouter:
     async def _log_fallback_usage(self, provider_selection: ProviderSelection, content_type: str, failed_providers: List[str]):
         """Log fallback provider usage for monitoring"""
         try:
-            if self.monitor:
-                await self.monitor.log_fallback_usage(
+            monitor = await self._get_ai_monitor()
+            if monitor:
+                await monitor.log_fallback_usage(
                     provider_selection.provider_name,
                     content_type,
                     failed_providers,
@@ -444,17 +463,23 @@ class DynamicAIRouter:
         
         return status
 
-# Global router instance
+
+# Global router instance (thread-safe)
 _router_instance = None
+_router_lock = asyncio.Lock()
 
 async def get_dynamic_router() -> DynamicAIRouter:
-    """Get global dynamic router instance"""
+    """Get global dynamic router instance (thread-safe)"""
     global _router_instance
+    
     if _router_instance is None:
-        _router_instance = DynamicAIRouter()
+        async with _router_lock:
+            if _router_instance is None:  # Double-check after acquiring lock
+                _router_instance = DynamicAIRouter()
+    
     return _router_instance
 
-# Convenience functions for easy integration
+# Convenience functions for easy integration (no circular imports)
 async def route_text_generation(generation_function: callable, content_type: str = "text", **kwargs):
     """Route text generation to optimal provider"""
     router = await get_dynamic_router()
