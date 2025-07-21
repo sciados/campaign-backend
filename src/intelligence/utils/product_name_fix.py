@@ -382,6 +382,19 @@ def fix_video_script_placeholders(script_data: Dict, intelligence: Dict[str, Any
     logger.info(f"🎬 Fixed video script with product name: {product_name}")
     return fixed_script
 
+def fix_image_generation_placeholders(image_data: Dict, intelligence: Dict[str, Any]) -> Dict:
+    """
+    🔥 IMAGE GENERATION FIX: Apply product name fix to slideshow video data
+    """
+    product_name = extract_product_name_from_intelligence(intelligence)
+    company_name = extract_company_name_from_intelligence(intelligence)
+    
+    # Apply recursive substitution to the entire video data structure
+    fixed_image_data = substitute_placeholders_in_data(image_data, product_name, company_name)
+    
+    logger.info(f"📹 Fixed slideshow video data with product name: {product_name}")
+    return fixed_image_data
+
 def fix_slideshow_video_placeholders(video_data: Dict, intelligence: Dict[str, Any]) -> Dict:
     """
     🔥 SLIDESHOW VIDEO FIX: Apply product name fix to slideshow video data

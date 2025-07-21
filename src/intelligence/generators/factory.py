@@ -76,7 +76,7 @@ class ContentGeneratorFactory:
         
         # Landing Page Generator
         try:
-            from .landing_page.core.generator import EnhancedLandingPageGenerator as LandingPageGenerator
+            from .landing_page.core.generator import LandingPageGenerator as LandingPageGenerator
             self._generators["landing_page"] = LandingPageGenerator()
             logger.info("✅ Landing Page Generator: Ultra-cheap AI enabled")
         except Exception as e:

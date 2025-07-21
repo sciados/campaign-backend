@@ -10,10 +10,10 @@ __description__ = " Landing Page Generator with Intelligence Integration"
 
 # Import with error handling - only import what actually exists
 try:
-    from .core.generator import EnhancedLandingPageGenerator
+    from .core.generator import LandingPageGenerator
 except ImportError as e:
-    print(f"Warning: Could not import EnhancedLandingPageGenerator: {e}")
-    EnhancedLandingPageGenerator = None
+    print(f"Warning: Could not import LandingPageGenerator: {e}")
+    LandingPageGenerator = None
 
 try:
     from .database.storage import LandingPageStorage
@@ -95,8 +95,8 @@ except ImportError as e:
 # Build __all__ with only successfully imported items
 __all__ = ['PageType', 'ColorScheme', 'ContentType']
 
-if EnhancedLandingPageGenerator is not None:
-    __all__.append('EnhancedLandingPageGenerator')
+if LandingPageGenerator is not None:
+    __all__.append('LandingPageGenerator')
 
 if LandingPageStorage is not None:
     __all__.extend(['LandingPageStorage', 'LandingPageDatabase'])
@@ -127,7 +127,7 @@ if LandingPageComponent is not None:
 def get_available_features():
     """Get list of available features"""
     return {
-        'generator': EnhancedLandingPageGenerator is not None,
+        'generator': LandingPageGenerator is not None,
         'storage': LandingPageStorage is not None,
         'sections': SectionBuilder is not None,
         'modular': ModularLandingPageBuilder is not None,

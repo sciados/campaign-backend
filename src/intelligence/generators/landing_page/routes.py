@@ -16,7 +16,7 @@ from src.models import User, Company, GeneratedContent, Campaign
 
 # Try to import landing page components
 try:
-    from .core.generator import EnhancedLandingPageGenerator
+    from .core.generator import LandingPageGenerator
     GENERATOR_AVAILABLE = True
 except ImportError as e:
     logging.warning(f"Landing page generator not available: {e}")
@@ -122,7 +122,7 @@ async def list_landing_pages(
 # Only include generator functionality if available
 if GENERATOR_AVAILABLE:
     try:
-        landing_page_generator = EnhancedLandingPageGenerator()
+        landing_page_generator = LandingPageGenerator()
         logger.info("✅ Landing page generator initialized")
     except Exception as e:
         logger.warning(f"⚠️ Could not initialize generator: {e}")

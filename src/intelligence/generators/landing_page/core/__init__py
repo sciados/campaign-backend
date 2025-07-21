@@ -3,7 +3,7 @@ Core module for landing page generation.
 Contains the main generator class and configuration.
 """
 
-from .generator import EnhancedLandingPageGenerator
+from .generator import LandingPageGenerator
 from .config import PAGE_CONFIGS, COLOR_SCHEMES, DEFAULT_PREFERENCES, AI_PROVIDER_CONFIG
 from .types import (
     PageType, 
@@ -16,7 +16,7 @@ from .types import (
 )
 
 __all__ = [
-    'EnhancedLandingPageGenerator',
+    'LandingPageGenerator',
     'PAGE_CONFIGS',
     'COLOR_SCHEMES', 
     'DEFAULT_PREFERENCES',

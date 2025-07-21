@@ -51,7 +51,7 @@ except ImportError as e:
 
 # Landing Page Generator
 try:
-    from .landing_page.core.generator import EnhancedLandingPageGenerator as LandingPageGenerator
+    from .landing_page.core.generator import LandingPageGenerator as LandingPageGenerator
     LANDING_PAGE_GENERATOR_AVAILABLE = True
     logger.info("✅ Landing page generator imported successfully")
 except ImportError as e:
