@@ -43,14 +43,6 @@ class ProactiveSalesPageMonitor:
         return [
             # Major affiliate networks
             SalesPageSource(
-                name="ClickBank",
-                base_url="https://accounts.clickbank.com",
-                monitoring_enabled=True,
-                check_frequency_hours=4,
-                priority=1,
-                api_endpoint="https://api.clickbank.com/rest/1.3/products"
-            ),
-            SalesPageSource(
                 name="WarriorPlus",
                 base_url="https://warriorplus.com",
                 monitoring_enabled=True,
@@ -96,9 +88,7 @@ class ProactiveSalesPageMonitor:
         try:
             logger.info(f"🔍 Discovering new sales pages from {source.name}")
             
-            if source.name == "ClickBank":
-                return await self._discover_clickbank_pages(source, limit)
-            elif source.name == "Product Hunt":
+            if source.name == "Product Hunt":
                 return await self._discover_producthunt_pages(source, limit)
             elif source.name == "Manual Queue":
                 return await self._get_manual_queue_pages(limit)
@@ -108,50 +98,6 @@ class ProactiveSalesPageMonitor:
         except Exception as e:
             logger.error(f"❌ Error discovering pages from {source.name}: {str(e)}")
             return []
-    
-    async def _discover_clickbank_pages(self, source: SalesPageSource, limit: int) -> List[str]:
-        """Discover new ClickBank product pages"""
-        try:
-            # This would integrate with ClickBank API
-            # For demo purposes, showing the structure
-            
-            # Example API call structure:
-            # GET https://api.clickbank.com/rest/1.3/products
-            # ?cat=health&results=50&sort=popularity
-            
-            new_urls = []
-            
-            # Categories to monitor (popular in affiliate marketing)
-            categories = ['health', 'business', 'fitness', 'self-help', 'money-finance']
-            
-            for category in categories:
-                # In real implementation, make actual API calls
-                category_urls = await self._fetch_clickbank_category(category, limit // len(categories))
-                new_urls.extend(category_urls)
-            
-            # Filter out already processed URLs
-            new_urls = [url for url in new_urls if url not in self.processed_urls]
-            
-            logger.info(f"✅ Discovered {len(new_urls)} new ClickBank pages")
-            return new_urls[:limit]
-            
-        except Exception as e:
-            logger.error(f"❌ ClickBank discovery error: {str(e)}")
-            return []
-    
-    async def _fetch_clickbank_category(self, category: str, limit: int) -> List[str]:
-        """Fetch URLs from specific ClickBank category"""
-        # FIXED: Mock implementation - replace with actual ClickBank API integration
-        mock_urls = []
-        
-        # Generate mock URLs with proper loop variable
-        for i in range(min(limit, 10)):  # Generate up to 10 mock URLs per category
-            mock_urls.extend([
-                f"https://example-product-{category}-{i}.clickbank.net",
-                f"https://hot-{category}-offer-{i}.hoplink.net",
-            ])
-        
-        return mock_urls[:limit]
     
     async def _discover_producthunt_pages(self, source: SalesPageSource, limit: int) -> List[str]:
         """Discover trending products from Product Hunt"""

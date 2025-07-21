@@ -9,8 +9,7 @@ from .routers import (
     analysis_routes, 
     content_routes, 
     management_routes, 
-    debug_routes,
-    clickbank_routes
+    debug_routes
 )
 
 # Import the Stability AI routes (already exists)
@@ -46,12 +45,6 @@ router.include_router(
     debug_routes.router,
     prefix="/debug",
     tags=["intelligence-debug"]
-)
-
-router.include_router(
-    clickbank_routes.router,
-    prefix="/clickbank",
-    tags=["clickbank"]
 )
 
 # ✅ EXISTING: Include Stability AI routes if available

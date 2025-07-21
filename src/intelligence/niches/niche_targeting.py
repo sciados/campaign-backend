@@ -53,7 +53,7 @@ class HighVolumeNicheTargeting:
                 ],
                 typical_affiliates_per_product=200,  # Very high
                 average_product_lifecycle_days=120,
-                monitoring_sources=["clickbank_health", "amazon_supplements", "health_blogs"],
+                monitoring_sources=["amazon_supplements", "health_blogs"],
                 seasonal_patterns={
                     "01": 2.5,  # January (New Year resolutions)
                     "02": 1.8, "03": 1.4, "04": 1.6, "05": 1.8,  # Spring prep
@@ -76,7 +76,7 @@ class HighVolumeNicheTargeting:
                 ],
                 typical_affiliates_per_product=300,  # Extremely high
                 average_product_lifecycle_days=90,
-                monitoring_sources=["clickbank_business", "warriorplus", "jvzoo"],
+                monitoring_sources=["warriorplus", "jvzoo"],
                 seasonal_patterns={
                     "01": 2.2,  # New Year goals
                     "02": 1.5, "03": 1.3, "04": 1.2, "05": 1.1,
@@ -144,7 +144,7 @@ class HighVolumeNicheTargeting:
                 ],
                 typical_affiliates_per_product=100,
                 average_product_lifecycle_days=200,
-                monitoring_sources=["clickbank_relationships", "dating_blogs", "youtube_dating"],
+                monitoring_sources=["dating_blogs", "youtube_dating"],
                 seasonal_patterns={
                     "01": 1.5, "02": 3.0,  # Valentine's season
                     "03": 1.8, "04": 1.6, "05": 1.4, "06": 1.3,
@@ -315,15 +315,13 @@ class NicheSpecificDiscovery:
     def _initialize_niche_sources(self) -> Dict[str, List[str]]:
         """Initialize niche-specific discovery sources"""
         return {
-            "Health & Weight Loss": [
-                "https://accounts.clickbank.com/rest/1.3/products?cat=health",
+            "Health & Weight Loss": [                
                 "https://www.amazon.com/gp/bestsellers/hpc/3760931/ref=pd_zg_hrsr_hpc",
                 "https://www.healthline.com/",  # For trending topics
                 "https://www.webmd.com/",      # Health authority content
             ],
             
             "Make Money Online": [
-                "https://accounts.clickbank.com/rest/1.3/products?cat=business",
                 "https://warriorplus.com/marketplace",
                 "https://www.jvzoo.com/products",
                 "https://www.producthunt.com/topics/marketing",
@@ -344,7 +342,6 @@ class NicheSpecificDiscovery:
             ],
             
             "Dating & Relationships": [
-                "https://accounts.clickbank.com/rest/1.3/products?cat=relationships",
                 "https://www.psychology.com/dating",
                 "https://www.match.com/",  # Dating platforms
             ],
@@ -395,40 +392,13 @@ class NicheSpecificDiscovery:
         """Discover URLs from a specific source"""
         # Mock implementation - replace with actual API integrations
         
-        if "clickbank" in source:
-            return await self._discover_clickbank_niche(niche, limit)
-        elif "amazon" in source:
+        if "amazon" in source:
             return await self._discover_amazon_niche(niche, limit)
         elif "producthunt" in source:
             return await self._discover_producthunt_niche(niche, limit)
         else:
             return await self._discover_generic_niche(source, niche, limit)
-    
-    async def _discover_clickbank_niche(self, niche: str, limit: int) -> List[Dict[str, Any]]:
-        """Discover ClickBank products for specific niche"""
-        # Mock URLs - replace with actual ClickBank API integration
-        urls = []
         
-        niche_map = {
-            "Health & Weight Loss": "health",
-            "Make Money Online": "business", 
-            "Dating & Relationships": "relationships"
-        }
-        
-        category = niche_map.get(niche, "general")
-        
-        for i in range(limit):
-            urls.append({
-                "url": f"https://{category}-product-{i}.hoplink.net",
-                "title": f"{niche} Product {i}",
-                "confidence": 0.8,
-                "source": "ClickBank",
-                "niche": niche,
-                "estimated_affiliates": 50 + (i * 5)
-            })
-        
-        return urls
-    
     def _prioritize_discovered_urls(self, urls: List[Dict[str, Any]], niche_name: str) -> List[Dict[str, Any]]:
         """Prioritize discovered URLs based on niche and seasonal factors"""
         

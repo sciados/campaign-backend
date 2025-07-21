@@ -26,13 +26,13 @@ class AutomatedNicheMonitor:
         return {
             "Health & Weight Loss": {
                 "check_interval_minutes": 60,  # Every hour
-                "sources": ["clickbank_health", "amazon_supplements", "health_trends"],
+                "sources": ["amazon_supplements", "health_trends"],
                 "max_daily_analyses": 20,
                 "priority_score": 100
             },
             "Make Money Online": {
                 "check_interval_minutes": 30,  # Every 30 minutes
-                "sources": ["clickbank_biz", "warriorplus", "jvzoo", "product_hunt_biz"],
+                "sources": ["warriorplus", "jvzoo", "product_hunt_biz"],
                 "max_daily_analyses": 25,
                 "priority_score": 100
             },
@@ -50,7 +50,7 @@ class AutomatedNicheMonitor:
             },
             "Dating & Relationships": {
                 "check_interval_minutes": 360,  # Every 6 hours
-                "sources": ["clickbank_dating", "relationship_blogs"],
+                "sources": ["relationship_blogs"],
                 "max_daily_analyses": 8,
                 "priority_score": 70
             }
@@ -152,94 +152,13 @@ class AutomatedNicheMonitor:
     async def _discover_from_source(self, source: str, niche_name: str) -> List[Dict[str, Any]]:
         """Discover products from a specific source"""
         
-        if source == "clickbank_health":
-            return await self._discover_clickbank_health()
-        elif source == "clickbank_biz":
-            return await self._discover_clickbank_business()
-        elif source == "amazon_supplements":
+        if  source == "amazon_supplements":
             return await self._discover_amazon_supplements()
         elif source == "warriorplus":
             return await self._discover_warriorplus()
         elif source == "health_trends":
             return await self._discover_health_trends()
         else:
-            return []
-    
-    async def _discover_clickbank_health(self) -> List[Dict[str, Any]]:
-        """Discover trending health products from ClickBank"""
-        try:
-            # In real implementation, use ClickBank API
-            # For now, simulate discovery
-            
-            trending_products = [
-                {
-                    "url": "https://liver-health-breakthrough.hoplink.net",
-                    "title": "Liver Health Breakthrough Formula",
-                    "niche": "Health & Weight Loss",
-                    "estimated_affiliates": 180,
-                    "trending_score": 95,
-                    "source": "ClickBank Health"
-                },
-                {
-                    "url": "https://keto-advanced-formula.hoplink.net", 
-                    "title": "Advanced Keto Formula",
-                    "niche": "Health & Weight Loss",
-                    "estimated_affiliates": 220,
-                    "trending_score": 88,
-                    "source": "ClickBank Health"
-                },
-                {
-                    "url": "https://metabolism-booster-2024.hoplink.net",
-                    "title": "Metabolism Booster 2024",
-                    "niche": "Health & Weight Loss", 
-                    "estimated_affiliates": 160,
-                    "trending_score": 82,
-                    "source": "ClickBank Health"
-                }
-            ]
-            
-            logger.info(f"🔍 Discovered {len(trending_products)} health products from ClickBank")
-            return trending_products
-            
-        except Exception as e:
-            logger.error(f"❌ ClickBank health discovery error: {str(e)}")
-            return []
-    
-    async def _discover_clickbank_business(self) -> List[Dict[str, Any]]:
-        """Discover trending business/MMO products from ClickBank"""
-        try:
-            trending_products = [
-                {
-                    "url": "https://affiliate-mastery-2024.hoplink.net",
-                    "title": "Affiliate Marketing Mastery 2024",
-                    "niche": "Make Money Online",
-                    "estimated_affiliates": 350,
-                    "trending_score": 98,
-                    "source": "ClickBank Business"
-                },
-                {
-                    "url": "https://crypto-trading-secrets.hoplink.net",
-                    "title": "Crypto Trading Secrets",
-                    "niche": "Make Money Online",
-                    "estimated_affiliates": 280,
-                    "trending_score": 91,
-                    "source": "ClickBank Business"
-                },
-                {
-                    "url": "https://passive-income-blueprint.hoplink.net",
-                    "title": "Passive Income Blueprint",
-                    "niche": "Make Money Online",
-                    "estimated_affiliates": 320,
-                    "trending_score": 89,
-                    "source": "ClickBank Business"
-                }
-            ]
-            
-            logger.info(f"🔍 Discovered {len(trending_products)} MMO products from ClickBank")
-            return trending_products
-            
-        except Exception as e:
-            logger.error(f"❌ ClickBank business discovery error: {str(e)}")
             return []
     
     async def _discover_warriorplus(self) -> List[Dict[str, Any]]:

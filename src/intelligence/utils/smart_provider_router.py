@@ -240,10 +240,10 @@ class SmartProviderMixin:
 def enhance_generator_with_smart_routing(generator_class):
     """Class decorator to add smart routing to existing generators"""
     
-    classGenerator(SmartProviderMixin, generator_class):
+    class Generator(SmartProviderMixin, generator_class):
         pass
     
-    return EnhancedGenerator
+    return Generator
 
 
 # Monitoring routes for your FastAPI app

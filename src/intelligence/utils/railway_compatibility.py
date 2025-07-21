@@ -90,7 +90,7 @@ class RailwayCompatibilityLayer:
 
 
 #  content handler compatibility
-classContentHandler:
+class ContentHandler:
     """ content handler with ultra-cheap AI and Railway compatibility"""
     
     def __init__(self):
@@ -297,7 +297,7 @@ classContentHandler:
 def create_railway_compatible_generator(content_type: str):
     """Create Railway-compatible generator instance"""
     
-    handler = EnhancedContentHandler()
+    handler = ContentHandler()
     
     async def generate_content_wrapper(intelligence_data: Dict[str, Any], preferences: Dict[str, Any] = None):
         """Wrapper function for Railway compatibility"""
@@ -309,12 +309,12 @@ def create_railway_compatible_generator(content_type: str):
 # Global compatibility handler instance
 _global_compatibility_handler = None
 
-def get_railway_compatibility_handler() -> EnhancedContentHandler:
+def get_railway_compatibility_handler() -> ContentHandler:
     """Get global Railway compatibility handler"""
     global _global_compatibility_handler
     
     if _global_compatibility_handler is None:
-        _global_compatibility_handler = EnhancedContentHandler()
+        _global_compatibility_handler = ContentHandler()
     
     return _global_compatibility_handler
 

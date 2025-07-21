@@ -20,7 +20,7 @@ class AffiliateOptimizedCache:
         self.db = db
         self.popular_domains = [
             # Major affiliate networks
-            'clickbank.net', 'warriorplus.com', 'jvzoo.com',
+            'warriorplus.com', 'jvzoo.com',
             # Popular product categories
             'amazon.com', 'ebay.com', 'etsy.com',
             # Health & wellness (popular in affiliate marketing)
@@ -46,8 +46,7 @@ class AffiliateOptimizedCache:
                 return True
             
             # Check for common affiliate URL patterns
-            affiliate_patterns = [
-                'hop.clickbank.net',
+            affiliate_patterns = [                
                 'warriorplus.com/o2/',
                 'jvz',
                 'affiliate',
@@ -372,12 +371,6 @@ def demonstrate_affiliate_cache_benefits():
     """Show the massive benefits for affiliate marketers"""
     
     scenarios = {
-        "clickbank_supplement": {
-            "product": "Popular Weight Loss Supplement on ClickBank",
-            "affiliates_analyzing": 150,
-            "analysis_cost_each": 6.00,
-            "cache_cost_each": 0.10
-        },
         "amazon_electronics": {
             "product": "Trending Electronics Product on Amazon", 
             "affiliates_analyzing": 75,

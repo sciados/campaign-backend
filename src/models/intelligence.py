@@ -436,7 +436,7 @@ class SmartURL(BaseModel, EnumSerializerMixin):
         }
 
 # Minimal Pydantic models for production compatibility
-classAnalysisRequest(PydanticBaseModel):
+class AnalysisRequest(PydanticBaseModel):
     url: str = Field(..., description="URL to analyze")
     campaign_id: str = Field(..., description="Campaign ID")
     analysis_depth: Literal["basic", "comprehensive", "competitive"] = Field(

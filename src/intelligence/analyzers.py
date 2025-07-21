@@ -1138,7 +1138,7 @@ Respond with structured analysis using "{product_name}" throughout."""
 
 
 #  analyzer class that extends the base
-classSalesPageAnalyzer(SalesPageAnalyzer):
+class SalesPageAnalyzer(SalesPageAnalyzer):
     """ sales page analyzer with additional features"""
     
     async def analyze_enhanced(

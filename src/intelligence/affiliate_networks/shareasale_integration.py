@@ -3,7 +3,7 @@
 SHAREASALE API INTEGRATION
 ✅ Immediate API access (no approval needed)
 ✅ 4,000+ merchants including major retailers
-✅ Higher commission rates than ClickBank digital products
+✅ Higher commission rates than digital products
 ✅ Mainstream appeal for broader audience
 """
 

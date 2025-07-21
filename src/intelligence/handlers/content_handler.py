@@ -205,7 +205,7 @@ class ContentHandler(EnumSerializerMixin):
             intelligence_data = await self._prepare_intelligence_data(campaign_id, campaign)
             
             # 🔧 FIXED: Use enhanced content generation with proper error handling
-            result = await enhanced_content_generation(content_type, intelligence_data, preferences)
+            result = await content_generation(content_type, intelligence_data, preferences)
             
             # 🔧 CRITICAL FIX: Ensure result is not None
             if result is None:
