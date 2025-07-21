@@ -8,6 +8,7 @@ ENHANCED EMAIL SEQUENCE GENERATOR WITH ULTRA-CHEAP AI INTEGRATION
 ✅ Real-time cost tracking and optimization
 ✅ Railway deployment compatible
 🔥 FIXED: Product name placeholder elimination
+🔥 FIXED: Missing method issues
 """
 
 import os
@@ -112,15 +113,16 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
         
         # Generate with ultra-cheap AI system
         try:
-            ai_result = await self._generate_with_ultra_cheap_ai(
+            ai_result = await self._generate_with_dynamic_ai(
+                content_type="email_sequence",
                 prompt=email_prompt,
                 system_message=f"You are an expert email marketer creating diverse, high-converting email sequences. ALWAYS use the exact product name '{actual_product_name}' - never use placeholders like 'Your', 'PRODUCT', or '[Product]'.",
                 max_tokens=4000,
                 temperature=0.8,
-                required_strength="long_form"
+                task_complexity="standard"
             )
             
-            if ai_result and ai_result.get("content"):
+            if ai_result and ai_result.get("success"):
                 # Parse email sequence from AI response
                 emails = self._parse_email_sequence(ai_result["content"], sequence_length, actual_product_name, uniqueness_id)
                 
@@ -140,7 +142,7 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
                     
                     logger.info(f"✅ SUCCESS: Generated {len(fixed_emails)} diverse emails with product name '{actual_product_name}'")
                     
-                    return self._create_standardized_response(
+                    return self._create_enhanced_response(
                         content={
                             "sequence_title": f"Campaign Email Sequence - {actual_product_name}",
                             "emails": fixed_emails,
@@ -465,6 +467,7 @@ Your {actual_product_name} Team""",
             fixed_emails.append(fixed_email)
         
         fallback_ai_result = {
+            "success": True,
             "content": "Fallback content generated",
             "provider_used": "guaranteed_fallback",
             "cost": 0.0,
@@ -472,7 +475,7 @@ Your {actual_product_name} Team""",
             "generation_time": 0.5
         }
         
-        return self._create_standardized_response(
+        return self._create_enhanced_response(
             content={
                 "sequence_title": f"Guaranteed Campaign Email Sequence - {actual_product_name}",
                 "emails": fixed_emails,
@@ -541,4 +544,4 @@ async def generate_email_sequence_with_ultra_cheap_ai(
 def get_email_generator_cost_summary() -> Dict[str, Any]:
     """Get cost summary from email generator"""
     generator = EmailSequenceGenerator()
-    return generator.get_cost_summary()
+    return generator.get_optimization_analytics()
