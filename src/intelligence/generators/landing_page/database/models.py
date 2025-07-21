@@ -117,7 +117,7 @@ class Campaign(Base):
     require_step_completion = Column(Boolean, default=False)
     save_frequently = Column(Boolean, default=True)
     
-    # Enhanced counters
+    #  counters
     sources_count = Column(Integer, default=0)
     sources_processed = Column(Integer, default=0)
     intelligence_extracted = Column(Integer, default=0)
@@ -134,7 +134,7 @@ class Campaign(Base):
     step_1_progress = Column(JSONB, default={})
     last_active_step = Column(Integer, default=1)
     
-    # Enhanced metadata
+    #  metadata
     resume_data = Column(JSONB, default={})
     confidence_score = Column(DECIMAL(3,2), default=0.0)
     performance_metrics = Column(JSONB, default={})
@@ -174,7 +174,7 @@ class CampaignIntelligence(Base):
     competitive_intelligence = Column(JSONB, default={})
     brand_intelligence = Column(JSONB, default={})
     
-    # Enhanced intelligence fields
+    #  intelligence fields
     scientific_intelligence = Column(JSONB, default={})
     credibility_intelligence = Column(JSONB, default={})
     market_intelligence = Column(JSONB, default={})
@@ -212,7 +212,7 @@ class GeneratedContent(Base):
     generation_settings = Column(JSONB, default={})
     intelligence_used = Column(JSONB, default={})
     
-    # Enhanced landing page fields
+    #  landing page fields
     landing_page_metadata = Column(JSONB, default={})
     seo_data = Column(JSONB, default={})
     performance_predictions = Column(JSONB, default={})

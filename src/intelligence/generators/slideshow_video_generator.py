@@ -7,6 +7,8 @@ import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import json
+import aiohttp
+import aiofiles
 
 from src.models.base import EnumSerializerMixin
 from src.storage.universal_dual_storage import get_storage_manager
@@ -157,6 +159,163 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
         
         return fixed_result
     
+    async def generate_slideshow_video_with_image_generation(
+        self,
+        intelligence_data: Dict[str, Any],
+        campaign_id: str,
+        current_user: Any,
+        image_assets: List[Dict[str, Any]] = None,
+        video_preferences: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Generate slideshow video with automatic image generation if needed"""
+        
+        # Import Stability AI generator here to avoid circular imports
+        try:
+            from .stability_ai_generator import StabilityAIGenerator
+        except ImportError:
+            logger.warning("StabilityAIGenerator not available, using placeholder images")
+            stability_generator = None
+        else:
+            stability_generator = StabilityAIGenerator()
+        
+        # Define preferences with defaults
+        preferences = video_preferences or {
+            "duration_per_slide": 3,
+            "transition_type": "fade",
+            "resolution": "1920x1080",
+            "fps": 30,
+            "format": "mp4",
+            "quality": "high"
+        }
+        
+        # Extract image URLs from assets or generate them
+        image_urls = []
+        image_asset_ids = []
+        
+        if image_assets:
+            # Use provided image assets
+            for asset in image_assets:
+                if "url" in asset:
+                    image_urls.append(asset["url"])
+                if "id" in asset:
+                    image_asset_ids.append(asset["id"])
+        else:
+            # Generate images if none provided and Stability AI is available
+            if stability_generator:
+                # Extract product name for better prompts
+                product_name = extract_product_name_from_intelligence(intelligence_data)
+                
+                # Generate 3-5 marketing images
+                image_prompts = [
+                    f"Professional marketing image for {product_name}, health supplement photography",
+                    f"Lifestyle image showing wellness transformation with {product_name}", 
+                    f"{product_name} benefits visualization, clean modern design",
+                    f"Call-to-action marketing visual featuring {product_name}"
+                ]
+                
+                for i, prompt in enumerate(image_prompts):
+                    try:
+                        image_result = await stability_generator.generate_social_media_image(
+                            prompt=prompt,
+                            platform="general",
+                            style="marketing"
+                        )
+                        
+                        if image_result.get("success") and "image_data" in image_result:
+                            # Save image to storage
+                            image_filename = f"slideshow_{campaign_id}_{i}.png"
+                            storage_result = await self.storage_manager.save_content_dual_storage(
+                                content_data=image_result["image_data"]["image_base64"],
+                                content_type="image",
+                                filename=image_filename,
+                                user_id=str(current_user.id),
+                                campaign_id=campaign_id,
+                                metadata={
+                                    "content_type": "slideshow_image",
+                                    "prompt": prompt,
+                                    "generation_method": "stability_ai"
+                                }
+                            )
+                            
+                            if storage_result.get("success"):
+                                image_urls.append(storage_result["public_url"])
+                                image_asset_ids.append(storage_result.get("asset_id"))
+                                
+                    except Exception as e:
+                        logger.error(f"Failed to generate slideshow image {i}: {str(e)}")
+                        continue
+            else:
+                # Fallback: use placeholder images
+                placeholder_urls = [
+                    "https://via.placeholder.com/1920x1080/4CAF50/white?text=Health+Benefits",
+                    "https://via.placeholder.com/1920x1080/2196F3/white?text=Natural+Wellness",
+                    "https://via.placeholder.com/1920x1080/FF9800/white?text=Transform+Your+Health",
+                    "https://via.placeholder.com/1920x1080/9C27B0/white?text=Call+to+Action"
+                ]
+                image_urls = placeholder_urls
+                image_asset_ids = [f"placeholder_{i}" for i in range(len(placeholder_urls))]
+        
+        # Ensure we have at least some images
+        if not image_urls:
+            return {
+                "success": False,
+                "error": "No images available for slideshow generation",
+                "suggestion": "Please provide image assets or ensure image generation is working"
+            }
+        
+        try:
+            # Generate slideshow video
+            video_result = await self.generate_slideshow_video(
+                intelligence_data=intelligence_data,
+                images=image_urls,
+                preferences=preferences
+            )
+            
+            if not video_result.get("success"):
+                return {
+                    "success": False,
+                    "error": "Slideshow video generation failed",
+                    "details": video_result.get("error")
+                }
+            
+            # Save video to dual storage
+            video_filename = f"slideshow_{campaign_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+            
+            storage_result = await self.storage_manager.save_content_dual_storage(
+                content_data=video_result["video_data"],
+                content_type="video",
+                filename=video_filename,
+                user_id=str(current_user.id),
+                campaign_id=campaign_id,
+                metadata={
+                    "video_type": "slideshow",
+                    "source_images": image_asset_ids,
+                    "duration": video_result["duration"],
+                    "provider_used": video_result["provider_used"],
+                    "generation_cost": video_result["cost"]
+                }
+            )
+            
+            return {
+                "success": True,
+                "video_url": storage_result["public_url"],
+                "video_id": storage_result.get("asset_id"),
+                "duration": video_result["duration"],
+                "provider_used": video_result["provider_used"],
+                "cost": video_result["cost"],
+                "source_images": image_asset_ids,
+                "preferences_used": preferences,
+                "generation_timestamp": video_result["generation_timestamp"]
+            }
+            
+        except Exception as e:
+            logger.error(f"Slideshow video generation failed: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "fallback_suggestion": "Try with fewer images or different settings"
+            }
+    
     async def _generate_storyboard(
         self,
         intelligence_data: Dict[str, Any],
@@ -219,6 +378,9 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
                 # Download images to temp directory
                 image_paths = await self._download_images_to_temp(images, temp_dir)
                 
+                if not image_paths:
+                    raise Exception("No images were successfully downloaded")
+                
                 # Generate video with FFmpeg
                 output_path = os.path.join(temp_dir, "slideshow.mp4")
                 
@@ -267,9 +429,6 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
     
     async def _download_images_to_temp(self, images: List[str], temp_dir: str) -> List[str]:
         """Download images to temporary directory"""
-        
-        import aiohttp
-        import aiofiles
         
         image_paths = []
         
@@ -324,4 +483,62 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
         return {
             "success": False,
             "error": "Pika Labs integration not implemented yet"
+        }
+    
+    async def generate_batch_videos(
+        self,
+        campaigns: List[Dict[str, Any]],
+        batch_preferences: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Generate multiple slideshow videos efficiently"""
+        
+        results = []
+        total_cost = 0
+        
+        for i, campaign in enumerate(campaigns):
+            try:
+                result = await self.generate_slideshow_video_with_image_generation(
+                    intelligence_data=campaign["intelligence_data"],
+                    campaign_id=campaign["campaign_id"],
+                    current_user=campaign["current_user"],
+                    image_assets=campaign.get("image_assets"),
+                    video_preferences=batch_preferences
+                )
+                results.append(result)
+                
+                if result.get("success"):
+                    total_cost += result.get("cost", 0)
+                
+                # Small delay to avoid overwhelming the system
+                await asyncio.sleep(1)
+                
+                logger.info(f"Generated slideshow video {i+1}/{len(campaigns)}")
+                
+            except Exception as e:
+                logger.error(f"Batch video generation failed for campaign {i+1}: {str(e)}")
+                results.append({
+                    "success": False,
+                    "error": str(e),
+                    "campaign_id": campaign.get("campaign_id")
+                })
+        
+        return {
+            "total_videos": len(campaigns),
+            "successful_generations": len([r for r in results if r.get("success")]),
+            "failed_generations": len([r for r in results if not r.get("success")]),
+            "total_cost": total_cost,
+            "cost_per_video": total_cost / len(campaigns) if campaigns else 0,
+            "results": results
+        }
+    
+    def get_video_statistics(self) -> Dict[str, Any]:
+        """Get video generation statistics"""
+        
+        return {
+            "available_providers": [p["name"] for p in self.video_providers if p["available"]],
+            "provider_costs": {p["name"]: p["cost_per_video"] for p in self.video_providers},
+            "default_settings": self.default_settings,
+            "supported_formats": ["mp4", "avi", "mov"],
+            "supported_resolutions": ["1920x1080", "1280x720", "3840x2160"],
+            "ffmpeg_available": self._check_ffmpeg_availability()
         }

@@ -109,7 +109,7 @@ class AnalysisHandler:
     
     async def analyze_url(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Enhanced URL analysis with direct amplifier integration
+         URL analysis with direct amplifier integration
         Main business logic extracted from routes.py
         🔥 FIXED: All ChunkedIteratorResult async/await issues resolved
         """
@@ -1290,7 +1290,7 @@ async def store_analysis_with_bindparam(
 - Proper use of result.scalar() and result.scalar_one_or_none()
 - Explicit async commit with try/except fallback
 - Comprehensive error handling with rollback
-- Enhanced logging for debugging
+-  logging for debugging
 
 ✅ EMERGENCY TESTING METHODS:
 - analyze_url_simplified() - bypasses SQLAlchemy ORM using raw SQL

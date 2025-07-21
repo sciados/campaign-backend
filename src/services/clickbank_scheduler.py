@@ -1,4 +1,4 @@
-# src/services/clickbank_scheduler.py - Enhanced High-Converting Categories Scraper
+# src/services/clickbank_scheduler.py -  High-Converting Categories Scraper
 import asyncio
 import logging
 from datetime import datetime, time, timedelta
@@ -24,9 +24,9 @@ from models.clickbank import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class EnhancedClickBankScheduler:
+classClickBankScheduler:
     """
-    Enhanced scheduler for high-converting ClickBank categories
+     scheduler for high-converting ClickBank categories
     Prioritizes top-performing niches and handles dynamic URL generation
     """
     
@@ -86,7 +86,7 @@ class EnhancedClickBankScheduler:
                 await self.log_scraping_failure(schedule.category, str(e))
     
     async def scrape_category_enhanced(self, schedule: ScrapingSchedule):
-        """Enhanced category scraping with performance tracking"""
+        """ category scraping with performance tracking"""
         # Get category URL configuration
         category_config = self.db.query(ClickBankCategoryURL).filter(
             ClickBankCategoryURL.category == schedule.category
@@ -199,13 +199,13 @@ class EnhancedClickBankScheduler:
         return urls
     
     async def store_products_enhanced(self, products_data: List[dict], category: str) -> tuple[int, int]:
-        """Enhanced product storage with duplicate prevention and data quality checks"""
+        """ product storage with duplicate prevention and data quality checks"""
         added = 0
         updated = 0
         
         for product_data in products_data:
             try:
-                # Enhanced data validation
+                #  data validation
                 if not self.validate_product_data(product_data):
                     logger.warning(f"Invalid product data skipped: {product_data.get('title', 'Unknown')}")
                     continue
@@ -543,9 +543,9 @@ class EnhancedClickBankScheduler:
         self.db.commit()
 
 
-class EnhancedClickBankScraper:
+classClickBankScraper:
     """
-    Enhanced scraper with better product extraction for high-converting categories
+     scraper with better product extraction for high-converting categories
     """
     
     def __init__(self, db: Session):

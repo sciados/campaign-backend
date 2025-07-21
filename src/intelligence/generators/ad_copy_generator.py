@@ -35,7 +35,7 @@ from src.intelligence.utils.product_name_fix import (
 logger = logging.getLogger(__name__)
 
 class AdCopyGenerator(BaseContentGenerator, EnumSerializerMixin):
-    """Enhanced ad copy generator with ultra-cheap AI integration and product name fixes"""
+    """ ad copy generator with ultra-cheap AI integration and product name fixes"""
     
     def __init__(self):
         # Initialize with ultra-cheap AI system
@@ -194,7 +194,7 @@ class AdCopyGenerator(BaseContentGenerator, EnumSerializerMixin):
         except Exception as e:
             logger.error(f"❌ Ultra-cheap AI ad generation failed: {str(e)}")
         
-        # Enhanced fallback with platform optimization and product name fixes
+        #  fallback with platform optimization and product name fixes
         logger.warning("🔄 Using enhanced ad copy fallback with platform optimization")
         return self._guaranteed_ad_copy_fallback(product_details, platform, objective, ad_count)
     

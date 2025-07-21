@@ -153,7 +153,7 @@ def get_available_enhancers():
             },
             {
                 "name": "ContentIntelligenceEnhancer",
-                "focus": "Enhanced messaging and social proof",
+                "focus": " messaging and social proof",
                 "generates": ["enhanced_key_messages", "social_proof_amplification", "success_story_frameworks", "messaging_hierarchy", "engagement_optimization"]
             },
             {

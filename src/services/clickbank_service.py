@@ -1,6 +1,6 @@
 # src/services/clickbank_service.py - NEW FILE
 """
-Enhanced ClickBank service for marketplace functionality
+ ClickBank service for marketplace functionality
 """
 import asyncio
 from uuid import uuid4

@@ -238,7 +238,7 @@ class SmartAILoadBalancer:
             logger.info(f"   {status_emoji} {name}: ${cost:.5f}/1K, {success_rate:.1%} success, {requests} requests")
 
 
-# Enhanced AI throttle with smart load balancing
+#  AI throttle with smart load balancing
 async def smart_ai_call_with_balancing(
     load_balancer: SmartAILoadBalancer,
     prompt: str,

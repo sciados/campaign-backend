@@ -66,7 +66,7 @@ class PerformanceCalculator:
         Args:
             intelligence_data: Competitor and market intelligence
             page_config: Landing page configuration and elements
-            conversion_intelligence: Enhanced conversion intelligence
+            conversion_intelligence:  conversion intelligence
             
         Returns:
             PerformancePrediction with detailed performance forecasts

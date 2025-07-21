@@ -29,7 +29,7 @@ class ProviderTier(Enum):
 
 @dataclass
 class TieredProviderConfig:
-    """Enhanced provider config with tier information"""
+    """ provider config with tier information"""
     name: str
     priority: int
     cost_per_1k_tokens: float

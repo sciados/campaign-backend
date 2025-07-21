@@ -235,7 +235,7 @@ def get_available_models():
         'affiliate_preferences': UserAffiliatePreferences is not None
     }
 
-# Enhanced __all__ export with conditional inclusion
+#  __all__ export with conditional inclusion
 _base_exports = [
     'BaseModel',
     'EnumSerializerMixin', 
@@ -381,7 +381,7 @@ ENHANCEMENTS APPLIED TO models/__init__.py:
 6. ✅ Created conditional exports based on successful imports
 7. ✅ Added model availability checking and diagnostics
 8. ✅ Added on-demand import capability for ClickBank models
-9. ✅ Enhanced logging for debugging import issues
+9. ✅  logging for debugging import issues
 10. ✅ Maintained backward compatibility with existing code
 
 KEY CHANGES:

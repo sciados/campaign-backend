@@ -215,7 +215,7 @@ async def test_ultra_cheap_integration_railway():
             logger.error(f"   ❌ Railway compatibility test failed: {str(e)}")
             generation_results["railway_fallback"] = False
     
-    # Test 6: Enhanced Content Handler Integration (Working Generators Only)
+    # Test 6:  Content Handler Integration (Working Generators Only)
     logger.info("\n6️⃣ Testing enhanced content handler with working generators...")
     
     try:
@@ -225,22 +225,22 @@ async def test_ultra_cheap_integration_railway():
         result = await enhanced_content_generation("email_sequence", sample_intelligence, {"length": "1"})
         
         if result and result.get("content"):
-            logger.info("   ✅ Enhanced content handler (email): Working")
+            logger.info("   ✅  content handler (email): Working")
             logger.info("   ✅ Ultra-cheap AI integration: Active for emails")
         else:
-            logger.warning("   ⚠️ Enhanced content handler (email): Limited functionality")
+            logger.warning("   ⚠️  content handler (email): Limited functionality")
         
         # Test with ad copy
         result = await enhanced_content_generation("ad_copy", sample_intelligence, {"platform": "facebook"})
         
         if result and result.get("content"):
-            logger.info("   ✅ Enhanced content handler (ad copy): Working") 
+            logger.info("   ✅  content handler (ad copy): Working") 
             logger.info("   ✅ Ultra-cheap AI integration: Active for ad copy")
         else:
-            logger.warning("   ⚠️ Enhanced content handler (ad copy): Limited functionality")
+            logger.warning("   ⚠️  content handler (ad copy): Limited functionality")
             
     except Exception as e:
-        logger.error(f"   ❌ Enhanced content handler test failed: {str(e)}")
+        logger.error(f"   ❌  content handler test failed: {str(e)}")
     
     # Test 7: Railway-Specific Cost Analysis (Working Generators Only)
     logger.info("\n7️⃣ Railway cost analysis for working generators...")

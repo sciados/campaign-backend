@@ -1,6 +1,6 @@
 # src/intelligence/amplifier/core.py - PRODUCTION-READY AMPLIFIER
 """
-Production Intelligence Amplifier Core - Scientific Backing & Enhanced Analysis
+Production Intelligence Amplifier Core - Scientific Backing &  Analysis
 🚀 UPGRADE: From basic amplifier to full-featured production system
 """
 import asyncio
@@ -39,11 +39,11 @@ class IntelligenceAmplifier:
 
     async def amplify_intelligence(self, user_sources: List[Dict], preferences: Dict = None) -> Dict[str, Any]:
         """
-        PRODUCTION AMPLIFIER: Enhanced intelligence with scientific backing
+        PRODUCTION AMPLIFIER:  intelligence with scientific backing
         
         Upgrades from basic analysis to research-backed intelligence with:
         - Scientific validation of health claims
-        - Enhanced credibility scoring
+        -  credibility scoring
         - Competitive gap analysis
         - Research-backed positioning
         """
@@ -53,8 +53,8 @@ class IntelligenceAmplifier:
             preferences = {}
         
         try:
-            # STEP 1: Enhanced Source Analysis
-            logger.info("📊 Step 1: Enhanced source analysis...")
+            # STEP 1:  Source Analysis
+            logger.info("📊 Step 1:  source analysis...")
             analysis = await self._enhanced_source_analysis(user_sources)
             
             # STEP 2: Advanced Intelligence Extraction
@@ -110,7 +110,7 @@ class IntelligenceAmplifier:
             return await self._fallback_amplification(user_sources, preferences)
 
     async def _enhanced_source_analysis(self, user_sources: List[Dict]) -> Dict[str, Any]:
-        """Enhanced source analysis with deeper extraction"""
+        """ source analysis with deeper extraction"""
         
         enhanced_analysis = {}
         
@@ -119,7 +119,7 @@ class IntelligenceAmplifier:
                 source_key = f"source_{idx}"
                 
                 if source.get("type") == "url":
-                    # Enhanced URL analysis
+                    #  URL analysis
                     analysis_result = source.get("analysis_result", {})
                     
                     enhanced_analysis[source_key] = {
@@ -131,7 +131,7 @@ class IntelligenceAmplifier:
                     }
                     
                 elif source.get("type") == "intelligence":
-                    # Enhanced intelligence source analysis
+                    #  intelligence source analysis
                     intelligence_data = source.get("data", {})
                     
                     enhanced_analysis[source_key] = {
@@ -142,7 +142,7 @@ class IntelligenceAmplifier:
                     }
                     
             except Exception as source_error:
-                logger.warning(f"⚠️ Enhanced analysis failed for source {idx}: {str(source_error)}")
+                logger.warning(f"⚠️  analysis failed for source {idx}: {str(source_error)}")
                 enhanced_analysis[f"source_{idx}"] = {"error": str(source_error)}
         
         return enhanced_analysis
@@ -474,7 +474,7 @@ class IntelligenceAmplifier:
             "social_proof_enhancement": credibility_enhancements.get("social_proof_enhancement", [])
         }
         
-        # Enhanced confidence score
+        #  confidence score
         original_confidence = base_intel.get("confidence_score", 0.0)
         enhanced_confidence = credibility_enhancements.get("credibility_score", original_confidence)
         enriched["confidence_score"] = enhanced_confidence
@@ -527,7 +527,7 @@ class IntelligenceAmplifier:
             "scientific_enhancements": metrics.get("scientific_enhancements", 0),
             "production_features": [
                 "Scientific backing validation",
-                "Enhanced credibility scoring",
+                " credibility scoring",
                 "Competitive intelligence amplification",
                 "Research-backed positioning"
             ]

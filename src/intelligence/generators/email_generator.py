@@ -34,7 +34,7 @@ from src.intelligence.utils.product_name_fix import (
 logger = logging.getLogger(__name__)
 
 class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
-    """Enhanced email sequence generator with ultra-cheap AI integration and product name fixes"""
+    """ email sequence generator with ultra-cheap AI integration and product name fixes"""
     
     def __init__(self):
         # Initialize with ultra-cheap AI system
@@ -157,7 +157,7 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
         except Exception as e:
             logger.error(f"❌ Ultra-cheap AI email generation failed: {str(e)}")
         
-        # Enhanced fallback with guaranteed diversity and product name fixes
+        #  fallback with guaranteed diversity and product name fixes
         logger.warning("🔄 Using enhanced email fallback with campaign focus")
         return self._guaranteed_campaign_email_fallback(product_details, sequence_length, uniqueness_id)
     

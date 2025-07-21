@@ -679,7 +679,7 @@ async def create_campaign_from_community_product(
     if not product:
         raise ValueError("Product not found or not approved")
     
-    # Enhanced campaign data with community intelligence
+    #  campaign data with community intelligence
     enhanced_campaign_data = {
         **campaign_data,
         "clickbank_product_id": product["clickbank_product_id"],

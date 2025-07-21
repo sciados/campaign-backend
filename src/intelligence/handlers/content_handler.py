@@ -2,7 +2,7 @@
 File: src/intelligence/handlers/content_handler.py
 🔧 FIXED: Content Handler - Async Issue Resolution
 ✅ FIXED: "object NoneType can't be used in 'await' expression" error
-✅ FIXED: Enhanced content generation function properly async
+✅ FIXED:  content generation function properly async
 ✅ FIXED: Direct factory usage with proper error handling
 """
 import json
@@ -21,21 +21,21 @@ from ..utils.enum_serializer import EnumSerializerMixin
 
 logger = logging.getLogger(__name__)
 
-# 🔧 FIXED: Enhanced content generation with proper async handling
-async def enhanced_content_generation(
+# 🔧 FIXED:  content generation with proper async handling
+async def content_generation(
     content_type: str, 
     intelligence_data: Dict[str, Any], 
     preferences: Dict[str, Any] = None
 ) -> Dict[str, Any]:
     """
-    🔧 FIXED: Enhanced content generation with ultra-cheap AI and proper async handling
+    🔧 FIXED:  content generation with ultra-cheap AI and proper async handling
     This function now properly handles async operations and prevents NoneType errors
     """
     
     if preferences is None:
         preferences = {}
     
-    logger.info(f"🎯 Enhanced content generation: {content_type}")
+    logger.info(f"🎯  content generation: {content_type}")
     
     try:
         # Import and use factory directly for reliable generation
@@ -54,11 +54,11 @@ async def enhanced_content_generation(
         if not isinstance(result, dict):
             raise ValueError(f"Factory returned invalid result type: {type(result)}")
         
-        logger.info(f"✅ Enhanced generation successful: {content_type}")
+        logger.info(f"✅  generation successful: {content_type}")
         return result
         
     except Exception as e:
-        logger.error(f"❌ Enhanced generation failed for {content_type}: {str(e)}")
+        logger.error(f"❌  generation failed for {content_type}: {str(e)}")
         
         # 🔧 FIXED: Return proper fallback instead of raising
         return await _generate_fallback_content(content_type, intelligence_data, str(e))

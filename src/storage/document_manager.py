@@ -67,7 +67,7 @@ class DocumentManager:
         # Generate preview
         preview_data = await self._generate_document_preview(content, file_type)
         
-        # Enhanced metadata
+        #  metadata
         enhanced_metadata = {
             "document_type": file_type,
             "text_content": text_content[:1000],  # First 1000 chars for search

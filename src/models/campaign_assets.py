@@ -34,7 +34,7 @@ class AssetStatus(Enum):
     ARCHIVED = "archived"
 
 class CampaignAsset(BaseModel):
-    """Enhanced campaign asset model with dual storage support"""
+    """ campaign asset model with dual storage support"""
     
     # ✅ FIXED: Remove conflicting parameters
     __tablename__ = "campaign_assets"
@@ -63,7 +63,7 @@ class CampaignAsset(BaseModel):
     # Legacy single storage (for backward compatibility)
     file_url = Column(Text, nullable=True)
     
-    # ✅ NEW: Enhanced dual storage URLs
+    # ✅ NEW:  dual storage URLs
     file_url_primary = Column(Text, nullable=True)      # Cloudflare R2
     file_url_backup = Column(Text, nullable=True)       # Backblaze B2
     

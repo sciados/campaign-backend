@@ -2,7 +2,7 @@
 """
 Intelligence analysis engines - The core AI that extracts competitive insights
 🔥 FIXED: Product name placeholder issue - AI now uses actual product names
-📝 UPDATED: Enhanced prompts and post-processing to eliminate generic placeholders
+📝 UPDATED:  prompts and post-processing to eliminate generic placeholders
 ✅ COMPLETE: Full file with all methods and placeholder substitution system
 """
 import aiohttp
@@ -637,7 +637,7 @@ class SalesPageAnalyzer:
     def _create_intelligence_prompt(self, structured_content: Dict[str, Any], url: str, product_name: str) -> str:
         """🔥 FIXED: Create optimized prompt with product name enforcement - eliminates placeholders"""
         
-        # 🔥 CRITICAL: Enhanced prompt that enforces actual product name usage
+        # 🔥 CRITICAL:  prompt that enforces actual product name usage
         prompt = f"""Analyze this sales page for the specific product "{product_name}":
 
 CRITICAL INSTRUCTIONS:
@@ -1040,7 +1040,7 @@ Respond with structured analysis using "{product_name}" throughout."""
             },
             "competitive_intelligence": {
                 "opportunities": [
-                    f"Enhanced {product_name} positioning possible",  # 🔥 FIXED
+                    f" {product_name} positioning possible",  # 🔥 FIXED
                     f"Competitive differentiation opportunities for {product_name}",  # 🔥 FIXED
                     f"{product_name} market gap analysis needed"  # 🔥 FIXED
                 ],
@@ -1137,9 +1137,9 @@ Respond with structured analysis using "{product_name}" throughout."""
         }
 
 
-# Enhanced analyzer class that extends the base
-class EnhancedSalesPageAnalyzer(SalesPageAnalyzer):
-    """Enhanced sales page analyzer with additional features"""
+#  analyzer class that extends the base
+classSalesPageAnalyzer(SalesPageAnalyzer):
+    """ sales page analyzer with additional features"""
     
     async def analyze_enhanced(
         self, 
@@ -1174,7 +1174,7 @@ class EnhancedSalesPageAnalyzer(SalesPageAnalyzer):
             return enhanced_intelligence
             
         except Exception as e:
-            logger.error(f"Enhanced analysis failed: {str(e)}")
+            logger.error(f" analysis failed: {str(e)}")
             # Return basic analysis on error
             return await self.analyze(url)
     

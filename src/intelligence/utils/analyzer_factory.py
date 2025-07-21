@@ -154,7 +154,7 @@ def get_available_analyzers() -> Dict[str, Dict[str, Any]]:
             "available": analyzers_available
         },
         "enhanced_sales_page": {
-            "name": "Enhanced Sales Page Analyzer",
+            "name": " Sales Page Analyzer",
             "description": "Advanced sales page analysis with deeper insights",
             "supported_formats": ["HTML", "URL"],
             "available": analyzers_available
@@ -308,7 +308,7 @@ class AnalyzerManager:
         if any(indicator in url_lower for indicator in ['video', 'vsl', 'watch', 'play']):
             return "vsl"
         
-        # Enhanced sales page detection
+        #  sales page detection
         if any(indicator in url_lower for indicator in ['sales', 'buy', 'order', 'checkout', 'offer']):
             return "enhanced_sales_page"
         

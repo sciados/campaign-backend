@@ -105,7 +105,7 @@ def get_provider_health_report() -> Dict[str, Any]:
 # ============================================================================
 
 async def throttle_ai_request(provider_name: str) -> None:
-    """Enhanced throttling with provider health awareness"""
+    """ throttling with provider health awareness"""
     global _last_request_time, _request_counts, _current_minute
     
     current_time = time.time()
@@ -121,7 +121,7 @@ async def throttle_ai_request(provider_name: str) -> None:
         _request_counts[provider_name] = 0
         _last_request_time[provider_name] = 0
     
-    # Enhanced limits based on provider health
+    #  limits based on provider health
     base_limits = {
         "groq": {"max_per_minute": 15, "min_delay": 4.0},
         "together": {"max_per_minute": 60, "min_delay": 1.0},

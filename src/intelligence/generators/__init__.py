@@ -1,6 +1,6 @@
 # src/intelligence/generators/__init__.py
 """
-Enhanced Generators with Ultra-Cheap AI Integration
+ Generators with Ultra-Cheap AI Integration
 Railway deployment compatible
 """
 

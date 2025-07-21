@@ -213,7 +213,7 @@ class VideoContentGenerator:
 ### **Phase 1: Intelligence Enhancement (Week 1)**
 ```python
 # Replace OpenAI with Claude for analysis
-class EnhancedAnalyzer:
+classAnalyzer:
     def __init__(self):
         self.claude = anthropic.AsyncAnthropic(api_key=CLAUDE_API_KEY)
         self.perplexity = PerplexityAPI(api_key=PERPLEXITY_API_KEY)
@@ -299,7 +299,7 @@ class CostOptimizedAI:
 
 ## **🎯 Recommended Implementation Order**
 
-### **Week 1: Enhanced Intelligence (High Impact)**
+### **Week 1:  Intelligence (High Impact)**
 1. ✅ Add Claude API for competitive analysis
 2. ✅ Implement Perplexity for real-time research
 3. ✅ Compare Claude vs GPT-4 results for your HEPATOBURN content

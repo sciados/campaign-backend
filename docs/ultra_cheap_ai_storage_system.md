@@ -75,7 +75,7 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │              ENHANCED DATABASE SCHEMA                           │
 │                                                                 │
-│  campaign_assets (Enhanced):                                   │
+│  campaign_assets ():                                   │
 │  ├── file_url_primary: "https://r2.../file.ext"               │
 │  ├── file_url_backup:  "https://b2.../file.ext"               │
 │  ├── asset_type: IMAGE|DOCUMENT|VIDEO                          │
@@ -174,7 +174,7 @@ src/storage/
 │   └── backblaze_b2.py              # NEW - Backup storage
 
 src/models/
-├── campaign_assets.py               # MODIFY - Enhanced with dual storage
+├── campaign_assets.py               # MODIFY -  with dual storage
 ```
 
 ### Phase 3 Files
@@ -251,7 +251,7 @@ python-docx>=0.8.11
 
 ## 🗄️ Database Schema Updates
 
-### Enhanced Campaign Assets Table
+###  Campaign Assets Table
 ```sql
 -- Add columns to existing campaign_assets table
 ALTER TABLE campaign_assets 
@@ -1216,10 +1216,10 @@ def get_storage_manager() -> UniversalDualStorageManager:
     return _storage_manager
 ```
 
-### 3. Enhanced Campaign Asset Model
+### 3.  Campaign Asset Model
 
 ```python
-# src/models/campaign_assets.py - Enhanced version
+# src/models/campaign_assets.py -  version
 from sqlalchemy import Column, String, Integer, DateTime, Text, Boolean, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
@@ -1248,7 +1248,7 @@ class ContentCategory(Enum):
     SYSTEM_GENERATED = "system_generated"
 
 class CampaignAsset(BaseModel):
-    """Enhanced campaign asset model with dual storage support"""
+    """ campaign asset model with dual storage support"""
     
     # Basic asset information
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -1266,7 +1266,7 @@ class CampaignAsset(BaseModel):
     # Legacy single storage (for backward compatibility)
     file_url = Column(Text, nullable=True)
     
-    # Enhanced dual storage URLs
+    #  dual storage URLs
     file_url_primary = Column(Text, nullable=True)      # Cloudflare R2
     file_url_backup = Column(Text, nullable=True)       # Backblaze B2
     
@@ -1392,7 +1392,7 @@ class DocumentManager:
         # Generate preview
         preview_data = await self._generate_document_preview(content, file_type)
         
-        # Enhanced metadata
+        #  metadata
         enhanced_metadata = {
             "document_type": file_type,
             "text_content": text_content[:1000],  # First 1000 chars for search

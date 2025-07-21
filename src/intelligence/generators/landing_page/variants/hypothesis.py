@@ -32,7 +32,7 @@ class HypothesisGenerator:
             },
             'benefit_focused': {
                 'hypothesis': "By enhancing the benefits section with stronger value propositions, we will increase user engagement",
-                'change': "Enhanced benefits with proof elements",
+                'change': " benefits with proof elements",
                 'improvement': "8-12% increase in time on page and conversions",
                 'metric': "Time on page, scroll depth, conversions",
                 'confidence': "High"
@@ -46,7 +46,7 @@ class HypothesisGenerator:
             },
             'social_proof_focused': {
                 'hypothesis': "By adding more testimonials and trust signals, we will reduce hesitation and increase trust",
-                'change': "Enhanced social proof and testimonials",
+                'change': " social proof and testimonials",
                 'improvement': "12-18% increase in conversion rate",
                 'metric': "Overall conversion rate",
                 'confidence': "High"

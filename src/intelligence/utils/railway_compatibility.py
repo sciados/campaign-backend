@@ -89,9 +89,9 @@ class RailwayCompatibilityLayer:
         return generator_class
 
 
-# Enhanced content handler compatibility
-class EnhancedContentHandler:
-    """Enhanced content handler with ultra-cheap AI and Railway compatibility"""
+#  content handler compatibility
+classContentHandler:
+    """ content handler with ultra-cheap AI and Railway compatibility"""
     
     def __init__(self):
         self.compatibility_layer = RailwayCompatibilityLayer()

@@ -718,7 +718,7 @@ class MarketIntelligenceEnhancer:
             ],
             "differentiation_opportunities": [
                 "Superior ingredient quality emphasis",
-                "Enhanced customer education and support",
+                " customer education and support",
                 "Transparent manufacturing processes"
             ]
         }

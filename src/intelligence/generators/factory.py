@@ -5,7 +5,7 @@ ENHANCED CONTENT GENERATOR FACTORY - ULTRA-CHEAP AI INTEGRATION
 ✅ 97% cost savings through smart provider hierarchy
 ✅ Automatic failover and load balancing
 ✅ Real-time cost tracking and optimization
-✅ Enhanced generator management with cost analytics
+✅  generator management with cost analytics
 """
 
 import logging
@@ -15,7 +15,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 class ContentGeneratorFactory:
-    """Enhanced factory with ultra-cheap AI integration"""
+    """ factory with ultra-cheap AI integration"""
     
     def __init__(self):
         self._generators = {}
@@ -43,7 +43,7 @@ class ContentGeneratorFactory:
         }
         
         self._initialize_generators()
-        logger.info(f"🚀 Enhanced Content Factory: {len(self._generators)} generators with ultra-cheap AI")
+        logger.info(f"🚀  Content Factory: {len(self._generators)} generators with ultra-cheap AI")
         
     def _initialize_generators(self):
         """Initialize all available generators with ultra-cheap AI"""
@@ -66,13 +66,13 @@ class ContentGeneratorFactory:
         except Exception as e:
             logger.warning(f"⚠️ Social Media Generators failed: {str(e)}")
         
-        # Enhanced Social Media Generator
+        #  Social Media Generator
         try:
-            from .enhanced_social_media_generator import EnhancedSocialMediaGenerator
+            from .social_media_generator import EnhancedSocialMediaGenerator
             self._generators["enhanced_social"] = EnhancedSocialMediaGenerator()
-            logger.info("✅ Enhanced Social Media Generator: Ultra-cheap AI enabled")
+            logger.info("✅  Social Media Generator: Ultra-cheap AI enabled")
         except Exception as e:
-            logger.warning(f"⚠️ Enhanced Social Media Generator failed: {str(e)}")
+            logger.warning(f"⚠️  Social Media Generator failed: {str(e)}")
         
         # Landing Page Generator
         try:
@@ -108,8 +108,8 @@ class ContentGeneratorFactory:
         
         # Standard Image Generator
         try:
-            from .image_generator import ImageGenerator
-            self._generators["image"] = ImageGenerator()
+            from .ultra_cheap_image_generator import UltraCheapImageGenerator
+            self._generators["image"] = UltraCheapImageGenerator()
             logger.info("✅ Standard Image Generator: Available")
         except Exception as e:
             logger.warning(f"⚠️ Standard Image Generator failed: {str(e)}")
@@ -564,7 +564,7 @@ class ContentGeneratorFactory:
         logger.info(f"Monthly savings projection (1K users): ${projections['monthly_savings_1000_users']:,.2f}")
 
 
-# Enhanced convenience functions
+#  convenience functions
 def create_enhanced_content_generator_factory() -> ContentGeneratorFactory:
     """Create and return an enhanced content generator factory instance"""
     return ContentGeneratorFactory()

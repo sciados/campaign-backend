@@ -139,7 +139,7 @@ class VariantGenerator:
         if benefit_section:
             enhanced_benefits = self._enhance_benefits_section(benefit_section, product_info)
             variant_html = base_html.replace(benefit_section, enhanced_benefits)
-            changes_made = ["Enhanced benefits section with stronger value propositions"]
+            changes_made = [" benefits section with stronger value propositions"]
         else:
             variant_html = base_html
             changes_made = ["No benefits section found to enhance"]

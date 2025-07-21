@@ -25,7 +25,7 @@ class UltraCheapMetadata(BaseModel):
 
 
 class GenerationMetadata(BaseModel):
-    """Enhanced generation metadata for content creation"""
+    """ generation metadata for content creation"""
     generation_id: str
     content_type: str
     user_id: Optional[str] = None

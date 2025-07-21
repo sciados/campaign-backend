@@ -1,6 +1,6 @@
 # src/intelligence/generators/landing_page/core/generator.py
 """
-Main Enhanced Landing Page Generator class.
+Main  Landing Page Generator class.
 This is the primary interface for generating landing pages.
 """
 
@@ -10,9 +10,9 @@ from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-class EnhancedLandingPageGenerator:
+classLandingPageGenerator:
     """
-    Enhanced Landing Page Generator
+     Landing Page Generator
     
     Main class that orchestrates the entire landing page generation process.
     Simplified to avoid dependency issues while maintaining functionality.
@@ -20,7 +20,7 @@ class EnhancedLandingPageGenerator:
     
     def __init__(self):
         self.ai_providers = self._initialize_ai_providers()
-        logger.info("✅ Enhanced Landing Page Generator initialized")
+        logger.info("✅  Landing Page Generator initialized")
     
     async def generate_landing_page(
         self,

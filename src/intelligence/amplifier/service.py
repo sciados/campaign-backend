@@ -1,7 +1,7 @@
 # src/intelligence/amplifier/service.py - PRODUCTION SERVICE LAYER
 """
 Production Intelligence Amplification Service - Scientific Backing Integration
-🚀 UPGRADE: Enhanced service layer with research validation and competitive intelligence
+🚀 UPGRADE:  service layer with research validation and competitive intelligence
 """
 import logging
 from typing import Dict, List, Any, Optional
@@ -33,7 +33,7 @@ class IntelligenceAmplificationService:
 
     async def process_sources(self, sources: List[Dict], preferences: Optional[Dict] = None) -> Dict[str, Any]:
         """
-        PRODUCTION PROCESSING: Enhanced intelligence with scientific backing
+        PRODUCTION PROCESSING:  intelligence with scientific backing
         
         Args:
             sources: List of intelligence sources to amplify
@@ -86,7 +86,7 @@ class IntelligenceAmplificationService:
                 "competitive_intelligence_amplified": production_preferences.get("amplify_competitive_intelligence", False)
             }
             
-            # Enhanced summary with production metrics
+            #  summary with production metrics
             enhanced_summary = {
                 **amplification_summary,
                 "amplification_service": "production",
@@ -192,7 +192,7 @@ class IntelligenceAmplificationService:
                 "scientific_backing": {
                     "status": "available",
                     "description": "Validates health claims with research support",
-                    "benefit": "Enhanced credibility and trust"
+                    "benefit": " credibility and trust"
                 },
                 "credibility_enhancement": {
                     "status": "available", 
@@ -308,7 +308,7 @@ class IntelligenceAmplificationService:
                 "Scientific authority positioning",
                 "Competitive differentiation",
                 "Premium market positioning",
-                "Enhanced conversion potential"
+                " conversion potential"
             ]
         }
 

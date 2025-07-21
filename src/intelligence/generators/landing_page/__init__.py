@@ -6,7 +6,7 @@ Main entry point for the enhanced landing page generation system.
 # Package metadata
 __version__ = "2.0.0"
 __author__ = "CampaignForge Team"
-__description__ = "Enhanced Landing Page Generator with Intelligence Integration"
+__description__ = " Landing Page Generator with Intelligence Integration"
 
 # Import with error handling - only import what actually exists
 try:

@@ -36,10 +36,10 @@ try:
         _update_provider_health
     )
     ENHANCED_AI_SYSTEM_AVAILABLE = True
-    logger.info("✅ Enhanced AI system imported")
+    logger.info("✅  AI system imported")
 except ImportError as e:
     ENHANCED_AI_SYSTEM_AVAILABLE = False
-    logger.warning(f"⚠️ Enhanced AI system not available: {str(e)}")
+    logger.warning(f"⚠️  AI system not available: {str(e)}")
 
 # Import all AI enhancement modules
 try:
@@ -373,7 +373,7 @@ async def identify_opportunities(base_intel: Dict, preferences: Dict, providers:
         return result
         
     except Exception as e:
-        logger.error(f"❌ Enhanced opportunity identification failed: {str(e)}")
+        logger.error(f"❌  opportunity identification failed: {str(e)}")
         return _fallback_identify_opportunities(base_intel)
 
 async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers: List) -> Dict[str, Any]:
@@ -528,7 +528,7 @@ async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers
         
         # Final logging
         success_rate = len(successful_modules) / len(enhancement_queue) * 100
-        logger.info(f"📊 Enhanced generation with mock data elimination completed:")
+        logger.info(f"📊  generation with mock data elimination completed:")
         logger.info(f"   ✅ Successful: {len(successful_modules)}/{len(enhancement_queue)} ({success_rate:.0f}%)")
         logger.info(f"   📈 Total real enhancements: {total_enhancements}")
         logger.info(f"   📈 Confidence boost: {confidence_boost:.1%}")
@@ -548,7 +548,7 @@ async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers
         return result
         
     except Exception as e:
-        logger.error(f"❌ Enhanced AI enhancement generation failed: {str(e)}")
+        logger.error(f"❌  AI enhancement generation failed: {str(e)}")
         return _fallback_generate_enhancements(base_intel, opportunities)
 
 def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[str, Any]:
@@ -667,7 +667,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
     else:
         logger.warning(f"⚠️ Authority enhancement: No valid data after cleaning")
     
-    # Enhanced content_intelligence by merging existing + AI enhancements
+    #  content_intelligence by merging existing + AI enhancements
     content_enhancement = enhancements.get("content_optimization", {})
     existing_content = enriched.get("content_intelligence", {})
     cleaned_content = _clean_enhancement_data(content_enhancement, "content")
@@ -972,7 +972,7 @@ def _calculate_credibility_score(enhancements: Dict, base_intel: Dict) -> float:
     base_confidence = base_intel.get("confidence_score", 0.0)
     confidence_boost = _calculate_confidence_boost(enhancements, base_intel)
     
-    # Enhanced credibility calculation
+    #  credibility calculation
     enhanced_credibility = min(base_confidence + confidence_boost, 1.0)
     
     return enhanced_credibility
@@ -999,7 +999,7 @@ def _count_enhancements_in_result(result: Dict[str, Any]) -> int:
 # ============================================================================
 
 def _fallback_identify_opportunities(base_intel: Dict) -> Dict[str, Any]:
-    """Enhanced fallback opportunity identification - NO MOCK DATA"""
+    """ fallback opportunity identification - NO MOCK DATA"""
     
     logger.warning("⚠️ Using fallback opportunity identification - AI system unavailable")
     
@@ -1022,7 +1022,7 @@ def _fallback_identify_opportunities(base_intel: Dict) -> Dict[str, Any]:
     }
 
 def _fallback_generate_enhancements(base_intel: Dict, opportunities: Dict) -> Dict[str, Any]:
-    """Enhanced fallback enhancement generation - NO MOCK DATA"""
+    """ fallback enhancement generation - NO MOCK DATA"""
     
     logger.warning("⚠️ Using fallback enhancement generation - AI system unavailable")
     
@@ -1210,7 +1210,7 @@ def log_enhanced_system_report():
     # System health
     health = stats["system_health"]
     logger.info(f"\nSystem Health:")
-    logger.info(f"  Enhanced AI System: {'✅ Available' if health['enhanced_ai_system_available'] else '❌ Unavailable'}")
+    logger.info(f"   AI System: {'✅ Available' if health['enhanced_ai_system_available'] else '❌ Unavailable'}")
     logger.info(f"  Enhancement Modules: {'✅ Available' if health['enhancement_modules_available'] else '❌ Unavailable'}")
     logger.info(f"  Mock Data Elimination: {'✅ Active' if health['mock_data_elimination_active'] else '❌ Inactive'}")
     logger.info(f"  Product Name Fixes: {'✅ Available' if health['product_name_fixes_available'] else '❌ Unavailable'}")
@@ -1253,10 +1253,10 @@ try:
         _update_provider_health
     )
     ENHANCED_AI_SYSTEM_AVAILABLE = True
-    logger.info("✅ Enhanced AI system imported")
+    logger.info("✅  AI system imported")
 except ImportError as e:
     ENHANCED_AI_SYSTEM_AVAILABLE = False
-    logger.warning(f"⚠️ Enhanced AI system not available: {str(e)}")
+    logger.warning(f"⚠️  AI system not available: {str(e)}")
 
 # Import all AI enhancement modules
 try:
@@ -1590,7 +1590,7 @@ async def identify_opportunities(base_intel: Dict, preferences: Dict, providers:
         return result
         
     except Exception as e:
-        logger.error(f"❌ Enhanced opportunity identification failed: {str(e)}")
+        logger.error(f"❌  opportunity identification failed: {str(e)}")
         return _fallback_identify_opportunities(base_intel)
 
 async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers: List) -> Dict[str, Any]:
@@ -1745,7 +1745,7 @@ async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers
         
         # Final logging
         success_rate = len(successful_modules) / len(enhancement_queue) * 100
-        logger.info(f"📊 Enhanced generation with mock data elimination completed:")
+        logger.info(f"📊  generation with mock data elimination completed:")
         logger.info(f"   ✅ Successful: {len(successful_modules)}/{len(enhancement_queue)} ({success_rate:.0f}%)")
         logger.info(f"   📈 Total real enhancements: {total_enhancements}")
         logger.info(f"   📈 Confidence boost: {confidence_boost:.1%}")
@@ -1765,7 +1765,7 @@ async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers
         return result
         
     except Exception as e:
-        logger.error(f"❌ Enhanced AI enhancement generation failed: {str(e)}")
+        logger.error(f"❌  AI enhancement generation failed: {str(e)}")
         return _fallback_generate_enhancements(base_intel, opportunities)
 
 def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[str, Any]:
@@ -1890,7 +1890,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
     else:
         logger.warning(f"⚠️ Authority enhancement: No valid data after cleaning")
     
-    # Enhanced content_intelligence by merging existing + AI enhancements
+    #  content_intelligence by merging existing + AI enhancements
     content_enhancement = enhancements.get("content_optimization", {})
     existing_content = enriched.get("content_intelligence", {})
     cleaned_content = _clean_enhancement_data(content_enhancement, "content")

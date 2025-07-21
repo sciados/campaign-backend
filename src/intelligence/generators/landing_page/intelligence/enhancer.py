@@ -324,7 +324,7 @@ class IntelligenceEnhancer:
         Converts dictionary enum fields back to JSON strings for database compatibility
         
         Args:
-            enhanced_intelligence: Enhanced intelligence data with dict enum fields
+            enhanced_intelligence:  intelligence data with dict enum fields
             
         Returns:
             Intelligence data ready for database storage

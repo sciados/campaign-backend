@@ -59,15 +59,15 @@ async_engine = create_async_engine(
 )
 
 # ============================================================================
-# ✅ FIXED: Enhanced Base class with conflict resolution
+# ✅ FIXED:  Base class with conflict resolution
 # ============================================================================
 
 # Create a custom metadata instance with conflict handling
 metadata = MetaData()
 
-# Enhanced Base class
-class EnhancedBase:
-    """Enhanced base class with conflict resolution"""
+#  Base class
+classBase:
+    """ base class with conflict resolution"""
     
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -261,7 +261,7 @@ def get_table_info():
         return []
 
 # ============================================================================
-# ✅ FIXED: Enhanced initialization function
+# ✅ FIXED:  initialization function
 # ============================================================================
 
 def initialize_database():
