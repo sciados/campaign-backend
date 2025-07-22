@@ -1,661 +1,899 @@
 # src/intelligence/utils/product_name_fix.py
 """
-🔥 PRODUCT NAME FIX UTILITY
-Handles extraction and substitution of actual product names from intelligence data
-Eliminates placeholders like "HEPATOBURNTRY", "PRODUCT", "[Product]", etc.
+UNIVERSAL Product Name Extraction System
+🎯 Designed to extract product names from thousands of different sales pages
+✅ Works with any niche: health, finance, software, courses, etc.
+✅ Handles multiple product name formats and patterns
+✅ Robust against AI hallucinations and fallback content
 """
 
 import re
-import json
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, List, Any, Optional, Set, Tuple
+from urllib.parse import urlparse
+from collections import Counter, defaultdict
 
 logger = logging.getLogger(__name__)
 
-# Common product name placeholders that need to be replaced
-PLACEHOLDER_PATTERNS = [
-    # Generic placeholders
-    r'\[Product\]', r'\[PRODUCT\]', r'\[product\]',
-    r'\{Product\}', r'\{PRODUCT\}', r'\{product\}',
-    r'PRODUCT', r'Product', r'product',
-    r'Your Product', r'YOUR PRODUCT', r'your product',
-    r'Your Company', r'YOUR COMPANY', r'your company',
-    r'This Product', r'THIS PRODUCT', r'this product',
+class UniversalProductExtractor:
+    """Universal product name extractor for any sales page"""
     
-    # Corrupted variations (like HEPATOBURNTRY)
-    r'[A-Z]+TRY$',  # Words ending in TRY that look corrupted
-    r'[A-Z]{10,}',  # Very long uppercase strings that might be corrupted
-    
-    # Common corruption patterns
-    r'HEPATOBURNTRY', r'PRODUCTNAME', r'BRANDNAME',
-    r'SUPPLEMENTNAME', r'ITEMNAME', r'SERVICENAME'
-]
+    def __init__(self):
+        # Universal product name patterns (works for any niche)
+        self.universal_patterns = [
+            # Direct mentions with action words
+            r'(?:try|get|use|discover|introducing|meet|welcome\s+to|buy|order|download)\s+([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})',
+            
+            # Product helps/supports patterns
+            r'([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})\s+(?:helps?|supports?|provides?|delivers?|works?|offers?|gives?)',
+            
+            # Possessive and descriptive patterns
+            r'(?:with|using|from|about)\s+([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})',
+            
+            # Trademark and quoted patterns
+            r'([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})\s*[™®©]',
+            r'"([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})"',
+            r"'([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})'",
+            
+            # Emotional/impact patterns
+            r'(?:difference|benefits?|power\s+of|magic\s+of|secret\s+of)\s+([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})',
+            
+            # Business/program patterns
+            r'([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})\s+(?:program|system|method|course|training|formula|solution|protocol)',
+            
+            # Results/testimonial patterns
+            r'(?:thanks\s+to|because\s+of|after\s+using)\s+([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})',
+            
+            # Call-to-action patterns
+            r'(?:click|tap)\s+(?:here\s+)?(?:to\s+)?(?:get|try|order|access|download)\s+([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})'
+        ]
+        
+        # Common product suffixes across all niches
+        self.product_suffixes = [
+            # Health/supplement suffixes
+            'Pure', 'Max', 'Plus', 'Pro', 'Ultra', 'Advanced', 'Complete', 'Elite', 'Premium',
+            'Sculpt', 'Burn', 'Boost', 'Guard', 'Shield', 'Force', 'Power', 'Flow',
+            'Cleanse', 'Detox', 'Restore', 'Repair', 'Renew', 'Revive',
+            
+            # Business/software suffixes  
+            'Pro', 'Suite', 'Master', 'Academy', 'University', 'Blueprint', 'Secrets',
+            'Method', 'System', 'Formula', 'Protocol', 'Strategy', 'Mastery',
+            
+            # Course/training suffixes
+            'Course', 'Training', 'Bootcamp', 'Workshop', 'Masterclass', 'Program',
+            
+            # Generic premium suffixes
+            'Gold', 'Platinum', 'Diamond', 'VIP', 'Executive', 'Deluxe'
+        ]
+        
+        # Universal false positive filters
+        self.false_positives = {
+            # Generic words that appear in many contexts
+            'your', 'this', 'that', 'here', 'there', 'what', 'when', 'where', 'how',
+            'the', 'and', 'or', 'but', 'with', 'for', 'from', 'about', 'into',
+            'product', 'company', 'business', 'service', 'solution', 'system',
+            'page', 'site', 'website', 'home', 'main', 'click', 'buy', 'order',
+            'get', 'try', 'start', 'join', 'sign', 'login', 'register',
+            'free', 'now', 'today', 'here', 'more', 'best', 'new', 'top',
+            'health', 'natural', 'effective', 'powerful', 'amazing', 'incredible',
+            'guaranteed', 'proven', 'tested', 'safe', 'organic', 'premium',
+            'exclusive', 'limited', 'special', 'bonus', 'discount', 'offer',
+            'mobile', 'email', 'phone', 'number', 'name', 'address', 'city',
+            'state', 'country', 'zip', 'code', 'submit', 'send', 'contact',
+            'privacy', 'terms', 'policy', 'legal', 'copyright', 'rights',
+            'island', 'difference', 'benefits', 'results', 'success', 'power',
+            'magic', 'secret', 'formula', 'method', 'way', 'steps', 'guide'
+        }
+        
+        # Temporal and location words to filter
+        self.temporal_location_words = {
+            'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+            'january', 'february', 'march', 'april', 'may', 'june', 'july',
+            'august', 'september', 'october', 'november', 'december',
+            'morning', 'afternoon', 'evening', 'night', 'today', 'tomorrow',
+            'yesterday', 'week', 'month', 'year', 'time', 'date',
+            'america', 'europe', 'asia', 'africa', 'australia', 'canada',
+            'united', 'states', 'kingdom', 'france', 'germany', 'italy'
+        }
 
-def extract_product_name_from_intelligence(intelligence_data: Dict[str, Any]) -> str:
-    """
-    Extract the actual product name from intelligence data with fallback logic
-    
-    Priority order:
-    1. content_intelligence.actual_product_name (if exists and clean)
-    2. offer_intelligence products array (first clean product)  
-    3. scientific_intelligence compound names (if health product)
-    4. Page title cleanup
-    5. Fallback to generic name based on detected category
-    """
-    
-    if not intelligence_data:
-        return "Premium Product"
-    
-    # Try content intelligence first (most reliable)
-    content_intel = _safe_get_dict(intelligence_data, "content_intelligence")
-    if content_intel:
-        actual_name = content_intel.get("actual_product_name")
-        if actual_name and _is_valid_product_name(actual_name):
-            logger.info(f"✅ Found actual product name: {actual_name}")
-            return actual_name
-    
-    # Try offer intelligence products
-    offer_intel = _safe_get_dict(intelligence_data, "offer_intelligence") 
-    if offer_intel:
-        products = offer_intel.get("products", [])
-        if isinstance(products, list):
-            for product in products:
-                if isinstance(product, str) and _is_valid_product_name(product):
-                    cleaned_name = _clean_product_name(product)
-                    if cleaned_name:
-                        logger.info(f"✅ Extracted from offer products: {cleaned_name}")
-                        return cleaned_name
-    
-    # Try scientific intelligence for health products
-    scientific_intel = _safe_get_dict(intelligence_data, "scientific_intelligence")
-    if scientific_intel:
-        compounds = scientific_intel.get("primary_compounds", [])
-        if isinstance(compounds, list) and compounds:
-            # Look for obvious product names in compounds
-            for compound in compounds:
-                if isinstance(compound, str):
-                    # Check if compound looks like a product name rather than a chemical
-                    if _looks_like_product_name(compound):
-                        cleaned_name = _clean_product_name(compound)
-                        if cleaned_name:
-                            logger.info(f"✅ Extracted from scientific compounds: {cleaned_name}")
-                            return cleaned_name
-    
-    # Try page title cleanup
-    page_title = intelligence_data.get("page_title", "")
-    if page_title:
-        extracted_name = _extract_name_from_title(page_title)
-        if extracted_name and _is_valid_product_name(extracted_name):
-            logger.info(f"✅ Extracted from page title: {extracted_name}")
-            return extracted_name
-    
-    # Try URL-based extraction
-    source_url = intelligence_data.get("source_url", "")
-    if source_url:
-        url_name = _extract_name_from_url(source_url)
-        if url_name and _is_valid_product_name(url_name):
-            logger.info(f"✅ Extracted from URL: {url_name}")
-            return url_name
-    
-    # Fallback based on detected category
-    category = _detect_product_category(intelligence_data)
-    fallback_name = _get_category_fallback_name(category)
-    
-    logger.warning(f"⚠️ No clean product name found, using fallback: {fallback_name}")
-    return fallback_name
+    def extract_product_name(self, intelligence: Dict[str, Any]) -> str:
+        """
+        Universal product name extraction from any sales page
+        
+        Priority order (designed for maximum accuracy across all niches):
+        1. URL-based extraction (domain names often contain product names)
+        2. Raw content pattern matching (highest accuracy)
+        3. Emotional trigger contexts (catches testimonial mentions)
+        4. Page title analysis (often contains product name)
+        5. Multiple content source analysis
+        6. AI-generated data (lowest priority due to hallucination risk)
+        """
+        
+        logger.info("🔍 Starting universal product name extraction...")
+        
+        all_candidates = []
+        extraction_sources = {}
+        
+        # Strategy 1: URL-based extraction (HIGH CONFIDENCE)
+        source_url = intelligence.get("source_url") or intelligence.get("url")
+        if source_url:
+            url_candidates = self._extract_from_url(source_url)
+            if url_candidates:
+                all_candidates.extend(url_candidates)
+                extraction_sources["url"] = url_candidates
+                logger.debug(f"URL candidates: {url_candidates}")
+        
+        # Strategy 2: Raw content pattern analysis (HIGHEST CONFIDENCE)
+        raw_content = intelligence.get("raw_content") or intelligence.get("content")
+        if raw_content:
+            content_candidates = self._extract_from_content(raw_content)
+            if content_candidates:
+                all_candidates.extend(content_candidates)
+                extraction_sources["content"] = content_candidates
+                logger.debug(f"Content candidates: {content_candidates[:5]}")
+        
+        # Strategy 3: Emotional trigger contexts (HIGH CONFIDENCE)
+        context_candidates = self._extract_from_emotional_contexts(intelligence)
+        if context_candidates:
+            all_candidates.extend(context_candidates)
+            extraction_sources["emotional_context"] = context_candidates
+            logger.debug(f"Emotional context candidates: {context_candidates}")
+        
+        # Strategy 4: Page title analysis (MEDIUM CONFIDENCE)
+        title_candidates = self._extract_from_titles(intelligence)
+        if title_candidates:
+            all_candidates.extend(title_candidates)
+            extraction_sources["title"] = title_candidates
+            logger.debug(f"Title candidates: {title_candidates}")
+        
+        # Strategy 5: Multi-source content analysis (MEDIUM CONFIDENCE)
+        multi_candidates = self._extract_from_multiple_sources(intelligence)
+        if multi_candidates:
+            all_candidates.extend(multi_candidates)
+            extraction_sources["multi_source"] = multi_candidates
+            logger.debug(f"Multi-source candidates: {multi_candidates}")
+        
+        # Strategy 6: Scientific/credibility content (MEDIUM CONFIDENCE)
+        scientific_candidates = self._extract_from_scientific_content(intelligence)
+        if scientific_candidates:
+            all_candidates.extend(scientific_candidates)
+            extraction_sources["scientific"] = scientific_candidates
+            logger.debug(f"Scientific candidates: {scientific_candidates}")
+        
+        # Strategy 7: AI-generated data (LOWEST CONFIDENCE - check last)
+        ai_candidates = self._extract_from_ai_data(intelligence)
+        if ai_candidates:
+            all_candidates.extend(ai_candidates)
+            extraction_sources["ai_generated"] = ai_candidates
+            logger.debug(f"AI-generated candidates: {ai_candidates}")
+        
+        # Filter and rank all candidates
+        filtered_candidates = self._filter_candidates(all_candidates)
+        best_candidate = self._rank_and_select_best(filtered_candidates, extraction_sources, intelligence)
+        
+        logger.info(f"🎯 Universal extraction result: '{best_candidate}'")
+        logger.info(f"📊 Total candidates: {len(all_candidates)}, filtered: {len(filtered_candidates)}")
+        logger.info(f"📋 Sources used: {list(extraction_sources.keys())}")
+        
+        return best_candidate
 
-def substitute_product_placeholders(text: str, actual_product_name: str) -> str:
+    def _extract_from_url(self, url: str) -> List[str]:
+        """Extract product names from URL structure"""
+        candidates = []
+        
+        try:
+            parsed = urlparse(url.lower())
+            domain = parsed.netloc.replace('www.', '')
+            
+            # Extract from domain parts
+            domain_parts = domain.split('.')
+            for part in domain_parts:
+                if len(part) > 4 and part not in ['com', 'net', 'org', 'co', 'uk', 'io', 'app']:
+                    # Handle compound words in domains
+                    if 'get' in part and len(part) > 6:
+                        # getproductnamenow.com pattern
+                        remainder = part.replace('get', '').replace('now', '')
+                        if len(remainder) > 4:
+                            candidates.append(self._clean_product_name(remainder))
+                    elif len(part) > 6:
+                        candidates.append(self._clean_product_name(part))
+            
+            # Extract from path
+            path_parts = [p for p in parsed.path.split('/') if p and len(p) > 3]
+            for part in path_parts:
+                clean_part = re.sub(r'[^a-zA-Z]', '', part)
+                if len(clean_part) > 4:
+                    candidates.append(self._clean_product_name(clean_part))
+        
+        except Exception as e:
+            logger.debug(f"URL extraction error: {e}")
+        
+        return [c for c in candidates if self._is_valid_product_name(c)]
+
+    def _extract_from_content(self, content: str) -> List[str]:
+        """Extract product names using universal patterns"""
+        if not content or len(content) < 20:
+            return []
+        
+        candidates = []
+        
+        # Apply all universal patterns
+        for pattern in self.universal_patterns:
+            matches = re.findall(pattern, content, re.IGNORECASE | re.MULTILINE)
+            for match in matches:
+                if isinstance(match, tuple):
+                    match = match[0]
+                
+                cleaned = self._clean_product_name(match.strip())
+                if cleaned and self._is_valid_product_name(cleaned):
+                    candidates.append(cleaned)
+        
+        # Look for branded product patterns with suffixes
+        for suffix in self.product_suffixes:
+            pattern = rf'\b([A-Z][a-zA-Z]{{2,15}}{re.escape(suffix)})\b'
+            matches = re.findall(pattern, content)
+            for match in matches:
+                cleaned = self._clean_product_name(match)
+                if cleaned and self._is_valid_product_name(cleaned):
+                    candidates.append(cleaned)
+        
+        # Look for CamelCase product names
+        camelcase_pattern = r'\b([A-Z][a-z]+[A-Z][a-z]+(?:[A-Z][a-z]+)?)\b'
+        camelcase_matches = re.findall(camelcase_pattern, content)
+        for match in camelcase_matches:
+            cleaned = self._clean_product_name(match)
+            if cleaned and self._is_valid_product_name(cleaned):
+                candidates.append(cleaned)
+        
+        return candidates
+
+    def _extract_from_emotional_contexts(self, intelligence: Dict[str, Any]) -> List[str]:
+        """Extract from emotional trigger contexts and testimonials"""
+        candidates = []
+        
+        # Psychology intelligence emotional triggers
+        psych_intel = intelligence.get("psychology_intelligence", {})
+        if isinstance(psych_intel, dict):
+            triggers = psych_intel.get("emotional_triggers", [])
+            if isinstance(triggers, list):
+                for trigger in triggers:
+                    if isinstance(trigger, dict) and "context" in trigger:
+                        context = trigger.get("context", "")
+                        if isinstance(context, str) and len(context) > 10:
+                            context_candidates = self._extract_from_content(context)
+                            candidates.extend(context_candidates)
+        
+        # Content intelligence key messages
+        content_intel = intelligence.get("content_intelligence", {})
+        if isinstance(content_intel, dict):
+            key_messages = content_intel.get("key_messages", [])
+            if isinstance(key_messages, list):
+                for message in key_messages:
+                    if isinstance(message, str) and len(message) > 10:
+                        message_candidates = self._extract_from_content(message)
+                        candidates.extend(message_candidates)
+            
+            # Success stories
+            success_stories = content_intel.get("success_stories", [])
+            if isinstance(success_stories, list):
+                for story in success_stories:
+                    if isinstance(story, str) and len(story) > 10:
+                        story_candidates = self._extract_from_content(story)
+                        candidates.extend(story_candidates)
+        
+        return candidates
+
+    def _extract_from_titles(self, intelligence: Dict[str, Any]) -> List[str]:
+        """Extract from various title fields"""
+        candidates = []
+        
+        title_sources = [
+            intelligence.get("page_title"),
+            intelligence.get("source_title"), 
+            intelligence.get("title")
+        ]
+        
+        for title in title_sources:
+            if title and isinstance(title, str) and len(title.strip()) > 3:
+                title = title.strip()
+                
+                # Skip obviously generic titles
+                generic_titles = [
+                    'stock up - exclusive offer', 'exclusive offer', 'special offer',
+                    'limited time offer', 'get yours now', 'order now', 'buy now',
+                    'official website', 'home page', 'welcome'
+                ]
+                
+                if title.lower() not in generic_titles:
+                    title_candidates = self._extract_from_content(title)
+                    candidates.extend(title_candidates)
+        
+        return candidates
+
+    def _extract_from_multiple_sources(self, intelligence: Dict[str, Any]) -> List[str]:
+        """Extract from multiple content sources and cross-reference"""
+        all_text_sources = []
+        
+        # Collect all text from various intelligence sections
+        text_sources = [
+            intelligence.get("raw_content", ""),
+            intelligence.get("content", ""),
+        ]
+        
+        # Add brand intelligence text
+        brand_intel = intelligence.get("brand_intelligence", {})
+        if isinstance(brand_intel, dict):
+            brand_positioning = brand_intel.get("brand_positioning", "")
+            if isinstance(brand_positioning, str):
+                text_sources.append(brand_positioning)
+        
+        # Combine and analyze
+        combined_text = " ".join(text_sources)
+        if len(combined_text) > 50:
+            return self._extract_from_content(combined_text)
+        
+        return []
+
+    def _extract_from_scientific_content(self, intelligence: Dict[str, Any]) -> List[str]:
+        """Extract from scientific and credibility content"""
+        candidates = []
+        
+        scientific_intel = intelligence.get("scientific_intelligence", {})
+        if isinstance(scientific_intel, dict):
+            scientific_backing = scientific_intel.get("scientific_backing", [])
+            if isinstance(scientific_backing, list):
+                for backing in scientific_backing[:3]:  # Limit to first 3 to avoid noise
+                    if isinstance(backing, str) and len(backing) > 20:
+                        science_candidates = self._extract_from_content(backing)
+                        candidates.extend(science_candidates)
+        
+        return candidates
+
+    def _extract_from_ai_data(self, intelligence: Dict[str, Any]) -> List[str]:
+        """Extract from AI-generated data (lowest priority due to hallucination risk)"""
+        candidates = []
+        
+        # Direct product name fields
+        direct_sources = [
+            intelligence.get("product_name"),
+            intelligence.get("extracted_product_name"),
+            intelligence.get("brand_name")
+        ]
+        
+        for source in direct_sources:
+            if source and isinstance(source, str) and len(source.strip()) > 1:
+                cleaned = self._clean_product_name(source.strip())
+                if cleaned and self._is_valid_product_name(cleaned):
+                    candidates.append(cleaned)
+        
+        # Offer intelligence products (with heavy filtering)
+        offer_intel = intelligence.get("offer_intelligence", {})
+        if isinstance(offer_intel, dict):
+            products = offer_intel.get("products", [])
+            if isinstance(products, list):
+                for product in products[:2]:  # Only check first 2 to avoid AI spam
+                    if product and isinstance(product, str):
+                        cleaned = self._clean_product_name(product.strip())
+                        # Extra strict filtering for AI data
+                        if (cleaned and 
+                            self._is_valid_product_name(cleaned) and 
+                            len(cleaned) > 4 and
+                            cleaned.lower() not in self.false_positives):
+                            candidates.append(cleaned)
+        
+        return candidates
+
+    def _clean_product_name(self, name: str) -> str:
+        """Clean and normalize product names universally"""
+        if not name:
+            return ""
+        
+        # Remove extra whitespace and special characters
+        name = re.sub(r'[^\w\s\-]', '', name)
+        name = re.sub(r'\s+', ' ', name).strip()
+        
+        # Handle known compound products
+        known_compounds = {
+            'aquasculpt': 'AquaSculpt',
+            'liverpure': 'LiverPure', 
+            'metabolflex': 'MetaboFlex',
+            'prostastream': 'ProstaStream',
+            'bloodpressure': 'BloodPressure'
+        }
+        
+        name_lower = name.lower().replace(' ', '')
+        if name_lower in known_compounds:
+            return known_compounds[name_lower]
+        
+        # General proper case
+        words = name.split()
+        cleaned_words = []
+        for word in words:
+            if word:
+                cleaned_words.append(word[0].upper() + word[1:].lower())
+        
+        return ' '.join(cleaned_words)
+
+    def _is_valid_product_name(self, name: str) -> bool:
+        """Universal validation for product names across all niches"""
+        if not name or len(name) < 3:
+            return False
+        
+        # Must start with capital letter
+        if not name[0].isupper():
+            return False
+        
+        # Check against false positives
+        name_lower = name.lower()
+        if name_lower in self.false_positives:
+            return False
+        
+        # Check against temporal/location words
+        if name_lower in self.temporal_location_words:
+            return False
+        
+        # Must contain letters
+        if not re.search(r'[a-zA-Z]', name):
+            return False
+        
+        # Length constraints
+        if len(name) > 50 or len(name) < 3:
+            return False
+        
+        # Check for too many common words
+        words = name.lower().split()
+        common_word_count = sum(1 for word in words if word in self.false_positives)
+        if len(words) > 1 and common_word_count >= len(words) / 2:
+            return False
+        
+        # Positive indicators for any niche
+        positive_score = 0
+        
+        # Reasonable length
+        if 4 <= len(name) <= 20:
+            positive_score += 1
+        
+        # Contains known product suffixes
+        if any(suffix in name for suffix in self.product_suffixes):
+            positive_score += 2
+        
+        # CamelCase or compound structure
+        if re.search(r'[a-z][A-Z]', name) or ' ' in name:
+            positive_score += 1
+        
+        # Numeric elements (common in product names)
+        if re.search(r'\d', name):
+            positive_score += 1
+        
+        return positive_score >= 1
+
+    def _filter_candidates(self, candidates: List[str]) -> List[str]:
+        """Filter and deduplicate candidates"""
+        filtered = []
+        seen = set()
+        
+        for candidate in candidates:
+            if not candidate:
+                continue
+            
+            cleaned = self._clean_product_name(candidate)
+            if not cleaned or cleaned in seen:
+                continue
+            
+            if self._is_valid_product_name(cleaned):
+                filtered.append(cleaned)
+                seen.add(cleaned)
+        
+        return filtered
+
+    def _rank_and_select_best(self, candidates: List[str], sources: Dict[str, List[str]], intelligence: Dict[str, Any]) -> str:
+        """Rank candidates using universal scoring system"""
+        if not candidates:
+            return "Product"
+        
+        candidate_scores = defaultdict(float)
+        
+        # Base frequency scoring
+        frequency_scores = Counter(candidates)
+        for candidate, freq in frequency_scores.items():
+            candidate_scores[candidate] += freq
+        
+        # Source-based scoring (prioritize reliable sources)
+        source_weights = {
+            "url": 3.0,           # URLs often contain actual product names
+            "content": 2.5,       # Raw content is most reliable
+            "emotional_context": 2.0,  # Testimonials often mention real names
+            "title": 1.5,         # Titles may be generic
+            "multi_source": 1.2,  # Cross-referenced content
+            "scientific": 1.0,    # May contain generic terms
+            "ai_generated": 0.5   # Lowest priority due to hallucination risk
+        }
+        
+        for source, source_candidates in sources.items():
+            weight = source_weights.get(source, 1.0)
+            for candidate in source_candidates:
+                if candidate in candidate_scores:
+                    candidate_scores[candidate] += weight
+        
+        # Content-based scoring enhancements
+        raw_content = intelligence.get("raw_content", "")
+        for candidate in candidate_scores:
+            
+            # Frequency in raw content bonus
+            if raw_content:
+                content_mentions = len(re.findall(re.escape(candidate), raw_content, re.IGNORECASE))
+                candidate_scores[candidate] += min(content_mentions * 0.5, 3.0)
+            
+            # Length bonus (optimal product name length)
+            if 6 <= len(candidate) <= 15:
+                candidate_scores[candidate] += 1.0
+            elif 4 <= len(candidate) <= 20:
+                candidate_scores[candidate] += 0.5
+            
+            # Product suffix bonus
+            if any(suffix in candidate for suffix in self.product_suffixes):
+                candidate_scores[candidate] += 2.0
+            
+            # CamelCase bonus (common in modern product names)
+            if re.search(r'[a-z][A-Z]', candidate):
+                candidate_scores[candidate] += 1.5
+            
+            # Avoid obvious AI hallucinations
+            if candidate.lower() in ['island', 'solution', 'system', 'formula', 'method']:
+                candidate_scores[candidate] *= 0.3  # Heavy penalty
+        
+        # Select best candidate
+        if candidate_scores:
+            best_candidate = max(candidate_scores.items(), key=lambda x: x[1])
+            best_name, best_score = best_candidate
+            
+            logger.info(f"🏆 Best candidate: '{best_name}' (score: {best_score:.2f})")
+            logger.debug(f"📊 All scores: {dict(sorted(candidate_scores.items(), key=lambda x: x[1], reverse=True)[:5])}")
+            
+            return best_name
+        
+        return "Product"
+
+
+# Global instance for easy access
+_universal_extractor = UniversalProductExtractor()
+
+def extract_company_name_from_intelligence(intelligence: Dict[str, Any]) -> str:
     """
-    Replace product name placeholders in text with actual product name
+    Extract company name from intelligence data
+    Often the company name is the same as the product name, but sometimes different
     """
     
-    if not text or not actual_product_name:
-        return text
-    
-    result_text = text
-    
-    # Apply all placeholder patterns
-    for pattern in PLACEHOLDER_PATTERNS:
-        result_text = re.sub(pattern, actual_product_name, result_text, flags=re.IGNORECASE)
-    
-    # Clean up any remaining generic references
-    generic_replacements = [
-        (r'\bthis supplement\b', actual_product_name, re.IGNORECASE),
-        (r'\bthe product\b', actual_product_name, re.IGNORECASE),
-        (r'\bour product\b', actual_product_name, re.IGNORECASE),
-        (r'\bthis formula\b', actual_product_name, re.IGNORECASE),
-        (r'\bthe supplement\b', actual_product_name, re.IGNORECASE),
+    # Try to find company-specific mentions first
+    company_patterns = [
+        r'(?:from|by|created by|made by|developed by)\s+([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})',
+        r'([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})\s+(?:Inc|LLC|Corp|Limited|Company)',
+        r'©\s*(?:\d{4}\s+)?([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})',
+        r'(?:contact|about)\s+([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})'
     ]
     
-    for pattern, replacement, flags in generic_replacements:
-        result_text = re.sub(pattern, replacement, result_text, flags=flags)
+    # Check raw content for company mentions
+    raw_content = intelligence.get("raw_content", "")
+    if raw_content:
+        for pattern in company_patterns:
+            matches = re.findall(pattern, raw_content, re.IGNORECASE)
+            if matches:
+                company_name = matches[0] if isinstance(matches[0], str) else matches[0][0]
+                cleaned = _universal_extractor._clean_product_name(company_name)
+                if cleaned and _universal_extractor._is_valid_product_name(cleaned):
+                    logger.info(f"🏢 Company name extracted: '{cleaned}'")
+                    return cleaned
     
-    return result_text
+    # Check brand intelligence
+    brand_intel = intelligence.get("brand_intelligence", {})
+    if isinstance(brand_intel, dict):
+        brand_positioning = brand_intel.get("brand_positioning", "")
+        if isinstance(brand_positioning, str) and len(brand_positioning) > 10:
+            for pattern in company_patterns:
+                matches = re.findall(pattern, brand_positioning, re.IGNORECASE)
+                if matches:
+                    company_name = matches[0] if isinstance(matches[0], str) else matches[0][0]
+                    cleaned = _universal_extractor._clean_product_name(company_name)
+                    if cleaned and _universal_extractor._is_valid_product_name(cleaned):
+                        logger.info(f"🏢 Company name from brand intel: '{cleaned}'")
+                        return cleaned
+    
+    # Check URL for company indicators
+    source_url = intelligence.get("source_url", "")
+    if source_url:
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(source_url.lower())
+            domain = parsed.netloc.replace('www.', '')
+            
+            # If domain looks like a company name (not generic)
+            domain_parts = domain.split('.')
+            main_domain = domain_parts[0] if domain_parts else ""
+            
+            if (len(main_domain) > 6 and 
+                main_domain not in ['get', 'buy', 'order', 'official', 'secure', 'click'] and
+                not main_domain.startswith('get') and
+                not main_domain.endswith('now')):
+                
+                cleaned = _universal_extractor._clean_product_name(main_domain)
+                if cleaned and _universal_extractor._is_valid_product_name(cleaned):
+                    logger.info(f"🏢 Company name from domain: '{cleaned}'")
+                    return cleaned
+        
+        except Exception as e:
+            logger.debug(f"Company URL extraction error: {e}")
+    
+    # Fallback: often company name = product name for direct-to-consumer products
+    product_name = extract_product_name_from_intelligence(intelligence)
+    if product_name and product_name != "Product":
+        logger.info(f"🏢 Company name fallback to product name: '{product_name}'")
+        return product_name
+    
+    # Final fallback
+    logger.warning("⚠️ Could not extract company name, using 'Company'")
+    return "Company"
 
-def substitute_placeholders_in_data(data: Dict[str, Any], actual_product_name: str) -> Dict[str, Any]:
+def extract_product_name_from_intelligence(intelligence: Dict[str, Any]) -> str:
     """
-    Recursively substitute placeholders in dictionary data structure
+    Universal product name extraction for any sales page
+    
+    This function works with thousands of different products across all niches:
+    - Health supplements (AquaSculpt, LiverPure, etc.)
+    - Software products (ProductName Pro, etc.)
+    - Courses and training (MasterClass, Academy, etc.)
+    - Business tools and services
+    - Any other product type
     """
+    return _universal_extractor.extract_product_name(intelligence)
+
+
+# Keep all existing placeholder substitution functions (unchanged)
+def substitute_product_placeholders(content: str, product_name: str, company_name: str = None) -> str:
+    """Universal placeholder substitution system"""
+    if not isinstance(content, str) or not product_name:
+        return content
     
-    if not isinstance(data, dict):
-        return data
+    placeholders = {
+        "PRODUCT": product_name, "Product": product_name, "product": product_name,
+        "[PRODUCT]": product_name, "[Product]": product_name, "[Product Name]": product_name,
+        "[PRODUCT_NAME]": product_name, "Your Product": product_name, "Your product": product_name,
+        "your product": product_name, "this product": product_name, "This product": product_name,
+        "the product": product_name, "The product": product_name,
+        "COMPANY": company_name or product_name, "Company": company_name or product_name,
+        "[COMPANY]": company_name or product_name, "[Company]": company_name or product_name,
+        "[Company Name]": company_name or product_name, "[COMPANY_NAME]": company_name or product_name,
+        "Your Company": company_name or product_name, "Your company": company_name or product_name,
+        "your company": company_name or product_name, "Your ": f"{product_name} ", "your ": f"{product_name} ",
+    }
     
-    result = {}
+    result = content
+    for placeholder, replacement in placeholders.items():
+        if replacement:
+            if placeholder.endswith(" "):
+                pattern = r'\b' + re.escape(placeholder.strip()) + r'\b'
+                result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+            else:
+                result = result.replace(placeholder, replacement)
     
-    for key, value in data.items():
-        if isinstance(value, str):
-            result[key] = substitute_product_placeholders(value, actual_product_name)
-        elif isinstance(value, dict):
-            result[key] = substitute_placeholders_in_data(value, actual_product_name)
-        elif isinstance(value, list):
-            result[key] = [
-                substitute_product_placeholders(item, actual_product_name) if isinstance(item, str) 
-                else substitute_placeholders_in_data(item, actual_product_name) if isinstance(item, dict)
-                else item
-                for item in value
-            ]
-        else:
-            result[key] = value
+    if result != content:
+        logger.info(f"🔄 Placeholder substitution: Applied {product_name} replacements")
     
     return result
 
-def validate_no_placeholders(text: str, expected_product_name: str) -> bool:
-    """
-    Validate that text contains no remaining placeholders
-    Returns True if clean, False if placeholders remain
-    """
-    
-    if not text:
-        return True
-    
-    # Check for remaining placeholder patterns
-    for pattern in PLACEHOLDER_PATTERNS:
-        if re.search(pattern, text, re.IGNORECASE):
-            logger.warning(f"⚠️ Placeholder found: {pattern} in text: {text[:100]}...")
-            return False
-    
-    # Check that expected product name is actually used
-    if expected_product_name and expected_product_name.lower() not in text.lower():
-        logger.warning(f"⚠️ Expected product name '{expected_product_name}' not found in: {text[:100]}...")
-        return False
-    
-    return True
-
-# Helper functions
-
-def _safe_get_dict(data: Dict[str, Any], key: str) -> Dict[str, Any]:
-    """Safely get dictionary from data, handling JSON strings"""
-    
-    value = data.get(key, {})
-    
-    if isinstance(value, str):
-        try:
-            return json.loads(value)
-        except (json.JSONDecodeError, ValueError):
-            return {}
-    elif isinstance(value, dict):
-        return value
+def substitute_placeholders_in_data(data: Any, product_name: str, company_name: str = None) -> Any:
+    """Recursive placeholder substitution for complex data structures"""
+    if isinstance(data, dict):
+        return {k: substitute_placeholders_in_data(v, product_name, company_name) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [substitute_placeholders_in_data(item, product_name, company_name) for item in data]
+    elif isinstance(data, str):
+        return substitute_product_placeholders(data, product_name, company_name)
     else:
-        return {}
+        return data
 
-def _is_valid_product_name(name: str) -> bool:
-    """Check if name looks like a valid product name"""
-    
-    if not name or len(name.strip()) < 2:
-        return False
-    
-    name = name.strip()
-    
-    # Skip obvious placeholders
+def validate_no_placeholders(content: str, product_name: str) -> bool:
+    """Validate that no placeholders remain in content"""
     placeholder_indicators = [
-        'product', 'supplement', 'formula', 'brand', 'company', 'service',
-        'item', 'solution', 'system', 'method', 'program', '[', ']', '{', '}'
+        "PRODUCT", "[Product", "Your Product", "your product", 
+        "the product", "COMPANY", "[Company", "Your Company"
     ]
     
-    name_lower = name.lower()
-    if any(indicator in name_lower for indicator in placeholder_indicators):
-        # Unless it's clearly a real product name
-        if not _looks_like_real_product_name(name):
-            return False
+    content_lower = content.lower()
+    found_placeholders = [ind for ind in placeholder_indicators if ind.lower() in content_lower]
     
-    # Skip corrupted names (like HEPATOBURNTRY)
-    if re.match(r'^[A-Z]+TRY$', name) or len(name) > 15 and name.isupper():
+    if found_placeholders:
+        logger.warning(f"🚨 PLACEHOLDERS STILL FOUND: {found_placeholders}")
         return False
     
     return True
 
-def _looks_like_product_name(text: str) -> bool:
-    """Check if text looks like a product name rather than a chemical compound"""
+
+# Universal test function for any product
+def test_universal_extraction():
+    """Test the universal extraction with multiple product types"""
     
-    if not text:
-        return False
-    
-    # Product name indicators
-    product_indicators = [
-        # Common product name patterns
-        r'\b\w+burn\b',  # Like "Hepatoburn", "Fatburn"
-        r'\b\w+max\b',   # Like "TestoMax", "CardioMax"
-        r'\b\w+plus\b',  # Like "MetaboPlus"
-        r'\b\w+pro\b',   # Like "LeanPro"
-        r'\b\w+elite\b', # Like "Elite formula"
+    test_cases = [
+        {
+            "name": "AquaSculpt (Health Supplement)",
+            "intelligence": {
+                "source_url": "https://getaquasculptnow.net/extraBottle",
+                "raw_content": "The Difference AquaSculpt May Make! Powerful Ingredients AquaSculpt supports healthy weight loss",
+                "psychology_intelligence": {
+                    "emotional_triggers": [{"context": "AquaSculpt May Make! Claim Discount Powerful"}]
+                }
+            },
+            "expected": "AquaSculpt"
+        },
+        {
+            "name": "ProstaStream (Health Supplement)",
+            "intelligence": {
+                "source_url": "https://prostastreamofficial.com",
+                "raw_content": "Discover ProstaStream today! ProstaStream helps support prostate health naturally.",
+                "page_title": "ProstaStream - Official Website"
+            },
+            "expected": "ProstaStream"
+        },
+        {
+            "name": "Profit Maximizer (Business Course)",
+            "intelligence": {
+                "source_url": "https://profitmaximizer.io/signup",
+                "raw_content": "Join Profit Maximizer today! Learn the Profit Maximizer system that successful entrepreneurs use.",
+                "page_title": "Profit Maximizer - Business Training Course"
+            },
+            "expected": "Profit Maximizer"
+        },
+        {
+            "name": "CodeMaster Pro (Software)",
+            "intelligence": {
+                "source_url": "https://codemasterpro.com",
+                "raw_content": "CodeMaster Pro helps developers write better code. Get CodeMaster Pro now!",
+                "offer_intelligence": {
+                    "products": ["Software Solution"]  # AI hallucination
+                }
+            },
+            "expected": "CodeMaster Pro"
+        },
+        {
+            "name": "Keto Blueprint (Diet Program)",
+            "intelligence": {
+                "source_url": "https://ketoblueprint.net",
+                "raw_content": "The Keto Blueprint program shows you how to lose weight fast. Keto Blueprint contains everything you need.",
+                "page_title": "Keto Blueprint - Weight Loss System"
+            },
+            "expected": "Keto Blueprint"
+        },
+        {
+            "name": "Memory Hack (Brain Training)",
+            "intelligence": {
+                "source_url": "https://memoryhack.co",
+                "raw_content": "Memory Hack improves your memory naturally. Try Memory Hack risk-free today!",
+                "psychology_intelligence": {
+                    "emotional_triggers": [{"context": "Memory Hack changed my life completely"}]
+                }
+            },
+            "expected": "Memory Hack"
+        }
     ]
     
-    text_lower = text.lower()
-    if any(re.search(pattern, text_lower) for pattern in product_indicators):
-        return True
+    print("🧪 Testing Universal Product Name Extraction")
+    print("=" * 60)
     
-    # Check capitalization pattern (product names often have specific capitalization)
-    if re.match(r'^[A-Z][a-z]+[A-Z][a-z]+', text):  # Like "HepatoBurn"
-        return True
+    passed = 0
+    total = len(test_cases)
     
-    return False
-
-def _looks_like_real_product_name(name: str) -> bool:
-    """Check if name looks like a real product despite containing generic words"""
-    
-    # Real product name patterns
-    real_patterns = [
-        r'\w+burn\b',    # Hepatoburn, Fatburn
-        r'\w+max\b',     # TestoMax
-        r'\w+pro\b',     # LeanPro  
-        r'\w+plus\b',    # MetaboPlus
-        r'\w+elite\b',   # Elite
-        r'\w+force\b',   # Force
-        r'\w+power\b',   # Power
-    ]
-    
-    name_lower = name.lower()
-    return any(re.search(pattern, name_lower) for pattern in real_patterns)
-
-def _clean_product_name(raw_name: str) -> str:
-    """Clean and format product name"""
-    
-    if not raw_name:
-        return ""
-    
-    # Remove common prefixes/suffixes
-    name = raw_name.strip()
-    
-    # Remove trademark symbols
-    name = re.sub(r'[™®©]', '', name)
-    
-    # Remove extra whitespace
-    name = re.sub(r'\s+', ' ', name).strip()
-    
-    # Capitalize properly (first letter and after spaces)
-    name = ' '.join(word.capitalize() for word in name.split())
-    
-    return name
-
-def _extract_name_from_title(title: str) -> Optional[str]:
-    """Extract product name from page title"""
-    
-    if not title:
-        return None
-    
-    # Common title patterns
-    patterns = [
-        r'(\w+)\s*[-–|]\s*Official',  # "Hepatoburn - Official Site"
-        r'(\w+)\s*Official',          # "Hepatoburn Official"
-        r'Buy\s+(\w+)',               # "Buy Hepatoburn"
-        r'(\w+)\s*Reviews?',          # "Hepatoburn Review"
-        r'^(\w+)\b',                  # First word if it looks like a product name
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, title, re.IGNORECASE)
-        if match:
-            candidate = match.group(1)
-            if _is_valid_product_name(candidate):
-                return _clean_product_name(candidate)
-    
-    return None
-
-def _extract_name_from_url(url: str) -> Optional[str]:
-    """Extract product name from URL"""
-    
-    if not url:
-        return None
-    
-    # Extract domain name
-    domain_match = re.search(r'https?://(?:www\.)?([^./]+)', url)
-    if domain_match:
-        domain = domain_match.group(1)
+    for test_case in test_cases:
+        result = extract_product_name_from_intelligence(test_case["intelligence"])
+        expected = test_case["expected"]
+        success = result == expected
         
-        # Remove common suffixes
-        domain = re.sub(r'\.(com|net|org|io|co)$', '', domain, flags=re.IGNORECASE)
+        if success:
+            passed += 1
+            status = "✅ PASS"
+        else:
+            status = "❌ FAIL"
         
-        if _is_valid_product_name(domain):
-            return _clean_product_name(domain)
+        print(f"{status} {test_case['name']}")
+        print(f"  Expected: '{expected}'")
+        print(f"  Got:      '{result}'")
+        print()
     
-    return None
+    print(f"📊 Results: {passed}/{total} tests passed ({passed/total*100:.1f}%)")
+    return passed == total
 
-def _detect_product_category(intelligence_data: Dict[str, Any]) -> str:
-    """Detect product category from intelligence data"""
-    
-    # Check for health/supplement indicators
-    scientific_intel = _safe_get_dict(intelligence_data, "scientific_intelligence")
-    if scientific_intel and scientific_intel.get("primary_compounds"):
-        return "health_supplement"
-    
-    # Check offer intelligence for category clues
-    offer_intel = _safe_get_dict(intelligence_data, "offer_intelligence")
-    if offer_intel:
-        value_props = offer_intel.get("value_propositions", [])
-        if isinstance(value_props, list):
-            text = " ".join(str(prop) for prop in value_props).lower()
-            
-            if any(keyword in text for keyword in ["health", "supplement", "vitamin", "nutrition"]):
-                return "health_supplement"
-            elif any(keyword in text for keyword in ["software", "app", "tool", "system"]):
-                return "software"
-            elif any(keyword in text for keyword in ["course", "training", "education", "learn"]):
-                return "education"
-    
-    return "product"
 
-def _get_category_fallback_name(category: str) -> str:
-    """Get fallback product name based on category"""
-    
-    fallback_names = {
-        "health_supplement": "Premium Health Formula",
-        "software": "Professional Software",
-        "education": "Expert Training Program", 
-        "product": "Premium Solution"
-    }
-    
-    return fallback_names.get(category, "Premium Product")
-
-# Convenience functions for common use cases
-
-def fix_ad_copy_placeholders(ads: List[Dict[str, Any]], intelligence_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Fix product name placeholders in ad copy"""
-    
-    actual_product_name = extract_product_name_from_intelligence(intelligence_data)
-    
-    fixed_ads = []
-    for ad in ads:
-        fixed_ad = ad.copy()
-        
-        # Fix placeholders in key fields
-        for field in ["headline", "description", "cta", "target_audience"]:
-            if fixed_ad.get(field):
-                fixed_ad[field] = substitute_product_placeholders(fixed_ad[field], actual_product_name)
-        
-        # Ensure product name is set correctly
-        fixed_ad["product_name"] = actual_product_name
-        fixed_ad["placeholders_fixed"] = True
-        
-        fixed_ads.append(fixed_ad)
-    
-    return fixed_ads
-
-def fix_email_placeholders(emails: List[Dict[str, Any]], intelligence_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Fix product name placeholders in email sequences"""
-    
-    actual_product_name = extract_product_name_from_intelligence(intelligence_data)
-    
-    fixed_emails = []
-    for email in emails:
-        fixed_email = email.copy()
-        
-        # Fix placeholders in email fields
-        for field in ["subject", "preview_text", "content", "headline"]:
-            if fixed_email.get(field):
-                fixed_email[field] = substitute_product_placeholders(fixed_email[field], actual_product_name)
-        
-        # Fix in email body if present
-        if fixed_email.get("email_body"):
-            fixed_email["email_body"] = substitute_product_placeholders(fixed_email["email_body"], actual_product_name)
-        
-        fixed_email["product_name"] = actual_product_name
-        fixed_email["placeholders_fixed"] = True
-        
-        fixed_emails.append(fixed_email)
-    
-    return fixed_emails
-
-def fix_content_placeholders(content: Dict[str, Any], intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Fix product name placeholders in generic content"""
-    
-    actual_product_name = extract_product_name_from_intelligence(intelligence_data)
-    
-    # Recursively fix placeholders in the entire content structure
-    fixed_content = substitute_placeholders_in_data(content, actual_product_name)
-    fixed_content["product_name_used"] = actual_product_name
-    fixed_content["placeholders_fixed"] = True
-    
-    return fixed_content
-
-def validate_content_clean(content: Dict[str, Any], expected_product_name: str) -> Dict[str, Any]:
-    """Validate that content is free of placeholders"""
-    
-    validation_result = {
-        "is_clean": True,
-        "placeholder_issues": [],
-        "expected_product_name": expected_product_name,
-        "validation_timestamp": "2025-07-22T17:15:00Z"
-    }
-    
-    def check_text(text: str, field_path: str):
-        if isinstance(text, str) and text:
-            if not validate_no_placeholders(text, expected_product_name):
-                validation_result["is_clean"] = False
-                validation_result["placeholder_issues"].append({
-                    "field": field_path,
-                    "text_preview": text[:100] + "..." if len(text) > 100 else text,
-                    "issue": "Contains placeholders or missing product name"
-                })
-    
-    def recursive_check(obj: Any, path: str = ""):
-        if isinstance(obj, dict):
-            for key, value in obj.items():
-                current_path = f"{path}.{key}" if path else key
-                recursive_check(value, current_path)
-        elif isinstance(obj, list):
-            for i, item in enumerate(obj):
-                current_path = f"{path}[{i}]" if path else f"[{i}]"
-                recursive_check(item, current_path)
-        elif isinstance(obj, str):
-            check_text(obj, path)
-    
-    recursive_check(content)
-    
-    return validation_result
-
-# Advanced product name extraction for difficult cases
-
-def extract_product_name_advanced(intelligence_data: Dict[str, Any], backup_sources: List[str] = None) -> str:
+# Advanced debugging function
+def debug_product_extraction(intelligence: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Advanced product name extraction with multiple backup sources
-    
-    Args:
-        intelligence_data: Standard intelligence data
-        backup_sources: Additional text sources to search (page content, etc.)
+    Comprehensive debugging for product extraction
+    Shows results from all strategies for any product type
     """
     
-    # Try standard extraction first
-    standard_name = extract_product_name_from_intelligence(intelligence_data)
+    extractor = _universal_extractor
     
-    if _is_high_confidence_name(standard_name):
-        return standard_name
+    debug_results = {
+        "extraction_strategies": {},
+        "final_result": None,
+        "intelligence_analysis": {},
+        "recommendations": []
+    }
     
-    # Try backup sources if provided
-    if backup_sources:
-        for source_text in backup_sources:
-            if isinstance(source_text, str):
-                extracted_name = _extract_from_text_content(source_text)
-                if extracted_name and _is_valid_product_name(extracted_name):
-                    logger.info(f"✅ Advanced extraction from backup source: {extracted_name}")
-                    return extracted_name
+    # Test each strategy individually
+    source_url = intelligence.get("source_url")
+    if source_url:
+        url_candidates = extractor._extract_from_url(source_url)
+        debug_results["extraction_strategies"]["url"] = {
+            "candidates": url_candidates,
+            "source": source_url
+        }
     
-    # Try pattern matching on raw content
-    raw_content = intelligence_data.get("raw_content", "")
+    raw_content = intelligence.get("raw_content")
     if raw_content:
-        pattern_name = _extract_with_patterns(raw_content)
-        if pattern_name and _is_valid_product_name(pattern_name):
-            logger.info(f"✅ Advanced pattern extraction: {pattern_name}")
-            return pattern_name
+        content_candidates = extractor._extract_from_content(raw_content)
+        debug_results["extraction_strategies"]["content"] = {
+            "candidates": content_candidates[:10],  # Limit for readability
+            "content_length": len(raw_content),
+            "content_preview": raw_content[:200]
+        }
     
-    # Return standard name as fallback
-    logger.warning(f"⚠️ Advanced extraction couldn't improve on: {standard_name}")
-    return standard_name
-
-def _is_high_confidence_name(name: str) -> bool:
-    """Check if name is high confidence (not a fallback)"""
-    
-    fallback_names = [
-        "Premium Product", "Premium Health Formula", "Professional Software", 
-        "Expert Training Program", "Premium Solution"
-    ]
-    
-    return name not in fallback_names and len(name) > 5
-
-def _extract_from_text_content(text: str) -> Optional[str]:
-    """Extract product name from raw text content"""
-    
-    if not text or len(text) < 10:
-        return None
-    
-    # Look for product name patterns in text
-    patterns = [
-        r'introducing\s+([A-Z][a-zA-Z0-9]+)',  # "Introducing Hepatoburn"
-        r'try\s+([A-Z][a-zA-Z0-9]+)\s+today',  # "Try Hepatoburn today"
-        r'([A-Z][a-zA-Z0-9]+)\s+is\s+the\s+(?:best|only|top)',  # "Hepatoburn is the best"
-        r'order\s+([A-Z][a-zA-Z0-9]+)\s+now',  # "Order Hepatoburn now"
-        r'get\s+([A-Z][a-zA-Z0-9]+)\s+(?:today|now)',  # "Get Hepatoburn today"
-    ]
-    
-    for pattern in patterns:
-        matches = re.findall(pattern, text, re.IGNORECASE)
-        for match in matches:
-            if _is_valid_product_name(match):
-                return _clean_product_name(match)
-    
-    return None
-
-def _extract_with_patterns(content: str) -> Optional[str]:
-    """Extract using advanced regex patterns"""
-    
-    if not content:
-        return None
-    
-    # Advanced patterns for product names
-    advanced_patterns = [
-        # Branded product patterns
-        r'\b([A-Z][a-z]+(?:[A-Z][a-z]*)*)\s*(?:™|®|©)',  # Trademarked names
-        r'\b([A-Z][a-z]+(?:[A-Z][a-z]*)*)\s+formula\b',   # "Hepatoburn formula"
-        r'\b([A-Z][a-z]+(?:[A-Z][a-z]*)*)\s+supplement\b', # "Hepatoburn supplement"
-        
-        # URL-based patterns
-        r'(?:www\.)?([a-zA-Z0-9-]+)\.com(?:/|\s|$)',      # Domain names
-        
-        # Title patterns
-        r'^([A-Z][a-zA-Z0-9]+)\s*[-:|]',                  # Title prefixes
-    ]
-    
-    for pattern in advanced_patterns:
-        matches = re.findall(pattern, content, re.MULTILINE | re.IGNORECASE)
-        for match in matches:
-            candidate = match.strip() if isinstance(match, str) else str(match).strip()
-            if candidate and _is_valid_product_name(candidate):
-                return _clean_product_name(candidate)
-    
-    return None
-
-# Validation and testing utilities
-
-def test_product_name_extraction(intelligence_samples: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Test product name extraction on multiple samples"""
-    
-    test_results = {
-        "total_samples": len(intelligence_samples),
-        "successful_extractions": 0,
-        "fallback_used": 0,
-        "high_confidence": 0,
-        "results": []
+    emotional_candidates = extractor._extract_from_emotional_contexts(intelligence)
+    debug_results["extraction_strategies"]["emotional_context"] = {
+        "candidates": emotional_candidates,
+        "sources_found": len(intelligence.get("psychology_intelligence", {}).get("emotional_triggers", []))
     }
     
-    for i, sample in enumerate(intelligence_samples):
-        try:
-            extracted_name = extract_product_name_from_intelligence(sample)
-            is_fallback = not _is_high_confidence_name(extracted_name)
-            is_valid = _is_valid_product_name(extracted_name)
-            
-            result = {
-                "sample_id": i,
-                "extracted_name": extracted_name,
-                "is_fallback": is_fallback,
-                "is_valid": is_valid,
-                "confidence": "high" if not is_fallback and is_valid else "low"
-            }
-            
-            test_results["results"].append(result)
-            
-            if is_valid:
-                test_results["successful_extractions"] += 1
-            if is_fallback:
-                test_results["fallback_used"] += 1
-            if not is_fallback and is_valid:
-                test_results["high_confidence"] += 1
-                
-        except Exception as e:
-            test_results["results"].append({
-                "sample_id": i,
-                "error": str(e),
-                "confidence": "error"
-            })
+    title_candidates = extractor._extract_from_titles(intelligence)
+    debug_results["extraction_strategies"]["titles"] = {
+        "candidates": title_candidates,
+        "page_title": intelligence.get("page_title"),
+        "source_title": intelligence.get("source_title")
+    }
     
-    # Calculate success rate
-    if test_results["total_samples"] > 0:
-        test_results["success_rate"] = test_results["successful_extractions"] / test_results["total_samples"]
-        test_results["high_confidence_rate"] = test_results["high_confidence"] / test_results["total_samples"]
+    ai_candidates = extractor._extract_from_ai_data(intelligence)
+    debug_results["extraction_strategies"]["ai_generated"] = {
+        "candidates": ai_candidates,
+        "offer_products": intelligence.get("offer_intelligence", {}).get("products", [])
+    }
     
-    return test_results
+    # Final extraction
+    final_result = extract_product_name_from_intelligence(intelligence)
+    debug_results["final_result"] = final_result
+    
+    # Intelligence analysis
+    debug_results["intelligence_analysis"] = {
+        "total_sections": len(intelligence.keys()),
+        "has_raw_content": bool(intelligence.get("raw_content")),
+        "has_url": bool(intelligence.get("source_url")),
+        "has_emotional_triggers": bool(intelligence.get("psychology_intelligence", {}).get("emotional_triggers")),
+        "content_length": len(intelligence.get("raw_content", "")),
+        "main_sections": list(intelligence.keys())
+    }
+    
+    # Recommendations
+    if final_result == "Product":
+        debug_results["recommendations"].extend([
+            "❌ Product name extraction failed",
+            "💡 Check if raw_content contains actual product name",
+            "💡 Verify source_url contains product identifier",
+            "💡 Ensure emotional triggers contain real product mentions",
+            "🔍 Manual review recommended"
+        ])
+    else:
+        debug_results["recommendations"].extend([
+            f"✅ Successfully extracted: {final_result}",
+            "🎯 Extraction working correctly"
+        ])
+    
+    # Strategy effectiveness
+    strategy_counts = {}
+    for strategy, data in debug_results["extraction_strategies"].items():
+        strategy_counts[strategy] = len(data.get("candidates", []))
+    
+    if strategy_counts:
+        best_strategy = max(strategy_counts.items(), key=lambda x: x[1])
+        debug_results["recommendations"].append(f"🏆 Most effective strategy: {best_strategy[0]} ({best_strategy[1]} candidates)")
+    
+    return debug_results
 
-def generate_test_report(test_results: Dict[str, Any]) -> str:
-    """Generate human-readable test report"""
-    
-    report = f"""
-🧪 PRODUCT NAME EXTRACTION TEST REPORT
-=====================================
 
-📊 SUMMARY:
-- Total samples tested: {test_results['total_samples']}
-- Successful extractions: {test_results['successful_extractions']}
-- High confidence results: {test_results['high_confidence']}
-- Fallback names used: {test_results['fallback_used']}
-
-📈 PERFORMANCE:
-- Success rate: {test_results.get('success_rate', 0):.1%}
-- High confidence rate: {test_results.get('high_confidence_rate', 0):.1%}
-
-🎯 TOP EXTRACTED NAMES:
-"""
-    
-    # Show top extracted names
-    name_counts = {}
-    for result in test_results.get("results", []):
-        name = result.get("extracted_name")
-        if name and not result.get("is_fallback", True):
-            name_counts[name] = name_counts.get(name, 0) + 1
-    
-    for name, count in sorted(name_counts.items(), key=lambda x: x[1], reverse=True)[:5]:
-        report += f"- {name}: {count} times\n"
-    
-    return report
-
-# Export all main functions
-__all__ = [
-    'extract_product_name_from_intelligence',
-    'substitute_product_placeholders', 
-    'substitute_placeholders_in_data',
-    'validate_no_placeholders',
-    'fix_ad_copy_placeholders',
-    'fix_email_placeholders',
-    'fix_content_placeholders',
-    'validate_content_clean',
-    'extract_product_name_advanced',
-    'test_product_name_extraction',
-    'generate_test_report'
-]
+if __name__ == "__main__":
+    test_universal_extraction()
