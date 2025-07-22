@@ -558,6 +558,81 @@ class UniversalProductExtractor:
 # Global instance for easy access
 _universal_extractor = UniversalProductExtractor()
 
+def extract_company_name_from_intelligence(intelligence: Dict[str, Any]) -> str:
+    """
+    Extract company name from intelligence data
+    Often the company name is the same as the product name, but sometimes different
+    """
+    
+    # Try to find company-specific mentions first
+    company_patterns = [
+        r'(?:from|by|created by|made by|developed by)\s+([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})',
+        r'([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})\s+(?:Inc|LLC|Corp|Limited|Company)',
+        r'©\s*(?:\d{4}\s+)?([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})',
+        r'(?:contact|about)\s+([A-Z][a-zA-Z]{3,20}(?:\s+[A-Z][a-zA-Z]{2,15}){0,2})'
+    ]
+    
+    # Check raw content for company mentions
+    raw_content = intelligence.get("raw_content", "")
+    if raw_content:
+        for pattern in company_patterns:
+            matches = re.findall(pattern, raw_content, re.IGNORECASE)
+            if matches:
+                company_name = matches[0] if isinstance(matches[0], str) else matches[0][0]
+                cleaned = _universal_extractor._clean_product_name(company_name)
+                if cleaned and _universal_extractor._is_valid_product_name(cleaned):
+                    logger.info(f"🏢 Company name extracted: '{cleaned}'")
+                    return cleaned
+    
+    # Check brand intelligence
+    brand_intel = intelligence.get("brand_intelligence", {})
+    if isinstance(brand_intel, dict):
+        brand_positioning = brand_intel.get("brand_positioning", "")
+        if isinstance(brand_positioning, str) and len(brand_positioning) > 10:
+            for pattern in company_patterns:
+                matches = re.findall(pattern, brand_positioning, re.IGNORECASE)
+                if matches:
+                    company_name = matches[0] if isinstance(matches[0], str) else matches[0][0]
+                    cleaned = _universal_extractor._clean_product_name(company_name)
+                    if cleaned and _universal_extractor._is_valid_product_name(cleaned):
+                        logger.info(f"🏢 Company name from brand intel: '{cleaned}'")
+                        return cleaned
+    
+    # Check URL for company indicators
+    source_url = intelligence.get("source_url", "")
+    if source_url:
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(source_url.lower())
+            domain = parsed.netloc.replace('www.', '')
+            
+            # If domain looks like a company name (not generic)
+            domain_parts = domain.split('.')
+            main_domain = domain_parts[0] if domain_parts else ""
+            
+            if (len(main_domain) > 6 and 
+                main_domain not in ['get', 'buy', 'order', 'official', 'secure', 'click'] and
+                not main_domain.startswith('get') and
+                not main_domain.endswith('now')):
+                
+                cleaned = _universal_extractor._clean_product_name(main_domain)
+                if cleaned and _universal_extractor._is_valid_product_name(cleaned):
+                    logger.info(f"🏢 Company name from domain: '{cleaned}'")
+                    return cleaned
+        
+        except Exception as e:
+            logger.debug(f"Company URL extraction error: {e}")
+    
+    # Fallback: often company name = product name for direct-to-consumer products
+    product_name = extract_product_name_from_intelligence(intelligence)
+    if product_name and product_name != "Product":
+        logger.info(f"🏢 Company name fallback to product name: '{product_name}'")
+        return product_name
+    
+    # Final fallback
+    logger.warning("⚠️ Could not extract company name, using 'Company'")
+    return "Company"
+
 def extract_product_name_from_intelligence(intelligence: Dict[str, Any]) -> str:
     """
     Universal product name extraction for any sales page
