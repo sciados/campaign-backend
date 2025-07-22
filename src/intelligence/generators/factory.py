@@ -609,23 +609,3 @@ def get_global_factory() -> ContentGeneratorFactory:
 # Backward compatibility aliases
 ContentFactory = ContentGeneratorFactory
 create_factory = create_enhanced_content_generator_factory
-
-def get_factory():
-    """Get factory instance - compatibility function for debug endpoints"""
-    return get_global_factory()
-
-# Enhanced factory with monitoring support
-class EnhancedGeneratorFactory(ContentGeneratorFactory):
-    """Extended factory with AI monitoring capabilities"""
-    
-    def get_enhanced_factory_status(self):
-        """Get enhanced factory status for monitoring"""
-        base_status = self.get_factory_status()
-        return {
-            **base_status,
-            "enhanced_factory": {
-                "enhanced_generators": list(self._generators.keys()),
-                "dynamic_routing_enabled": True,
-                "cost_optimization_active": True
-            }
-        }

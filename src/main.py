@@ -210,7 +210,7 @@ async def lifespan(app: FastAPI):
             from src.intelligence.generators.factory import get_factory
             
             smart_router = get_smart_router()
-            enhanced_factory = get_factory()
+            enhanced_factory = get_global_factory()
             
             # Store in app state for access
             app.state.smart_router = smart_router

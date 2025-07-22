@@ -32,7 +32,7 @@ def get_email_generator():
         _email_generator = EmailSequenceGenerator()
     return _email_generator
 
-def get_factory():
+def get_global_factory():
     """Get or create factory instance"""
     global _factory
     if _factory is None:
@@ -71,7 +71,7 @@ async def get_smart_routing_analytics():
     """Get smart routing analytics and cost data"""
     try:
         generator = get_email_generator()
-        factory = get_factory()
+        factory = get_global_factory()
         
         # Get enhanced cost summary
         cost_summary = generator.get_enhanced_cost_summary()
@@ -204,7 +204,7 @@ async def test_smart_generation():
 async def get_cost_projections():
     """Get cost projections and savings estimates"""
     try:
-        factory = get_factory()
+        factory = get_global_factory()
         factory_status = factory.get_factory_status()
         
         # Current performance
