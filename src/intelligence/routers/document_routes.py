@@ -1,4 +1,4 @@
-# src/routers/document_routes.py
+# src/intelligence/routers/document_routes.py
 """
 DOCUMENT MANAGEMENT ROUTES
 ✅ Complete document upload and management API

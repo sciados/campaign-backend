@@ -133,7 +133,7 @@ except ImportError as e:
 
 # ✅ NEW: Import universal storage and document routes
 try:
-    from src.intelligence.routers.storage_routes import router as storage_router  # Note: different path!
+    from src.intelligence.routers.storage_routes import router as storage_router
     logging.info("✅ Universal storage routes imported successfully")
     STORAGE_ROUTER_AVAILABLE = True
 except ImportError as e:
@@ -834,7 +834,8 @@ async def debug_intelligence_system():
         "analysis_router": ANALYSIS_ROUTER_AVAILABLE,
         "stability_router": STABILITY_ROUTER_AVAILABLE,
         "ai_monitoring": AI_MONITORING_ROUTER_AVAILABLE,
-        "storage_system": STORAGE_ROUTER_AVAILABLE
+        "storage_system": STORAGE_ROUTER_AVAILABLE,
+        "document_system": DOCUMENT_ROUTER_AVAILABLE
     }
     
     # Check for intelligence-related imports

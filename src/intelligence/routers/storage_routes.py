@@ -1,4 +1,4 @@
-# src/routers/storage_routes.py
+# src/intelligence/routers/storage_routes.py
 """
 UNIVERSAL STORAGE ROUTES
 ✅ Complete storage management API for all content types
