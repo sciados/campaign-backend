@@ -207,7 +207,7 @@ async def lifespan(app: FastAPI):
     if AI_MONITORING_ROUTER_AVAILABLE:
         try:
             from src.intelligence.utils.smart_router import get_smart_router
-            from src.intelligence.generators.factory import get_factory
+            from src.intelligence.generators.factory import get_global_factory
             
             smart_router = get_smart_router()
             enhanced_factory = get_global_factory()
@@ -841,7 +841,7 @@ async def debug_intelligence_system():
     import_status = {}
     
     try:
-        from src.intelligence.generators.factory import get_factory
+        from src.intelligence.generators.factory import get_global_factory
         import_status["factory"] = "✅ Available"
     except ImportError as e:
         import_status["factory"] = f"❌ Error: {str(e)}"
@@ -1509,7 +1509,7 @@ async def generate_enhanced_content(
 
 # ✅ NEW: Factory management endpoints
 @app.get("/api/intelligence/factory/status")
-async def get_factory_status():
+async def get_global_factory_status():
     """Get enhanced factory status"""
     
     if not AI_MONITORING_ROUTER_AVAILABLE:
@@ -1529,7 +1529,7 @@ async def get_factory_status():
         )
 
 @app.get("/api/intelligence/factory/analytics")
-async def get_factory_analytics():
+async def get_global_factory_analytics():
     """Get factory optimization analytics"""
     
     if not AI_MONITORING_ROUTER_AVAILABLE:
@@ -1540,7 +1540,7 @@ async def get_factory_analytics():
     
     try:
         enhanced_factory = app.state.enhanced_factory
-        return enhanced_factory.get_factory_optimization_summary()
+        return enhanced_factory.get_global_factory_optimization_summary()
         
     except Exception as e:
         raise HTTPException(
