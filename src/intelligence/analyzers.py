@@ -1381,6 +1381,57 @@ class VSLAnalyzer:
             "offer_mentions": [],
             "call_to_actions": []
         }
+    
+class CompetitiveAnalyzer:
+    """🔥 MISSING CLASS: Competitive intelligence analyzer"""
+    
+    def __init__(self):
+        # Use the existing SalesPageAnalyzer as the core engine
+        self.sales_analyzer = SalesPageAnalyzer()
+        logger.info("✅ CompetitiveAnalyzer initialized")
+    
+    async def analyze_competitor(self, url: str, campaign_id: str = None) -> Dict[str, Any]:
+        """Analyze competitor using existing sales page analyzer"""
+        
+        try:
+            # Use existing sales page analysis
+            analysis = await self.sales_analyzer.analyze(url)
+            
+            # Add competitive-specific metadata
+            competitive_analysis = {
+                **analysis,
+                "competitive_analysis": {
+                    "analyzer_type": "CompetitiveAnalyzer",
+                    "competitive_focus": True,
+                    "campaign_id": campaign_id,
+                    "analysis_timestamp": datetime.utcnow().isoformat()
+                }
+            }
+            
+            logger.info(f"✅ Competitive analysis completed for: {url}")
+            return competitive_analysis
+            
+        except Exception as e:
+            logger.error(f"❌ Competitive analysis failed: {str(e)}")
+            raise
+    
+    async def analyze_enhanced(
+        self, 
+        url: str, 
+        campaign_id: str = None, 
+        analysis_depth: str = "comprehensive"
+    ) -> Dict[str, Any]:
+        """Enhanced competitive analysis"""
+        
+        # Use the enhanced analyzer from SalesPageAnalyzer
+        enhanced_analyzer = SalesPageAnalyzer()  # This extends the base class
+        return await enhanced_analyzer.analyze_enhanced(
+            url=url,
+            campaign_id=campaign_id,
+            analysis_depth=analysis_depth,
+            include_vsl_detection=True
+        )
 
 # At the end of src/intelligence/analyzers.py:
 ANALYZERS_AVAILABLE = True
+COMPETITIVE_ANALYZER_AVAILABLE = True
