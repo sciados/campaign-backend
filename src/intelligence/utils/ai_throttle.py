@@ -4,6 +4,7 @@ AI Request Throttling and Provider Failover - SIMPLIFIED FIX
 🔥 FIXED: Works with existing enhancer system
 🚀 NEW: Eliminates mock data contamination
 ⚡ ENHANCED: Provider health tracking
+🎯 CRITICAL: Always returns structured data for analyzers
 """
 import asyncio
 import time
@@ -260,13 +261,136 @@ def validate_and_parse_json(response_text: str, provider_name: str = "AI") -> An
             return None
 
 # ============================================================================
-# ENHANCED SAFE_AI_CALL (NO MOCK DATA)
+# 🔥 NEW: STRUCTURED FALLBACK RESPONSES
+# ============================================================================
+
+def create_structured_fallback(provider_name: str, error_reason: str) -> Dict[str, Any]:
+    """🔥 NEW: Create structured fallback when AI fails"""
+    
+    return {
+        "success": False,
+        "provider_used": provider_name,
+        "error": error_reason,
+        "fallback": True,
+        "fallback_data": {
+            "offer_intelligence": {
+                "products": ["Product"],
+                "pricing": [],
+                "value_propositions": [f"{provider_name} analysis unavailable - using pattern analysis"],
+                "insights": ["AI provider failed - manual review recommended"],
+                "bonuses": [],
+                "guarantees": []
+            },
+            "psychology_intelligence": {
+                "emotional_triggers": [],
+                "pain_points": ["AI analysis temporarily unavailable"],
+                "target_audience": "General audience",
+                "persuasion_techniques": []
+            },
+            "competitive_intelligence": {
+                "opportunities": ["Manual competitive analysis recommended"],
+                "gaps": [],
+                "positioning": "Standard market approach",
+                "advantages": [],
+                "weaknesses": []
+            },
+            "content_intelligence": {
+                "key_messages": ["Pattern-based analysis used"],
+                "success_stories": [],
+                "social_proof": [],
+                "content_structure": f"{provider_name} analysis failed"
+            },
+            "brand_intelligence": {
+                "tone_voice": "Professional",
+                "messaging_style": "Direct",
+                "brand_positioning": "Market competitor"
+            }
+        }
+    }
+
+def _get_provider_cost(provider_name: str) -> float:
+    """Get cost per 1K tokens for provider"""
+    costs = {
+        "groq": 0.00027,
+        "together": 0.00018,
+        "deepseek": 0.00014,
+        "openai": 0.030,
+        "anthropic": 0.015,
+        "cohere": 0.015
+    }
+    return costs.get(provider_name, 0.002)
+
+def _extract_insights_from_text(text: str) -> Optional[Dict[str, Any]]:
+    """🔥 NEW: Extract structured insights from raw text response"""
+    
+    if not text or len(text) < 50:
+        return None
+    
+    try:
+        # Look for key insights in the text
+        lines = text.split('\n')
+        insights = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Look for bullet points or structured content
+            if any(line.startswith(marker) for marker in ['-', '•', '*', '1.', '2.', '3.']):
+                insight = re.sub(r'^[-•*0-9.\s]+', '', line).strip()
+                if len(insight) > 10:
+                    insights.append(insight)
+        
+        if insights:
+            return {
+                "offer_intelligence": {
+                    "products": ["Product"],
+                    "pricing": [],
+                    "value_propositions": insights[:3],
+                    "insights": insights,
+                    "bonuses": [],
+                    "guarantees": []
+                },
+                "psychology_intelligence": {
+                    "emotional_triggers": [],
+                    "pain_points": ["Extracted from text analysis"],
+                    "target_audience": "General audience",
+                    "persuasion_techniques": insights[3:6] if len(insights) > 3 else []
+                },
+                "competitive_intelligence": {
+                    "opportunities": insights[6:9] if len(insights) > 6 else ["Text-based analysis completed"],
+                    "gaps": [],
+                    "positioning": "Text-extracted insights",
+                    "advantages": [],
+                    "weaknesses": []
+                },
+                "content_intelligence": {
+                    "key_messages": insights[:2] if insights else ["Text analysis completed"],
+                    "success_stories": [],
+                    "social_proof": [],
+                    "content_structure": f"Extracted {len(insights)} insights from text"
+                },
+                "brand_intelligence": {
+                    "tone_voice": "Professional",
+                    "messaging_style": "Direct", 
+                    "brand_positioning": "Text-based analysis"
+                }
+            }
+    
+    except Exception as e:
+        logger.error(f"❌ Text insight extraction failed: {str(e)}")
+    
+    return None
+
+# ============================================================================
+# ENHANCED SAFE_AI_CALL (ALWAYS RETURNS STRUCTURED DATA)
 # ============================================================================
 
 async def safe_ai_call(client, provider_name: str, model: str, messages: list, **kwargs) -> Any:
     """
-    🔥 ENHANCED: Make a safe AI call with improved error handling
-    Returns None on failure (NO MOCK DATA)
+    🔥 ENHANCED: Make a safe AI call with structured fallback responses
+    Always returns structured data (never None)
     """
     
     # Apply throttling
@@ -285,6 +409,8 @@ async def safe_ai_call(client, provider_name: str, model: str, messages: list, *
             response = await client.chat.completions.create(
                 model=model,
                 messages=messages,
+                stream=False,  # 🔥 CRITICAL: Disable streaming for Groq
+                timeout=30,    # 🔥 NEW: Add timeout
                 **kwargs
             )
             response_text = response.choices[0].message.content
@@ -318,21 +444,43 @@ async def safe_ai_call(client, provider_name: str, model: str, messages: list, *
         else:
             raise Exception(f"Unsupported provider: {provider_name}")
         
-        # Validate and parse JSON (returns None on failure)
-        if response_text:
-            result = validate_and_parse_json(response_text, provider_name)
-            if result is not None:
-                logger.debug(f"✅ {provider_name}: Successful API call")
-                _update_provider_health(provider_name, True)
-                return result
-            else:
-                logger.error(f"❌ {provider_name}: JSON parsing failed")
-                _update_provider_health(provider_name, False, "JSON parsing failed")
-                return None
-        else:
-            logger.error(f"❌ {provider_name}: Empty response")
+        # 🔥 CRITICAL: Check for empty response (common with Groq)
+        if not response_text or not response_text.strip():
+            logger.error(f"❌ {provider_name}: Empty response returned")
             _update_provider_health(provider_name, False, "Empty response")
-            return None
+            return create_structured_fallback(provider_name, "empty_response")
+        
+        # Validate and parse JSON
+        result = validate_and_parse_json(response_text, provider_name)
+        if result is not None:
+            logger.debug(f"✅ {provider_name}: Successful API call")
+            _update_provider_health(provider_name, True)
+            
+            # Return structured success response
+            return {
+                "success": True,
+                "provider_used": provider_name,
+                "response": result,
+                "estimated_cost": _get_provider_cost(provider_name),
+                "processing_time": 0  # Could add actual timing
+            }
+        else:
+            logger.error(f"❌ {provider_name}: JSON parsing failed")
+            _update_provider_health(provider_name, False, "JSON parsing failed")
+            
+            # 🔥 NEW: Try to extract insights from raw text
+            text_insights = _extract_insights_from_text(response_text)
+            if text_insights:
+                logger.info(f"✅ {provider_name}: Extracted insights from text response")
+                return {
+                    "success": True,
+                    "provider_used": provider_name,
+                    "response": text_insights,
+                    "estimated_cost": _get_provider_cost(provider_name),
+                    "note": "Extracted from text due to JSON parsing failure"
+                }
+            else:
+                return create_structured_fallback(provider_name, "json_parsing_failed")
         
     except Exception as e:
         error_message = str(e)
@@ -343,9 +491,10 @@ async def safe_ai_call(client, provider_name: str, model: str, messages: list, *
         if "429" in error_message or "rate limit" in error_message.lower():
             logger.warning(f"🚨 Rate limit hit for {provider_name}")
             await asyncio.sleep(10)
+            return create_structured_fallback(provider_name, "rate_limit")
         
-        # 🔥 CRITICAL CHANGE: Return None instead of mock data
-        return None
+        # 🔥 CRITICAL CHANGE: Return structured fallback instead of None
+        return create_structured_fallback(provider_name, error_message)
 
 # ============================================================================
 # MONITORING AND STATISTICS
