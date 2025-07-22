@@ -133,7 +133,7 @@ except ImportError as e:
 
 # ✅ NEW: Import universal storage and document routes
 try:
-    from src.intelligence.routers.storage_routes import router as storage_router
+    from src.intelligence.routers.storage_routes import router as storage_router  # Note: different path!
     logging.info("✅ Universal storage routes imported successfully")
     STORAGE_ROUTER_AVAILABLE = True
 except ImportError as e:
@@ -152,12 +152,12 @@ except ImportError as e:
 
 # ✅ NEW: Import AI monitoring routes
 try:
-    from src.intelligence.routers.ai_monitoring_routes import include_monitoring_routes
+    from src.intelligence.routers.ai_monitoring_routes import include_ai_monitoring_routes
     logging.info("✅ AI monitoring routes imported successfully")
     AI_MONITORING_ROUTER_AVAILABLE = True
 except ImportError as e:
     logging.warning(f"⚠️ AI monitoring routes not available: {e}")
-    include_monitoring_routes = None
+    include_ai_monitoring_routes = None
     AI_MONITORING_ROUTER_AVAILABLE = False
 
 # Update intelligence routers status
@@ -424,8 +424,8 @@ if DOCUMENT_ROUTER_AVAILABLE and document_router:
             print(f"  {list(route.methods)} /api/documents{route.path}")
 
 # ✅ NEW: Register AI monitoring routes
-if AI_MONITORING_ROUTER_AVAILABLE and include_monitoring_routes:
-    include_monitoring_routes(app)
+if AI_MONITORING_ROUTER_AVAILABLE and include_ai_monitoring_routes:
+    include_ai_monitoring_routes(app)
     logging.info("📡 AI monitoring routes registered at /api/ai-monitoring")
     monitoring_routes_registered += 1
     
