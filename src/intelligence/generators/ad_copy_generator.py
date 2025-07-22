@@ -25,10 +25,6 @@ from src.intelligence.utils.product_name_fix import (
        substitute_product_placeholders,
        substitute_placeholders_in_data,
        extract_product_name_from_intelligence,
-       fix_email_sequence_placeholders,
-       fix_social_media_placeholders,
-       fix_ad_copy_placeholders,
-       fix_blog_post_placeholders,
        validate_no_placeholders
    )
 

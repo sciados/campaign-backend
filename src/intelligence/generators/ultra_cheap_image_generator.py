@@ -11,8 +11,7 @@ import json
 
 from src.models.base import EnumSerializerMixin
 # 🔥 ADD PRODUCT NAME FIX IMPORTS
-from ..utils.product_name_fix import (    
-    fix_image_generation_placeholders,
+from ..utils.product_name_fix import (
     extract_product_name_from_intelligence
 )
 

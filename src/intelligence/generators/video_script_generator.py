@@ -21,7 +21,6 @@ from src.models.base import EnumSerializerMixin
 from ..utils.ultra_cheap_ai_provider import UltraCheapAIProvider
 # 🔥 ADD PRODUCT NAME FIX IMPORTS
 from ..utils.product_name_fix import (
-    fix_video_script_placeholders,
     extract_product_name_from_intelligence
 )
 

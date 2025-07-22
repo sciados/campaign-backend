@@ -14,7 +14,6 @@ from src.models.base import EnumSerializerMixin
 from src.storage.universal_dual_storage import get_storage_manager
 # 🔥 ADD PRODUCT NAME FIX IMPORTS
 from ..utils.product_name_fix import (
-    fix_slideshow_video_placeholders,
     extract_product_name_from_intelligence
 )
 
