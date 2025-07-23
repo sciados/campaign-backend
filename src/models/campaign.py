@@ -57,8 +57,8 @@ class Campaign(BaseModel):
     salespage_url = Column(String(1000))  # Primary competitor URL for analysis
     auto_analysis_enabled = Column(Boolean, default=True)  # Enable auto-analysis
     auto_analysis_status = Column(Enum(AutoAnalysisStatus, name='autoanalysisstatus'), default=AutoAnalysisStatus.PENDING)
-    auto_analysis_started_at = Column(DateTime)
-    auto_analysis_completed_at = Column(DateTime)
+    auto_analysis_started_at = Column(DateTime(timezone=True))
+    auto_analysis_completed_at = Column(DateTime(timezone=True))
     auto_analysis_results = Column(JSONB, default={})  # Store analysis results
     auto_analysis_error = Column(Text)  # Store any analysis errors
     
