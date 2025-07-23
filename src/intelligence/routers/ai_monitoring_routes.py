@@ -10,7 +10,7 @@ COMPLETE AI MONITORING & OPTIMIZATION DASHBOARD API
 import os
 import logging
 from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from fastapi.responses import StreamingResponse
 import json
@@ -79,7 +79,7 @@ async def get_provider_status():
                 base_cost=provider_data["base_cost"],
                 total_requests=provider_data["usage_stats"].get("requests", 0),
                 total_cost=provider_data["usage_stats"].get("total_cost", 0.0),
-                last_used=datetime.utcnow().isoformat()  # Would be actual last used from DB
+                last_used=datetime.now(timezone.utc).astimezone().isoformat()  # Would be actual last used from DB
             ))
         
         return provider_responses
@@ -126,7 +126,7 @@ async def get_routing_decision(
             primary_provider=decision.get("primary_provider", {}),
             fallback_providers=decision.get("fallback_providers", []),
             routing_strategy=decision.get("routing_strategy", "unknown"),
-            decision_time=decision.get("decision_time", datetime.utcnow().isoformat()),
+            decision_time=decision.get("decision_time", datetime.now(timezone.utc).astimezone().isoformat()),
             error_message=decision.get("error") if not decision["success"] else None
         )
     except Exception as e:
@@ -227,7 +227,7 @@ async def optimize_providers():
         return {
             "success": True,
             "message": "Provider optimization triggered",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
         }
     except Exception as e:
         logger.error(f"❌ Provider optimization error: {e}")
@@ -246,7 +246,7 @@ async def force_provider_selection(
         return {
             "success": True,
             "message": f"Forced {provider_name} for {content_type} for {duration_minutes} minutes",
-            "expires_at": (datetime.utcnow() + timedelta(minutes=duration_minutes)).isoformat()
+            "expires_at": (datetime.now(timezone.utc).astimezone().isoformat() + timedelta(minutes=duration_minutes)).isoformat()
         }
     except Exception as e:
         logger.error(f"❌ Force provider error: {e}")
@@ -261,7 +261,7 @@ async def get_real_time_metrics():
         analytics = smart_router.get_system_analytics()
         
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
             "system_health": health_check["overall_health"],
             "active_providers": analytics["system_status"]["providers_available"],
             "total_requests": analytics["performance_metrics"]["total_requests"],
@@ -357,7 +357,7 @@ async def get_system_alerts():
             alerts.append({
                 "level": "critical",
                 "message": "System health is critical",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
                 "components": health_check["components"]
             })
         
@@ -366,7 +366,7 @@ async def get_system_alerts():
             alerts.append({
                 "level": "warning",
                 "message": f"Success rate below 90%: {analytics['performance_metrics']['success_rate']:.1f}%",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
             })
         
         # Check for high costs
@@ -375,7 +375,7 @@ async def get_system_alerts():
             alerts.append({
                 "level": "warning",
                 "message": f"Average cost per request high: ${avg_cost:.4f}",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
             })
         
         # Check for provider failures
@@ -384,7 +384,7 @@ async def get_system_alerts():
                 alerts.append({
                     "level": "error",
                     "message": f"Provider {name} is unavailable",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
                 })
         
         return {

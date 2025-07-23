@@ -18,7 +18,7 @@ import logging
 import json
 import io
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from src.core.database import get_db
 from src.auth.dependencies import get_current_user
@@ -214,7 +214,7 @@ async def serve_content_with_failover(
         
         # Update access statistics
         asset.access_count += 1
-        asset.last_accessed = datetime.utcnow()
+        asset.last_accessed = datetime.now(timezone.utc).astimezone().isoformat()
         await db.commit()
         
         # Get best available URL with failover
@@ -399,7 +399,7 @@ async def storage_health_check(
             "success": True,
             "system_health": health_status,
             "user_id": str(current_user.id),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
         }
         
         if detailed:
@@ -429,7 +429,7 @@ async def storage_health_check(
                 "overall_status": "error",
                 "error": str(e)
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
         }
 
 @router.get("/failover-stats")
@@ -450,7 +450,7 @@ async def get_failover_statistics(
         }
         
         time_range = time_periods.get(time_period, timedelta(days=7))
-        start_date = datetime.utcnow() - time_range
+        start_date = datetime.now(timezone.utc).astimezone().isoformat() - time_range
         
         # Query assets within time range
         assets_query = select(CampaignAsset).where(
@@ -507,10 +507,10 @@ async def get_failover_statistics(
             "success": True,
             "failover_statistics": failover_stats,
             "user_id": str(current_user.id),
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
             "data_range": {
                 "start": start_date.isoformat(),
-                "end": datetime.utcnow().isoformat()
+                "end": datetime.now(timezone.utc).astimezone().isoformat()
             }
         }
         
@@ -656,7 +656,7 @@ async def generate_slideshow_video(
                 "asset_ids": image_asset_ids
             },
             "storyboard": video_result["storyboard"],
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.now(timezone.utc).astimezone().isoformat()
         }
         
     except HTTPException:
@@ -740,7 +740,7 @@ async def verify_storage_sync(
             new_status = sync_status["expected_status"]
             if asset.storage_status != new_status:
                 asset.storage_status = new_status
-                asset.updated_at = datetime.utcnow()
+                asset.updated_at = datetime.now(timezone.utc).astimezone().isoformat()
                 if not primary_healthy and not backup_healthy:
                     asset.failover_count += 1
             
@@ -760,7 +760,7 @@ async def verify_storage_sync(
                     "repairs_successful": sum(1 for r in sync_results if r.get("repair_success"))
                 }
             },
-            "verified_at": datetime.utcnow().isoformat()
+            "verified_at": datetime.now(timezone.utc).astimezone().isoformat()
         }
         
     except Exception as e:
@@ -832,7 +832,7 @@ async def delete_asset(
         return {
             "success": True,
             "deletion_result": deletion_result,
-            "deleted_at": datetime.utcnow().isoformat()
+            "deleted_at": datetime.now(timezone.utc).astimezone().isoformat()
         }
         
     except HTTPException:
@@ -859,7 +859,7 @@ async def get_storage_usage_stats(
         }
         
         time_range = time_periods.get(time_period, timedelta(days=30))
-        start_date = datetime.utcnow() - time_range
+        start_date = datetime.now(timezone.utc).astimezone().isoformat() - time_range
         
         # Query assets within time range
         assets_query = select(CampaignAsset).where(
@@ -950,10 +950,10 @@ async def get_storage_usage_stats(
             "success": True,
             "usage_statistics": usage_stats,
             "user_id": str(current_user.id),
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
             "data_range": {
                 "start": start_date.isoformat(),
-                "end": datetime.utcnow().isoformat()
+                "end": datetime.now(timezone.utc).astimezone().isoformat()
             }
         }
         
@@ -1008,7 +1008,7 @@ async def optimize_storage(
             "message": "Storage optimization started",
             "optimizable_count": len(optimizable_assets),
             "optimization_type": optimization_type,
-            "estimated_completion": (datetime.utcnow() + timedelta(minutes=len(optimizable_assets) * 2)).isoformat()
+            "estimated_completion": (datetime.now(timezone.utc).astimezone().isoformat() + timedelta(minutes=len(optimizable_assets) * 2)).isoformat()
         }
         
     except Exception as e:
@@ -1058,7 +1058,7 @@ async def _optimize_assets_background(assets, user_id, db):
                                         "optimized": True,
                                         "original_size": len(content),
                                         "optimized_size": len(optimized_content),
-                                        "optimization_date": datetime.utcnow().isoformat()
+                                        "optimization_date": datetime.now(timezone.utc).astimezone().isoformat()
                                     }
                                 )
                                 
@@ -1067,7 +1067,7 @@ async def _optimize_assets_background(assets, user_id, db):
                                 asset.file_url_backup = optimization_result["providers"]["backup"]["url"]
                                 asset.file_size = len(optimized_content)
                                 asset.asset_metadata = optimization_result["metadata"]
-                                asset.updated_at = datetime.utcnow()
+                                asset.updated_at = datetime.now(timezone.utc).astimezone().isoformat()
                                 
                                 await db.commit()
                                 
@@ -1156,7 +1156,7 @@ async def storage_cost_calculator(
         return {
             "success": True,
             "cost_calculation": cost_breakdown,
-            "calculated_at": datetime.utcnow().isoformat()
+            "calculated_at": datetime.now(timezone.utc).astimezone().isoformat()
         }
         
     except Exception as e:
@@ -1222,7 +1222,7 @@ async def get_storage_system_info(
                 }
             },
             "user_id": str(current_user.id),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
         }
         
     except Exception as e:

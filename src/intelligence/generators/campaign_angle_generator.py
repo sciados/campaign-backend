@@ -12,7 +12,7 @@ import os
 import logging
 import uuid
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.models.base import EnumSerializerMixin
 from src.intelligence.utils.product_name_fix import (
@@ -121,7 +121,7 @@ class CampaignAngleGenerator(EnumSerializerMixin):
         if preferences is None:
             preferences = {}
         
-        generation_start = datetime.utcnow()
+        generation_start = datetime.now(timezone.utc).astimezone().isoformat()
         
         # Extract actual product name first
         actual_product_name = extract_product_name_from_intelligence(intelligence_data)
@@ -572,7 +572,7 @@ class CampaignAngleGenerator(EnumSerializerMixin):
     def _update_generation_metrics(self, start_time: datetime, total_cost: float, angles_generated: int):
         """Update generation metrics"""
         
-        generation_time = (datetime.utcnow() - start_time).total_seconds()
+        generation_time = (datetime.now(timezone.utc).astimezone().isoformat() - start_time).total_seconds()
         
         self.generation_metrics["total_generations"] += 1
         if angles_generated > 0:

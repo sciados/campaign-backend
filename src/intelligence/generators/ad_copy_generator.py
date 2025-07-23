@@ -17,7 +17,7 @@ import uuid
 import re
 import json
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Import enhanced base generator with ultra-cheap AI
 from .base_generator import BaseContentGenerator
@@ -951,7 +951,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
                 "product_name": product_name,
                 "content_type": "ad_copy",
                 "generation_id": self.generation_id,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "preferences_used": preferences,
                 "ai_optimization": {
                     "provider_used": ai_result.get("provider_used"),

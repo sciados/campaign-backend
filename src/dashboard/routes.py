@@ -1,6 +1,7 @@
 """
 Company dashboard routes for company owners and team members - FIXED VERSION
 """
+from time import timezone
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,7 +52,7 @@ async def get_company_stats(
             )
         
         # Get date range for this month
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).astimezone().isoformat()
         first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
         # Total campaigns for this company

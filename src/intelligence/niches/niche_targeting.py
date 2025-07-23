@@ -2,7 +2,7 @@
 # File: src/intelligence/niches/niche_targeting.py
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -454,7 +454,7 @@ class NichePerformanceDashboard:
             
             return {
                 "dashboard_type": "niche_performance",
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "total_niches": len(niche_stats),
                 "ultra_high_priority": len([n for n in niche_stats if n["priority_tier"] == "ULTRA_HIGH"]),
                 "niche_breakdown": niche_stats,

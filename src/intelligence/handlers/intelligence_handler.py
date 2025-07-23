@@ -4,7 +4,7 @@ Intelligence Handler - Intelligence data management operations
 """
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
@@ -408,7 +408,7 @@ class IntelligenceHandler(EnumSerializerMixin):
                 fallback_data = {
                     "scientific_backing": ["General health and wellness support"],
                     "research_quality_score": 0.5,
-                    "generated_at": datetime.utcnow().isoformat(),
+                    "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
@@ -426,7 +426,7 @@ class IntelligenceHandler(EnumSerializerMixin):
                 fallback_data = {
                     "trust_indicators": ["Quality assurance", "Professional presentation"],
                     "overall_credibility_score": 0.6,
-                    "generated_at": datetime.utcnow().isoformat(),
+                    "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
@@ -444,7 +444,7 @@ class IntelligenceHandler(EnumSerializerMixin):
                 fallback_data = {
                     "market_analysis": {"market_size": {"current_estimate": "Growing market"}},
                     "market_intelligence_score": 0.5,
-                    "generated_at": datetime.utcnow().isoformat(),
+                    "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
@@ -462,7 +462,7 @@ class IntelligenceHandler(EnumSerializerMixin):
                 fallback_data = {
                     "emotional_journey": {"current_state": ["Seeking health solutions"]},
                     "transformation_confidence": 0.5,
-                    "generated_at": datetime.utcnow().isoformat(),
+                    "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
@@ -480,7 +480,7 @@ class IntelligenceHandler(EnumSerializerMixin):
                 fallback_data = {
                     "research_validation": {"evidence_strength": "Basic validation"},
                     "authority_score": 0.6,
-                    "generated_at": datetime.utcnow().isoformat(),
+                    "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
@@ -509,13 +509,13 @@ class IntelligenceHandler(EnumSerializerMixin):
                 "enhancement_quality": enhancement_metadata.get("enhancement_quality", "unknown"),
                 "modules_successful": enhancement_metadata.get("modules_successful", []),
                 "scientific_enhancements": len(enhancements.get("scientific_validation", {})) if enhancements.get("scientific_validation") else 0,
-                "amplified_at": datetime.utcnow().isoformat(),
+                "amplified_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 
                 # Storage validation
                 "intelligence_categories_stored": ai_intelligence_stored,
                 "storage_validation_applied": True,
                 "extraction_successful": True,
-                "amplification_timestamp": datetime.utcnow().isoformat(),
+                "amplification_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
                 
                 # System info
                 "system_architecture": "direct_modular_enhancement",
@@ -574,7 +574,7 @@ class IntelligenceHandler(EnumSerializerMixin):
             error_metadata = {
                 "amplification_applied": False,
                 "amplification_error": str(e),
-                "amplification_attempted_at": datetime.utcnow().isoformat(),
+                "amplification_attempted_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "fallback_to_base": True,
                 "error_details": {
                     "error_type": type(e).__name__,

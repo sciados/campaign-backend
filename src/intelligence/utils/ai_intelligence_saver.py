@@ -7,7 +7,7 @@ import json
 import logging
 import uuid
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy import text
@@ -159,7 +159,7 @@ async def _emergency_metadata_backup(
                 metadata["emergency_ai_backup"][category] = ai_data[category]
         
         metadata["emergency_backup_applied"] = True
-        metadata["emergency_backup_timestamp"] = datetime.utcnow().isoformat()
+        metadata["emergency_backup_timestamp"] = datetime.now(timezone.utc).astimezone().isoformat()
         metadata["emergency_backup_reason"] = "Primary AI storage methods failed"
         
         # Save metadata
@@ -277,7 +277,7 @@ async def test_ai_storage_methods(
     """Test different storage methods to diagnose issues"""
     
     test_data = {
-        "test_timestamp": datetime.utcnow().isoformat(),
+        "test_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
         "test_items": ["item1", "item2", "item3"],
         "test_metadata": {
             "test_purpose": "Storage method diagnosis",

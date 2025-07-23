@@ -3,7 +3,7 @@
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any
 import aiohttp
 import json
@@ -297,7 +297,7 @@ class AutomatedNicheMonitor:
                 "estimated_affiliates": estimated_affiliates,
                 "trending_score": trending_score,
                 "source": product.get("source", "unknown"),
-                "discovery_timestamp": datetime.utcnow().isoformat(),
+                "discovery_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
                 "auto_discovered": True
             }
             
@@ -387,7 +387,7 @@ class NichePerformanceAnalytics:
             
             return {
                 "report_type": "niche_roi_analysis",
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "period": "Last 30 days",
                 "overall_metrics": overall_metrics,
                 "niche_breakdown": niche_performance,

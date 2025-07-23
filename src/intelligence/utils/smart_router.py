@@ -13,7 +13,7 @@ import asyncio
 import json
 import time
 from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -47,7 +47,7 @@ class CompleteSmartRouter:
         
         # Performance tracking
         self.performance_cache = {}
-        self.last_cache_update = datetime.utcnow()
+        self.last_cache_update = datetime.now(timezone.utc).astimezone().isoformat()
         
         # Session statistics
         self.session_stats = {
@@ -57,7 +57,7 @@ class CompleteSmartRouter:
             "total_savings": 0.0,
             "provider_usage": {},
             "content_type_usage": {},
-            "session_start": datetime.utcnow()
+            "session_start": datetime.now(timezone.utc).astimezone().isoformat()
         }
         
         # Initialize monitoring
@@ -195,7 +195,7 @@ class CompleteSmartRouter:
             cur.close()
             conn.close()
             
-            self.last_cache_update = datetime.utcnow()
+            self.last_cache_update = datetime.now(timezone.utc).astimezone().isoformat()
             logger.debug("📊 Performance cache updated")
             
         except Exception as e:
@@ -316,7 +316,7 @@ class CompleteSmartRouter:
                 (provider_name, content_type, response_time_seconds, cost_per_1k_tokens, 
                  is_successful, tokens_used, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (provider_name, content_type, response_time, cost, success, tokens_used, datetime.utcnow()))
+            """, (provider_name, content_type, response_time, cost, success, tokens_used, datetime.now(timezone.utc).astimezone().isoformat()))
             
             conn.commit()
             cur.close()
@@ -357,13 +357,13 @@ class CompleteSmartRouter:
             "routing_strategy": "performance_optimized",
             "content_type": content_type,
             "required_strength": required_strength,
-            "decision_time": datetime.utcnow().isoformat()
+            "decision_time": datetime.now(timezone.utc).astimezone().isoformat()
         }
     
     def get_system_analytics(self) -> Dict[str, Any]:
         """Get comprehensive system analytics"""
         
-        session_duration = (datetime.utcnow() - self.session_stats["session_start"]).total_seconds()
+        session_duration = (datetime.now(timezone.utc).astimezone().isoformat() - self.session_stats["session_start"]).total_seconds()
         
         return {
             "system_status": {
@@ -408,7 +408,7 @@ class CompleteSmartRouter:
         
         health_status = {
             "overall_health": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
             "components": {}
         }
         
@@ -437,7 +437,7 @@ class CompleteSmartRouter:
         
         # Check monitoring
         if self.monitoring_enabled:
-            cache_age = (datetime.utcnow() - self.last_cache_update).total_seconds()
+            cache_age = (datetime.now(timezone.utc).astimezone().isoformat() - self.last_cache_update).total_seconds()
             if cache_age > 300:  # 5 minutes
                 health_status["components"]["monitoring"] = "stale"
                 health_status["overall_health"] = "degraded"

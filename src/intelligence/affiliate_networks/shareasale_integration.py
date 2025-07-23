@@ -135,7 +135,7 @@ class ShareASaleAPI:
                         "network": "shareasale",
                         "merchant_id": merchant_id,
                         "data_source": "shareasale_api",
-                        "scraped_at": datetime.utcnow().isoformat(),
+                        "scraped_at": datetime.now(time.timezone.utc).astimezone().isoformat(),
                         "is_real_product": True
                     })
                 
@@ -182,7 +182,7 @@ class ShareASaleAPI:
                                 "network": "shareasale",
                                 "data_source": "shareasale_search",
                                 "search_keywords": keywords,
-                                "scraped_at": datetime.utcnow().isoformat(),
+                                "scraped_at": datetime.now(timezone.utc).astimezone().isoformat(),
                                 "is_real_product": True
                             })
                         
@@ -427,7 +427,7 @@ class MultiNetworkProductManager:
             "image_url": product.get("image_url", ""),
             "is_active": product.get("in_stock", "1") == "1",
             "data_source": product.get("data_source", f"{network}_api"),
-            "scraped_at": product.get("scraped_at", datetime.utcnow().isoformat()),
+            "scraped_at": product.get("scraped_at", datetime.now(time.timezone.utc).astimezone().isoformat()),
             "is_real_product": product.get("is_real_product", True),
             
             # Network-specific metadata

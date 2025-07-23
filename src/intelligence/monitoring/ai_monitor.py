@@ -11,7 +11,7 @@ AI MONITORING SERVICE - COMPLETE VERSION (CIRCULAR IMPORT FREE)
 import asyncio
 import logging
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 import aiohttp
@@ -116,13 +116,13 @@ class AIMonitorService:
                     return_exceptions=True  # Don't stop if one task fails
                 )
                 
-                self.last_monitoring_cycle = datetime.utcnow()
+                self.last_monitoring_cycle = datetime.now(timezone.utc).astimezone().isoformat()
                 logger.info("✅ Monitoring cycle completed successfully")
                 
             except Exception as e:
                 logger.error(f"❌ Monitoring cycle failed: {str(e)}")
                 self.monitoring_errors.append({
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
                     "error": str(e),
                     "cycle_type": "full_monitoring"
                 })
@@ -159,7 +159,7 @@ class AIMonitorService:
                         # Cache pricing data
                         self.pricing_cache[provider] = {
                             "data": pricing_data,
-                            "updated_at": datetime.utcnow(),
+                            "updated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                             "status": "success"
                         }
                         
@@ -167,7 +167,7 @@ class AIMonitorService:
                     logger.warning(f"⚠️ Failed to fetch pricing for {provider}: {str(e)}")
                     self.pricing_cache[provider] = {
                         "data": [],
-                        "updated_at": datetime.utcnow(),
+                        "updated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                         "status": "failed",
                         "error": str(e)
                     }
@@ -196,7 +196,7 @@ class AIMonitorService:
                         # Cache health data
                         self.health_cache[provider] = {
                             "health": health_data,
-                            "updated_at": datetime.utcnow()
+                            "updated_at": datetime.now(timezone.utc).astimezone().isoformat()
                         }
                         
                 except Exception as e:
@@ -206,9 +206,9 @@ class AIMonitorService:
                             "provider": provider,
                             "status": "error",
                             "error": str(e),
-                            "checked_at": datetime.utcnow()
+                            "checked_at": datetime.now(timezone.utc).astimezone().isoformat()
                         },
-                        "updated_at": datetime.utcnow()
+                        "updated_at": datetime.now(timezone.utc).astimezone().isoformat()
                     }
         
         if health_checks:
@@ -287,7 +287,7 @@ class AIMonitorService:
                     # Cache recommendation
                     self.recommendations_cache[content_type] = {
                         "recommendation": recommendation,
-                        "calculated_at": datetime.utcnow(),
+                        "calculated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                         "metrics_used": len(metrics)
                     }
                     
@@ -319,7 +319,7 @@ class AIMonitorService:
                         "reasoning": rec.reasoning,
                         "cost_savings": rec.cost_savings,
                         "quality_impact": rec.quality_impact,
-                        "updated_at": datetime.utcnow().isoformat()
+                        "updated_at": datetime.now(timezone.utc).astimezone().isoformat()
                     }
                 }
                 routing_updates.append(routing_decision)
@@ -412,18 +412,18 @@ class AIMonitorService:
         test_endpoint = self._get_health_check_endpoint(provider)
         headers = self._get_auth_headers(provider, api_key)
         
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc).astimezone().isoformat()
         
         try:
             async with session.get(test_endpoint, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
-                response_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+                response_time = (datetime.now(timezone.utc).astimezone().isoformat() - start_time).total_seconds() * 1000
                 
                 return {
                     "provider": provider,
                     "status": "healthy" if response.status == 200 else "degraded",
                     "response_time_ms": int(response_time),
                     "status_code": response.status,
-                    "checked_at": datetime.utcnow(),
+                    "checked_at": datetime.now(timezone.utc).astimezone().isoformat(),
                     "endpoint": test_endpoint
                 }
         except asyncio.TimeoutError:
@@ -432,7 +432,7 @@ class AIMonitorService:
                 "status": "down",
                 "response_time_ms": 10000,
                 "error": "timeout",
-                "checked_at": datetime.utcnow(),
+                "checked_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "endpoint": test_endpoint
             }
         except Exception as e:
@@ -440,13 +440,13 @@ class AIMonitorService:
                 "provider": provider,
                 "status": "down",
                 "error": str(e),
-                "checked_at": datetime.utcnow(),
+                "checked_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "endpoint": test_endpoint
             }
     
     async def _benchmark_provider(self, provider: str, content_type: str, prompt: str) -> Optional[Dict]:
         """Benchmark individual provider performance (Complete Implementation)"""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc).astimezone().isoformat()
         
         try:
             api_key = self._get_provider_api_key(provider)
@@ -462,7 +462,7 @@ class AIMonitorService:
                 return None
             
             if result:
-                generation_time = (datetime.utcnow() - start_time).total_seconds()
+                generation_time = (datetime.now(timezone.utc).astimezone().isoformat() - start_time).total_seconds()
                 
                 return {
                     "provider": provider,
@@ -472,7 +472,7 @@ class AIMonitorService:
                     "success": result.get("success", False),
                     "cost_estimate": result.get("cost", 0.001),
                     "quality_estimate": result.get("quality", 0.8),
-                    "benchmarked_at": datetime.utcnow()
+                    "benchmarked_at": datetime.now(timezone.utc).astimezone().isoformat()
                 }
         
         except Exception as e:
@@ -523,7 +523,7 @@ class AIMonitorService:
                         "model": model.get("id", "unknown"),
                         "input_cost": 0.00013,  # Known Groq pricing
                         "output_cost": 0.00013,
-                        "updated_at": datetime.utcnow()
+                        "updated_at": datetime.now(timezone.utc).astimezone().isoformat()
                     })
             
             elif provider == "deepseek":
@@ -533,7 +533,7 @@ class AIMonitorService:
                     "model": "deepseek-chat",
                     "input_cost": 0.00014,
                     "output_cost": 0.00028,
-                    "updated_at": datetime.utcnow()
+                    "updated_at": datetime.now(timezone.utc).astimezone().isoformat()
                 })
             
             # Add more provider-specific parsing as needed
@@ -610,7 +610,7 @@ class AIMonitorService:
                         speed_score=max(0.1, 1.0 - (response_time / 5000)),  # Normalize response time
                         reliability_score=success_rate,
                         value_score=0.8 / max(0.001, avg_cost) if avg_cost > 0 else 1.0,
-                        last_updated=datetime.utcnow()
+                        last_updated=datetime.now(timezone.utc).astimezone().isoformat()
                     ))
         
         # If no cached metrics, create default metrics for available providers
@@ -626,7 +626,7 @@ class AIMonitorService:
                     speed_score=0.8,
                     reliability_score=0.9,
                     value_score=0.8 / max(0.001, self._get_default_cost(provider)),
-                    last_updated=datetime.utcnow()
+                    last_updated=datetime.now(timezone.utc).astimezone().isoformat()
                 ))
         
         return metrics
@@ -927,7 +927,7 @@ class AIMonitorService:
                             "reasoning": rec.reasoning,
                             "cost_savings": rec.cost_savings,
                             "quality_impact": rec.quality_impact,
-                            "created_at": datetime.utcnow()
+                            "created_at": datetime.now(timezone.utc).astimezone().isoformat()
                         })
                     
                     await session.commit()
@@ -1093,7 +1093,7 @@ class AIMonitorService:
             "system_health": "operational" if self.monitoring_active else "stopped",
             "database_available": self.db_url is not None,
             "database_connected": self._db_engine is not None and self._db_engine is not False,
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.now(timezone.utc).astimezone().isoformat()
         }
     
     async def get_provider_analytics(self) -> Dict[str, Any]:
@@ -1113,7 +1113,7 @@ class AIMonitorService:
                 analytics["provider_health"][provider] = {
                     "status": health.get("status", "unknown"),
                     "response_time_ms": health.get("response_time_ms", 0),
-                    "last_checked": health.get("checked_at", datetime.utcnow()).isoformat() if isinstance(health.get("checked_at"), datetime) else str(health.get("checked_at")),
+                    "last_checked": health.get("checked_at", datetime.now(timezone.utc).astimezone().isoformat()).isoformat() if isinstance(health.get("checked_at"), datetime) else str(health.get("checked_at")),
                     "uptime_score": 1.0 if health.get("status") == "healthy" else 0.5 if health.get("status") == "degraded" else 0.0
                 }
         
@@ -1144,7 +1144,7 @@ class AIMonitorService:
                     analytics["provider_costs"][provider] = {
                         "average_cost_per_1k_tokens": avg_cost,
                         "models_tracked": len(pricing),
-                        "last_updated": pricing_data.get("updated_at", datetime.utcnow()).isoformat() if isinstance(pricing_data.get("updated_at"), datetime) else str(pricing_data.get("updated_at"))
+                        "last_updated": pricing_data.get("updated_at", datetime.now(timezone.utc).astimezone().isoformat()).isoformat() if isinstance(pricing_data.get("updated_at"), datetime) else str(pricing_data.get("updated_at"))
                     }
         
         # Optimization recommendations analytics
@@ -1157,7 +1157,7 @@ class AIMonitorService:
                     "reasoning": rec.reasoning,
                     "cost_savings": rec.cost_savings,
                     "quality_impact": rec.quality_impact,
-                    "calculated_at": rec_data.get("calculated_at", datetime.utcnow()).isoformat() if isinstance(rec_data.get("calculated_at"), datetime) else str(rec_data.get("calculated_at"))
+                    "calculated_at": rec_data.get("calculated_at", datetime.now(timezone.utc).astimezone().isoformat()).isoformat() if isinstance(rec_data.get("calculated_at"), datetime) else str(rec_data.get("calculated_at"))
                 }
         
         # Usage statistics
@@ -1276,7 +1276,7 @@ async def check_monitoring_health() -> Dict[str, Any]:
             "error": str(e),
             "system_health": "error",
             "circular_imports_resolved": True,
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.now(timezone.utc).astimezone().isoformat()
         }
 
 # API convenience functions (complete implementation)

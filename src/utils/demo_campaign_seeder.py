@@ -6,7 +6,7 @@ Demo Campaign Seeder - Creates educational demo campaigns for new users
 from datetime import datetime, timezone
 import uuid
 import json
-from sqlalchemy import DateTime, func
+# from sqlalchemy import DateTime, func
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -45,8 +45,8 @@ class DemoCampaignSeeder:
                 salespage_url="https://buffer.com",
                 auto_analysis_enabled=True,
                 auto_analysis_status=AutoAnalysisStatus.COMPLETED,
-                auto_analysis_started_at = datetime.now(timezone.utc),
-                auto_analysis_completed_at = datetime.now(timezone.utc),
+                auto_analysis_started_at = datetime.now(timezone.utc).astimezone().isoformat(),
+                auto_analysis_completed_at = datetime.now(timezone.utc).astimezone().isoformat(),
                 
                 # Analysis results
                 analysis_confidence_score=0.92,
@@ -92,7 +92,7 @@ class DemoCampaignSeeder:
                 # Settings
                 settings={
                     "demo_campaign": True,
-                    "demo_created_at": datetime.now(timezone.utc),
+                    "demo_created_at": datetime.now(timezone.utc).astimezone().isoformat(),
                     "demo_version": "1.0"
                 }
             )

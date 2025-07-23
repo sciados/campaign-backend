@@ -8,7 +8,7 @@ FIXED: Now uses centralized AI system with automatic provider failover
 """
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 from ...utils.ai_throttle import safe_ai_call
@@ -204,7 +204,7 @@ class ContentIntelligenceEnhancer:
                 "messaging_hierarchy": messaging_hierarchy,
                 "engagement_optimization": engagement_optimization,
                 "content_performance_score": content_performance,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.83,
                 "product_name_fix_applied": True,  # 🔥 Track that fix was applied
@@ -550,7 +550,7 @@ class ContentIntelligenceEnhancer:
             "messaging_hierarchy": self._fallback_messaging_hierarchy(),
             "engagement_optimization": self._fallback_engagement_optimization(),
             "content_performance_score": 0.68,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.68,
             "product_name_fix_applied": True,

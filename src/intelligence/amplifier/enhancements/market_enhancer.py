@@ -8,7 +8,7 @@ FIXED: Now uses centralized AI system with automatic provider failover
 """
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import re
 
@@ -209,7 +209,7 @@ class MarketIntelligenceEnhancer:
                 "market_opportunities": market_opportunities,
                 "market_positioning": market_positioning,
                 "market_intelligence_score": market_intelligence_score,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.82,
                 "product_name_fix_applied": True,  # 🔥 Track that fix was applied
@@ -627,7 +627,7 @@ class MarketIntelligenceEnhancer:
             "market_opportunities": self._fallback_market_opportunities(),
             "market_positioning": self._fallback_market_positioning(),
             "market_intelligence_score": 0.65,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.65,
             "product_name_fix_applied": True,

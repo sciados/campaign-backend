@@ -4,7 +4,7 @@ import magic
 import PyPDF2
 import io
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import UploadFile, logger
 
 from .universal_dual_storage import get_storage_manager
@@ -74,7 +74,7 @@ class DocumentManager:
             "page_count": validation_result.get("page_count", 1),
             "word_count": len(text_content.split()) if text_content else 0,
             "has_preview": preview_data is not None,
-            "processing_timestamp": datetime.utcnow().isoformat(),
+            "processing_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
             **(metadata or {})
         }
         

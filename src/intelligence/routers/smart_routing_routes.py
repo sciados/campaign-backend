@@ -10,7 +10,7 @@ import os
 import logging
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime
+from datetime import datetime, timezone
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -96,7 +96,7 @@ async def get_smart_routing_analytics():
             },
             "system_health": {
                 "all_systems_operational": True,
-                "last_updated": datetime.utcnow().isoformat(),
+                "last_updated": datetime.now(timezone.utc).astimezone().isoformat(),
                 "monitoring_active": True
             }
         }
@@ -155,7 +155,7 @@ async def get_provider_performance():
                 "average_cost_per_request": float(cost_data['total_cost'] or 0) / max(1, int(cost_data['total_requests'] or 1))
             },
             "data_freshness": "24_hours",
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.now(timezone.utc).astimezone().isoformat()
         }
         
     except Exception as e:
@@ -263,7 +263,7 @@ async def health_check():
     try:
         return {
             "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
             "smart_routing": "operational",
             "database": "connected" if os.getenv("DATABASE_URL") else "not_configured",
             "monitoring": "enabled" if os.getenv("AI_MONITORING_ENABLED", "true").lower() == "true" else "disabled"
@@ -272,7 +272,7 @@ async def health_check():
         return {
             "status": "error",
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
         }
 
 # Add these routes to your main FastAPI app

@@ -10,7 +10,7 @@ ENHANCED CONTENT GENERATOR FACTORY - ULTRA-CHEAP AI INTEGRATION
 
 import logging
 from typing import Dict, List, Any, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class ContentGeneratorFactory:
         
         # Ultra-cheap AI performance tracking
         self.cost_tracker = {
-            "factory_initialized": datetime.utcnow(),
+            "factory_initialized": datetime.now(timezone.utc).astimezone().isoformat(),
             "total_generations": 0,
             "total_cost": 0.0,
             "total_savings": 0.0,
@@ -289,7 +289,7 @@ class ContentGeneratorFactory:
         if preferences is None:
             preferences = {}
         
-        generation_start = datetime.utcnow()
+        generation_start = datetime.now(timezone.utc).astimezone().isoformat()
         
         try:
             generator = self.get_generator(content_type)
@@ -340,7 +340,7 @@ class ContentGeneratorFactory:
     def _track_generation_success(self, content_type: str, result: Dict[str, Any], start_time: datetime):
         """Track successful generation with cost data"""
         
-        generation_time = (datetime.utcnow() - start_time).total_seconds()
+        generation_time = (datetime.now(timezone.utc).astimezone().isoformat() - start_time).total_seconds()
         
         # Extract cost information from result metadata
         metadata = result.get("metadata", {})
@@ -431,7 +431,7 @@ class ContentGeneratorFactory:
                 "generation_cost": 0.0,
                 "ultra_cheap_ai_enabled": True,
                 "fallback_reason": "Generator error",
-                "generated_at": datetime.utcnow().isoformat()
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat()
             }
         }
         
@@ -508,7 +508,7 @@ class ContentGeneratorFactory:
     def get_factory_status(self) -> Dict[str, Any]:
         """Get comprehensive factory status with cost analytics"""
         
-        session_duration = (datetime.utcnow() - self.cost_tracker["factory_initialized"]).total_seconds() / 3600  # hours
+        session_duration = (datetime.now(timezone.utc).astimezone().isoformat() - self.cost_tracker["factory_initialized"]).total_seconds() / 3600  # hours
         
         return {
             "factory_info": {

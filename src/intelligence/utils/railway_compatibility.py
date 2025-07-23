@@ -11,7 +11,7 @@ RAILWAY COMPATIBILITY LAYER - FIXED
 import asyncio
 import logging
 from typing import Dict, List, Any, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -271,7 +271,7 @@ class ContentHandler:
                 "product_name": product_name,
                 "fallback_reason": "Ultra-cheap AI temporarily unavailable",
                 "railway_compatible": True,
-                "generated_at": datetime.utcnow().isoformat()
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat()
             }
         }
     

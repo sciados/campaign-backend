@@ -6,7 +6,7 @@ Production Intelligence Amplifier Core - Scientific Backing &  Analysis
 import asyncio
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 from .sources import analyze_sources
@@ -491,7 +491,7 @@ class IntelligenceAmplifier:
                 len(credibility_enhancements.get("trust_indicators", [])) +
                 len(competitive_enhancements.get("enhanced_opportunities", []))
             ),
-            "enhanced_at": datetime.utcnow().isoformat(),
+            "enhanced_at": datetime.now(timezone.utc).astimezone().isoformat(),
             "amplifier_version": "production_1.0"
         }
         

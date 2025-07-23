@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 # Import from our clean base module
@@ -168,7 +168,7 @@ class Campaign(BaseModel):
     def start_auto_analysis(self):
         """Start auto-analysis process"""
         self.auto_analysis_status = AutoAnalysisStatus.IN_PROGRESS
-        self.auto_analysis_started_at = datetime.utcnow()
+        self.auto_analysis_started_at = datetime.now(timezone.utc).astimezone().isoformat()
         self.status = CampaignStatus.ANALYZING
         self.workflow_state = CampaignWorkflowState.AUTO_ANALYZING
         
@@ -176,12 +176,12 @@ class Campaign(BaseModel):
         self.step_states["step_1"]["progress"] = 50  # Setup done, analysis starting
         self.step_states["step_1"]["status"] = "analyzing"
         
-        self.last_activity = datetime.utcnow()
+        self.last_activity = datetime.now(timezone.utc).astimezone().isoformat()
     
     def complete_auto_analysis(self, intelligence_id: str, confidence_score: float, analysis_summary: dict):
         """Complete auto-analysis process"""
         self.auto_analysis_status = AutoAnalysisStatus.COMPLETED
-        self.auto_analysis_completed_at = datetime.utcnow()
+        self.auto_analysis_completed_at = datetime.now(timezone.utc).astimezone().isoformat()
         self.analysis_intelligence_id = intelligence_id
         self.analysis_confidence_score = confidence_score
         self.analysis_summary = analysis_summary
@@ -203,7 +203,7 @@ class Campaign(BaseModel):
         
         self.completed_steps = [1]
         self.available_steps = [1, 2]
-        self.last_activity = datetime.utcnow()
+        self.last_activity = datetime.now(timezone.utc).astimezone().isoformat()
     
     def fail_auto_analysis(self, error_message: str):
         """Handle auto-analysis failure"""
@@ -215,7 +215,7 @@ class Campaign(BaseModel):
         self.step_states["step_1"]["status"] = "error"
         self.step_states["step_1"]["progress"] = 25  # Partial progress
         
-        self.last_activity = datetime.utcnow()
+        self.last_activity = datetime.now(timezone.utc).astimezone().isoformat()
     
     def start_content_generation(self):
         """Start content generation (Step 2)"""
@@ -228,7 +228,7 @@ class Campaign(BaseModel):
         
         self.active_steps = [2]
         self.last_active_step = 2
-        self.last_activity = datetime.utcnow()
+        self.last_activity = datetime.now(timezone.utc).astimezone().isoformat()
     
     def complete_content_generation(self, content_count: int):
         """Complete content generation"""
@@ -244,7 +244,7 @@ class Campaign(BaseModel):
         self.step_states["step_2"]["progress"] = 100
         
         self.completed_steps = [1, 2]
-        self.last_activity = datetime.utcnow()
+        self.last_activity = datetime.now(timezone.utc).astimezone().isoformat()
     
     def update_workflow_progress(self):
         """🆕 UPDATED: Update workflow progress for 2-step workflow"""
@@ -261,7 +261,7 @@ class Campaign(BaseModel):
             if self.step_states["step_2"]["status"] != "completed":
                 self.complete_content_generation(self.content_generated)
         
-        self.last_activity = datetime.utcnow()
+        self.last_activity = datetime.now(timezone.utc).astimezone().isoformat()
     
     def calculate_completion_percentage(self):
         """🆕 UPDATED: Calculate completion percentage for 2-step workflow"""

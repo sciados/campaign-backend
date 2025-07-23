@@ -19,7 +19,7 @@ import re
 import uuid
 import json
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.models.base import EnumSerializerMixin
 
@@ -236,7 +236,7 @@ class SocialMediaGenerator(EnumSerializerMixin):
         if preferences is None:
             preferences = {}
         
-        generation_start = datetime.utcnow()
+        generation_start = datetime.now(timezone.utc).astimezone().isoformat()
         
         # Extract actual product name first
         actual_product_name = extract_product_name_from_intelligence(intelligence_data)
@@ -1338,7 +1338,7 @@ class SocialMediaGenerator(EnumSerializerMixin):
     def _update_generation_metrics(self, start_time: datetime, cost: float, savings: float, success: bool):
         """Update generation metrics for monitoring"""
         
-        generation_time = (datetime.utcnow() - start_time).total_seconds()
+        generation_time = (datetime.now(timezone.utc).astimezone().isoformat() - start_time).total_seconds()
         
         self.generation_metrics["total_generations"] += 1
         if success:

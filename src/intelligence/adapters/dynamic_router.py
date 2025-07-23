@@ -10,7 +10,7 @@ DYNAMIC AI ROUTER - CIRCULAR IMPORT FREE VERSION
 import asyncio
 import logging
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 import os
@@ -147,7 +147,7 @@ class DynamicAIRouter:
                     
                     # Cache the selection
                     self.provider_cache[cache_key] = provider_selection
-                    self.last_cache_update[cache_key] = datetime.utcnow()
+                    self.last_cache_update[cache_key] = datetime.now(timezone.utc).astimezone().isoformat()
                     
                     logger.info(f"🎯 Selected {provider_selection.provider_name} for {content_type} ({provider_selection.selection_reason})")
                     return provider_selection
@@ -387,7 +387,7 @@ class DynamicAIRouter:
         if not last_update:
             return False
         
-        return (datetime.utcnow() - last_update).total_seconds() < self.cache_ttl
+        return (datetime.now(timezone.utc).astimezone().isoformat() - last_update).total_seconds() < self.cache_ttl
     
     async def _log_successful_usage(self, provider_selection: ProviderSelection, content_type: str):
         """Log successful provider usage for monitoring"""
@@ -397,7 +397,7 @@ class DynamicAIRouter:
                 await monitor.log_usage_success(
                     provider_selection.provider_name,
                     content_type,
-                    datetime.utcnow()
+                    datetime.now(timezone.utc).astimezone().isoformat()
                 )
         except Exception as e:
             logger.debug(f"Failed to log successful usage: {str(e)}")
@@ -411,7 +411,7 @@ class DynamicAIRouter:
                     provider_selection.provider_name,
                     content_type,
                     failed_providers,
-                    datetime.utcnow()
+                    datetime.now(timezone.utc).astimezone().isoformat()
                 )
         except Exception as e:
             logger.debug(f"Failed to log fallback usage: {str(e)}")
@@ -509,14 +509,14 @@ async def check_dynamic_routing_health() -> Dict[str, Any]:
             "unavailable_providers": len(provider_status["unavailable_providers"]),
             "cache_status": provider_status["cache_status"],
             "system_health": "operational",
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.now(timezone.utc).astimezone().isoformat()
         }
     except Exception as e:
         return {
             "dynamic_routing_active": False,
             "error": str(e),
             "system_health": "error",
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.now(timezone.utc).astimezone().isoformat()
         }
 
 async def get_routing_analytics() -> Dict[str, Any]:

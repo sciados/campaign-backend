@@ -7,7 +7,7 @@ FIXED: Added throttling and proper error handling
 """
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 from ...utils.ai_throttle import safe_ai_call
@@ -207,7 +207,7 @@ class CredibilityIntelligenceEnhancer:
                 "reputation_factors": reputation_factors,
                 "expertise_indicators": expertise_indicators,
                 "overall_credibility_score": overall_credibility,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.88,
                 "product_name_fix_applied": True,  # 🔥 Track that fix was applied
@@ -632,7 +632,7 @@ class CredibilityIntelligenceEnhancer:
             "reputation_factors": self._fallback_reputation_factors(),
             "expertise_indicators": self._fallback_expertise_indicators(),
             "overall_credibility_score": 0.72,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.70,
             "product_name_fix_applied": True,

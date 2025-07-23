@@ -17,7 +17,7 @@ from typing import Dict, List, Any, Optional
 import logging
 import json
 import io
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.core.database import get_db
 from src.auth.dependencies import get_current_user
@@ -172,7 +172,7 @@ async def get_document(
         
         # Update access statistics
         asset.access_count += 1
-        asset.last_accessed = datetime.utcnow()
+        asset.last_accessed = datetime.now(timezone.utc).astimezone().isoformat()
         await db.commit()
         
         # Get best available URL with failover
@@ -419,7 +419,7 @@ async def regenerate_document_preview(
                             "success": True,
                             "preview_id": str(new_preview.id),
                             "preview_url": new_preview.file_url_primary,
-                            "regenerated_at": datetime.utcnow().isoformat()
+                            "regenerated_at": datetime.now(timezone.utc).astimezone().isoformat()
                         }
                     else:
                         raise HTTPException(status_code=400, detail="Preview generation failed")
@@ -590,7 +590,7 @@ async def update_document_metadata(
             asset.asset_metadata = current_metadata
         
         # Update timestamp
-        asset.updated_at = datetime.utcnow()
+        asset.updated_at = datetime.now(timezone.utc).astimezone().isoformat()
         
         await db.commit()
         
@@ -653,7 +653,7 @@ async def delete_document(
         return {
             "success": True,
             "document_id": document_id,
-            "deleted_at": datetime.utcnow().isoformat(),
+            "deleted_at": datetime.now(timezone.utc).astimezone().isoformat(),
             "preview_deleted": delete_preview
         }
         
@@ -734,7 +734,7 @@ async def get_document_stats(
                 for doc in recent_documents
             ],
             "campaign_id": campaign_id,
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.now(timezone.utc).astimezone().isoformat()
         }
         
     except Exception as e:
@@ -772,7 +772,7 @@ async def document_system_health(
                 "automatic_failover": True
             },
             "user_id": str(current_user.id),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
         }
         
     except Exception as e:
@@ -780,5 +780,5 @@ async def document_system_health(
         return {
             "success": False,
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
         }

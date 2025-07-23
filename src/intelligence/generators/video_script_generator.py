@@ -16,7 +16,7 @@ import logging
 import uuid
 import json
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.models.base import EnumSerializerMixin
 from ..utils.ultra_cheap_ai_provider import UltraCheapAIProvider
@@ -318,7 +318,7 @@ The product name "{product_name}" is from the authoritative source_title.
             "duration": duration,
             "product_name": product_name,
             "product_name_source": "source_title",
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.now(timezone.utc).astimezone().isoformat()
         }
     
     def _extract_segment_type(self, line: str) -> str:
@@ -413,7 +413,7 @@ Try {product_name} today and experience the difference!
             "duration": duration,
             "product_name": product_name,
             "product_name_source": "source_title",
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
             "fallback_used": True
         }
 

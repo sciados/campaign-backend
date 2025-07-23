@@ -14,7 +14,7 @@ import aiohttp
 import asyncio
 import logging
 from typing import Dict, List, Any, Optional, Union
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from botocore.exceptions import ClientError, NoCredentialsError
 
@@ -106,7 +106,7 @@ class CloudflareR2Provider:
     ) -> Dict[str, Any]:
         """Upload file to Cloudflare R2"""
         
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc).astimezone().isoformat()
         
         try:
             # Convert base64 to bytes if needed
@@ -136,7 +136,7 @@ class CloudflareR2Provider:
             response = self.client.put_object(**upload_params)
             
             # Calculate upload time
-            upload_time = (datetime.utcnow() - start_time).total_seconds()
+            upload_time = (datetime.now(timezone.utc).astimezone().isoformat() - start_time).total_seconds()
             self._update_performance_metrics("upload", upload_time, True)
             
             # Generate public URL
@@ -199,7 +199,7 @@ class CloudflareR2Provider:
     ) -> Dict[str, Any]:
         """Download file from Cloudflare R2"""
         
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc).astimezone().isoformat()
         
         try:
             # Get object
@@ -212,7 +212,7 @@ class CloudflareR2Provider:
             file_data = response['Body'].read()
             
             # Calculate download time
-            download_time = (datetime.utcnow() - start_time).total_seconds()
+            download_time = (datetime.now(timezone.utc).astimezone().isoformat() - start_time).total_seconds()
             self._update_performance_metrics("download", download_time, True)
             
             result = {
@@ -368,14 +368,14 @@ class CloudflareR2Provider:
         
         try:
             # Test with a simple head_bucket operation
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc).astimezone().isoformat()
             
             self.client.head_bucket(Bucket=self.config.bucket_name)
             
-            response_time = (datetime.utcnow() - start_time).total_seconds()
+            response_time = (datetime.now(timezone.utc).astimezone().isoformat() - start_time).total_seconds()
             
             self.health_status = True
-            self.last_health_check = datetime.utcnow()
+            self.last_health_check = datetime.now(timezone.utc).astimezone().isoformat()
             
             return {
                 "healthy": True,
@@ -388,7 +388,7 @@ class CloudflareR2Provider:
             
         except Exception as e:
             self.health_status = False
-            self.last_health_check = datetime.utcnow()
+            self.last_health_check = datetime.now(timezone.utc).astimezone().isoformat()
             
             logger.error(f"❌ R2 health check failed: {str(e)}")
             

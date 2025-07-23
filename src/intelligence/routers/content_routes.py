@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select
 from typing import Dict, Any, Optional, List
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 import asyncio
 import json
 import uuid
@@ -108,7 +108,7 @@ async def safe_content_generation(
                 "status": "fallback",
                 "error": str(e),
                 "generation_cost": 0.0,
-                "generated_at": datetime.utcnow().isoformat()
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat()
             }
         }
 
@@ -232,7 +232,7 @@ async def generate_content(
             "generated_content": result.get("content", result),
             "success": True,
             "metadata": {
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "ultra_cheap_ai_used": metadata.get("ultra_cheap_ai_used", True),
                 "provider_used": metadata.get("provider_used", "ultra_cheap"),
                 "generation_cost": cost_optimization.get("total_cost", 0.001),
@@ -256,7 +256,7 @@ async def generate_content(
             "success": False,
             "error": str(e),
             "metadata": {
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "ultra_cheap_ai_used": False,
                 "error_occurred": True
             }

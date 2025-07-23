@@ -14,7 +14,7 @@ import aiohttp
 import base64
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +163,7 @@ class StabilityAIGenerator:
                             "image_base64": artifact["base64"],
                             "seed": artifact.get("seed"),
                             "finish_reason": artifact.get("finishReason"),
-                            "generation_time": datetime.utcnow().isoformat(),
+                            "generation_time": datetime.now(timezone.utc).astimezone().isoformat(),
                             "save_instructions": "Decode base64 and save as PNG/JPG"
                         }
                     else:

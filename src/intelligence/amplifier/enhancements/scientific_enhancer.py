@@ -8,7 +8,7 @@ UPDATED: Integrated with tiered AI provider system for 95-99% cost savings
 import logging
 import asyncio
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 from ...utils.ai_throttle import safe_ai_call
@@ -245,7 +245,7 @@ class ScientificIntelligenceEnhancer:
                 "clinical_evidence": clinical_evidence,
                 "safety_profile": safety_profile,
                 "research_quality_score": research_quality,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "ai_provider": provider_used,
                 "enhancement_confidence": 0.85,
                 "product_name_fix_applied": True,  # 🔥 Track that fix was applied
@@ -600,7 +600,7 @@ class ScientificIntelligenceEnhancer:
             "clinical_evidence": self._fallback_clinical_evidence(),
             "safety_profile": self._fallback_safety_profile(),
             "research_quality_score": 0.6,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.6,
             "product_name_fix_applied": True,

@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import aiohttp
 import aiofiles
@@ -150,7 +150,7 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
             "storyboard": storyboard,
             "settings": settings,
             "product_name": product_name,
-            "generation_timestamp": datetime.utcnow().isoformat()
+            "generation_timestamp": datetime.now(timezone.utc).astimezone().isoformat()
         }
         
         fixed_result = fix_slideshow_video_placeholders(result_data, intelligence_data)

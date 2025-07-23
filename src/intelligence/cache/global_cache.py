@@ -3,7 +3,7 @@
 
 import logging
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, text, func
@@ -109,7 +109,7 @@ class GlobalIntelligenceCache:
             
             if row:
                 logger.info(f"🎯 GLOBAL CACHE HIT: Found intelligence for {url}")
-                logger.info(f"   Cache age: {(datetime.utcnow() - row.created_at).days} days")
+                logger.info(f"   Cache age: {(datetime.now(timezone.utc).astimezone().isoformat() - row.created_at).days} days")
                 logger.info(f"   Confidence: {row.confidence_score:.2f}")
                 
                 # Return structured cache data
@@ -119,7 +119,7 @@ class GlobalIntelligenceCache:
                     "source_url": row.source_url,
                     "source_title": row.source_title,
                     "confidence_score": row.confidence_score,
-                    "cached_at": datetime.utcnow().isoformat(),
+                    "cached_at": datetime.now(timezone.utc).astimezone().isoformat(),
                     "original_analysis_date": row.created_at.isoformat(),
                     
                     # Base intelligence

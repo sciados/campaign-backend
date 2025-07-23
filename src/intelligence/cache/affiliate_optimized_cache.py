@@ -3,7 +3,7 @@
 
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text, and_, or_
 from collections import defaultdict
@@ -312,7 +312,7 @@ class AffiliateDashboard:
             
             return {
                 "dashboard_type": "affiliate_marketing",
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
                 "savings_summary": savings_report,
                 "trending_products": popular_products,
                 "popular_urls": popular_urls,
