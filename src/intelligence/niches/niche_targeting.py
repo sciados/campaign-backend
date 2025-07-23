@@ -454,7 +454,7 @@ class NichePerformanceDashboard:
             
             return {
                 "dashboard_type": "niche_performance",
-                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                "generated_at": datetime.datetime.now(),
                 "total_niches": len(niche_stats),
                 "ultra_high_priority": len([n for n in niche_stats if n["priority_tier"] == "ULTRA_HIGH"]),
                 "niche_breakdown": niche_stats,

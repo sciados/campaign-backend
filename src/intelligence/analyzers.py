@@ -487,7 +487,7 @@ class SalesPageAnalyzer:
                 "source_url": url,
                 "page_title": structured_content["title"],
                 "product_name": product_name,
-                "analysis_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+                "analysis_timestamp": datetime.datetime.now(),
                 "confidence_score": self._calculate_confidence_score(intelligence, structured_content),
                 "raw_content": structured_content["content"][:1000],
                 "load_balanced_analysis": {
@@ -613,7 +613,7 @@ class SalesPageAnalyzer:
                 "source_url": url,
                 "page_title": structured_content["title"],
                 "product_name": product_name,
-                "analysis_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+                "analysis_timestamp": datetime.datetime.now(),
                 "confidence_score": self._calculate_confidence_score(intelligence, structured_content),
                 "raw_content": structured_content["content"][:1000],
                 "ultra_cheap_analysis": {
@@ -779,7 +779,7 @@ Respond with structured analysis using "{product_name}" throughout."""
                 "source_url": url,
                 "page_title": structured_content["title"],
                 "product_name": product_name,
-                "analysis_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+                "analysis_timestamp": datetime.datetime.now(),
                 "confidence_score": self._calculate_confidence_score(intelligence, structured_content),
                 "raw_content": structured_content["content"][:1000],
                 "expensive_analysis_warning": {
@@ -1069,7 +1069,7 @@ Respond with structured analysis using "{product_name}" throughout."""
             "source_url": url,
             "page_title": structured_content.get("title", f"{product_name} Analyzed Page"),  # 🔥 FIXED
             "product_name": product_name,  # ✅ Correct
-            "analysis_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+            "analysis_timestamp": datetime.datetime.now(),
             "confidence_score": 0.6,
             "raw_content": structured_content.get("content", "")[:1000],
             "analysis_note": f"Fallback analysis for {product_name} - AI providers recommended for enhanced insights",  # 🔥 FIXED
@@ -1124,7 +1124,7 @@ Respond with structured analysis using "{product_name}" throughout."""
             "source_url": url,
             "page_title": "Analysis Failed",
             "product_name": "Unknown",
-            "analysis_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+            "analysis_timestamp": datetime.datetime.now(),
             "confidence_score": 0.0,
             "raw_content": "",
             "error_message": error_msg,
@@ -1404,7 +1404,7 @@ class CompetitiveAnalyzer:
                     "analyzer_type": "CompetitiveAnalyzer",
                     "competitive_focus": True,
                     "campaign_id": campaign_id,
-                    "analysis_timestamp": datetime.now(timezone.utc).astimezone().isoformat()
+                    "analysis_timestamp": datetime.datetime.now()
                 }
             }
             

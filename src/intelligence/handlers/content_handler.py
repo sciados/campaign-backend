@@ -142,7 +142,7 @@ async def _generate_fallback_content(
             "fallback_generated": True,
             "ultra_cheap_ai_used": False,
             "generation_cost": 0.0,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat()
+            "generated_at": datetime.datetime.now()
         }
     }
 
@@ -240,7 +240,7 @@ class ContentHandler(EnumSerializerMixin):
                 "performance_predictions": {},
                 "intelligence_sources_used": len(intelligence_data.get("intelligence_sources", [])),
                 "generation_metadata": {
-                    "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                    "generated_at": datetime.datetime.now(),
                     "generator_used": f"{content_type}_generator",
                     "fallback_used": metadata.get("fallback_generated", False),
                     "ultra_cheap_ai_enabled": self.ultra_cheap_ai_enabled,
@@ -270,7 +270,7 @@ class ContentHandler(EnumSerializerMixin):
                 "success": False,
                 "error": str(e),
                 "generation_metadata": {
-                    "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                    "generated_at": datetime.datetime.now(),
                     "generator_used": "error_handler",
                     "fallback_used": True,
                     "ultra_cheap_ai_enabled": self.ultra_cheap_ai_enabled,
@@ -415,7 +415,7 @@ class ContentHandler(EnumSerializerMixin):
                 setattr(content_item, field, value)
         
         # Update timestamp
-        content_item.updated_at = datetime.now(timezone.utc).astimezone().isoformat()
+        content_item.updated_at = datetime.datetime.now()
         
         await self.db.commit()
         await self.db.refresh(content_item)
@@ -569,7 +569,7 @@ class ContentHandler(EnumSerializerMixin):
             intelligence_used={
                 "sources_count": len(intelligence_sources),
                 "primary_source_id": str(intelligence_sources[0]["id"]) if intelligence_sources else None,
-                "generation_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+                "generation_timestamp": datetime.datetime.now(),
                 "amplified": bool(amplified_sources),
                 "amplified_sources": amplified_sources,
                 "ai_categories_available": self._count_ai_categories(intelligence_sources),

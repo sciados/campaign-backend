@@ -214,7 +214,7 @@ class UniversalDualStorageManager:
             "original_filename": filename,
             "file_size": len(optimized_content),
             "mime_type": mime_type,
-            "upload_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+            "upload_timestamp": datetime.datetime.now(),
             "content_hash": content_hash,
             "optimization_applied": len(optimized_content) != len(content_data),
             **(metadata or {})
@@ -540,7 +540,7 @@ class UniversalDualStorageManager:
         """Get comprehensive storage health status"""
         
         health_status = {
-            "timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+            "timestamp": datetime.datetime.now(),
             "overall_status": "healthy",
             "providers": {},
             "failover_stats": {
@@ -560,12 +560,12 @@ class UniversalDualStorageManager:
                 
                 await self._upload_to_provider(
                     provider, test_key, test_data, "text/plain", 
-                    {"health_check": "true", "timestamp": datetime.now(timezone.utc).astimezone().isoformat()}
+                    {"health_check": "true", "timestamp": datetime.datetime.now()}
                 )
                 
                 health_status["providers"][provider.name] = {
                     "status": "healthy",
-                    "last_check": datetime.now(timezone.utc).astimezone().isoformat(),
+                    "last_check": datetime.datetime.now(),
                     "response_time": "< 1s",
                     "cost_per_gb": provider.cost_per_gb,
                     "priority": provider.priority
@@ -575,7 +575,7 @@ class UniversalDualStorageManager:
                 health_status["providers"][provider.name] = {
                     "status": "unhealthy",
                     "error": str(e),
-                    "last_check": datetime.now(timezone.utc).astimezone().isoformat(),
+                    "last_check": datetime.datetime.now(),
                     "cost_per_gb": provider.cost_per_gb,
                     "priority": provider.priority
                 }
@@ -607,7 +607,7 @@ class UniversalDualStorageManager:
             "source_url": source_url,
             "target_provider": target_provider,
             "filename": filename,
-            "migration_timestamp": datetime.now(timezone.utc).astimezone().isoformat()
+            "migration_timestamp": datetime.datetime.now()
         }
         
         try:
@@ -659,13 +659,13 @@ class UniversalDualStorageManager:
         cleanup_result = {
             "status": "pending",
             "days_old": days_old,
-            "cleanup_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+            "cleanup_timestamp": datetime.datetime.now(),
             "providers_cleaned": {},
             "total_deleted": 0,
             "total_size_freed": 0
         }
         
-        cutoff_date = datetime.now(timezone.utc).astimezone().isoformat() - timedelta(days=days_old)
+        cutoff_date = datetime.datetime.now() - timedelta(days=days_old)
         
         for provider in self.providers:
             provider_result = {
@@ -697,7 +697,7 @@ class UniversalDualStorageManager:
         """Get provider recommendations based on usage patterns"""
         
         recommendations = {
-            "timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+            "timestamp": datetime.datetime.now(),
             "current_setup": {
                 "providers": [p.name for p in self.providers],
                 "redundancy_level": len(self.providers)
@@ -772,7 +772,7 @@ def validate_storage_configuration() -> Dict[str, Any]:
     """Validate storage configuration and return status"""
     
     validation_result = {
-        "timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+        "timestamp": datetime.datetime.now(),
         "r2_configured": False,
         "backup_configured": False,
         "emergency_configured": False,

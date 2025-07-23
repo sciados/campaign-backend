@@ -318,7 +318,7 @@ The product name "{product_name}" is from the authoritative source_title.
             "duration": duration,
             "product_name": product_name,
             "product_name_source": "source_title",
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat()
+            "generated_at": datetime.datetime.now()
         }
     
     def _extract_segment_type(self, line: str) -> str:
@@ -413,7 +413,7 @@ Try {product_name} today and experience the difference!
             "duration": duration,
             "product_name": product_name,
             "product_name_source": "source_title",
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "fallback_used": True
         }
 

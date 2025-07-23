@@ -74,7 +74,7 @@ class DocumentManager:
             "page_count": validation_result.get("page_count", 1),
             "word_count": len(text_content.split()) if text_content else 0,
             "has_preview": preview_data is not None,
-            "processing_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+            "processing_timestamp": datetime.datetime.now(),
             **(metadata or {})
         }
         

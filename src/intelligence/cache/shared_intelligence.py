@@ -52,7 +52,7 @@ class SharedIntelligenceCache:
                     CampaignIntelligence.source_url == url,
                     CampaignIntelligence.analysis_status == AnalysisStatus.COMPLETED,
                     CampaignIntelligence.confidence_score >= self.min_confidence_threshold,
-                    CampaignIntelligence.created_at >= datetime.now(timezone.utc).astimezone().isoformat() - timedelta(days=self.cache_duration_days)
+                    CampaignIntelligence.created_at >= datetime.datetime.now() - timedelta(days=self.cache_duration_days)
                 )
             ).order_by(CampaignIntelligence.confidence_score.desc()).limit(1)
             
@@ -62,7 +62,7 @@ class SharedIntelligenceCache:
             if existing_intelligence:
                 logger.info(f"🎯 CACHE HIT: Found existing intelligence for {url}")
                 logger.info(f"   Confidence: {existing_intelligence.confidence_score:.2f}")
-                logger.info(f"   Age: {(datetime.now(timezone.utc).astimezone().isoformat() - existing_intelligence.created_at).days} days")
+                logger.info(f"   Age: {(datetime.datetime.now() - existing_intelligence.created_at).days} days")
                 
                 # Return the cached intelligence data
                 cached_data = {
@@ -89,7 +89,7 @@ class SharedIntelligenceCache:
                     # Metadata
                     "processing_metadata": existing_intelligence.processing_metadata,
                     "raw_content": existing_intelligence.raw_content,
-                    "cached_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                    "cached_at": datetime.datetime.now(),
                     "original_analysis_date": existing_intelligence.created_at.isoformat()
                 }
                 
@@ -149,7 +149,7 @@ class SharedIntelligenceCache:
                     **cached_data["processing_metadata"],
                     "shared_from_cache": True,
                     "source_intelligence_id": source_intelligence_id,
-                    "cache_utilized_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                    "cache_utilized_at": datetime.datetime.now(),
                     "cost_savings": "90%+",
                     "analysis_method": "shared_cache"
                 }
@@ -208,7 +208,7 @@ class SharedIntelligenceCache:
     async def cleanup_old_cache(self):
         """Clean up old cached intelligence data"""
         try:
-            cutoff_date = datetime.now(timezone.utc).astimezone().isoformat() - timedelta(days=self.cache_duration_days)
+            cutoff_date = datetime.datetime.now() - timedelta(days=self.cache_duration_days)
             
             # Find old intelligence records that are not referenced by recent campaigns
             cleanup_query = text("""
@@ -226,7 +226,7 @@ class SharedIntelligenceCache:
             result = await self.db.execute(cleanup_query, {
                 "cutoff_date": cutoff_date,
                 "min_confidence": self.min_confidence_threshold,
-                "recent_cutoff": datetime.now(timezone.utc).astimezone().isoformat() - timedelta(days=7)
+                "recent_cutoff": datetime.datetime.now() - timedelta(days=7)
             })
             
             await self.db.commit()
@@ -304,7 +304,7 @@ class AnalysisHandler:
                         "cache_hit": True,
                         "original_analysis_date": cached_intelligence["original_analysis_date"],
                         "cost_savings": "90%+",
-                        "analysis_age_days": (datetime.now(timezone.utc).astimezone().isoformat() - datetime.fromisoformat(cached_intelligence["original_analysis_date"])).days
+                        "analysis_age_days": (datetime.datetime.now() - datetime.fromisoformat(cached_intelligence["original_analysis_date"])).days
                     }
                 }
                 

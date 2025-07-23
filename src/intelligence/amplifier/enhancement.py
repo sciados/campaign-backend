@@ -362,7 +362,7 @@ async def identify_opportunities(base_intel: Dict, preferences: Dict, providers:
                 "modules_used": len([e for _, _, e in opportunity_queue if e]),
                 "priority_areas": _prioritize_opportunities(opportunities),
                 "enhancement_potential": "high" if total_opportunities > 15 else "medium" if total_opportunities > 8 else "low",
-                "identified_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                "identified_at": datetime.datetime.now(),
                 "system_version": "mock_data_elimination_1.0",
                 "execution_mode": "existing_system_enhanced",
                 "mock_data_elimination": True
@@ -505,7 +505,7 @@ async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers
             "modules_failed": failed_modules,
             "success_rate": len(successful_modules) / len(enhancement_queue) * 100,
             "enhancement_quality": "excellent" if len(successful_modules) >= 5 else "good" if len(successful_modules) >= 3 else "basic",
-            "enhanced_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "enhanced_at": datetime.datetime.now(),
             "enhancement_version": "mock_data_elimination_1.0",
             "parallel_processing": False,
             "execution_mode": "existing_system_with_mock_elimination",
@@ -598,7 +598,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
     if cleaned_scientific and _is_valid_enhancement(cleaned_scientific, "scientific"):
         intelligence_mapping["scientific_intelligence"] = {
             **cleaned_scientific,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "ai_provider": "cleaned_real_data",
             "enhancement_applied": True,
             "mock_data_free": True
@@ -613,7 +613,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
     if cleaned_market and _is_valid_enhancement(cleaned_market, "market"):
         intelligence_mapping["market_intelligence"] = {
             **cleaned_market,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "ai_provider": "cleaned_real_data",
             "enhancement_applied": True,
             "mock_data_free": True
@@ -628,7 +628,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
     if cleaned_credibility and _is_valid_enhancement(cleaned_credibility, "credibility"):
         intelligence_mapping["credibility_intelligence"] = {
             **cleaned_credibility,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "ai_provider": "cleaned_real_data", 
             "enhancement_applied": True,
             "mock_data_free": True
@@ -643,7 +643,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
     if cleaned_emotional and _is_valid_enhancement(cleaned_emotional, "emotional"):
         intelligence_mapping["emotional_transformation_intelligence"] = {
             **cleaned_emotional,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "ai_provider": "cleaned_real_data",
             "enhancement_applied": True,
             "mock_data_free": True
@@ -658,7 +658,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
     if cleaned_authority and _is_valid_enhancement(cleaned_authority, "authority"):
         intelligence_mapping["scientific_authority_intelligence"] = {
             **cleaned_authority,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "ai_provider": "cleaned_real_data",
             "enhancement_applied": True,
             "mock_data_free": True
@@ -676,7 +676,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
         intelligence_mapping["content_intelligence"] = {
             **existing_content,
             **cleaned_content,
-            "enhanced_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "enhanced_at": datetime.datetime.now(),
             "ai_enhancement_applied": True,
             "mock_data_free": True
         }
@@ -736,7 +736,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
         "intelligence_categories_populated": categories_added,
         "total_intelligence_categories": len(intelligence_mapping),
         "category_completion_rate": categories_added / len(intelligence_mapping) if len(intelligence_mapping) > 0 else 0,
-        "enrichment_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+        "enrichment_timestamp": datetime.datetime.now(),
         "execution_mode": "existing_system_with_mock_elimination",
         "system_architecture": "mock_data_elimination_enhanced",
         
@@ -775,7 +775,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
         # 🔥 ADD: Storage validation for debugging
         "storage_validation_applied": True,
         "extraction_successful": True,
-        "amplification_timestamp": datetime.now(timezone.utc).astimezone().isoformat()
+        "amplification_timestamp": datetime.datetime.now()
     }
     
     logger.info(f"✅ Enriched intelligence created - Valid categories: {valid_categories}/{len(ai_categories)}")
@@ -797,7 +797,7 @@ def _extract_product_data(base_intel: Dict[str, Any]) -> Dict[str, Any]:
         "source_url": base_intel.get("source_url", ""),
         "page_title": base_intel.get("page_title", ""),
         "confidence_score": base_intel.get("confidence_score", 0.0),
-        "analysis_timestamp": base_intel.get("analysis_timestamp", datetime.now(timezone.utc).astimezone().isoformat())
+        "analysis_timestamp": base_intel.get("analysis_timestamp", datetime.datetime.now())
     }
 
 async def _identify_scientific_opportunities(enhancer, product_data: Dict, base_intel: Dict) -> Dict[str, List[str]]:
@@ -1014,7 +1014,7 @@ def _fallback_identify_opportunities(base_intel: Dict) -> Dict[str, Any]:
             "total_opportunities": 0,
             "priority_areas": [],
             "enhancement_potential": "ai_system_required",
-            "identified_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "identified_at": datetime.datetime.now(),
             "system_version": "fallback_no_mock",
             "fallback_reason": "AI enhancement system unavailable",
             "mock_data_eliminated": True
@@ -1042,7 +1042,7 @@ def _fallback_generate_enhancements(base_intel: Dict, opportunities: Dict) -> Di
             "modules_successful": [],
             "modules_failed": [],
             "enhancement_quality": "fallback_no_mock",
-            "enhanced_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "enhanced_at": datetime.datetime.now(),
             "enhancement_version": "fallback_no_mock",
             "fallback_reason": "AI enhancement system unavailable",
             "mock_data_elimination": {
@@ -1096,7 +1096,7 @@ def get_load_balancing_stats() -> Dict[str, Any]:
             "current_rotation_index": _provider_rotation_index,
             "provider_distribution": provider_distribution,
             "provider_health": provider_health,
-            "stats_timestamp": datetime.now(timezone.utc).astimezone().isoformat()
+            "stats_timestamp": datetime.datetime.now()
         },
         "system_status": {
             "enhanced_ai_system_available": ENHANCED_AI_SYSTEM_AVAILABLE,
@@ -1132,7 +1132,7 @@ def update_provider_performance(provider_name: str, success: bool, response_time
     
     stats = _provider_performance_stats[provider_name]
     stats["total_requests"] += 1
-    stats["last_used"] = datetime.now(timezone.utc).astimezone().isoformat()
+    stats["last_used"] = datetime.datetime.now()
     
     if success:
         stats["successful_requests"] += 1
@@ -1579,7 +1579,7 @@ async def identify_opportunities(base_intel: Dict, preferences: Dict, providers:
                 "modules_used": len([e for _, _, e in opportunity_queue if e]),
                 "priority_areas": _prioritize_opportunities(opportunities),
                 "enhancement_potential": "high" if total_opportunities > 15 else "medium" if total_opportunities > 8 else "low",
-                "identified_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                "identified_at": datetime.datetime.now(),
                 "system_version": "mock_data_elimination_1.0",
                 "execution_mode": "existing_system_enhanced",
                 "mock_data_elimination": True
@@ -1722,7 +1722,7 @@ async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers
             "modules_failed": failed_modules,
             "success_rate": len(successful_modules) / len(enhancement_queue) * 100,
             "enhancement_quality": "excellent" if len(successful_modules) >= 5 else "good" if len(successful_modules) >= 3 else "basic",
-            "enhanced_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "enhanced_at": datetime.datetime.now(),
             "enhancement_version": "mock_data_elimination_1.0",
             "parallel_processing": False,
             "execution_mode": "existing_system_with_mock_elimination",
@@ -1821,7 +1821,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
     if cleaned_scientific and _is_valid_enhancement(cleaned_scientific, "scientific"):
         intelligence_mapping["scientific_intelligence"] = {
             **cleaned_scientific,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "ai_provider": "cleaned_real_data",
             "enhancement_applied": True,
             "mock_data_free": True
@@ -1836,7 +1836,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
     if cleaned_market and _is_valid_enhancement(cleaned_market, "market"):
         intelligence_mapping["market_intelligence"] = {
             **cleaned_market,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "ai_provider": "cleaned_real_data",
             "enhancement_applied": True,
             "mock_data_free": True
@@ -1851,7 +1851,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
     if cleaned_credibility and _is_valid_enhancement(cleaned_credibility, "credibility"):
         intelligence_mapping["credibility_intelligence"] = {
             **cleaned_credibility,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "ai_provider": "cleaned_real_data", 
             "enhancement_applied": True,
             "mock_data_free": True
@@ -1866,7 +1866,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
     if cleaned_emotional and _is_valid_enhancement(cleaned_emotional, "emotional"):
         intelligence_mapping["emotional_transformation_intelligence"] = {
             **cleaned_emotional,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "ai_provider": "cleaned_real_data",
             "enhancement_applied": True,
             "mock_data_free": True
@@ -1881,7 +1881,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
     if cleaned_authority and _is_valid_enhancement(cleaned_authority, "authority"):
         intelligence_mapping["scientific_authority_intelligence"] = {
             **cleaned_authority,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "ai_provider": "cleaned_real_data",
             "enhancement_applied": True,
             "mock_data_free": True
@@ -1899,7 +1899,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
         intelligence_mapping["content_intelligence"] = {
             **existing_content,
             **cleaned_content,
-            "enhanced_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "enhanced_at": datetime.datetime.now(),
             "ai_enhancement_applied": True,
             "mock_data_free": True
         }
@@ -1965,7 +1965,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
         "intelligence_categories_populated": categories_added,
         "total_intelligence_categories": len(intelligence_mapping),
         "category_completion_rate": categories_added / len(intelligence_mapping) if len(intelligence_mapping) > 0 else 0,
-        "enrichment_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+        "enrichment_timestamp": datetime.datetime.now(),
         "execution_mode": "existing_system_with_mock_elimination",
         "system_architecture": "mock_data_elimination_enhanced",
         
@@ -2012,7 +2012,7 @@ def create_enriched_intelligence(base_intel: Dict, enhancements: Dict) -> Dict[s
         # 🔥 ADD: Storage validation for debugging
         "storage_validation_applied": True,
         "extraction_successful": True,
-        "amplification_timestamp": datetime.now(timezone.utc).astimezone().isoformat()
+        "amplification_timestamp": datetime.datetime.now()
     }
     
     logger.info(f"✅ Enriched intelligence created - Valid categories: {valid_categories}/{len(ai_categories)}")

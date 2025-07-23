@@ -36,7 +36,7 @@ class BaseContentGenerator(ABC):
             "savings_vs_expensive": 0.0,
             "provider_distribution": {},
             "optimization_decisions": [],
-            "session_start": datetime.now(timezone.utc).astimezone().isoformat()
+            "session_start": datetime.datetime.now()
         }
         
         logger.info(f"✅ {generator_type} Generator - Enhanced Base Initialized (Circular Import Free)")
@@ -468,7 +468,7 @@ class BaseContentGenerator(ABC):
         """Get analytics on optimization performance"""
         
         # Calculate session statistics
-        session_duration = (datetime.now(timezone.utc).astimezone().isoformat() - self.cost_tracker["session_start"]).total_seconds() / 3600
+        session_duration = (datetime.datetime.now() - self.cost_tracker["session_start"]).total_seconds() / 3600
         
         total_requests = self.cost_tracker["total_requests"]
         if total_requests > 0:
@@ -517,7 +517,7 @@ class BaseContentGenerator(ABC):
                 "product_name": product_name,
                 "content_type": self.generator_type,
                 "generation_id": self.generation_id,
-                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                "generated_at": datetime.datetime.now(),
                 "preferences_used": preferences,
                 "ai_optimization": {
                     "provider_used": ai_result.get("provider_used"),

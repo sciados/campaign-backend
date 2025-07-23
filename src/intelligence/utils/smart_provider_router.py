@@ -27,7 +27,7 @@ class SmartProviderRouter:
         
         # Provider performance tracking
         self.provider_stats = {}
-        self.last_update = datetime.now(timezone.utc).astimezone().isoformat()
+        self.last_update = datetime.datetime.now()
         
         # Cost tracking
         self.session_stats = {
@@ -35,7 +35,7 @@ class SmartProviderRouter:
             "total_cost": 0.0,
             "total_savings": 0.0,
             "provider_usage": {},
-            "session_start": datetime.now(timezone.utc).astimezone().isoformat()
+            "session_start": datetime.datetime.now()
         }
         
         if self.monitoring_enabled:
@@ -160,7 +160,7 @@ class SmartProviderRouter:
                 (provider_name, response_time_seconds, cost_per_1k_tokens, is_successful, 
                  content_type, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s)
-            """, (provider_name, response_time, cost, success, content_type, datetime.now(timezone.utc).astimezone().isoformat()))
+            """, (provider_name, response_time, cost, success, content_type, datetime.datetime.now()))
             
             conn.commit()
             cur.close()
@@ -171,7 +171,7 @@ class SmartProviderRouter:
     
     def get_optimization_stats(self) -> Dict[str, Any]:
         """Get current optimization statistics"""
-        session_duration = (datetime.now(timezone.utc).astimezone().isoformat() - self.session_stats["session_start"]).total_seconds()
+        session_duration = (datetime.datetime.now() - self.session_stats["session_start"]).total_seconds()
         
         return {
             "smart_routing_enabled": self.monitoring_enabled,
@@ -212,14 +212,14 @@ class SmartProviderMixin:
     async def _generate_with_ultra_cheap_ai(self, *args, **kwargs) -> Dict[str, Any]:
         """ generation with smart routing and monitoring"""
         
-        start_time = datetime.now(timezone.utc).astimezone().isoformat()
+        start_time = datetime.datetime.now()
         
         # Call parent method
         result = await super()._generate_with_ultra_cheap_ai(*args, **kwargs)
         
         # Log usage for optimization
         if result:
-            response_time = (datetime.now(timezone.utc).astimezone().isoformat() - start_time).total_seconds()
+            response_time = (datetime.datetime.now() - start_time).total_seconds()
             provider_used = result.get("provider_used", "unknown")
             cost = result.get("cost", 0.0)
             success = bool(result.get("content"))

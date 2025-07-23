@@ -216,7 +216,7 @@ class EmotionalTransformationEnhancer:
                 "transformation_narratives": transformation_narratives,
                 "emotional_engagement_strategies": engagement_strategies,
                 "emotional_impact_score": emotional_impact,
-                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                "generated_at": datetime.datetime.now(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.86,
                 "product_name_fix_applied": True,  # 🔥 Track that fix was applied
@@ -560,7 +560,7 @@ class EmotionalTransformationEnhancer:
             "transformation_narratives": self._fallback_transformation_narratives(),
             "emotional_engagement_strategies": self._fallback_emotional_engagement_strategies(),
             "emotional_impact_score": 0.74,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.74,
             "product_name_fix_applied": True,

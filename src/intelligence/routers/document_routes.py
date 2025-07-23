@@ -172,7 +172,7 @@ async def get_document(
         
         # Update access statistics
         asset.access_count += 1
-        asset.last_accessed = datetime.now(timezone.utc).astimezone().isoformat()
+        asset.last_accessed = datetime.datetime.now()
         await db.commit()
         
         # Get best available URL with failover
@@ -419,7 +419,7 @@ async def regenerate_document_preview(
                             "success": True,
                             "preview_id": str(new_preview.id),
                             "preview_url": new_preview.file_url_primary,
-                            "regenerated_at": datetime.now(timezone.utc).astimezone().isoformat()
+                            "regenerated_at": datetime.datetime.now()
                         }
                     else:
                         raise HTTPException(status_code=400, detail="Preview generation failed")
@@ -590,7 +590,7 @@ async def update_document_metadata(
             asset.asset_metadata = current_metadata
         
         # Update timestamp
-        asset.updated_at = datetime.now(timezone.utc).astimezone().isoformat()
+        asset.updated_at = datetime.datetime.now()
         
         await db.commit()
         
@@ -653,7 +653,7 @@ async def delete_document(
         return {
             "success": True,
             "document_id": document_id,
-            "deleted_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "deleted_at": datetime.datetime.now(),
             "preview_deleted": delete_preview
         }
         
@@ -734,7 +734,7 @@ async def get_document_stats(
                 for doc in recent_documents
             ],
             "campaign_id": campaign_id,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat()
+            "generated_at": datetime.datetime.now()
         }
         
     except Exception as e:
@@ -772,7 +772,7 @@ async def document_system_health(
                 "automatic_failover": True
             },
             "user_id": str(current_user.id),
-            "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
+            "timestamp": datetime.datetime.now()
         }
         
     except Exception as e:
@@ -780,5 +780,5 @@ async def document_system_health(
         return {
             "success": False,
             "error": str(e),
-            "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
+            "timestamp": datetime.datetime.now()
         }

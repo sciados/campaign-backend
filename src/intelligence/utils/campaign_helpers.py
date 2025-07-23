@@ -247,7 +247,7 @@ def format_intelligence_for_export(intelligence_sources: list) -> dict:
         "intelligence_sources": [],
         "summary": {
             "total_sources": len(intelligence_sources),
-            "export_timestamp": datetime.now(timezone.utc).astimezone().isoformat()
+            "export_timestamp": datetime.datetime.now()
         }
     }
     
@@ -284,7 +284,7 @@ def format_content_for_export(content_items: list) -> dict:
         "generated_content": [],
         "summary": {
             "total_content": len(content_items),
-            "export_timestamp": datetime.now(timezone.utc).astimezone().isoformat()
+            "export_timestamp": datetime.datetime.now()
         }
     }
     
@@ -319,7 +319,7 @@ def merge_export_data(intelligence_data: dict, content_data: dict, campaign_info
         "intelligence_data": intelligence_data,
         "content_data": content_data,
         "export_metadata": {
-            "exported_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "exported_at": datetime.datetime.now(),
             "export_version": "2.0.0",
             "total_intelligence_sources": intelligence_data["summary"]["total_sources"],
             "total_content_items": content_data["summary"]["total_content"]
@@ -465,7 +465,7 @@ async def get_campaign_analytics(campaign_id: str, db: AsyncSession) -> dict:
             
             return {
                 "campaign_id": campaign_id,
-                "analytics_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+                "analytics_timestamp": datetime.datetime.now(),
                 "intelligence_analytics": {
                     "total_sources": total_sources,
                     "average_confidence": round(avg_confidence, 3),
@@ -495,7 +495,7 @@ async def get_campaign_analytics(campaign_id: str, db: AsyncSession) -> dict:
         else:
             return {
                 "campaign_id": campaign_id,
-                "analytics_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+                "analytics_timestamp": datetime.datetime.now(),
                 "error": "No data found for campaign"
             }
             
@@ -504,7 +504,7 @@ async def get_campaign_analytics(campaign_id: str, db: AsyncSession) -> dict:
         logger.error(f"❌ Error type: {type(e).__name__}")
         return {
             "campaign_id": campaign_id,
-            "analytics_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+            "analytics_timestamp": datetime.datetime.now(),
             "error": str(e)
         }
 

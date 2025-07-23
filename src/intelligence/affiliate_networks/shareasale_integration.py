@@ -182,7 +182,7 @@ class ShareASaleAPI:
                                 "network": "shareasale",
                                 "data_source": "shareasale_search",
                                 "search_keywords": keywords,
-                                "scraped_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                                "scraped_at": datetime.datetime.now(),
                                 "is_real_product": True
                             })
                         

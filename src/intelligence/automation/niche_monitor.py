@@ -297,7 +297,7 @@ class AutomatedNicheMonitor:
                 "estimated_affiliates": estimated_affiliates,
                 "trending_score": trending_score,
                 "source": product.get("source", "unknown"),
-                "discovery_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+                "discovery_timestamp": datetime.datetime.now(),
                 "auto_discovered": True
             }
             
@@ -387,7 +387,7 @@ class NichePerformanceAnalytics:
             
             return {
                 "report_type": "niche_roi_analysis",
-                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                "generated_at": datetime.datetime.now(),
                 "period": "Last 30 days",
                 "overall_metrics": overall_metrics,
                 "niche_breakdown": niche_performance,

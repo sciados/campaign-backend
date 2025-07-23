@@ -245,7 +245,7 @@ class ScientificIntelligenceEnhancer:
                 "clinical_evidence": clinical_evidence,
                 "safety_profile": safety_profile,
                 "research_quality_score": research_quality,
-                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                "generated_at": datetime.datetime.now(),
                 "ai_provider": provider_used,
                 "enhancement_confidence": 0.85,
                 "product_name_fix_applied": True,  # 🔥 Track that fix was applied
@@ -600,7 +600,7 @@ class ScientificIntelligenceEnhancer:
             "clinical_evidence": self._fallback_clinical_evidence(),
             "safety_profile": self._fallback_safety_profile(),
             "research_quality_score": 0.6,
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+            "generated_at": datetime.datetime.now(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.6,
             "product_name_fix_applied": True,

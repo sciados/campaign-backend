@@ -119,7 +119,7 @@ class BackblazeB2Provider:
     ) -> Dict[str, Any]:
         """Upload file to Backblaze B2"""
         
-        start_time = datetime.now(timezone.utc).astimezone().isoformat()
+        start_time = datetime.datetime.now()
         
         try:
             # Convert base64 to bytes if needed
@@ -131,10 +131,10 @@ class BackblazeB2Provider:
             enhanced_metadata = metadata or {}
             if sync_source:
                 enhanced_metadata["sync_source"] = sync_source
-                enhanced_metadata["sync_timestamp"] = datetime.now(timezone.utc).astimezone().isoformat()
+                enhanced_metadata["sync_timestamp"] = datetime.datetime.now()
             
             enhanced_metadata["backup_provider"] = "backblaze_b2"
-            enhanced_metadata["backup_timestamp"] = datetime.now(timezone.utc).astimezone().isoformat()
+            enhanced_metadata["backup_timestamp"] = datetime.datetime.now()
             
             # Prepare upload parameters
             upload_params = {
@@ -150,7 +150,7 @@ class BackblazeB2Provider:
             response = self.client.put_object(**upload_params)
             
             # Calculate upload time
-            upload_time = (datetime.now(timezone.utc).astimezone().isoformat() - start_time).total_seconds()
+            upload_time = (datetime.datetime.now() - start_time).total_seconds()
             self._update_performance_metrics("upload", upload_time, True)
             
             # Generate public URL
@@ -216,7 +216,7 @@ class BackblazeB2Provider:
     ) -> Dict[str, Any]:
         """Download file from Backblaze B2"""
         
-        start_time = datetime.now(timezone.utc).astimezone().isoformat()
+        start_time = datetime.datetime.now()
         
         try:
             # Get object
@@ -229,7 +229,7 @@ class BackblazeB2Provider:
             file_data = response['Body'].read()
             
             # Calculate download time
-            download_time = (datetime.now(timezone.utc).astimezone().isoformat() - start_time).total_seconds()
+            download_time = (datetime.datetime.now() - start_time).total_seconds()
             self._update_performance_metrics("download", download_time, True)
             
             result = {
@@ -491,14 +491,14 @@ class BackblazeB2Provider:
     async def health_check(self) -> Dict[str, Any]:
         """Perform health check on Backblaze B2"""
         
-        health_start = datetime.now(timezone.utc).astimezone().isoformat()
+        health_start = datetime.datetime.now()
         
         try:
             # Test bucket access
             response = self.client.head_bucket(Bucket=self.config.bucket_name)
             
             # Test upload/download with small file
-            test_filename = f"health-check-{datetime.now(timezone.utc).astimezone().isoformat().strftime('%Y%m%d-%H%M%S')}.txt"
+            test_filename = f"health-check-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}.txt"
             test_data = b"B2 health check test"
             
             # Upload test
@@ -526,10 +526,10 @@ class BackblazeB2Provider:
             await self.delete_file(test_filename)
             
             # Calculate health check time
-            health_time = (datetime.now(timezone.utc).astimezone().isoformat() - health_start).total_seconds()
+            health_time = (datetime.datetime.now() - health_start).total_seconds()
             
             self.health_status = True
-            self.last_health_check = datetime.now(timezone.utc).astimezone().isoformat()
+            self.last_health_check = datetime.datetime.now()
             
             return {
                 "healthy": True,
@@ -548,7 +548,7 @@ class BackblazeB2Provider:
             
         except Exception as e:
             self.health_status = False
-            self.last_health_check = datetime.now(timezone.utc).astimezone().isoformat()
+            self.last_health_check = datetime.datetime.now()
             self.error_count += 1
             
             logger.error(f"❌ B2 health check failed: {str(e)}")

@@ -271,7 +271,7 @@ class ContentHandler:
                 "product_name": product_name,
                 "fallback_reason": "Ultra-cheap AI temporarily unavailable",
                 "railway_compatible": True,
-                "generated_at": datetime.now(timezone.utc).astimezone().isoformat()
+                "generated_at": datetime.datetime.now()
             }
         }
     

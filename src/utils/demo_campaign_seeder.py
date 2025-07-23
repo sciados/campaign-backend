@@ -45,8 +45,8 @@ class DemoCampaignSeeder:
                 salespage_url="https://buffer.com",
                 auto_analysis_enabled=True,
                 auto_analysis_status=AutoAnalysisStatus.COMPLETED,
-                auto_analysis_started_at = datetime.now(timezone.utc).astimezone().isoformat(),
-                auto_analysis_completed_at = datetime.now(timezone.utc).astimezone().isoformat(),
+                auto_analysis_started_at = datetime.datetime.now(),
+                auto_analysis_completed_at = datetime.datetime.now(),
                 
                 # Analysis results
                 analysis_confidence_score=0.92,
@@ -92,7 +92,7 @@ class DemoCampaignSeeder:
                 # Settings
                 settings={
                     "demo_campaign": True,
-                    "demo_created_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                    "demo_created_at": datetime.datetime.now(),
                     "demo_version": "1.0"
                 }
             )

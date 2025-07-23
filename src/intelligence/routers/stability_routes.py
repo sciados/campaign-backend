@@ -228,7 +228,7 @@ async def generate_campaign_with_images(
                 "images_generated": len(generated_images),
                 "total_image_cost": total_cost,
                 "cost_savings_vs_dalle": (len(generated_images) * 0.040) - total_cost,
-                "generation_timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+                "generation_timestamp": datetime.datetime.now(),
                 "intelligence_source_id": str(intelligence_record.id),
                 "ready_to_publish": True,
                 "product_name": intelligence_data["product_name"]
@@ -722,7 +722,7 @@ async def download_campaign_package(
         
         package_data = {
             "campaign_id": campaign_id,
-            "package_created": datetime.now(timezone.utc).astimezone().isoformat(),
+            "package_created": datetime.datetime.now(),
             "total_images": len(images),
             "total_videos": len(videos),
             "total_content_pieces": len(content_items),
@@ -995,7 +995,7 @@ async def _save_image_to_your_assets_table(
             "generation_source": "stability_ai",
             "image_data": image_data,
             "ai_generated": True,
-            "expires_at": (datetime.now(timezone.utc).astimezone().isoformat() + timedelta(days=14)).isoformat(),
+            "expires_at": (datetime.datetime.now() + timedelta(days=14)).isoformat(),
             "dimensions": image_data.get("dimensions", "1024x1024"),
             "generation_cost": image_data.get("estimated_cost", 0.004)
         },
@@ -1044,7 +1044,7 @@ async def health_check():
         
         return {
             "status": "healthy",
-            "timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
+            "timestamp": datetime.datetime.now(),
             "components": {
                 "stability_ai_generator": "✅ Available",
                 "slideshow_generator": "✅ Available",
@@ -1059,5 +1059,5 @@ async def health_check():
         return {
             "status": "unhealthy",
             "error": str(e),
-            "timestamp": datetime.now(timezone.utc).astimezone().isoformat()
+            "timestamp": datetime.datetime.now()
         }

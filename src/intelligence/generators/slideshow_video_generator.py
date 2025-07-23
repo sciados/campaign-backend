@@ -150,7 +150,7 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
             "storyboard": storyboard,
             "settings": settings,
             "product_name": product_name,
-            "generation_timestamp": datetime.now(timezone.utc).astimezone().isoformat()
+            "generation_timestamp": datetime.datetime.now()
         }
         
         fixed_result = fix_slideshow_video_placeholders(result_data, intelligence_data)

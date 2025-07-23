@@ -312,7 +312,7 @@ class AffiliateDashboard:
             
             return {
                 "dashboard_type": "affiliate_marketing",
-                "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+                "generated_at": datetime.datetime.now(),
                 "savings_summary": savings_report,
                 "trending_products": popular_products,
                 "popular_urls": popular_urls,

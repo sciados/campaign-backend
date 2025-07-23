@@ -590,7 +590,7 @@ async def get_dashboard_stats(
             },
             "user_id": str(current_user.id),
             "company_id": str(current_user.company_id),
-            "generated_at": datetime.now(timezone.utc).astimezone().isoformat()
+            "generated_at": datetime.datetime.now()
         }
         
     except Exception as e:
@@ -760,7 +760,7 @@ async def set_user_demo_preference(
             current_settings['demo_campaign_preferences'] = {}
         
         current_settings['demo_campaign_preferences']['show_demo_campaigns'] = show_demo
-        current_settings['demo_campaign_preferences']['last_updated'] = datetime.now(timezone.utc).astimezone().isoformat()
+        current_settings['demo_campaign_preferences']['last_updated'] = datetime.datetime.now()
         
         if store_as_smart_default:
             current_settings['demo_campaign_preferences']['set_by'] = 'smart_default'
@@ -982,7 +982,7 @@ async def update_campaign(
             else:
                 setattr(campaign, field, value)
         
-        campaign.updated_at = datetime.now(timezone.utc).astimezone().isoformat()
+        campaign.updated_at = datetime.datetime.now()
         
         await db.commit()
         await db.refresh(campaign)
