@@ -54,7 +54,7 @@ class Campaign(BaseModel):
     target_audience = Column(JSONB, default={})
     
     # 🆕 NEW: Auto-Analysis Fields (from frontend Step1Setup)
-    competitor_url = Column(String(1000))  # Primary competitor URL for analysis
+    salespage_url = Column(String(1000))  # Primary competitor URL for analysis
     auto_analysis_enabled = Column(Boolean, default=True)  # Enable auto-analysis
     auto_analysis_status = Column(Enum(AutoAnalysisStatus, name='autoanalysisstatus'), default=AutoAnalysisStatus.PENDING)
     auto_analysis_started_at = Column(DateTime)
@@ -315,7 +315,7 @@ class Campaign(BaseModel):
         """🆕 NEW: Get detailed auto-analysis status"""
         return {
             "status": self.auto_analysis_status.value if self.auto_analysis_status else "pending",
-            "competitor_url": self.competitor_url,
+            "salespage_url": self.salespage_url,
             "started_at": self.auto_analysis_started_at.isoformat() if self.auto_analysis_started_at else None,
             "completed_at": self.auto_analysis_completed_at.isoformat() if self.auto_analysis_completed_at else None,
             "confidence_score": self.analysis_confidence_score or 0.0,

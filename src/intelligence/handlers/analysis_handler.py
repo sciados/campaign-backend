@@ -156,33 +156,31 @@ class AnalysisHandler:
         """🆕 NEW: Get campaign and update status to analyzing"""
         try:
             logger.info(f"🔍 Getting campaign and updating status: {campaign_id}")
-            
+        
             campaign_query = select(Campaign).where(
                 and_(
                     Campaign.id == uuid.UUID(campaign_id),
                     Campaign.company_id == self.user.company_id
                 )
             )
-            
+        
             result = await self.db.execute(campaign_query)
-            campaign = result.scalar_one_or_none()
-            
+            campaign = result.scalar_one_or_none()  # ✅ Fixed: No await here
+        
             if not campaign:
                 raise ValueError(f"Campaign {campaign_id} not found or access denied")
-            
-            # Update campaign to analyzing status
-            campaign.start_auto_analysis()
-            
-            try:
-                await self.db.commit()
-            except (TypeError, AttributeError):
-                self.db.commit()
-            
+        
+            # Update campaign to analyzing status - method exists in your model
+            campaign.start_auto_analysis()  # ✅ This method exists
+        
+            await self.db.commit()
+        
             logger.info(f"✅ Campaign {campaign_id} updated to analyzing status")
             return campaign
-            
+        
         except Exception as e:
             logger.error(f"❌ Failed to get/update campaign: {str(e)}")
+            await self.db.rollback()
             raise ValueError(f"Campaign update failed: {str(e)}")
     
     async def _complete_campaign_analysis(
