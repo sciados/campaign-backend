@@ -1,15 +1,7 @@
-# src/intelligence/handlers/analysis_handler.py
+# src/intelligence/handlers/analysis_handler.py - STREAMLINED WORKFLOW VERSION
 """
-Analysis Handler - Contains URL analysis business logic
-Extracted from routes.py to improve maintainability
-CLEANED VERSION with proper structure and no duplications
-FIXED: PostgreSQL parameter syntax errors resolved
-ULTRA-CHEAP AI PROVIDER INTEGRATION: 95-99% cost savings implemented
-FIXED: Circular import and provider method issues resolved
-🔥 FIXED: Enum serialization issues resolved
-🚨 CRITICAL FIX: Database commit issue resolved - AI data now saves properly
-🔥 COMPREHENSIVE FIX: ChunkedIteratorResult async/await error COMPLETELY RESOLVED
-🔥 FINAL FIX: Simplified verification and counter updates to avoid async issues
+Analysis Handler - Streamlined 2-step workflow integration
+🎯 ENHANCED: Campaign Creation → Auto-Analysis → Content Generation
 """
 import uuid
 import logging
@@ -18,11 +10,11 @@ import json
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, text, bindparam, String, func
+from sqlalchemy import select, func, and_, text, update
 from sqlalchemy.orm.attributes import flag_modified
 
 from src.models.user import User
-from src.models.campaign import Campaign
+from src.models.campaign import Campaign, AutoAnalysisStatus, CampaignStatus, CampaignWorkflowState
 from src.models.intelligence import (
     CampaignIntelligence,
     IntelligenceSourceType,
@@ -83,7 +75,7 @@ def diagnose_amplification_output(enhanced_analysis: Dict[str, Any]):
 
 
 class AnalysisHandler:
-    """Handle URL analysis operations"""
+    """🆕 ENHANCED: Handle URL analysis operations for streamlined workflow"""
     
     def __init__(self, db: AsyncSession, user: User):
         self.db = db
@@ -110,18 +102,17 @@ class AnalysisHandler:
     
     async def analyze_url(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-         URL analysis with direct amplifier integration
-        Main business logic extracted from routes.py
-        🔥 FIXED: All ChunkedIteratorResult async/await issues resolved
+        🆕 ENHANCED: URL analysis with streamlined workflow integration
+        Main business logic for auto-analysis in 2-step workflow
         """
-        logger.info(f"🎯 Starting AMPLIFIED URL analysis for: {request_data.get('url')}")
+        logger.info(f"🎯 Starting STREAMLINED URL analysis for: {request_data.get('url')}")
         
         url = str(request_data.get('url'))
         campaign_id = request_data.get('campaign_id')
         analysis_type = request_data.get('analysis_type', 'sales_page')
         
-        # Verify campaign ownership
-        campaign = await self._verify_campaign_access(campaign_id)
+        # Get campaign and update status to analyzing
+        campaign = await self._get_and_update_campaign(campaign_id)
         
         # Create intelligence record
         intelligence = await self._create_intelligence_record(url, campaign_id, analysis_type)
@@ -135,76 +126,176 @@ class AnalysisHandler:
                 url, base_analysis_result
             )
             
-            # STEP 3: Store results with error handling
+            # STEP 3: Store results with campaign integration
             try:
-                logger.info("🔄 About to store analysis results...")
+                logger.info("🔄 Storing analysis results for streamlined workflow...")
                 await self._store_analysis_results(intelligence, final_analysis_result)
-                logger.info("✅ Successfully stored analysis results")
+                
+                # 🆕 NEW: Update campaign with analysis completion
+                await self._complete_campaign_analysis(campaign, intelligence, final_analysis_result)
+                
+                logger.info("✅ Successfully stored analysis results and updated campaign")
             except Exception as storage_error:
                 logger.error(f"❌ Failed to store analysis results: {str(storage_error)}")
-                logger.error(f"❌ Storage error type: {type(storage_error).__name__}")
-                logger.error(f"❌ Storage traceback: {traceback.format_exc()}")
-                
-                # Set failed status
-                intelligence.analysis_status = AnalysisStatus.FAILED
-                intelligence.processing_metadata = json.dumps({
-                    "storage_error": str(storage_error),
-                    "error_type": type(storage_error).__name__,
-                    "partial_analysis": True
-                })
-                try:
-                    await self.db.commit()
-                except (TypeError, AttributeError):
-                    self.db.commit()
+                await self._fail_campaign_analysis(campaign, storage_error)
+                raise storage_error
             
             # STEP 4: Update campaign counters
             await self._update_campaign_counters(campaign_id)
             
-            # STEP 5: Prepare response
-            return self._prepare_analysis_response(intelligence, final_analysis_result)
+            # STEP 5: Prepare response with campaign context
+            return self._prepare_streamlined_response(campaign, intelligence, final_analysis_result)
             
         except Exception as e:
             logger.error(f"❌ Analysis failed for {url}: {str(e)}")
             await self._handle_analysis_failure(intelligence, e)
+            await self._fail_campaign_analysis(campaign, e)
             return self._prepare_failure_response(intelligence, e)
     
-    async def _verify_campaign_access(self, campaign_id: str) -> Campaign:
-        """🚨 MINIMAL: Create a basic Campaign object to bypass SQLAlchemy async issues"""
+    async def _get_and_update_campaign(self, campaign_id: str) -> Campaign:
+        """🆕 NEW: Get campaign and update status to analyzing"""
         try:
-            logger.info(f"🔍 Minimal bypass campaign verification for: {campaign_id}")
+            logger.info(f"🔍 Getting campaign and updating status: {campaign_id}")
             
-            # Validate the campaign_id is a valid UUID format
-            import uuid
+            campaign_query = select(Campaign).where(
+                and_(
+                    Campaign.id == uuid.UUID(campaign_id),
+                    Campaign.company_id == self.user.company_id
+                )
+            )
+            
+            result = await self.db.execute(campaign_query)
+            campaign = result.scalar_one_or_none()
+            
+            if not campaign:
+                raise ValueError(f"Campaign {campaign_id} not found or access denied")
+            
+            # Update campaign to analyzing status
+            campaign.start_auto_analysis()
+            
             try:
-                uuid.UUID(campaign_id)
-                logger.info(f"✅ Campaign ID format is valid: {campaign_id}")
-            except ValueError:
-                logger.error(f"❌ Invalid campaign ID format: {campaign_id}")
-                raise ValueError("Invalid campaign ID format")
+                await self.db.commit()
+            except (TypeError, AttributeError):
+                self.db.commit()
             
-            # Create a minimal Campaign object to satisfy the analysis flow
-            campaign = Campaign()
-            campaign.id = campaign_id
-            campaign.title = f"Analysis Campaign {campaign_id[:8]}"
-            campaign.company_id = self.user.company_id
-            campaign.description = "Campaign for URL analysis"
-            campaign.status = "ACTIVE"
-            
-            # Set some reasonable defaults
-            from datetime import datetime, timezone
-            campaign.created_at = datetime.now(timezone.utc)
-            campaign.updated_at = datetime.now(timezone.utc)
-            
-            logger.info(f"✅ Minimal bypass successful: {campaign.title}")
-            logger.info(f"🎯 Proceeding with analysis for campaign: {campaign_id}")
-            
+            logger.info(f"✅ Campaign {campaign_id} updated to analyzing status")
             return campaign
             
         except Exception as e:
-            logger.error(f"❌ Minimal bypass failed: {str(e)}")
-            logger.error(f"❌ Error type: {type(e).__name__}")
-            raise ValueError(f"Campaign verification failed: {str(e)}")
-
+            logger.error(f"❌ Failed to get/update campaign: {str(e)}")
+            raise ValueError(f"Campaign update failed: {str(e)}")
+    
+    async def _complete_campaign_analysis(
+        self, campaign: Campaign, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]
+    ):
+        """🆕 NEW: Complete campaign analysis and prepare for content generation"""
+        try:
+            logger.info(f"🎯 Completing campaign analysis for {campaign.id}")
+            
+            # Extract key insights for content generation
+            analysis_summary = self._extract_analysis_summary(analysis_result)
+            
+            # Update campaign with completion
+            campaign.complete_auto_analysis(
+                str(intelligence.id),
+                analysis_result.get("confidence_score", 0.0),
+                analysis_summary
+            )
+            
+            # If auto-generate content is enabled, trigger content generation
+            if getattr(campaign, 'generate_content_after_analysis', False):
+                logger.info("🚀 Auto-generating content after analysis...")
+                campaign.start_content_generation()
+                
+                # TODO: Trigger content generation background task here
+                # This would call your content generation system
+                logger.info("📝 Content generation would be triggered here")
+            
+            try:
+                await self.db.commit()
+            except (TypeError, AttributeError):
+                self.db.commit()
+            
+            logger.info(f"✅ Campaign analysis completed - Status: {campaign.status}")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to complete campaign analysis: {str(e)}")
+            await self._fail_campaign_analysis(campaign, e)
+            raise
+    
+    async def _fail_campaign_analysis(self, campaign: Campaign, error: Exception):
+        """🆕 NEW: Handle campaign analysis failure"""
+        try:
+            logger.info(f"❌ Failing campaign analysis for {campaign.id}")
+            
+            campaign.fail_auto_analysis(str(error))
+            
+            try:
+                await self.db.commit()
+            except (TypeError, AttributeError):
+                self.db.commit()
+            
+            logger.info(f"✅ Campaign analysis failed - Status updated")
+            
+        except Exception as update_error:
+            logger.error(f"❌ Failed to update campaign failure status: {str(update_error)}")
+    
+    def _extract_analysis_summary(self, analysis_result: Dict[str, Any]) -> Dict[str, Any]:
+        """🆕 NEW: Extract key insights for content generation"""
+        
+        # Extract the most important insights for content generation
+        summary = {
+            "product_analysis": {},
+            "audience_insights": {},
+            "competitive_advantages": [],
+            "content_opportunities": [],
+            "amplification_data": {}
+        }
+        
+        # Extract offer intelligence
+        offer_intel = analysis_result.get("offer_intelligence", {})
+        if offer_intel:
+            summary["product_analysis"] = {
+                "products": offer_intel.get("products", [])[:3],  # Top 3 products
+                "key_value_props": offer_intel.get("value_propositions", [])[:5],
+                "pricing_strategy": offer_intel.get("pricing", [])[:2],
+                "guarantees": offer_intel.get("guarantees", [])[:2]
+            }
+        
+        # Extract psychology intelligence
+        psychology_intel = analysis_result.get("psychology_intelligence", {})
+        if psychology_intel:
+            summary["audience_insights"] = {
+                "target_audience": psychology_intel.get("target_audience", "Unknown"),
+                "pain_points": psychology_intel.get("pain_points", [])[:5],
+                "emotional_triggers": psychology_intel.get("emotional_triggers", [])[:5],
+                "persuasion_techniques": psychology_intel.get("persuasion_techniques", [])[:3]
+            }
+        
+        # Extract competitive opportunities
+        competitive_opps = analysis_result.get("competitive_opportunities", [])
+        summary["competitive_advantages"] = [
+            opp.get("description", str(opp)) for opp in competitive_opps[:5]
+        ]
+        
+        # Extract content opportunities from campaign suggestions
+        campaign_suggestions = analysis_result.get("campaign_suggestions", [])
+        summary["content_opportunities"] = campaign_suggestions[:8]
+        
+        # Extract amplification data if available
+        amp_metadata = analysis_result.get("amplification_metadata", {})
+        if amp_metadata.get("amplification_applied"):
+            summary["amplification_data"] = {
+                "scientific_backing_available": amp_metadata.get("scientific_enhancements", 0) > 0,
+                "credibility_enhancements": amp_metadata.get("credibility_score", 0.0),
+                "total_enhancements": amp_metadata.get("total_enhancements", 0),
+                "confidence_boost": amp_metadata.get("confidence_boost", 0.0),
+                "enhancement_quality": amp_metadata.get("enhancement_quality", "unknown")
+            }
+        
+        logger.info(f"📊 Extracted analysis summary with {len(summary['content_opportunities'])} content opportunities")
+        return summary
+    
     async def _create_intelligence_record(
         self, url: str, campaign_id: str, analysis_type: str
     ) -> CampaignIntelligence:
@@ -223,13 +314,11 @@ class AnalysisHandler:
             
             self.db.add(intelligence)
             
-            # 🔥 FIX: Proper async commit
             try:
                 await self.db.commit()
             except (TypeError, AttributeError):
                 self.db.commit()
             
-            # 🔥 FIX: Proper async refresh
             try:
                 await self.db.refresh(intelligence)
             except (TypeError, AttributeError):
@@ -240,9 +329,7 @@ class AnalysisHandler:
             
         except Exception as e:
             logger.error(f"❌ Error creating intelligence record: {str(e)}")
-            logger.error(f"❌ Error type: {type(e).__name__}")
             
-            # Rollback on error
             try:
                 await self.db.rollback()
             except (TypeError, AttributeError):
@@ -266,20 +353,14 @@ class AnalysisHandler:
         """Perform intelligence amplification using direct enhancement functions with ULTRA-CHEAP providers"""
         
         try:
-            logger.info("🚀 Starting intelligence amplification...")
+            logger.info("🚀 Starting intelligence amplification for streamlined workflow...")
             
-            # 🔥 FIXED: Get AI providers with ULTRA-CHEAP optimization
+            # Get AI providers with ULTRA-CHEAP optimization
             ai_providers = self._get_ai_providers_from_analyzer()
             
             # CRITICAL: Log the provider priority to verify cost optimization
             provider_names = [p.get('name', 'unknown') for p in ai_providers]
             logger.info(f"💰 AMPLIFICATION using ULTRA-CHEAP providers: {provider_names}")
-            
-            # Verify ultra-cheap providers are first
-            if provider_names and provider_names[0] in ['groq', 'together', 'deepseek']:
-                logger.info(f"✅ ULTRA-CHEAP optimization confirmed: {provider_names[0]} is primary provider")
-            else:
-                logger.warning(f"⚠️ Cost optimization issue: Expected ultra-cheap first, got {provider_names[0] if provider_names else 'none'}")
             
             # Set up preferences with cost optimization
             preferences = {
@@ -288,27 +369,27 @@ class AnalysisHandler:
                 "competitive_analysis": True,
                 "psychological_depth": "medium",
                 "content_optimization": True,
-                "cost_optimization": True,  # ADDED: Enable cost optimization
-                "preferred_provider": provider_names[0] if provider_names else "groq"  # Use ultra-cheap first
+                "cost_optimization": True,
+                "preferred_provider": provider_names[0] if provider_names else "groq"
             }
             
-            # STEP 1: Identify opportunities with ultra-cheap providers
+            # STEP 1: Identify opportunities
             logger.info("🔍 Identifying enhancement opportunities...")
             opportunities = await identify_opportunities(
                 base_intel=base_analysis,
                 preferences=preferences,
-                providers=ai_providers  # Pass the ultra-cheap providers
+                providers=ai_providers
             )
             
             opportunities_count = opportunities.get("opportunity_metadata", {}).get("total_opportunities", 0)
             logger.info(f"✅ Identified {opportunities_count} enhancement opportunities")
             
-            # STEP 2: Generate enhancements with ultra-cheap providers
+            # STEP 2: Generate enhancements
             logger.info("🚀 Generating AI-powered enhancements...")
             enhancements = await generate_enhancements(
                 base_intel=base_analysis,
                 opportunities=opportunities,
-                providers=ai_providers  # Pass the ultra-cheap providers
+                providers=ai_providers
             )
             
             enhancement_metadata = enhancements.get("enhancement_metadata", {})
@@ -328,7 +409,7 @@ class AnalysisHandler:
             logger.info("🔍 POST-AMPLIFICATION DIAGNOSIS")
             diagnose_amplification_output(enriched_intelligence)
             
-            # Add amplification metadata for backward compatibility
+            # Add amplification metadata
             enrichment_metadata = enriched_intelligence.get("enrichment_metadata", {})
 
             # Get cost optimization summary
@@ -340,7 +421,7 @@ class AnalysisHandler:
             
             enriched_intelligence["amplification_metadata"] = {
                 "amplification_applied": True,
-                "amplification_method": "direct_enhancement_functions",
+                "amplification_method": "streamlined_workflow_enhancement",
                 "opportunities_identified": opportunities_count,
                 "total_enhancements": total_enhancements,
                 "confidence_boost": confidence_boost,
@@ -350,22 +431,18 @@ class AnalysisHandler:
                 "enhancement_quality": enhancement_metadata.get("enhancement_quality", "unknown"),
                 "modules_successful": enhancement_metadata.get("modules_successful", []),
                 "scientific_enhancements": len(enhancements.get("scientific_validation", {})) if enhancements.get("scientific_validation") else 0,
-                "system_architecture": "direct_modular_enhancement",
+                "system_architecture": "streamlined_modular_enhancement",
                 "amplification_timestamp": datetime.utcnow().isoformat(),
                 "ultra_cheap_optimization_applied": True,
                 "primary_provider_used": provider_names[0] if provider_names else "unknown",
                 "provider_priority": provider_names,
-                "cost_tracking": cost_summary,  # Include cost tracking data
+                "cost_tracking": cost_summary,
                 "estimated_cost_savings": cost_summary.get("estimated_savings", 0.0),
-                "cost_savings_percentage": cost_summary.get("savings_percentage", 0.0)
+                "cost_savings_percentage": cost_summary.get("savings_percentage", 0.0),
+                "workflow_type": "streamlined_2_step"  # 🆕 NEW: Mark as streamlined workflow
             }
             
-            logger.info(f"✅ Amplification completed successfully - Final confidence: {enriched_intelligence.get('confidence_score', 0.0):.2f}")
-            logger.info(f"💰 Ultra-cheap optimization status: Primary provider = {provider_names[0] if provider_names else 'unknown'}")
-            
-            # Log cost savings
-            if cost_summary.get("estimated_savings", 0) > 0:
-                logger.info(f"💰 Estimated cost savings: ${cost_summary['estimated_savings']:.4f} ({cost_summary.get('savings_percentage', 0):.1f}%)")
+            logger.info(f"✅ Streamlined amplification completed - Final confidence: {enriched_intelligence.get('confidence_score', 0.0):.2f}")
             
             return enriched_intelligence
             
@@ -376,56 +453,40 @@ class AnalysisHandler:
                 "amplification_available": False,
                 "amplification_error": f"Enhancement modules not installed: {str(import_error)}",
                 "note": "Install amplifier dependencies for enhanced analysis",
-                "fallback_to_base": True
+                "fallback_to_base": True,
+                "workflow_type": "streamlined_2_step"
             }
             return base_analysis
             
         except Exception as amp_error:
             logger.warning(f"⚠️ Amplification failed, using base analysis: {str(amp_error)}")
-            logger.debug(f"Amplification error details: {traceback.format_exc()}")
             
             base_analysis["amplification_metadata"] = {
                 "amplification_applied": False,
                 "amplification_error": str(amp_error),
                 "fallback_to_base": True,
-                "error_type": type(amp_error).__name__
+                "error_type": type(amp_error).__name__,
+                "workflow_type": "streamlined_2_step"
             }
             return base_analysis
     
-    # 🔥 FIXED: Correct method to get AI providers from tiered system
     def _get_ai_providers_from_analyzer(self) -> List[Dict[str, Any]]:
         """Get ultra-cheap AI providers using tiered system"""
         
         try:
-            # Import tiered AI provider system
             from src.intelligence.utils.tiered_ai_provider import get_tiered_ai_provider, ServiceTier
             
-            # Get tiered manager for FREE tier (ultra-cheap)
             tiered_manager = get_tiered_ai_provider(ServiceTier.FREE)
-            
-            # Get available providers formatted for enhancers
             providers = tiered_manager.get_available_providers(ServiceTier.FREE)
             
             if providers:
-                # Log ultra-cheap provider selection
                 primary_provider = providers[0]
                 provider_name = primary_provider.get('name', 'unknown')
                 cost_per_1k = primary_provider.get('cost_per_1k_tokens', 0)
                 
-                logger.info(f"💰 ULTRA-CHEAP AI AMPLIFICATION:")
+                logger.info(f"💰 STREAMLINED ULTRA-CHEAP AI:")
                 logger.info(f"   Primary provider: {provider_name}")
                 logger.info(f"   Cost: ${cost_per_1k:.5f}/1K tokens")
-                logger.info(f"   Available providers: {len(providers)}")
-                
-                # Calculate and log savings
-                openai_cost = 0.030
-                if cost_per_1k > 0:
-                    savings_pct = ((openai_cost - cost_per_1k) / openai_cost) * 100
-                    logger.info(f"   💎 SAVINGS: {savings_pct:.1f}% vs OpenAI")
-                
-                # Log provider priority order
-                provider_names = [p.get('name', 'unknown') for p in providers]
-                logger.info(f"   Provider priority: {provider_names}")
                 
                 return providers
             else:
@@ -440,14 +501,13 @@ class AnalysisHandler:
             return self._create_emergency_fallback_providers()
     
     def _create_emergency_fallback_providers(self) -> List[Dict[str, Any]]:
-        """Emergency fallback if tiered system fails - prioritize ultra-cheap providers"""
+        """Emergency fallback if tiered system fails"""
         
         import os
         providers = []
         
-        logger.warning("🚨 Using emergency fallback providers")
+        logger.warning("🚨 Using emergency fallback providers for streamlined workflow")
         
-        # Try to create ultra-cheap providers directly
         emergency_configs = [
             {
                 "name": "groq",
@@ -462,20 +522,6 @@ class AnalysisHandler:
                 "cost_per_1k_tokens": 0.0008,
                 "quality_score": 82,
                 "priority": 2
-            },
-            {
-                "name": "deepseek",
-                "api_key_env": "DEEPSEEK_API_KEY",
-                "cost_per_1k_tokens": 0.00014,
-                "quality_score": 72,
-                "priority": 3
-            },
-            {
-                "name": "anthropic",
-                "api_key_env": "ANTHROPIC_API_KEY", 
-                "cost_per_1k_tokens": 0.006,
-                "quality_score": 92,
-                "priority": 4
             }
         ]
         
@@ -492,15 +538,6 @@ class AnalysisHandler:
                             api_key=api_key,
                             base_url="https://api.together.xyz/v1"
                         )
-                    elif config["name"] == "deepseek":
-                        import openai
-                        client = openai.AsyncOpenAI(
-                            api_key=api_key,
-                            base_url="https://api.deepseek.com"
-                        )
-                    elif config["name"] == "anthropic":
-                        import anthropic
-                        client = anthropic.AsyncAnthropic(api_key=api_key)
                     
                     providers.append({
                         "name": config["name"],
@@ -509,35 +546,24 @@ class AnalysisHandler:
                         "priority": config["priority"],
                         "cost_per_1k_tokens": config["cost_per_1k_tokens"],
                         "quality_score": config["quality_score"],
-                        "provider_tier": "emergency"
+                        "provider_tier": "emergency_streamlined"
                     })
                     
-                    logger.info(f"✅ Emergency fallback: {config['name']} initialized")
+                    logger.info(f"✅ Emergency streamlined provider: {config['name']} initialized")
                     
                 except Exception as e:
-                    logger.error(f"❌ Emergency fallback failed for {config['name']}: {str(e)}")
+                    logger.error(f"❌ Emergency provider failed for {config['name']}: {str(e)}")
         
         if providers:
             providers.sort(key=lambda x: x["priority"])
-            logger.info(f"🚨 Emergency providers available: {[p['name'] for p in providers]}")
-            
-            # Log cost optimization even in emergency mode
-            if providers:
-                cheapest = providers[0]
-                openai_cost = 0.030
-                savings = ((openai_cost - cheapest['cost_per_1k_tokens']) / openai_cost) * 100
-                logger.info(f"💰 EMERGENCY SAVINGS: {savings:.0f}% vs OpenAI")
-        else:
-            logger.error("❌ ALL EMERGENCY FALLBACKS FAILED!")
+            logger.info(f"🚨 Emergency streamlined providers: {[p['name'] for p in providers]}")
         
         return providers
     
     async def _store_analysis_results(
         self, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]
     ):
-        """
-        🔥 CRITICAL FIX: Store analysis results with guaranteed database commit
-        """
+        """Store analysis results with guaranteed database commit"""
         try:
             enhanced_analysis = analysis_result
             
@@ -555,21 +581,22 @@ class AnalysisHandler:
             intelligence.competitive_intelligence = json.dumps(competitive_intel)
             intelligence.brand_intelligence = json.dumps(brand_intel)
             
-            logger.info(f"✅ Base intelligence prepared for storage")
+            logger.info(f"✅ Base intelligence prepared for streamlined storage")
             
-            # Store AI data using fallback method (which now commits properly)
-            logger.info("🚀 Storing AI intelligence data...")
+            # Store AI data using fallback method
+            logger.info("🚀 Storing AI intelligence data for streamlined workflow...")
             await self._store_ai_data_fallback(intelligence, enhanced_analysis)
             
-            # Store metadata and finalize (AI data already committed by fallback method)
+            # Store metadata and finalize
             intelligence.confidence_score = enhanced_analysis.get("confidence_score", 0.0)
+            
             # Extract and store the correct product name
             from src.intelligence.utils.product_name_fix import extract_product_name_from_intelligence
             correct_product_name = extract_product_name_from_intelligence(enhanced_analysis)
 
             if correct_product_name and correct_product_name != "Product":
-                intelligence.source_title = correct_product_name  # Just the product name
-                logger.info(f"✅ Product name stored as source_title: '{correct_product_name}'")
+                intelligence.source_title = correct_product_name
+                logger.info(f"✅ Product name stored: '{correct_product_name}'")
             else:
                 intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
             
@@ -577,29 +604,31 @@ class AnalysisHandler:
             
             processing_metadata = enhanced_analysis.get("amplification_metadata", {})
             processing_metadata.update({
-                "storage_method": "fixed_fallback_with_commit",
+                "storage_method": "streamlined_workflow_storage",
                 "analysis_timestamp": datetime.utcnow().isoformat(),
                 "commit_applied": True,
-                "storage_fix_version": "2024_critical_fix"
+                "workflow_type": "streamlined_2_step",
+                "storage_version": "streamlined_2024"
             })
             intelligence.processing_metadata = json.dumps(processing_metadata)
             intelligence.analysis_status = AnalysisStatus.COMPLETED
             
             # Final commit for metadata and base intelligence
-            logger.info("🔧 Final commit for metadata and base intelligence...")
+            logger.info("🔧 Final commit for streamlined workflow...")
             try:
                 await self.db.commit()
             except (TypeError, AttributeError):
                 self.db.commit()
             
-            logger.info("✅ All analysis results stored and committed successfully")
+            logger.info("✅ All streamlined analysis results stored successfully")
             
         except Exception as storage_error:
-            logger.error(f"❌ Critical storage error: {str(storage_error)}")
+            logger.error(f"❌ Streamlined storage error: {str(storage_error)}")
             intelligence.analysis_status = AnalysisStatus.FAILED
             intelligence.processing_metadata = json.dumps({
                 "storage_error": str(storage_error),
                 "error_type": type(storage_error).__name__,
+                "workflow_type": "streamlined_2_step",
                 "storage_fix_attempted": True
             })
             try:
@@ -616,15 +645,12 @@ class AnalysisHandler:
             raise storage_error
     
     async def _store_ai_data_fallback(self, intelligence: CampaignIntelligence, enhanced_analysis: Dict[str, Any]):
-        """
-        🔥 CRITICAL FIX: Fallback AI data storage that actually COMMITS to database
-        The original version was missing the commit step!
-        """
+        """Fallback AI data storage for streamlined workflow"""
         
         ai_keys = ['scientific_intelligence', 'credibility_intelligence', 'market_intelligence', 
                   'emotional_transformation_intelligence', 'scientific_authority_intelligence']
         
-        logger.info("🔧 Using ORM fallback for AI data storage")
+        logger.info("🔧 Using streamlined ORM fallback for AI data storage")
         
         successful_saves = 0
         total_items_saved = 0
@@ -635,20 +661,18 @@ class AnalysisHandler:
             
             if validated_data and validated_data != {}:
                 try:
-                    # Store as JSON string for enum compatibility
                     json_string = json.dumps(validated_data)
                     setattr(intelligence, key, json_string)
                     flag_modified(intelligence, key)
                     
-                    # Count items for verification
                     item_count = len(validated_data) if isinstance(validated_data, dict) else 1
                     total_items_saved += item_count
                     successful_saves += 1
                     
-                    logger.info(f"✅ Fallback storage: {key} set ({item_count} items)")
+                    logger.info(f"✅ Streamlined storage: {key} set ({item_count} items)")
                     
                 except Exception as e:
-                    logger.error(f"❌ Fallback storage failed for {key}: {str(e)}")
+                    logger.error(f"❌ Streamlined storage failed for {key}: {str(e)}")
                     
                     # Store in metadata as backup
                     try:
@@ -661,68 +685,58 @@ class AnalysisHandler:
                         current_metadata["ai_backup_storage"][key] = validated_data
                         current_metadata["backup_storage_applied"] = True
                         current_metadata["backup_storage_timestamp"] = datetime.utcnow().isoformat()
+                        current_metadata["workflow_type"] = "streamlined_2_step"
                         
                         intelligence.processing_metadata = json.dumps(current_metadata)
                         flag_modified(intelligence, 'processing_metadata')
                         
-                        logger.info(f"🔄 Stored {key} in metadata backup ({len(validated_data)} items)")
+                        logger.info(f"🔄 Stored {key} in streamlined metadata backup ({len(validated_data)} items)")
                         successful_saves += 1
                         total_items_saved += len(validated_data) if isinstance(validated_data, dict) else 1
                         
                     except Exception as backup_error:
-                        logger.error(f"❌ Backup storage also failed for {key}: {str(backup_error)}")
+                        logger.error(f"❌ Streamlined backup storage also failed for {key}: {str(backup_error)}")
             else:
-                logger.warning(f"⚠️ No valid data to store for {key}")
+                logger.warning(f"⚠️ No valid data to store for {key} in streamlined workflow")
         
-        # 🔥 CRITICAL FIX: ACTUALLY COMMIT THE CHANGES!
+        # COMMIT THE CHANGES
         try:
-            logger.info("🔧 Committing fallback storage changes to database...")
+            logger.info("🔧 Committing streamlined fallback storage changes...")
             try:
                 await self.db.commit()
             except (TypeError, AttributeError):
                 self.db.commit()
-            logger.info(f"✅ COMMIT SUCCESS: {successful_saves}/{len(ai_keys)} categories, {total_items_saved} total items committed to database")
+            logger.info(f"✅ STREAMLINED COMMIT SUCCESS: {successful_saves}/{len(ai_keys)} categories, {total_items_saved} total items")
         
-            # Immediate verification to confirm data is in database
-            await self._verify_ai_storage_simple(intelligence.id)   
+            # Simple verification for streamlined workflow
+            await self._verify_streamlined_storage(intelligence.id)   
         except Exception as commit_error:
-            logger.error(f"❌ CRITICAL: Commit failed in fallback storage: {str(commit_error)}")
+            logger.error(f"❌ CRITICAL: Streamlined commit failed: {str(commit_error)}")
             try:
                 await self.db.rollback()
             except (TypeError, AttributeError):
                 self.db.rollback()
             raise commit_error
     
-    async def _verify_ai_storage_simple(self, intelligence_id: uuid.UUID):
-        """
-        🔥 SIMPLIFIED FIX: Skip detailed verification if async issues persist
-        """
+    async def _verify_streamlined_storage(self, intelligence_id: uuid.UUID):
+        """Simplified verification for streamlined workflow"""
         try:
-            logger.info("📊 Attempting database verification...")
+            logger.info("📊 Streamlined storage verification...")
             
-            # Try a simple count query first to test async connection
-            try:
-                count_query = text("SELECT COUNT(*) FROM campaign_intelligence WHERE id = :intelligence_id")
-                count_result = await self.db.execute(count_query, {'intelligence_id': intelligence_id})
-                count = count_result.scalar()
-                
-                if count > 0:
-                    logger.info(f"✅ VERIFICATION SUCCESS: Record exists in database")
-                    logger.info(f"   📊 Intelligence ID: {intelligence_id}")
-                    logger.info(f"   📊 Database connection: Working")
-                    logger.info(f"   📊 Record status: Confirmed")
-                else:
-                    logger.error("❌ VERIFICATION FAILED: No record found!")
-                    
-            except Exception as verify_error:
-                logger.warning(f"⚠️ Database verification failed (non-critical): {str(verify_error)}")
-                logger.info("📊 SKIPPING detailed verification due to async issues")
-                logger.info("✅ Analysis data was stored successfully via fallback method")
+            count_query = text("SELECT COUNT(*) FROM campaign_intelligence WHERE id = :intelligence_id")
+            count_result = await self.db.execute(count_query, {'intelligence_id': intelligence_id})
+            count = count_result.scalar()
+            
+            if count > 0:
+                logger.info(f"✅ STREAMLINED VERIFICATION: Record exists in database")
+                logger.info(f"   📊 Intelligence ID: {intelligence_id}")
+                logger.info(f"   📊 Workflow: Streamlined 2-step")
+            else:
+                logger.error("❌ STREAMLINED VERIFICATION FAILED: No record found!")
                 
         except Exception as e:
-            logger.warning(f"⚠️ Verification skipped due to async issues: {str(e)}")
-            logger.info("✅ This is non-critical - analysis data was stored successfully")
-            # Don't re-raise - verification is diagnostic only
+            logger.warning(f"⚠️ Streamlined verification skipped: {str(e)}")
+            logger.info("✅ Non-critical - streamlined analysis data was stored successfully")
     
     def _validate_intelligence_section(self, data: Any) -> Dict[str, Any]:
         """Validate and clean intelligence data section"""
@@ -736,30 +750,29 @@ class AnalysisHandler:
             return {"value": str(data) if data is not None else ""}
     
     async def _update_campaign_counters(self, campaign_id: str):
-        """🔥 FIXED: Update campaign counters (non-critical)"""
+        """Update campaign counters for streamlined workflow"""
         try:
-            logger.info(f"📊 Updating campaign counters for: {campaign_id}")
+            logger.info(f"📊 Updating streamlined campaign counters for: {campaign_id}")
             
-            # Import the fixed helper function
             success = await update_campaign_counters(campaign_id, self.db)
             
             if success:
-                logger.info(f"✅ Campaign counters updated successfully")
+                logger.info(f"✅ Streamlined campaign counters updated successfully")
             else:
-                logger.warning(f"⚠️ Campaign counter update failed (non-critical)")
+                logger.warning(f"⚠️ Streamlined campaign counter update failed (non-critical)")
                 
         except Exception as counter_error:
-            logger.warning(f"⚠️ Campaign counter update failed (non-critical): {str(counter_error)}")
-            logger.warning(f"⚠️ Counter error type: {type(counter_error).__name__}")
-            # Don't re-raise - this is non-critical
+            logger.warning(f"⚠️ Streamlined counter update failed (non-critical): {str(counter_error)}")
     
     async def _handle_analysis_failure(self, intelligence: CampaignIntelligence, error: Exception):
-        """Handle analysis failure"""
+        """Handle analysis failure in streamlined workflow"""
         try:
             intelligence.analysis_status = AnalysisStatus.FAILED
             intelligence.processing_metadata = json.dumps({
                 "error": str(error),
-                "traceback": traceback.format_exc()
+                "traceback": traceback.format_exc(),
+                "workflow_type": "streamlined_2_step",
+                "failure_timestamp": datetime.utcnow().isoformat()
             })
             try:
                 await self.db.commit()
@@ -771,10 +784,11 @@ class AnalysisHandler:
             except (TypeError, AttributeError):
                 self.db.rollback()
     
-    def _prepare_analysis_response(
-        self, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]
+    def _prepare_streamlined_response(
+        self, campaign: Campaign, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Prepare successful analysis response with enum serialization"""
+        """🆕 NEW: Prepare successful streamlined analysis response"""
+        
         # Extract competitive opportunities
         competitive_intel = analysis_result.get("competitive_intelligence", {})
         competitive_opportunities = []
@@ -784,59 +798,243 @@ class AnalysisHandler:
 
         campaign_suggestions = analysis_result.get("campaign_suggestions", [])
 
-        # Add amplification-specific suggestions
+        # Add streamlined workflow-specific suggestions
         amplification_metadata = analysis_result.get("amplification_metadata", {})
         if amplification_metadata.get("amplification_applied"):
             campaign_suggestions.extend([
-                "✅ Leverage scientific backing in content creation",
-                "✅ Use enhanced credibility positioning",
-                "✅ Apply competitive intelligence insights"
+                "✅ Ready for streamlined content generation",
+                "✅ Scientific backing prepared for content",
+                "✅ Credibility enhancements available",
+                "✅ Competitive insights ready to use"
             ])
             
             scientific_enhancements = amplification_metadata.get("scientific_enhancements", 0)
             if scientific_enhancements > 0:
-                campaign_suggestions.append(f"✅ {scientific_enhancements} scientific enhancements available")
+                campaign_suggestions.append(f"🔬 {scientific_enhancements} scientific validations ready")
             
             total_enhancements = amplification_metadata.get("total_enhancements", 0)
             if total_enhancements > 0:
-                campaign_suggestions.append(f"✅ {total_enhancements} total intelligence enhancements applied")
-                
-            enhancement_quality = amplification_metadata.get("enhancement_quality", "unknown")
-            if enhancement_quality in ["excellent", "good"]:
-                campaign_suggestions.append(f"✅ High-quality enhancement achieved ({enhancement_quality})")
+                campaign_suggestions.append(f"🚀 {total_enhancements} intelligence enhancements available")
 
-            # Add ultra-cheap cost optimization notifications
+            # Add ultra-cheap optimization notifications
             if amplification_metadata.get("ultra_cheap_optimization_applied"):
                 cost_savings = amplification_metadata.get("cost_savings_percentage", 0)
                 primary_provider = amplification_metadata.get("primary_provider_used", "unknown")
-                campaign_suggestions.append(f"💰 Ultra-cheap AI optimization active: {cost_savings:.0f}% cost savings using {primary_provider}")
+                campaign_suggestions.append(f"💰 Cost-optimized analysis: {cost_savings:.0f}% savings using {primary_provider}")
 
-        # 🔥 CRITICAL FIX: Use enum serialization for response data
+        # Add streamlined workflow status
+        campaign_suggestions.append("🎯 Campaign ready for Step 2: Content Generation")
+        
+        # Add content generation hints based on analysis
+        analysis_summary = analysis_result.get("analysis_summary", campaign.analysis_summary or {})
+        if analysis_summary:
+            content_opps = analysis_summary.get("content_opportunities", [])
+            if content_opps:
+                campaign_suggestions.append(f"📝 {len(content_opps)} content opportunities identified")
+
         return {
             "intelligence_id": str(intelligence.id),
+            "campaign_id": str(campaign.id),
             "analysis_status": intelligence.analysis_status.value,
+            "campaign_analysis_status": campaign.auto_analysis_status.value if campaign.auto_analysis_status else "completed",
             "confidence_score": intelligence.confidence_score,
+            "campaign_confidence_score": campaign.analysis_confidence_score or 0.0,
+            "workflow_type": "streamlined_2_step",
+            "workflow_state": campaign.workflow_state.value if campaign.workflow_state else "analysis_complete",
+            "can_proceed_to_content": campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED,
             "offer_intelligence": self._serialize_enum_field(intelligence.offer_intelligence),
             "psychology_intelligence": self._serialize_enum_field(intelligence.psychology_intelligence),
             "competitive_opportunities": competitive_opportunities,
             "campaign_suggestions": campaign_suggestions,
-            "amplification_metadata": amplification_metadata  # Include cost optimization data
+            "amplification_metadata": amplification_metadata,
+            "analysis_summary": analysis_summary,
+            "content_generation_ready": True,
+            "next_step": "content_generation",
+            "step_progress": {
+                "step_1": campaign.step_states.get("step_1", {}).get("progress", 100),
+                "step_2": campaign.step_states.get("step_2", {}).get("progress", 0)
+            }
         }
     
     def _prepare_failure_response(
         self, intelligence: CampaignIntelligence, error: Exception
     ) -> Dict[str, Any]:
-        """Prepare failure response"""
+        """Prepare failure response for streamlined workflow"""
         return {
             "intelligence_id": str(intelligence.id),
             "analysis_status": "failed",
+            "campaign_analysis_status": "failed",
             "confidence_score": 0.0,
+            "campaign_confidence_score": 0.0,
+            "workflow_type": "streamlined_2_step",
+            "workflow_state": "analysis_failed",
+            "can_proceed_to_content": False,
             "offer_intelligence": {"products": [], "pricing": [], "bonuses": [], "guarantees": [], "value_propositions": []},
             "psychology_intelligence": {"emotional_triggers": [], "pain_points": [], "target_audience": "Unknown", "persuasion_techniques": []},
             "competitive_opportunities": [{"description": f"Analysis failed: {str(error)}", "priority": "high"}],
             "campaign_suggestions": [
-                "Check server logs for detailed error information",
-                "Verify all dependencies are installed",
-                "Try with a different URL"
-            ]
+                "❌ Analysis failed - check error details",
+                "🔄 Try retrying the analysis",
+                "🛠️ Check server logs for detailed error information",
+                "🔗 Verify the competitor URL is accessible"
+            ],
+            "analysis_summary": {},
+            "content_generation_ready": False,
+            "next_step": "retry_analysis",
+            "error_message": str(error),
+            "step_progress": {
+                "step_1": 25,  # Partial progress before failure
+                "step_2": 0
+            }
         }
+
+
+# 🆕 NEW: Streamlined Workflow Utilities
+class StreamlinedWorkflowManager:
+    """🆕 NEW: Manager for streamlined 2-step workflow operations"""
+    
+    def __init__(self, db: AsyncSession):
+        self.db = db
+    
+    async def get_campaigns_ready_for_content(self, company_id: uuid.UUID) -> List[Campaign]:
+        """Get campaigns that have completed analysis and are ready for content generation"""
+        try:
+            query = select(Campaign).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED,
+                    Campaign.content_generated == 0
+                )
+            ).order_by(Campaign.auto_analysis_completed_at.desc())
+            
+            result = await self.db.execute(query)
+            campaigns = result.scalars().all()
+            
+            logger.info(f"📊 Found {len(campaigns)} campaigns ready for content generation")
+            return campaigns
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting campaigns ready for content: {str(e)}")
+            return []
+    
+    async def get_campaigns_in_analysis(self, company_id: uuid.UUID) -> List[Campaign]:
+        """Get campaigns currently being analyzed"""
+        try:
+            query = select(Campaign).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.IN_PROGRESS
+                )
+            ).order_by(Campaign.auto_analysis_started_at.desc())
+            
+            result = await self.db.execute(query)
+            campaigns = result.scalars().all()
+            
+            logger.info(f"📊 Found {len(campaigns)} campaigns currently in analysis")
+            return campaigns
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting campaigns in analysis: {str(e)}")
+            return []
+    
+    async def get_failed_analyses(self, company_id: uuid.UUID) -> List[Campaign]:
+        """Get campaigns with failed analyses that need retry"""
+        try:
+            query = select(Campaign).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.FAILED
+                )
+            ).order_by(Campaign.updated_at.desc())
+            
+            result = await self.db.execute(query)
+            campaigns = result.scalars().all()
+            
+            logger.info(f"📊 Found {len(campaigns)} campaigns with failed analyses")
+            return campaigns
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting failed analyses: {str(e)}")
+            return []
+    
+    async def get_workflow_summary(self, company_id: uuid.UUID) -> Dict[str, Any]:
+        """Get comprehensive workflow summary for dashboard"""
+        try:
+            # Get counts for different analysis states
+            pending_query = select(func.count(Campaign.id)).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.PENDING
+                )
+            )
+            
+            analyzing_query = select(func.count(Campaign.id)).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.IN_PROGRESS
+                )
+            )
+            
+            completed_query = select(func.count(Campaign.id)).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED
+                )
+            )
+            
+            failed_query = select(func.count(Campaign.id)).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.FAILED
+                )
+            )
+            
+            content_ready_query = select(func.count(Campaign.id)).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED,
+                    Campaign.content_generated == 0
+                )
+            )
+            
+            # Execute all queries
+            pending_result = await self.db.execute(pending_query)
+            analyzing_result = await self.db.execute(analyzing_query)
+            completed_result = await self.db.execute(completed_query)
+            failed_result = await self.db.execute(failed_query)
+            content_ready_result = await self.db.execute(content_ready_query)
+            
+            return {
+                "workflow_type": "streamlined_2_step",
+                "analysis_pending": pending_result.scalar() or 0,
+                "analysis_in_progress": analyzing_result.scalar() or 0,
+                "analysis_completed": completed_result.scalar() or 0,
+                "analysis_failed": failed_result.scalar() or 0,
+                "ready_for_content": content_ready_result.scalar() or 0,
+                "total_campaigns": (
+                    (pending_result.scalar() or 0) +
+                    (analyzing_result.scalar() or 0) +
+                    (completed_result.scalar() or 0) +
+                    (failed_result.scalar() or 0)
+                ),
+                "analysis_success_rate": self._calculate_success_rate(
+                    completed_result.scalar() or 0,
+                    failed_result.scalar() or 0
+                ),
+                "generated_at": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting workflow summary: {str(e)}")
+            return {
+                "workflow_type": "streamlined_2_step",
+                "error": str(e),
+                "generated_at": datetime.utcnow().isoformat()
+            }
+    
+    def _calculate_success_rate(self, completed: int, failed: int) -> float:
+        """Calculate analysis success rate"""
+        total = completed + failed
+        if total == 0:
+            return 100.0
+        return (completed / total) * 100.0
