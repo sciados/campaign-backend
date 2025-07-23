@@ -210,16 +210,30 @@ async def get_campaigns(
                 
                 # Fallback: Try to create a simple demo campaign directly
                 try:
-                    logger.info("🔄 Attempting fallback demo campaign creation...")
-                    fallback_demo = await create_fallback_demo_campaign(db, current_user.company_id, current_user.id)
-                    if fallback_demo:
-                        demo_campaigns = [fallback_demo]
+                    logger.info("🔄 Attempting simple demo using real campaign pattern...")
+                    simple_demo = await create_simple_demo_using_real_pattern(db, current_user.company_id, current_user.id)
+                    if simple_demo:
+                        demo_campaigns = [simple_demo]
                         all_campaigns = real_campaigns + demo_campaigns
-                        logger.info("✅ Fallback demo campaign created successfully")
+                        logger.info("✅ Simple demo campaign created successfully")
                     else:
-                        logger.warning("⚠️ Fallback demo creation also failed")
+                        logger.info("🔄 Attempting fallback demo campaign creation...")
+                        fallback_demo = await create_fallback_demo_campaign(db, current_user.company_id, current_user.id)
+                        if fallback_demo:
+                            demo_campaigns = [fallback_demo]
+                            all_campaigns = real_campaigns + demo_campaigns
+                            logger.info("✅ Fallback demo campaign created successfully")
+                        else:
+                            logger.info("🔄 Attempting minimal demo campaign creation...")
+                            minimal_demo = await create_minimal_demo_campaign(db, current_user.company_id, current_user.id)
+                            if minimal_demo:
+                                demo_campaigns = [minimal_demo]
+                                all_campaigns = real_campaigns + demo_campaigns
+                                logger.info("✅ Minimal demo campaign created successfully")
+                            else:
+                                logger.warning("⚠️ All demo creation methods failed - continuing without demo")
                 except Exception as fallback_error:
-                    logger.error(f"⚠️ Fallback demo creation failed: {str(fallback_error)}")
+                    logger.error(f"⚠️ All demo creation attempts failed: {str(fallback_error)}")
                     # Continue without demo - system should still work for new users
         
         # 🎯 APPLY USER PREFERENCE
@@ -707,44 +721,155 @@ async def create_demo_campaign_manually(
         )
 
 # ============================================================================
+# 🎯 FIXED: Simple Demo Creation Using Real Campaign Pattern
+# ============================================================================
+
+async def create_simple_demo_using_real_pattern(db: AsyncSession, company_id: UUID, user_id: UUID) -> Optional[Campaign]:
+    """Create demo campaign using the EXACT same logic as real campaigns"""
+    try:
+        logger.info(f"Creating demo campaign using real campaign pattern for company {company_id}")
+        
+        # 🎯 Use the EXACT same CampaignCreate pattern
+        demo_campaign_data = {
+            "title": "🎭 Demo Campaign - Email Marketing Mastery",
+            "description": "This is a professional demo campaign showcasing our platform's capabilities with real competitor analysis and high-quality generated content. Perfect for learning and reference!",
+            "keywords": ["email marketing", "conversion optimization", "social media", "demo"],
+            "target_audience": "Small business owners and marketing teams looking to improve their campaigns",
+            "tone": "professional",
+            "style": "modern",
+            "settings": {
+                "demo_campaign": "true"  # Only difference - mark as demo
+            },
+            
+            # Auto-Analysis Fields (same as real campaigns)
+            "salespage_url": "https://mailchimp.com",
+            "auto_analysis_enabled": True,
+            "content_types": ["email", "social_post", "ad_copy"],
+            "content_tone": "professional", 
+            "content_style": "modern",
+            "generate_content_after_analysis": False
+        }
+        
+        # 🎯 Create using the SAME constructor as your working create_campaign
+        new_demo_campaign = Campaign(
+            title=demo_campaign_data["title"],
+            description=demo_campaign_data["description"],
+            keywords=demo_campaign_data["keywords"],
+            target_audience=demo_campaign_data["target_audience"],
+            tone=demo_campaign_data["tone"],
+            style=demo_campaign_data["style"],
+            user_id=user_id,
+            company_id=company_id,
+            status=CampaignStatus.DRAFT,  # Same default as real campaigns
+            settings=demo_campaign_data["settings"],
+            
+            # Auto-analysis fields (same as real campaigns)
+            salespage_url=demo_campaign_data["salespage_url"],
+            auto_analysis_enabled=demo_campaign_data["auto_analysis_enabled"],
+            content_types=demo_campaign_data["content_types"],
+            content_tone=demo_campaign_data["content_tone"],
+            content_style=demo_campaign_data["content_style"],
+            generate_content_after_analysis=demo_campaign_data["generate_content_after_analysis"]
+        )
+        
+        # 🎯 Let the model handle timestamps automatically
+        # Don't manually set datetime fields - they have defaults
+        
+        db.add(new_demo_campaign)
+        await db.commit()
+        await db.refresh(new_demo_campaign)
+        
+        logger.info(f"✅ Demo campaign created using real pattern: {new_demo_campaign.id}")
+        return new_demo_campaign
+        
+    except Exception as e:
+        logger.error(f"❌ Demo creation using real pattern failed: {e}")
+        await db.rollback()
+        return None
+
+# ============================================================================
 # 🛠️ UTILITY FUNCTIONS FOR USER PREFERENCES AND DEMO CREATION
 # ============================================================================
 
-async def create_fallback_demo_campaign(db: AsyncSession, company_id: UUID, user_id: UUID) -> Optional[Campaign]:
-    """Create a simple fallback demo campaign when the main seeder fails"""
+async def create_minimal_demo_campaign(db: AsyncSession, company_id: UUID, user_id: UUID) -> Optional[Campaign]:
+    """Create the most basic demo campaign possible - no JSON fields, minimal data"""
     try:
-        # Create a basic demo campaign without relying on complex seeder logic
+        logger.info(f"Creating minimal demo campaign for company {company_id}")
+        
+        # Create the most basic campaign possible
         demo_campaign = Campaign(
-            title="🎭 Demo Campaign - Professional Email Sequence",
-            description="A complete demo showcasing our platform's capabilities with real competitor analysis and high-quality generated content. Perfect for learning and reference!",
-            keywords=["email marketing", "conversion optimization", "sales funnel", "demo"],
-            target_audience="Small business owners looking to improve email marketing",
+            title="🎭 Demo Campaign",
+            description="Demo campaign showcasing platform capabilities",
+            user_id=user_id,
+            company_id=company_id,
+            status=CampaignStatus.ACTIVE,
+            # Minimal settings - just mark as demo
+            settings={"demo_campaign": "true"}
+        )
+        
+        # Don't set any complex fields that might cause issues
+        # Let SQLAlchemy handle created_at/updated_at automatically
+        
+        db.add(demo_campaign)
+        await db.commit()
+        
+        logger.info(f"✅ Minimal demo campaign created successfully")
+        return demo_campaign
+        
+    except Exception as e:
+        logger.error(f"❌ Minimal demo campaign creation failed: {e}")
+        await db.rollback()
+        return None
+
+async def create_fallback_demo_campaign(db: AsyncSession, company_id: UUID, user_id: UUID) -> Optional[Campaign]:
+    """Create a simple fallback demo campaign using the SAME pattern as real campaigns"""
+    try:
+        logger.info(f"Creating fallback demo campaign for company {company_id}")
+        
+        # 🎯 Use the EXACT same pattern as create_campaign() function
+        # This mirrors the working campaign creation logic
+        new_demo_campaign = Campaign(
+            title="🎭 Demo Campaign - Email Marketing Mastery",
+            description="This is a professional demo campaign showcasing our platform's capabilities with real competitor analysis and high-quality generated content. Perfect for learning and reference!",
+            keywords=["email marketing", "conversion optimization", "social media", "demo"],
+            target_audience="Small business owners and marketing teams looking to improve their marketing campaigns",
             tone="professional",
             style="modern",
             user_id=user_id,
             company_id=company_id,
-            status=CampaignStatus.ACTIVE,
+            status=CampaignStatus.ACTIVE,  # Same as real campaigns
             settings={
-                "demo_campaign": "true",
-                "created_by": "fallback_system",
-                "demo_type": "email_sequence",
-                "quality_score": 9.2,
-                "reference_purpose": True,
-                "fallback_created": True,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }
+                "demo_campaign": "true",  # Only difference - mark as demo
+                "demo_type": "email_marketing",
+                "created_by": "system_fallback",
+                "quality_level": "professional"
+            },
+            
+            # 🎯 Use the same fields as real campaigns
+            salespage_url="https://mailchimp.com",  # Demo competitor URL
+            auto_analysis_enabled=True,
+            content_types=["email", "social_post", "ad_copy"],
+            content_tone="professional",
+            content_style="modern",
+            generate_content_after_analysis=False
         )
         
-        db.add(demo_campaign)
-        await db.commit()
-        await db.refresh(demo_campaign)
+        # 🎯 Let SQLAlchemy handle timestamps automatically
+        # Don't manually set created_at/updated_at - let the model defaults work
         
-        logger.info(f"✅ Fallback demo campaign created: {demo_campaign.id}")
-        return demo_campaign
+        db.add(new_demo_campaign)
+        await db.commit()
+        await db.refresh(new_demo_campaign)
+        
+        logger.info(f"✅ Fallback demo campaign created successfully: {new_demo_campaign.id}")
+        return new_demo_campaign
         
     except Exception as e:
         logger.error(f"❌ Fallback demo campaign creation failed: {e}")
-        await db.rollback()
+        try:
+            await db.rollback()
+        except:
+            pass
         return None
 
 async def get_user_demo_preference(db: AsyncSession, user_id: UUID) -> Dict[str, Any]:
@@ -1057,7 +1182,7 @@ async def update_campaign(
             else:
                 setattr(campaign, field, value)
         
-        campaign.updated_at = datetime.now(timezone.utc)
+        campaign.updated_at = datetime.utcnow()
         
         await db.commit()
         await db.refresh(campaign)

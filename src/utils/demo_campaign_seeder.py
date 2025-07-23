@@ -45,8 +45,6 @@ class DemoCampaignSeeder:
                 salespage_url="https://buffer.com",
                 auto_analysis_enabled=True,
                 auto_analysis_status=AutoAnalysisStatus.COMPLETED,
-                auto_analysis_started_at = datetime.now(timezone.utc),
-                auto_analysis_completed_at = datetime.now(timezone.utc),
                 
                 # Analysis results
                 analysis_confidence_score=0.92,
@@ -96,6 +94,9 @@ class DemoCampaignSeeder:
                     "demo_version": "1.0"
                 }
             )
+
+            demo_campaign.auto_analysis_started_at = datetime.now(timezone.utc)
+            demo_campaign.auto_analysis_completed_at = datetime.now(timezone.utc)
             
             # Save the campaign
             self.db.add(demo_campaign)
