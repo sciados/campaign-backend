@@ -56,7 +56,7 @@ class CampaignCreate(BaseModel):
     style: Optional[str] = "modern"
     
     # Auto-Analysis Fields
-    competitor_url: Optional[str] = None
+    salespage_url: Optional[str] = None
     auto_analysis_enabled: Optional[bool] = True
     content_types: Optional[List[str]] = ["email", "social_post", "ad_copy"]
     content_tone: Optional[str] = "conversational"
@@ -73,7 +73,7 @@ class CampaignUpdate(BaseModel):
     status: Optional[str] = None
     tone: Optional[str] = None
     style: Optional[str] = None
-    competitor_url: Optional[str] = None
+    salespage_url: Optional[str] = None
     auto_analysis_enabled: Optional[bool] = None
     content_types: Optional[List[str]] = None
 
@@ -91,7 +91,7 @@ class CampaignResponse(BaseModel):
     updated_at: datetime
     
     # Auto-Analysis Response Fields
-    competitor_url: Optional[str] = None
+    salespage_url: Optional[str] = None
     auto_analysis_enabled: bool = True
     auto_analysis_status: str = "pending"
     analysis_confidence_score: float = 0.0
@@ -219,7 +219,7 @@ async def get_campaigns(
                     updated_at=campaign.updated_at,
                     
                     # Auto-analysis fields
-                    competitor_url=getattr(campaign, 'competitor_url', None),
+                    salespage_url=getattr(campaign, 'salespage_url', None),
                     auto_analysis_enabled=getattr(campaign, 'auto_analysis_enabled', True),
                     auto_analysis_status=campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
                     analysis_confidence_score=getattr(campaign, 'analysis_confidence_score', 0.0) or 0.0,
@@ -391,7 +391,7 @@ async def create_campaign(
             settings=campaign_data.settings or {},
             
             # Auto-analysis fields
-            competitor_url=campaign_data.competitor_url,
+            salespage_url=campaign_data.salespage_url,
             auto_analysis_enabled=campaign_data.auto_analysis_enabled,
             content_types=campaign_data.content_types or ["email", "social_post", "ad_copy"],
             content_tone=campaign_data.content_tone or "conversational",
@@ -407,16 +407,16 @@ async def create_campaign(
         
         # Trigger auto-analysis if enabled and URL provided
         if (campaign_data.auto_analysis_enabled and 
-            campaign_data.competitor_url and 
-            campaign_data.competitor_url.strip()):
+            campaign_data.salespage_url and 
+            campaign_data.salespage_url.strip()):
             
-            logger.info(f"🚀 Triggering auto-analysis for {campaign_data.competitor_url}")
+            logger.info(f"🚀 Triggering auto-analysis for {campaign_data.salespage_url}")
             
             # Add background task for auto-analysis
             background_tasks.add_task(
                 trigger_auto_analysis_task,
                 str(new_campaign.id),
-                campaign_data.competitor_url.strip(),
+                campaign_data.salespage_url.strip(),
                 str(current_user.id),
                 str(current_user.company_id),
                 {}
@@ -435,7 +435,7 @@ async def create_campaign(
             created_at=new_campaign.created_at,
             updated_at=new_campaign.updated_at,
             
-            competitor_url=new_campaign.competitor_url,
+            salespage_url=new_campaign.salespage_url,
             auto_analysis_enabled=new_campaign.auto_analysis_enabled,
             auto_analysis_status=new_campaign.auto_analysis_status.value if new_campaign.auto_analysis_status else "pending",
             analysis_confidence_score=new_campaign.analysis_confidence_score or 0.0,
@@ -806,7 +806,7 @@ async def set_user_demo_preference(
 
 async def trigger_auto_analysis_task(
     campaign_id: str, 
-    competitor_url: str, 
+    salespage_url: str, 
     user_id: str, 
     company_id: str,
     db_connection_params: dict
@@ -847,7 +847,7 @@ async def trigger_auto_analysis_task(
             handler = AnalysisHandler(db, user)
             
             analysis_request = {
-                "url": competitor_url,
+                "url": salespage_url,
                 "campaign_id": str(campaign_id),
                 "analysis_type": "sales_page"
             }
@@ -923,7 +923,7 @@ async def get_campaign(
             created_at=campaign.created_at,
             updated_at=campaign.updated_at,
             
-            competitor_url=getattr(campaign, 'competitor_url', None),
+            salespage_url=getattr(campaign, 'salespage_url', None),
             auto_analysis_enabled=getattr(campaign, 'auto_analysis_enabled', True),
             auto_analysis_status=campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
             analysis_confidence_score=getattr(campaign, 'analysis_confidence_score', 0.0) or 0.0,
@@ -999,7 +999,7 @@ async def update_campaign(
             created_at=campaign.created_at,
             updated_at=campaign.updated_at,
             
-            competitor_url=getattr(campaign, 'competitor_url', None),
+            salespage_url=getattr(campaign, 'salespage_url', None),
             auto_analysis_enabled=getattr(campaign, 'auto_analysis_enabled', True),
             auto_analysis_status=campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
             analysis_confidence_score=getattr(campaign, 'analysis_confidence_score', 0.0) or 0.0,

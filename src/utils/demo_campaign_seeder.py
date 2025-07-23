@@ -41,7 +41,7 @@ class DemoCampaignSeeder:
                 user_id=user_id,
                 
                 # Demo competitor URL
-                competitor_url="https://buffer.com",
+                salespage_url="https://buffer.com",
                 auto_analysis_enabled=True,
                 auto_analysis_status=AutoAnalysisStatus.COMPLETED,
                 auto_analysis_started_at=datetime.now(timezone.utc),
