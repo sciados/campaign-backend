@@ -969,7 +969,7 @@ class UniversalDualStorageManager:
             "original_filename": filename,
             "file_size": len(optimized_content),
             "mime_type": mime_type,
-            "upload_timestamp": datetime.datetime.now(),
+            "upload_timestamp": datetime.now(timezone.utc),
             "content_hash": content_hash,
             **(metadata or {})
         }
@@ -1168,7 +1168,7 @@ class UniversalDualStorageManager:
         """Get comprehensive storage health status"""
         
         health_status = {
-            "timestamp": datetime.datetime.now(),
+            "timestamp": datetime.now(timezone.utc),
             "overall_status": "healthy",
             "providers": {},
             "failover_stats": {
@@ -1191,7 +1191,7 @@ class UniversalDualStorageManager:
                 
                 health_status["providers"][provider.name] = {
                     "status": "healthy",
-                    "last_check": datetime.datetime.now(),
+                    "last_check": datetime.now(timezone.utc),
                     "response_time": "< 1s"
                 }
                 
@@ -1199,7 +1199,7 @@ class UniversalDualStorageManager:
                 health_status["providers"][provider.name] = {
                     "status": "unhealthy",
                     "error": str(e),
-                    "last_check": datetime.datetime.now()
+                    "last_check": datetime.now(timezone.utc)
                 }
                 health_status["overall_status"] = "degraded"
         
@@ -1399,7 +1399,7 @@ class DocumentManager:
             "page_count": validation_result.get("page_count", 1),
             "word_count": len(text_content.split()) if text_content else 0,
             "has_preview": preview_data is not None,
-            "processing_timestamp": datetime.datetime.now(),
+            "processing_timestamp": datetime.now(timezone.utc),
             **(metadata or {})
         }
         
@@ -1794,7 +1794,7 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
             "storyboard": storyboard,
             "settings": settings,
             "product_name": product_name,
-            "generation_timestamp": datetime.datetime.now()
+            "generation_timestamp": datetime.now(timezone.utc)
         }
     
     async def _generate_storyboard(
@@ -2796,7 +2796,7 @@ async def serve_content_with_failover(
         
         # Update access statistics
         asset.access_count += 1
-        asset.last_accessed = datetime.datetime.now()
+        asset.last_accessed = datetime.now(timezone.utc)
         await db.commit()
         
         # Get best available URL with failover
@@ -2826,7 +2826,7 @@ async def storage_health_check(
         return {
             "system_health": health_status,
             "user_id": str(current_user.id),
-            "timestamp": datetime.datetime.now()
+            "timestamp": datetime.now(timezone.utc)
         }
         
     except Exception as e:
@@ -2836,7 +2836,7 @@ async def storage_health_check(
                 "overall_status": "error",
                 "error": str(e)
             },
-            "timestamp": datetime.datetime.now()
+            "timestamp": datetime.now(timezone.utc)
         }
 
 @router.get("/failover-stats")
@@ -2875,7 +2875,7 @@ async def get_failover_statistics(
         return {
             "failover_statistics": failover_stats,
             "user_id": str(current_user.id),
-            "timestamp": datetime.datetime.now()
+            "timestamp": datetime.now(timezone.utc)
         }
         
     except Exception as e:

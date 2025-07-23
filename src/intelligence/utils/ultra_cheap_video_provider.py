@@ -65,7 +65,7 @@ class UltraCheapVideoProvider:
     def __init__(self):
         self.providers = []
         self.cost_tracker = {
-            "session_start": datetime.datetime.now(),
+            "session_start": datetime.now(timezone.utc),
             "total_video_requests": 0,
             "total_video_cost": 0.0,
             "total_savings": 0.0,
@@ -305,7 +305,7 @@ class UltraCheapVideoProvider:
         for provider in candidate_providers:
             try:
                 # Check rate limiting
-                if provider.rate_limited_until and datetime.datetime.now() < provider.rate_limited_until:
+                if provider.rate_limited_until and datetime.now(timezone.utc) < provider.rate_limited_until:
                     continue
                 
                 logger.info(f"🎥 Video generation with {provider.name} (${provider.cost_per_second:.3f}/sec)")
@@ -426,7 +426,7 @@ class UltraCheapVideoProvider:
     
     def _get_available_video_providers(self, duration: int) -> List[VideoProviderConfig]:
         """Get providers that can handle the requested duration"""
-        current_time = datetime.datetime.now()
+        current_time = datetime.now(timezone.utc)
         
         available = []
         for provider in self.providers:
@@ -747,13 +747,13 @@ class UltraCheapVideoProvider:
         if "rate limit" in error_message.lower() or "429" in error_message:
             # Rate limited - disable for a period
             retry_seconds = 300  # 5 minutes for video (longer than text/image)
-            provider.rate_limited_until = datetime.datetime.now() + timedelta(seconds=retry_seconds)
+            provider.rate_limited_until = datetime.now(timezone.utc) + timedelta(seconds=retry_seconds)
             logger.warning(f"🚨 {provider.name}: Video rate limited for {retry_seconds}s")
         
         elif provider.consecutive_failures >= 2:  # Lower threshold for video
             # Too many failures - disable temporarily
             provider.available = False
-            provider.rate_limited_until = datetime.datetime.now() + timedelta(minutes=10)
+            provider.rate_limited_until = datetime.now(timezone.utc) + timedelta(minutes=10)
             logger.warning(f"⚠️ {provider.name}: Video provider disabled due to {provider.consecutive_failures} failures")
     
     def _update_provider_performance(self, provider: VideoProviderConfig, success: bool, response_time: float):
@@ -794,7 +794,7 @@ class UltraCheapVideoProvider:
     
     def get_video_cost_summary(self) -> Dict[str, Any]:
         """Get comprehensive video cost summary"""
-        session_duration = (datetime.datetime.now() - self.cost_tracker["session_start"]).total_seconds() / 3600
+        session_duration = (datetime.now(timezone.utc) - self.cost_tracker["session_start"]).total_seconds() / 3600
         
         return {
             "video_provider_system": {
@@ -822,7 +822,7 @@ class UltraCheapVideoProvider:
     
     def get_video_provider_status(self) -> Dict[str, Any]:
         """Get status of all video providers"""
-        current_time = datetime.datetime.now()
+        current_time = datetime.now(timezone.utc)
         
         providers_status = []
         

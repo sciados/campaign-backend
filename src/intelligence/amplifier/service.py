@@ -78,7 +78,7 @@ class IntelligenceAmplificationService:
             # Add production service metadata
             enriched_intelligence["service_metadata"] = {
                 "service_version": self.service_version,
-                "processing_timestamp": datetime.datetime.now(),
+                "processing_timestamp": datetime.now(timezone.utc),
                 "features_applied": self.features,
                 "performance_boost": f"+{confidence_boost * 100:.0f}% confidence improvement",
                 "scientific_backing_applied": production_preferences.get("enable_scientific_backing", False),

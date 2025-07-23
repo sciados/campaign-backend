@@ -951,7 +951,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
                 "product_name": product_name,
                 "content_type": "ad_copy",
                 "generation_id": self.generation_id,
-                "generated_at": datetime.datetime.now(),
+                "generated_at": datetime.now(timezone.utc),
                 "preferences_used": preferences,
                 "ai_optimization": {
                     "provider_used": ai_result.get("provider_used"),

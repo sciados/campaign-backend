@@ -163,7 +163,7 @@ class StabilityAIGenerator:
                             "image_base64": artifact["base64"],
                             "seed": artifact.get("seed"),
                             "finish_reason": artifact.get("finishReason"),
-                            "generation_time": datetime.datetime.now(),
+                            "generation_time": datetime.now(timezone.utc),
                             "save_instructions": "Decode base64 and save as PNG/JPG"
                         }
                     else:

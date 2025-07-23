@@ -21,7 +21,7 @@ def check_railway_deployment_status():
     
     logger.info("🚂 RAILWAY DEPLOYMENT STATUS CHECK")
     logger.info("=" * 50)
-    logger.info(f"Timestamp: {datetime.datetime.now()}Z")
+    logger.info(f"Timestamp: {datetime.now(timezone.utc)}Z")
     
     # Check 1: Environment
     logger.info("\n1️⃣ Environment Check:")

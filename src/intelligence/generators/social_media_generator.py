@@ -236,7 +236,7 @@ class SocialMediaGenerator(EnumSerializerMixin):
         if preferences is None:
             preferences = {}
         
-        generation_start = datetime.datetime.now()
+        generation_start = datetime.now(timezone.utc)
         
         # Extract actual product name first
         actual_product_name = extract_product_name_from_intelligence(intelligence_data)
@@ -1338,7 +1338,7 @@ class SocialMediaGenerator(EnumSerializerMixin):
     def _update_generation_metrics(self, start_time: datetime, cost: float, savings: float, success: bool):
         """Update generation metrics for monitoring"""
         
-        generation_time = (datetime.datetime.now() - start_time).total_seconds()
+        generation_time = (datetime.now(timezone.utc) - start_time).total_seconds()
         
         self.generation_metrics["total_generations"] += 1
         if success:

@@ -491,7 +491,7 @@ class IntelligenceAmplifier:
                 len(credibility_enhancements.get("trust_indicators", [])) +
                 len(competitive_enhancements.get("enhanced_opportunities", []))
             ),
-            "enhanced_at": datetime.datetime.now(),
+            "enhanced_at": datetime.now(timezone.utc),
             "amplifier_version": "production_1.0"
         }
         

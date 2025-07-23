@@ -63,7 +63,7 @@ class UnifiedUltraCheapProvider:
         self.text_providers = []
         self.image_providers = []
         self.cost_tracker = {
-            "session_start": datetime.datetime.now(),
+            "session_start": datetime.now(timezone.utc),
             "total_text_requests": 0,
             "total_image_requests": 0,
             "total_text_cost": 0.0,
@@ -461,7 +461,7 @@ class UnifiedUltraCheapProvider:
         for provider in candidate_providers:
             try:
                 # Check rate limiting
-                if provider.rate_limited_until and datetime.datetime.now() < provider.rate_limited_until:
+                if provider.rate_limited_until and datetime.now(timezone.utc) < provider.rate_limited_until:
                     continue
                 
                 logger.info(f"🤖 Text generation with {provider.name} (${provider.cost_per_1k_tokens:.5f}/1K)")
@@ -520,7 +520,7 @@ class UnifiedUltraCheapProvider:
         for provider in candidate_providers:
             try:
                 # Check rate limiting
-                if provider.rate_limited_until and datetime.datetime.now() < provider.rate_limited_until:
+                if provider.rate_limited_until and datetime.now(timezone.utc) < provider.rate_limited_until:
                     continue
                 
                 logger.info(f"🎨 Image generation with {provider.name} (${provider.cost_per_image:.4f}/image)")
@@ -858,13 +858,13 @@ class UnifiedUltraCheapProvider:
         if "rate limit" in error_message.lower() or "429" in error_message:
             # Rate limited - disable for a period
             retry_seconds = 60
-            provider.rate_limited_until = datetime.datetime.now() + timedelta(seconds=retry_seconds)
+            provider.rate_limited_until = datetime.now(timezone.utc) + timedelta(seconds=retry_seconds)
             logger.warning(f"🚨 {provider.name}: Rate limited for {retry_seconds}s")
         
         elif provider.consecutive_failures >= 3:
             # Too many failures - disable temporarily
             provider.available = False
-            provider.rate_limited_until = datetime.datetime.now() + timedelta(minutes=5)
+            provider.rate_limited_until = datetime.now(timezone.utc) + timedelta(minutes=5)
             logger.warning(f"⚠️ {provider.name}: Disabled due to {provider.consecutive_failures} failures")
     
     def _update_provider_performance(self, provider: UnifiedProvider, success: bool, response_time: float):
@@ -894,7 +894,7 @@ class UnifiedUltraCheapProvider:
     
     def get_cost_summary(self) -> Dict[str, Any]:
         """Get comprehensive cost summary"""
-        session_duration = (datetime.datetime.now() - self.cost_tracker["session_start"]).total_seconds() / 3600
+        session_duration = (datetime.now(timezone.utc) - self.cost_tracker["session_start"]).total_seconds() / 3600
         
         return {
             "unified_provider_system": {
@@ -925,7 +925,7 @@ class UnifiedUltraCheapProvider:
     
     def get_provider_status(self) -> Dict[str, Any]:
         """Get status of all providers"""
-        current_time = datetime.datetime.now()
+        current_time = datetime.now(timezone.utc)
         
         status = {
             "text_providers": [],

@@ -5,7 +5,6 @@ Campaign routes - Streamlined workflow with auto-demo creation and user preferen
 🎯 SMART: Auto-adapts based on user experience level
 🎯 COMPLETE: Full CRUD for demo preferences with protective logic
 """
-from time import timezone
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +14,7 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from src.core.database import get_async_db
@@ -57,7 +56,7 @@ class CampaignCreate(BaseModel):
     style: Optional[str] = "modern"
     
     # Auto-Analysis Fields
-    salespage_url: Optional[str] = None
+    competitor_url: Optional[str] = None
     auto_analysis_enabled: Optional[bool] = True
     content_types: Optional[List[str]] = ["email", "social_post", "ad_copy"]
     content_tone: Optional[str] = "conversational"
@@ -74,7 +73,7 @@ class CampaignUpdate(BaseModel):
     status: Optional[str] = None
     tone: Optional[str] = None
     style: Optional[str] = None
-    salespage_url: Optional[str] = None
+    competitor_url: Optional[str] = None
     auto_analysis_enabled: Optional[bool] = None
     content_types: Optional[List[str]] = None
 
@@ -92,7 +91,7 @@ class CampaignResponse(BaseModel):
     updated_at: datetime
     
     # Auto-Analysis Response Fields
-    salespage_url: Optional[str] = None
+    competitor_url: Optional[str] = None
     auto_analysis_enabled: bool = True
     auto_analysis_status: str = "pending"
     analysis_confidence_score: float = 0.0
@@ -172,17 +171,56 @@ async def get_campaigns(
                 # If we can't classify, assume it's real
                 real_campaigns.append(campaign)
         
-        # Ensure demo exists if needed (with error handling)
+        # Ensure demo exists if needed (with error handling and fallback)
         if len(demo_campaigns) == 0:
             try:
+                logger.info(f"No demo campaigns found, attempting to create one...")
                 await ensure_demo_campaign_exists(db, current_user.company_id, current_user.id)
-                # Re-query to get the new demo
-                result = await db.execute(query)
-                all_campaigns = result.scalars().all()
-                demo_campaigns = [c for c in all_campaigns if is_demo_campaign(c)]
-                logger.info(f"✅ Demo campaign auto-created")
+                
+                # Re-query to get the new demo (with fresh query to avoid stale data)
+                fresh_query = select(Campaign).where(
+                    Campaign.company_id == current_user.company_id
+                ).offset(skip).limit(limit).order_by(Campaign.updated_at.desc())
+                
+                fresh_result = await db.execute(fresh_query)
+                fresh_campaigns = fresh_result.scalars().all()
+                
+                # Update our campaign lists
+                all_campaigns = fresh_campaigns
+                demo_campaigns = []
+                real_campaigns = []
+                
+                for campaign in fresh_campaigns:
+                    try:
+                        if is_demo_campaign(campaign):
+                            demo_campaigns.append(campaign)
+                        else:
+                            real_campaigns.append(campaign)
+                    except Exception as classify_error:
+                        logger.warning(f"Error classifying fresh campaign {campaign.id}: {classify_error}")
+                        real_campaigns.append(campaign)
+                
+                if len(demo_campaigns) > 0:
+                    logger.info(f"✅ Demo campaign created successfully, found {len(demo_campaigns)} demo campaigns")
+                else:
+                    logger.warning(f"⚠️ Demo creation completed but no demo campaigns found in results")
+                    
             except Exception as demo_error:
-                logger.warning(f"⚠️ Demo creation failed: {str(demo_error)}")
+                logger.error(f"⚠️ Demo creation failed with error: {str(demo_error)}")
+                
+                # Fallback: Try to create a simple demo campaign directly
+                try:
+                    logger.info("🔄 Attempting fallback demo campaign creation...")
+                    fallback_demo = await create_fallback_demo_campaign(db, current_user.company_id, current_user.id)
+                    if fallback_demo:
+                        demo_campaigns = [fallback_demo]
+                        all_campaigns = real_campaigns + demo_campaigns
+                        logger.info("✅ Fallback demo campaign created successfully")
+                    else:
+                        logger.warning("⚠️ Fallback demo creation also failed")
+                except Exception as fallback_error:
+                    logger.error(f"⚠️ Fallback demo creation failed: {str(fallback_error)}")
+                    # Continue without demo - system should still work for new users
         
         # 🎯 APPLY USER PREFERENCE
         campaigns_to_return = []
@@ -220,7 +258,7 @@ async def get_campaigns(
                     updated_at=campaign.updated_at,
                     
                     # Auto-analysis fields
-                    salespage_url=getattr(campaign, 'salespage_url', None),
+                    competitor_url=getattr(campaign, 'competitor_url', None),
                     auto_analysis_enabled=getattr(campaign, 'auto_analysis_enabled', True),
                     auto_analysis_status=campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
                     analysis_confidence_score=getattr(campaign, 'analysis_confidence_score', 0.0) or 0.0,
@@ -392,7 +430,7 @@ async def create_campaign(
             settings=campaign_data.settings or {},
             
             # Auto-analysis fields
-            salespage_url=campaign_data.salespage_url,
+            competitor_url=campaign_data.competitor_url,
             auto_analysis_enabled=campaign_data.auto_analysis_enabled,
             content_types=campaign_data.content_types or ["email", "social_post", "ad_copy"],
             content_tone=campaign_data.content_tone or "conversational",
@@ -408,16 +446,16 @@ async def create_campaign(
         
         # Trigger auto-analysis if enabled and URL provided
         if (campaign_data.auto_analysis_enabled and 
-            campaign_data.salespage_url and 
-            campaign_data.salespage_url.strip()):
+            campaign_data.competitor_url and 
+            campaign_data.competitor_url.strip()):
             
-            logger.info(f"🚀 Triggering auto-analysis for {campaign_data.salespage_url}")
+            logger.info(f"🚀 Triggering auto-analysis for {campaign_data.competitor_url}")
             
             # Add background task for auto-analysis
             background_tasks.add_task(
                 trigger_auto_analysis_task,
                 str(new_campaign.id),
-                campaign_data.salespage_url.strip(),
+                campaign_data.competitor_url.strip(),
                 str(current_user.id),
                 str(current_user.company_id),
                 {}
@@ -436,7 +474,7 @@ async def create_campaign(
             created_at=new_campaign.created_at,
             updated_at=new_campaign.updated_at,
             
-            salespage_url=new_campaign.salespage_url,
+            competitor_url=new_campaign.competitor_url,
             auto_analysis_enabled=new_campaign.auto_analysis_enabled,
             auto_analysis_status=new_campaign.auto_analysis_status.value if new_campaign.auto_analysis_status else "pending",
             analysis_confidence_score=new_campaign.analysis_confidence_score or 0.0,
@@ -590,7 +628,7 @@ async def get_dashboard_stats(
             },
             "user_id": str(current_user.id),
             "company_id": str(current_user.company_id),
-            "generated_at": datetime.datetime.now()
+            "generated_at": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:
@@ -669,8 +707,45 @@ async def create_demo_campaign_manually(
         )
 
 # ============================================================================
-# 🛠️ UTILITY FUNCTIONS FOR USER PREFERENCES
+# 🛠️ UTILITY FUNCTIONS FOR USER PREFERENCES AND DEMO CREATION
 # ============================================================================
+
+async def create_fallback_demo_campaign(db: AsyncSession, company_id: UUID, user_id: UUID) -> Optional[Campaign]:
+    """Create a simple fallback demo campaign when the main seeder fails"""
+    try:
+        # Create a basic demo campaign without relying on complex seeder logic
+        demo_campaign = Campaign(
+            title="🎭 Demo Campaign - Professional Email Sequence",
+            description="A complete demo showcasing our platform's capabilities with real competitor analysis and high-quality generated content. Perfect for learning and reference!",
+            keywords=["email marketing", "conversion optimization", "sales funnel", "demo"],
+            target_audience="Small business owners looking to improve email marketing",
+            tone="professional",
+            style="modern",
+            user_id=user_id,
+            company_id=company_id,
+            status=CampaignStatus.ACTIVE,
+            settings={
+                "demo_campaign": "true",
+                "created_by": "fallback_system",
+                "demo_type": "email_sequence",
+                "quality_score": 9.2,
+                "reference_purpose": True,
+                "fallback_created": True,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        db.add(demo_campaign)
+        await db.commit()
+        await db.refresh(demo_campaign)
+        
+        logger.info(f"✅ Fallback demo campaign created: {demo_campaign.id}")
+        return demo_campaign
+        
+    except Exception as e:
+        logger.error(f"❌ Fallback demo campaign creation failed: {e}")
+        await db.rollback()
+        return None
 
 async def get_user_demo_preference(db: AsyncSession, user_id: UUID) -> Dict[str, Any]:
     """Get user's demo campaign preference with smart defaults"""
@@ -760,7 +835,7 @@ async def set_user_demo_preference(
             current_settings['demo_campaign_preferences'] = {}
         
         current_settings['demo_campaign_preferences']['show_demo_campaigns'] = show_demo
-        current_settings['demo_campaign_preferences']['last_updated'] = datetime.datetime.now()
+        current_settings['demo_campaign_preferences']['last_updated'] = datetime.now(timezone.utc).isoformat()
         
         if store_as_smart_default:
             current_settings['demo_campaign_preferences']['set_by'] = 'smart_default'
@@ -807,7 +882,7 @@ async def set_user_demo_preference(
 
 async def trigger_auto_analysis_task(
     campaign_id: str, 
-    salespage_url: str, 
+    competitor_url: str, 
     user_id: str, 
     company_id: str,
     db_connection_params: dict
@@ -848,7 +923,7 @@ async def trigger_auto_analysis_task(
             handler = AnalysisHandler(db, user)
             
             analysis_request = {
-                "url": salespage_url,
+                "url": competitor_url,
                 "campaign_id": str(campaign_id),
                 "analysis_type": "sales_page"
             }
@@ -924,7 +999,7 @@ async def get_campaign(
             created_at=campaign.created_at,
             updated_at=campaign.updated_at,
             
-            salespage_url=getattr(campaign, 'salespage_url', None),
+            competitor_url=getattr(campaign, 'competitor_url', None),
             auto_analysis_enabled=getattr(campaign, 'auto_analysis_enabled', True),
             auto_analysis_status=campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
             analysis_confidence_score=getattr(campaign, 'analysis_confidence_score', 0.0) or 0.0,
@@ -982,7 +1057,7 @@ async def update_campaign(
             else:
                 setattr(campaign, field, value)
         
-        campaign.updated_at = datetime.datetime.now()
+        campaign.updated_at = datetime.now(timezone.utc)
         
         await db.commit()
         await db.refresh(campaign)
@@ -1000,7 +1075,7 @@ async def update_campaign(
             created_at=campaign.created_at,
             updated_at=campaign.updated_at,
             
-            salespage_url=getattr(campaign, 'salespage_url', None),
+            competitor_url=getattr(campaign, 'competitor_url', None),
             auto_analysis_enabled=getattr(campaign, 'auto_analysis_enabled', True),
             auto_analysis_status=campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
             analysis_confidence_score=getattr(campaign, 'analysis_confidence_score', 0.0) or 0.0,

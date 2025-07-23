@@ -47,7 +47,7 @@ class CompleteSmartRouter:
         
         # Performance tracking
         self.performance_cache = {}
-        self.last_cache_update = datetime.datetime.now()
+        self.last_cache_update = datetime.now(timezone.utc)
         
         # Session statistics
         self.session_stats = {
@@ -57,7 +57,7 @@ class CompleteSmartRouter:
             "total_savings": 0.0,
             "provider_usage": {},
             "content_type_usage": {},
-            "session_start": datetime.datetime.now()
+            "session_start": datetime.now(timezone.utc)
         }
         
         # Initialize monitoring
@@ -195,7 +195,7 @@ class CompleteSmartRouter:
             cur.close()
             conn.close()
             
-            self.last_cache_update = datetime.datetime.now()
+            self.last_cache_update = datetime.now(timezone.utc)
             logger.debug("📊 Performance cache updated")
             
         except Exception as e:
@@ -316,7 +316,7 @@ class CompleteSmartRouter:
                 (provider_name, content_type, response_time_seconds, cost_per_1k_tokens, 
                  is_successful, tokens_used, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (provider_name, content_type, response_time, cost, success, tokens_used, datetime.datetime.now()))
+            """, (provider_name, content_type, response_time, cost, success, tokens_used, datetime.now(timezone.utc)))
             
             conn.commit()
             cur.close()
@@ -357,13 +357,13 @@ class CompleteSmartRouter:
             "routing_strategy": "performance_optimized",
             "content_type": content_type,
             "required_strength": required_strength,
-            "decision_time": datetime.datetime.now()
+            "decision_time": datetime.now(timezone.utc)
         }
     
     def get_system_analytics(self) -> Dict[str, Any]:
         """Get comprehensive system analytics"""
         
-        session_duration = (datetime.datetime.now() - self.session_stats["session_start"]).total_seconds()
+        session_duration = (datetime.now(timezone.utc) - self.session_stats["session_start"]).total_seconds()
         
         return {
             "system_status": {
@@ -408,7 +408,7 @@ class CompleteSmartRouter:
         
         health_status = {
             "overall_health": "healthy",
-            "timestamp": datetime.datetime.now(),
+            "timestamp": datetime.now(timezone.utc),
             "components": {}
         }
         
@@ -437,7 +437,7 @@ class CompleteSmartRouter:
         
         # Check monitoring
         if self.monitoring_enabled:
-            cache_age = (datetime.datetime.now() - self.last_cache_update).total_seconds()
+            cache_age = (datetime.now(timezone.utc) - self.last_cache_update).total_seconds()
             if cache_age > 300:  # 5 minutes
                 health_status["components"]["monitoring"] = "stale"
                 health_status["overall_health"] = "degraded"

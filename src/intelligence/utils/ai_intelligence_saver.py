@@ -159,7 +159,7 @@ async def _emergency_metadata_backup(
                 metadata["emergency_ai_backup"][category] = ai_data[category]
         
         metadata["emergency_backup_applied"] = True
-        metadata["emergency_backup_timestamp"] = datetime.datetime.now()
+        metadata["emergency_backup_timestamp"] = datetime.now(timezone.utc)
         metadata["emergency_backup_reason"] = "Primary AI storage methods failed"
         
         # Save metadata
@@ -277,7 +277,7 @@ async def test_ai_storage_methods(
     """Test different storage methods to diagnose issues"""
     
     test_data = {
-        "test_timestamp": datetime.datetime.now(),
+        "test_timestamp": datetime.now(timezone.utc),
         "test_items": ["item1", "item2", "item3"],
         "test_metadata": {
             "test_purpose": "Storage method diagnosis",

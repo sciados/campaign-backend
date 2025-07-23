@@ -52,7 +52,7 @@ async def get_company_stats(
             )
         
         # Get date range for this month
-        now = datetime.datetime.now()
+        now = datetime.now(timezone.utc)
         first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
         # Total campaigns for this company
