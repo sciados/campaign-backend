@@ -29,6 +29,7 @@ class User(BaseModel):
     
     # User Preferences (personal, not company-wide)
     preferences = Column(JSONB, default={})
+    settings = Column(JSONB, default={})
     
     # Clean relationships (will work once all models use proper imports)
     company = relationship("Company", back_populates="users")

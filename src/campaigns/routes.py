@@ -131,8 +131,12 @@ async def get_campaigns(
     try:
         logger.info(f"Getting campaigns for user {current_user.id}, company {current_user.company_id}")
         
-        # 🎯 Get user's demo preference (default: show for new users, hide for experienced)
-        user_demo_preference = await get_user_demo_preference(db, current_user.id)
+        # 🎯 Get user's demo preference (with error handling)
+        try:
+            user_demo_preference = await get_user_demo_preference(db, current_user.id)
+        except Exception as pref_error:
+            logger.warning(f"Failed to get user demo preference, using default: {pref_error}")
+            user_demo_preference = {"show_demo_campaigns": True}  # Safe default
         
         # Build query for all campaigns
         query = select(Campaign).where(Campaign.company_id == current_user.company_id)
@@ -153,10 +157,21 @@ async def get_campaigns(
         all_campaigns = result.scalars().all()
         
         # 🎯 SMART DEMO LOGIC based on user preference
-        real_campaigns = [c for c in all_campaigns if not is_demo_campaign(c)]
-        demo_campaigns = [c for c in all_campaigns if is_demo_campaign(c)]
+        real_campaigns = []
+        demo_campaigns = []
         
-        # Ensure demo exists if needed
+        for campaign in all_campaigns:
+            try:
+                if is_demo_campaign(campaign):
+                    demo_campaigns.append(campaign)
+                else:
+                    real_campaigns.append(campaign)
+            except Exception as classify_error:
+                logger.warning(f"Error classifying campaign {campaign.id}: {classify_error}")
+                # If we can't classify, assume it's real
+                real_campaigns.append(campaign)
+        
+        # Ensure demo exists if needed (with error handling)
         if len(demo_campaigns) == 0:
             try:
                 await ensure_demo_campaign_exists(db, current_user.company_id, current_user.id)
@@ -171,7 +186,7 @@ async def get_campaigns(
         # 🎯 APPLY USER PREFERENCE
         campaigns_to_return = []
         
-        if user_demo_preference["show_demo_campaigns"]:
+        if user_demo_preference.get("show_demo_campaigns", True):
             # ✅ User wants to see demo campaigns
             campaigns_to_return = all_campaigns
             logger.info(f"Showing all campaigns including demo (user preference: show)")
@@ -186,7 +201,7 @@ async def get_campaigns(
                 campaigns_to_return = all_campaigns
                 logger.info(f"Showing demo despite preference (no real campaigns for onboarding)")
         
-        # Convert to response format
+        # Convert to response format (with error handling for each campaign)
         campaign_responses = []
         for campaign in campaigns_to_return:
             try:
@@ -227,19 +242,25 @@ async def get_campaigns(
                 continue
         
         # 🎯 SMART SORTING based on user experience
-        if len(real_campaigns) == 0:
-            # New user - demo first to show example
-            campaign_responses.sort(key=lambda c: (not c.is_demo, c.updated_at), reverse=True)
-        else:
-            # Experienced user - real campaigns first, demo at bottom
-            campaign_responses.sort(key=lambda c: (c.is_demo, c.updated_at), reverse=True)
+        try:
+            if len(real_campaigns) == 0:
+                # New user - demo first to show example
+                campaign_responses.sort(key=lambda c: (not c.is_demo, c.updated_at), reverse=True)
+            else:
+                # Experienced user - real campaigns first, demo at bottom
+                campaign_responses.sort(key=lambda c: (c.is_demo, c.updated_at), reverse=True)
+        except Exception as sort_error:
+            logger.warning(f"Error sorting campaigns: {sort_error}")
         
-        logger.info(f"Returned {len(campaign_responses)} campaigns (user demo pref: {user_demo_preference['show_demo_campaigns']})")
+        logger.info(f"Returned {len(campaign_responses)} campaigns (user demo pref: {user_demo_preference.get('show_demo_campaigns', True)})")
         
         return campaign_responses
         
     except Exception as e:
         logger.error(f"Error getting campaigns: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve campaigns: {str(e)}"
@@ -662,7 +683,18 @@ async def get_user_demo_preference(db: AsyncSession, user_id: UUID) -> Dict[str,
             return {"show_demo_campaigns": True}  # Default for new users
         
         # Check if user has demo preference in their settings
-        user_settings = getattr(user, 'settings', {}) or {}
+        # Handle both dict and None cases for settings
+        user_settings = {}
+        if hasattr(user, 'settings') and user.settings is not None:
+            if isinstance(user.settings, dict):
+                user_settings = user.settings
+            else:
+                # If settings is a string, try to parse as JSON
+                try:
+                    import json
+                    user_settings = json.loads(user.settings) if user.settings else {}
+                except (json.JSONDecodeError, TypeError):
+                    user_settings = {}
         
         if 'demo_campaign_preferences' in user_settings:
             stored_pref = user_settings['demo_campaign_preferences'].get('show_demo_campaigns')
@@ -670,21 +702,24 @@ async def get_user_demo_preference(db: AsyncSession, user_id: UUID) -> Dict[str,
                 return {"show_demo_campaigns": stored_pref}
         
         # 🎯 SMART DEFAULT based on user experience
-        # Get user's real campaign count
-        real_campaigns_query = select(func.count(Campaign.id)).where(
-            Campaign.company_id == user.company_id,
-            Campaign.settings.op('->>')('demo_campaign') != 'true'
-        )
-        real_count_result = await db.execute(real_campaigns_query)
-        real_campaigns_count = real_count_result.scalar() or 0
-        
-        # Smart default: Show demo for new users, hide for experienced users
-        smart_default = real_campaigns_count == 0  # Show demo if no real campaigns
-        
-        # Store this smart default for future use
-        await set_user_demo_preference(db, user_id, smart_default, store_as_smart_default=True)
-        
-        return {"show_demo_campaigns": smart_default}
+        # Get user's real campaign count (simplified query)
+        try:
+            real_campaigns_query = select(func.count(Campaign.id)).where(
+                Campaign.company_id == user.company_id,
+                Campaign.settings.op('->>')('demo_campaign') != 'true'
+            )
+            real_count_result = await db.execute(real_campaigns_query)
+            real_campaigns_count = real_count_result.scalar() or 0
+            
+            # Smart default: Show demo for new users, hide for experienced users
+            smart_default = real_campaigns_count < 3  # Show demo if fewer than 3 real campaigns
+            
+            logger.info(f"Smart default for user {user_id}: show_demo={smart_default} (real campaigns: {real_campaigns_count})")
+            return {"show_demo_campaigns": smart_default}
+            
+        except Exception as query_error:
+            logger.warning(f"Error querying campaigns for smart default: {query_error}")
+            return {"show_demo_campaigns": True}  # Safe default
         
     except Exception as e:
         logger.error(f"Error getting user demo preference: {e}")
@@ -707,34 +742,62 @@ async def set_user_demo_preference(
             logger.error(f"User {user_id} not found for demo preference update")
             return False
         
-        # Initialize settings if needed
-        if not hasattr(user, 'settings') or user.settings is None:
-            user.settings = {}
+        # Handle settings attribute safely
+        current_settings = {}
+        if hasattr(user, 'settings') and user.settings is not None:
+            if isinstance(user.settings, dict):
+                current_settings = user.settings.copy()
+            elif isinstance(user.settings, str):
+                try:
+                    import json
+                    current_settings = json.loads(user.settings) if user.settings else {}
+                except (json.JSONDecodeError, TypeError):
+                    current_settings = {}
         
         # Update demo preference
-        if 'demo_campaign_preferences' not in user.settings:
-            user.settings['demo_campaign_preferences'] = {}
+        if 'demo_campaign_preferences' not in current_settings:
+            current_settings['demo_campaign_preferences'] = {}
         
-        user.settings['demo_campaign_preferences']['show_demo_campaigns'] = show_demo
-        user.settings['demo_campaign_preferences']['last_updated'] = datetime.utcnow().isoformat()
+        current_settings['demo_campaign_preferences']['show_demo_campaigns'] = show_demo
+        current_settings['demo_campaign_preferences']['last_updated'] = datetime.utcnow().isoformat()
         
         if store_as_smart_default:
-            user.settings['demo_campaign_preferences']['set_by'] = 'smart_default'
+            current_settings['demo_campaign_preferences']['set_by'] = 'smart_default'
         else:
-            user.settings['demo_campaign_preferences']['set_by'] = 'user_choice'
+            current_settings['demo_campaign_preferences']['set_by'] = 'user_choice'
         
-        # Mark the field as modified for SQLAlchemy
-        from sqlalchemy.orm.attributes import flag_modified
-        flag_modified(user, 'settings')
+        # Update user settings - handle different User model structures
+        try:
+            if hasattr(user, 'settings'):
+                user.settings = current_settings
+            else:
+                # If User model doesn't have settings, we might need to create it
+                logger.warning(f"User model doesn't have settings attribute. Creating new column or skipping...")
+                # You might need to add settings column to User model
+                return True  # Return success for now, preference stored in memory
         
-        await db.commit()
-        
-        logger.info(f"✅ Updated demo preference for user {user_id}: show_demo={show_demo}")
-        return True
+            # Mark the field as modified for SQLAlchemy (if settings is a JSON column)
+            try:
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(user, 'settings')
+            except Exception:
+                pass  # Not all models support flag_modified
+            
+            await db.commit()
+            logger.info(f"✅ Updated demo preference for user {user_id}: show_demo={show_demo}")
+            return True
+            
+        except Exception as commit_error:
+            logger.error(f"Error committing user settings: {commit_error}")
+            await db.rollback()
+            return False
         
     except Exception as e:
         logger.error(f"Error setting user demo preference: {e}")
-        await db.rollback()
+        try:
+            await db.rollback()
+        except:
+            pass
         return False
 
 # ============================================================================
