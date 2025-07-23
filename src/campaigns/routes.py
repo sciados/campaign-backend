@@ -175,78 +175,71 @@ async def get_campaigns(
         if len(demo_campaigns) == 0:
             try:
                 logger.info(f"No demo campaigns found, attempting to create rich demo...")
-                await ensure_demo_campaign_exists(db, current_user.company_id, current_user.id)
                 
-                # Re-query to get the new rich demo (with fresh query to avoid stale data)
-                fresh_query = select(Campaign).where(
-                    Campaign.company_id == current_user.company_id
-                ).offset(skip).limit(limit).order_by(Campaign.updated_at.desc())
+                # Try rich demo creation with proper async handling
+                demo_created = await ensure_demo_campaign_exists(db, current_user.company_id, current_user.id)
                 
-                fresh_result = await db.execute(fresh_query)
-                fresh_campaigns = fresh_result.scalars().all()
-                
-                # Update our campaign lists
-                all_campaigns = fresh_campaigns
-                demo_campaigns = []
-                real_campaigns = []
-                
-                for campaign in fresh_campaigns:
-                    try:
-                        if is_demo_campaign(campaign):
-                            demo_campaigns.append(campaign)
-                        else:
-                            real_campaigns.append(campaign)
-                    except Exception as classify_error:
-                        logger.warning(f"Error classifying fresh campaign {campaign.id}: {classify_error}")
-                        real_campaigns.append(campaign)
-                
-                if len(demo_campaigns) > 0:
-                    logger.info(f"✅ Rich demo campaign created successfully, found {len(demo_campaigns)} demo campaigns")
+                if demo_created:
+                    # Re-query to get the new rich demo
+                    fresh_result = await db.execute(query)  # Use existing query
+                    fresh_campaigns = fresh_result.scalars().all()
+                    
+                    # Update our campaign lists
+                    all_campaigns = fresh_campaigns
+                    demo_campaigns = [c for c in fresh_campaigns if is_demo_campaign(c)]
+                    real_campaigns = [c for c in fresh_campaigns if not is_demo_campaign(c)]
+                    
+                    if len(demo_campaigns) > 0:
+                        logger.info(f"✅ Rich demo campaign created successfully")
+                    else:
+                        logger.warning(f"⚠️ Rich demo creation returned success but no demo found")
                 else:
-                    logger.warning(f"⚠️ Rich demo creation completed but no demo campaigns found in results")
+                    raise Exception("Rich demo creation returned False")
                     
             except Exception as demo_error:
                 logger.error(f"⚠️ Rich demo creation failed: {str(demo_error)}")
                 
-                # Fallback: Try simple demo creation if rich demo fails
+                # If rich demo fails completely, create a basic demo directly in this function
+                # This avoids the async context issues by staying in the same session
                 try:
-                    logger.info("🔄 Rich demo failed, attempting simple demo using real campaign pattern...")
-                    simple_demo = await create_simple_demo_using_real_pattern(db, current_user.company_id, current_user.id)
-                    if simple_demo:
-                        demo_campaigns = [simple_demo]
-                        all_campaigns = real_campaigns + demo_campaigns
-                        logger.info("✅ Simple demo campaign created successfully as fallback")
-                    else:
-                        raise Exception("Simple demo creation failed")
-                        
-                except Exception as simple_error:
-                    logger.error(f"⚠️ Simple demo creation failed: {str(simple_error)}")
+                    logger.info("🔄 Creating basic demo directly in current session...")
                     
+                    # Create basic demo using same session - no separate function calls
+                    basic_demo = Campaign(
+                        title="🎭 Demo Campaign - Social Media Marketing",
+                        description="This is a demo campaign showcasing our platform's capabilities. Explore to see what's possible!",
+                        keywords=["social media", "marketing", "demo"],
+                        target_audience="Small business owners and marketing teams",
+                        tone="professional",
+                        style="modern",
+                        user_id=current_user.id,
+                        company_id=current_user.company_id,
+                        status=CampaignStatus.ACTIVE,
+                        settings={"demo_campaign": "true"},
+                        salespage_url="https://buffer.com",
+                        auto_analysis_enabled=True,
+                        content_types=["email", "social_post", "ad_copy"],
+                        content_tone="professional",
+                        content_style="modern"
+                    )
+                    
+                    db.add(basic_demo)
+                    await db.commit()
+                    await db.refresh(basic_demo)
+                    
+                    # Update our lists
+                    demo_campaigns = [basic_demo]
+                    all_campaigns = real_campaigns + demo_campaigns
+                    
+                    logger.info("✅ Basic demo campaign created successfully in current session")
+                    
+                except Exception as basic_error:
+                    logger.error(f"⚠️ Basic demo creation failed: {str(basic_error)}")
                     try:
-                        logger.info("🔄 Attempting fallback demo campaign creation...")
-                        fallback_demo = await create_fallback_demo_campaign(db, current_user.company_id, current_user.id)
-                        if fallback_demo:
-                            demo_campaigns = [fallback_demo]
-                            all_campaigns = real_campaigns + demo_campaigns
-                            logger.info("✅ Fallback demo campaign created successfully")
-                        else:
-                            raise Exception("Fallback demo creation failed")
-                            
-                    except Exception as fallback_error:
-                        logger.error(f"⚠️ Fallback demo creation failed: {str(fallback_error)}")
-                        
-                        try:
-                            logger.info("🔄 Attempting minimal demo campaign creation...")
-                            minimal_demo = await create_minimal_demo_campaign(db, current_user.company_id, current_user.id)
-                            if minimal_demo:
-                                demo_campaigns = [minimal_demo]
-                                all_campaigns = real_campaigns + demo_campaigns
-                                logger.info("✅ Minimal demo campaign created successfully")
-                            else:
-                                logger.warning("⚠️ All demo creation methods failed - continuing without demo")
-                        except Exception as minimal_error:
-                            logger.error(f"⚠️ Minimal demo creation failed: {str(minimal_error)}")
-                            # Continue without demo - system should still work for new users
+                        await db.rollback()
+                    except:
+                        pass
+                    # Continue without demo - don't let this break the request
         
         # 🎯 APPLY USER PREFERENCE
         campaigns_to_return = []

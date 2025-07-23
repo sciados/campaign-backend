@@ -90,7 +90,7 @@ class DemoCampaignSeeder:
                 # Settings
                 settings={
                     "demo_campaign": True,
-                    "demo_created_at": datetime.now(timezone.utc),
+                    "demo_created_at": datetime.now(timezone.utc).isoformat(),
                     "demo_version": "1.0"
                 }
             )
