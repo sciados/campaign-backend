@@ -5,6 +5,7 @@ BLOG POST GENERATOR
 ✅ SEO-optimized content
 ✅ Multiple lengths and tones
 ✅ Structured sections with headers
+🔥 FIXED: Product name from source_title (authoritative source)
 🔥 FIXED: Enum serialization issues resolved
 🔥 FIXED: Product name placeholder elimination
 """
@@ -22,14 +23,66 @@ from src.models.base import EnumSerializerMixin
 from src.intelligence.utils.product_name_fix import (
        substitute_product_placeholders,
        substitute_placeholders_in_data,
-       extract_product_name_from_intelligence,
        validate_no_placeholders
    )
 
 logger = logging.getLogger(__name__)
 
+def get_product_name_from_intelligence(intelligence_data: Dict[str, Any]) -> str:
+    """
+    🔥 NEW: Get product name from source_title (authoritative source)
+    This is the single source of truth for product names
+    """
+    # Method 1: Direct from source_title (most reliable)
+    source_title = intelligence_data.get("source_title")
+    if source_title and isinstance(source_title, str) and len(source_title.strip()) > 2:
+        source_title = source_title.strip()
+        
+        # Remove common suffixes if they exist
+        suffixes_to_remove = [
+            " - Sales Page Analysis",
+            " - Analysis", 
+            " - Page Analysis",
+            " Sales Page",
+            " Analysis"
+        ]
+        
+        for suffix in suffixes_to_remove:
+            if source_title.endswith(suffix):
+                source_title = source_title[:-len(suffix)].strip()
+        
+        # Validate it's a real product name
+        if (source_title and 
+            len(source_title) > 2 and 
+            source_title not in ["Unknown Product", "Analyzed Page", "Stock Up - Exclusive Offer"]):
+            logger.info(f"✅ Product name from source_title: '{source_title}'")
+            return source_title
+    
+    # Method 2: Fallback to extraction if source_title is not reliable
+    logger.warning("⚠️ source_title not reliable, falling back to extraction")
+    
+    from src.intelligence.utils.product_name_fix import extract_product_name_from_intelligence
+    fallback_name = extract_product_name_from_intelligence(intelligence_data)
+    
+    logger.info(f"🔄 Fallback product name: '{fallback_name}'")
+    return fallback_name
+
+def fix_blog_post_placeholders(blog_post: Dict[str, Any], intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    🔥 FIXED: Apply product name fixes to blog post using source_title
+    """
+    product_name = get_product_name_from_intelligence(intelligence_data)
+    company_name = product_name  # Often same for direct-to-consumer
+    
+    logger.info(f"🔧 Applying product name fixes: '{product_name}' to blog post")
+    
+    # Apply fixes to the entire blog post structure
+    fixed_blog_post = substitute_placeholders_in_data(blog_post, product_name, company_name)
+    
+    return fixed_blog_post
+
 class BlogPostGenerator(EnumSerializerMixin):
-    """Generate long-form blog posts and articles with product name fixes"""
+    """Generate long-form blog posts and articles with source_title product names"""
     
     def __init__(self):
         self.ai_providers = self._initialize_ai_providers()
@@ -73,14 +126,14 @@ class BlogPostGenerator(EnumSerializerMixin):
         intelligence_data: Dict[str, Any], 
         preferences: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """Generate comprehensive blog post with product name fixes"""
+        """Generate comprehensive blog post with source_title product names"""
         
         if preferences is None:
             preferences = {}
             
-        # 🔥 EXTRACT ACTUAL PRODUCT NAME FIRST
-        actual_product_name = extract_product_name_from_intelligence(intelligence_data)
-        logger.info(f"🎯 Blog Post Generator: Using product name '{actual_product_name}'")
+        # 🔥 CRITICAL FIX: Get product name from source_title (authoritative source)
+        actual_product_name = get_product_name_from_intelligence(intelligence_data)
+        logger.info(f"🎯 Blog Post Generator: Using product name '{actual_product_name}' from source_title")
             
         topic = preferences.get("topic", "health_benefits")
         length = preferences.get("length", "medium")  # short, medium, long
@@ -104,7 +157,7 @@ class BlogPostGenerator(EnumSerializerMixin):
         if not blog_post:
             blog_post = self._generate_fallback_blog_post(actual_product_name, topic)
         
-        # 🔥 APPLY PRODUCT NAME FIXES TO BLOG POST
+        # 🔥 APPLY PRODUCT NAME FIXES TO BLOG POST using source_title
         fixed_blog_post = fix_blog_post_placeholders(blog_post, intelligence_data)
         
         # 🔥 VALIDATE NO PLACEHOLDERS REMAIN
@@ -114,7 +167,7 @@ class BlogPostGenerator(EnumSerializerMixin):
         if not title_clean or not content_clean:
             logger.warning(f"⚠️ Placeholders found in blog post for '{actual_product_name}'")
         else:
-            logger.info(f"✅ Blog post validation passed for '{actual_product_name}'")
+            logger.info(f"✅ Blog post validation passed for '{actual_product_name}' from source_title")
         
         return {
             "content_type": "blog_post",
@@ -131,6 +184,7 @@ class BlogPostGenerator(EnumSerializerMixin):
             "metadata": {
                 "generated_by": "blog_ai",
                 "product_name": actual_product_name,
+                "product_name_source": "source_title",
                 "content_type": "blog_post",
                 "topic": topic,
                 "length_category": length,
@@ -140,8 +194,12 @@ class BlogPostGenerator(EnumSerializerMixin):
             }
         }
     
+    async def generate_content(self, intelligence_data: Dict[str, Any], preferences: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Generate content - main interface for factory integration"""
+        return await self.generate_blog_post(intelligence_data, preferences)
+    
     async def _generate_blog_content(self, provider, topic, length, tone, product_name, intelligence_data):
-        """Generate blog content with AI and product name enforcement"""
+        """Generate blog content with AI and source_title product name enforcement"""
         
         word_targets = {
             "short": 800,
@@ -160,6 +218,7 @@ Write a comprehensive {length} blog post about {topic} related to {product_name}
 
 CRITICAL: Use ONLY the actual product name "{product_name}" throughout the entire blog post.
 NEVER use placeholders like "Your", "PRODUCT", "[Product]", "Your Company", etc.
+This product name comes from the authoritative source_title field.
 
 Requirements:
 - Target length: {target_words} words
@@ -188,6 +247,7 @@ etc.
 
 ABSOLUTELY FORBIDDEN: "Your", "PRODUCT", "[Product]", "Your Company", "the product"
 REQUIRED: Use "{product_name}" consistently throughout
+The product name "{product_name}" is from the authoritative source_title.
 """
         
         try:
@@ -196,7 +256,7 @@ REQUIRED: Use "{product_name}" consistently throughout
                     model=provider["models"][0],
                     max_tokens=4000,
                     temperature=0.7,
-                    system=f"You are an expert health and wellness blogger writing about {topic}. Create valuable, informative content with clear structure. ALWAYS use the exact product name '{product_name}' - never use placeholders like 'Your', 'PRODUCT', or '[Product]'.",
+                    system=f"You are an expert health and wellness blogger writing about {topic}. Create valuable, informative content with clear structure. ALWAYS use the exact product name '{product_name}' from the authoritative source_title - never use placeholders like 'Your', 'PRODUCT', or '[Product]'.",
                     messages=[{"role": "user", "content": prompt}]
                 )
                 
@@ -207,7 +267,7 @@ REQUIRED: Use "{product_name}" consistently throughout
                 response = await provider["client"].chat.completions.create(
                     model=provider["models"][0],
                     messages=[
-                        {"role": "system", "content": f"Expert health blogger writing about {topic}. Create valuable, structured content. ALWAYS use the exact product name '{product_name}' - never use placeholders like 'Your', 'PRODUCT', or '[Product]'."},
+                        {"role": "system", "content": f"Expert health blogger writing about {topic}. Create valuable, structured content. ALWAYS use the exact product name '{product_name}' from the authoritative source_title - never use placeholders like 'Your', 'PRODUCT', or '[Product]'."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.7,
@@ -222,7 +282,7 @@ REQUIRED: Use "{product_name}" consistently throughout
             return None
     
     def _parse_blog_post(self, content, product_name):
-        """Parse blog post from AI response with product name fixes"""
+        """Parse blog post from AI response with source_title product name fixes"""
         
         lines = content.split('\n')
         
@@ -236,7 +296,7 @@ REQUIRED: Use "{product_name}" consistently throughout
         if not title:
             title = f"The Complete Guide to {product_name} Benefits"
         
-        # 🔥 APPLY PRODUCT NAME FIXES TO TITLE
+        # 🔥 APPLY PRODUCT NAME FIXES TO TITLE using substitute_product_placeholders
         title = substitute_product_placeholders(title, product_name)
         
         # Extract sections
@@ -278,7 +338,7 @@ REQUIRED: Use "{product_name}" consistently throughout
         main_content = '\n\n'.join(paragraphs[2:-1]) if len(paragraphs) > 3 else content
         conclusion = paragraphs[-1] if paragraphs else f"Discover the benefits of {product_name} for natural health optimization."
         
-        # 🔥 APPLY PRODUCT NAME FIXES TO ALL CONTENT
+        # 🔥 APPLY PRODUCT NAME FIXES TO ALL CONTENT using substitute_product_placeholders
         introduction = substitute_product_placeholders(introduction, product_name)
         main_content = substitute_product_placeholders(main_content, product_name)
         conclusion = substitute_product_placeholders(conclusion, product_name)
@@ -291,11 +351,13 @@ REQUIRED: Use "{product_name}" consistently throughout
             "conclusion": conclusion,
             "full_text": full_text,
             "word_count": len(full_text.split()),
-            "sections": sections
+            "sections": sections,
+            "product_name": product_name,
+            "product_name_source": "source_title"
         }
     
     def _generate_fallback_blog_post(self, product_name, topic):
-        """Generate fallback blog post with actual product name"""
+        """Generate fallback blog post with source_title product name"""
         
         title = f"Understanding {product_name}: A Comprehensive Guide to Natural Health"
         
@@ -344,10 +406,146 @@ Natural health optimization is a journey, not a destination. {product_name} can 
             "conclusion": f"Natural health optimization is a journey, not a destination. {product_name} can be a valuable tool in supporting your wellness goals.",
             "full_text": content,
             "word_count": len(content.split()),
-            "sections": sections
+            "sections": sections,
+            "product_name": product_name,
+            "product_name_source": "source_title"
         }
+
+def get_product_name_for_blog(intelligence_data: Dict[str, Any]) -> str:
+    """
+    🔥 NEW: Public function to get product name for blog generation
+    Uses source_title as the authoritative source
+    """
+    return get_product_name_from_intelligence(intelligence_data)
+
+# Convenience functions for blog post generation with source_title product names
+async def generate_blog_post_with_source_title(
+    intelligence_data: Dict[str, Any],
+    topic: str = "health_benefits",
+    length: str = "medium",
+    tone: str = "informative",
+    preferences: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """Generate blog post using source_title product names"""
     
-    def _extract_product_name(self, intelligence_data):
-        """Extract product name from intelligence - DEPRECATED: Use utility function instead"""
-        # 🔥 UPDATED: Use the proper utility function
-        return extract_product_name_from_intelligence(intelligence_data)
+    generator = BlogPostGenerator()
+    if preferences is None:
+        preferences = {
+            "topic": topic,
+            "length": length,
+            "tone": tone
+        }
+    else:
+        preferences.update({
+            "topic": topic,
+            "length": length,
+            "tone": tone
+        })
+    
+    return await generator.generate_blog_post(intelligence_data, preferences)
+
+def get_available_blog_topics() -> List[str]:
+    """Get list of available blog topics"""
+    return [
+        "health_benefits",
+        "how_it_works",
+        "scientific_research",
+        "user_testimonials",
+        "comparison_guide",
+        "getting_started",
+        "natural_wellness",
+        "lifestyle_integration"
+    ]
+
+def get_available_blog_lengths() -> List[str]:
+    """Get list of available blog lengths"""
+    return ["short", "medium", "long"]
+
+def get_available_blog_tones() -> List[str]:
+    """Get list of available blog tones"""
+    return [
+        "informative",
+        "conversational",
+        "scientific", 
+        "friendly",
+        "authoritative",
+        "engaging"
+    ]
+
+# SEO optimization helpers
+def optimize_blog_for_seo(blog_post: Dict[str, Any], target_keywords: List[str] = None) -> Dict[str, Any]:
+    """Add SEO optimization to blog post"""
+    
+    if target_keywords is None:
+        product_name = blog_post.get("metadata", {}).get("product_name", "Product")
+        target_keywords = [product_name.lower(), f"{product_name.lower()} benefits", "natural health"]
+    
+    # Add SEO metadata
+    seo_metadata = {
+        "meta_title": blog_post.get("title", "")[:60],  # Google limit
+        "meta_description": blog_post.get("content", {}).get("introduction", "")[:160],  # Google limit
+        "target_keywords": target_keywords,
+        "keyword_density": _calculate_keyword_density(blog_post.get("content", {}).get("full_text", ""), target_keywords),
+        "readability_score": _estimate_readability(blog_post.get("content", {}).get("full_text", "")),
+        "internal_links": [],  # Can be populated with relevant internal links
+        "external_links": [],  # Can be populated with authoritative external sources
+        "image_suggestions": [
+            f"{blog_post.get('metadata', {}).get('product_name', 'product')}_benefits_infographic",
+            f"{blog_post.get('metadata', {}).get('product_name', 'product')}_before_after",
+            "natural_health_lifestyle"
+        ]
+    }
+    
+    # Add to blog post
+    blog_post["seo_metadata"] = seo_metadata
+    blog_post["metadata"]["seo_optimized"] = True
+    
+    return blog_post
+
+def _calculate_keyword_density(text: str, keywords: List[str]) -> Dict[str, float]:
+    """Calculate keyword density for SEO"""
+    if not text:
+        return {}
+    
+    word_count = len(text.split())
+    keyword_density = {}
+    
+    for keyword in keywords:
+        keyword_count = text.lower().count(keyword.lower())
+        density = (keyword_count / word_count) * 100 if word_count > 0 else 0
+        keyword_density[keyword] = round(density, 2)
+    
+    return keyword_density
+
+def _estimate_readability(text: str) -> Dict[str, Any]:
+    """Estimate readability score"""
+    if not text:
+        return {"score": 0, "level": "unknown"}
+    
+    # Simple readability estimation
+    sentences = text.count('.') + text.count('!') + text.count('?')
+    words = len(text.split())
+    
+    if sentences == 0:
+        return {"score": 0, "level": "unknown"}
+    
+    avg_sentence_length = words / sentences
+    
+    # Simple scoring based on average sentence length
+    if avg_sentence_length < 15:
+        level = "easy"
+        score = 90
+    elif avg_sentence_length < 20:
+        level = "medium"
+        score = 70
+    else:
+        level = "difficult"
+        score = 50
+    
+    return {
+        "score": score,
+        "level": level,
+        "avg_sentence_length": round(avg_sentence_length, 1),
+        "total_words": words,
+        "total_sentences": sentences
+    }

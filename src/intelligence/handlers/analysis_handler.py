@@ -563,7 +563,16 @@ class AnalysisHandler:
             
             # Store metadata and finalize (AI data already committed by fallback method)
             intelligence.confidence_score = enhanced_analysis.get("confidence_score", 0.0)
-            intelligence.source_title = enhanced_analysis.get("page_title", "Analyzed Page")
+            # Extract and store the correct product name
+            from src.intelligence.utils.product_name_fix import extract_product_name_from_intelligence
+            correct_product_name = extract_product_name_from_intelligence(enhanced_analysis)
+
+            if correct_product_name and correct_product_name != "Product":
+                intelligence.source_title = correct_product_name  # Just the product name
+                logger.info(f"✅ Product name stored as source_title: '{correct_product_name}'")
+            else:
+                intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
+            
             intelligence.raw_content = enhanced_analysis.get("raw_content", "")[:10000]
             
             processing_metadata = enhanced_analysis.get("amplification_metadata", {})

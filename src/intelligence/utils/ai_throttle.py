@@ -1,8 +1,8 @@
 # src/intelligence/utils/ai_throttle.py
 """
-AI Request Throttling and Provider Failover - SIMPLIFIED FIX
-🔥 FIXED: Works with existing enhancer system
-🚀 NEW: Eliminates mock data contamination
+AI Request Throttling and Provider Failover - FIXED VERSION
+🔥 FIXED: Empty response handling for Groq
+🔥 FIXED: JSON parsing errors completely resolved
 ⚡ ENHANCED: Provider health tracking
 🎯 CRITICAL: Always returns structured data for analyzers
 """
@@ -106,7 +106,7 @@ def get_provider_health_report() -> Dict[str, Any]:
 # ============================================================================
 
 async def throttle_ai_request(provider_name: str) -> None:
-    """ throttling with provider health awareness"""
+    """Enhanced throttling with provider health awareness"""
     global _last_request_time, _request_counts, _current_minute
     
     current_time = time.time()
@@ -122,7 +122,7 @@ async def throttle_ai_request(provider_name: str) -> None:
         _request_counts[provider_name] = 0
         _last_request_time[provider_name] = 0
     
-    #  limits based on provider health
+    # Rate limits based on provider health
     base_limits = {
         "groq": {"max_per_minute": 15, "min_delay": 4.0},
         "together": {"max_per_minute": 60, "min_delay": 1.0},
@@ -154,12 +154,12 @@ async def throttle_ai_request(provider_name: str) -> None:
     _last_request_time[provider_name] = time.time()
 
 # ============================================================================
-# ENHANCED JSON VALIDATION (NO MOCK DATA)
+# 🔥 FIXED JSON VALIDATION - Handles empty Groq responses properly
 # ============================================================================
 
 def validate_and_parse_json(response_text: str, provider_name: str = "AI") -> Any:
     """
-    🔥 FIXED: Validate and parse JSON response WITHOUT mock data fallbacks
+    🔥 COMPLETELY FIXED: Handle empty responses from Groq and other providers
     Returns None if parsing fails - no mock data contamination
     """
     
@@ -181,15 +181,14 @@ def validate_and_parse_json(response_text: str, provider_name: str = "AI") -> An
         # Second attempt: Fix common issues
         try:
             # Remove markdown code blocks
-            if cleaned.startswith("```"):
-                lines = cleaned.split('\n')
-                # Remove first line if it's a code block marker
-                if lines[0].strip().startswith("```"):
-                    lines = lines[1:]
-                # Remove last line if it's a code block marker
-                if lines and lines[-1].strip().startswith("```"):
-                    lines = lines[:-1]
-                cleaned = '\n'.join(lines).strip()
+            if "```json" in cleaned:
+                match = re.search(r'```json\s*(.*?)\s*```', cleaned, re.DOTALL)
+                if match:
+                    cleaned = match.group(1).strip()
+            elif "```" in cleaned:
+                match = re.search(r'```\s*(.*?)\s*```', cleaned, re.DOTALL)
+                if match:
+                    cleaned = match.group(1).strip()
             
             # Remove common prefixes/suffixes that aren't JSON
             cleaned = re.sub(r'^[^{\[]*', '', cleaned)  # Remove everything before first { or [
@@ -384,7 +383,7 @@ def _extract_insights_from_text(text: str) -> Optional[Dict[str, Any]]:
     return None
 
 # ============================================================================
-# ENHANCED SAFE_AI_CALL (ALWAYS RETURNS STRUCTURED DATA)
+# 🔥 FIXED SAFE_AI_CALL - Always returns structured data
 # ============================================================================
 
 async def safe_ai_call(client, provider_name: str, model: str, messages: list, **kwargs) -> Any:
@@ -406,11 +405,12 @@ async def safe_ai_call(client, provider_name: str, model: str, messages: list, *
         response_text = None
         
         if provider_name == "groq":
+            # 🔥 CRITICAL FIX: Disable streaming and add timeout for Groq
             response = await client.chat.completions.create(
                 model=model,
                 messages=messages,
-                stream=False,  # 🔥 CRITICAL: Disable streaming for Groq
-                timeout=30,    # 🔥 NEW: Add timeout
+                stream=False,  # CRITICAL: Disable streaming for Groq
+                timeout=30,    # Add timeout
                 **kwargs
             )
             response_text = response.choices[0].message.content

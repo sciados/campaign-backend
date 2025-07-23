@@ -7,6 +7,7 @@ ENHANCED EMAIL SEQUENCE GENERATOR WITH ULTRA-CHEAP AI INTEGRATION
 ✅ Automatic failover across 11 ultra-cheap providers
 ✅ Real-time cost tracking and optimization
 ✅ Railway deployment compatible
+🔥 FIXED: Product name from source_title (authoritative source)
 🔥 FIXED: Product name placeholder elimination
 🔥 FIXED: Missing method issues
 """
@@ -27,14 +28,68 @@ from src.models.base import EnumSerializerMixin
 from src.intelligence.utils.product_name_fix import (
     substitute_product_placeholders,
     substitute_placeholders_in_data,
-    extract_product_name_from_intelligence,
     validate_no_placeholders
 )
 
 logger = logging.getLogger(__name__)
 
+def get_product_name_from_intelligence(intelligence_data: Dict[str, Any]) -> str:
+    """
+    🔥 NEW: Get product name from source_title (authoritative source)
+    This is the single source of truth for product names
+    """
+    # Method 1: Direct from source_title (most reliable)
+    source_title = intelligence_data.get("source_title")
+    if source_title and isinstance(source_title, str) and len(source_title.strip()) > 2:
+        source_title = source_title.strip()
+        
+        # Remove common suffixes if they exist
+        suffixes_to_remove = [
+            " - Sales Page Analysis",
+            " - Analysis", 
+            " - Page Analysis",
+            " Sales Page",
+            " Analysis"
+        ]
+        
+        for suffix in suffixes_to_remove:
+            if source_title.endswith(suffix):
+                source_title = source_title[:-len(suffix)].strip()
+        
+        # Validate it's a real product name
+        if (source_title and 
+            len(source_title) > 2 and 
+            source_title not in ["Unknown Product", "Analyzed Page", "Stock Up - Exclusive Offer"]):
+            logger.info(f"✅ Product name from source_title: '{source_title}'")
+            return source_title
+    
+    # Method 2: Fallback to extraction if source_title is not reliable
+    logger.warning("⚠️ source_title not reliable, falling back to extraction")
+    
+    from src.intelligence.utils.product_name_fix import extract_product_name_from_intelligence
+    fallback_name = extract_product_name_from_intelligence(intelligence_data)
+    
+    logger.info(f"🔄 Fallback product name: '{fallback_name}'")
+    return fallback_name
+
+def fix_email_sequence_placeholders(emails: List[Dict], intelligence_data: Dict[str, Any]) -> List[Dict]:
+    """
+    🔥 FIXED: Apply product name fixes to entire email sequence using source_title
+    """
+    product_name = get_product_name_from_intelligence(intelligence_data)
+    company_name = product_name  # Often same for direct-to-consumer
+    
+    logger.info(f"🔧 Applying product name fixes: '{product_name}' to {len(emails)} emails")
+    
+    fixed_emails = []
+    for email in emails:
+        fixed_email = substitute_placeholders_in_data(email, product_name, company_name)
+        fixed_emails.append(fixed_email)
+    
+    return fixed_emails
+
 class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
-    """ email sequence generator with ultra-cheap AI integration and product name fixes"""
+    """Enhanced email sequence generator with ultra-cheap AI integration and source_title product names"""
     
     def __init__(self):
         # Initialize with ultra-cheap AI system
@@ -87,14 +142,14 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
         intelligence_data: Dict[str, Any],
         preferences: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """Generate campaign-centric email sequence with ultra-cheap AI and product name fixes"""
+        """Generate campaign-centric email sequence with ultra-cheap AI and source_title product names"""
         
         if preferences is None:
             preferences = {}
         
-        # 🔥 EXTRACT ACTUAL PRODUCT NAME FIRST
-        actual_product_name = extract_product_name_from_intelligence(intelligence_data)
-        logger.info(f"🎯 Email Generator: Using product name '{actual_product_name}'")
+        # 🔥 CRITICAL FIX: Get product name from source_title (authoritative source)
+        actual_product_name = get_product_name_from_intelligence(intelligence_data)
+        logger.info(f"🎯 Email Generator: Using product name '{actual_product_name}' from source_title")
         
         # Extract intelligence for email generation
         product_details = self._extract_product_details(intelligence_data)
@@ -129,7 +184,7 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
                     # Apply angle diversity
                     diversified_emails = self._apply_angle_diversity(emails, sequence_length)
                     
-                    # 🔥 APPLY PRODUCT NAME FIXES
+                    # 🔥 APPLY PRODUCT NAME FIXES using source_title
                     fixed_emails = fix_email_sequence_placeholders(diversified_emails, intelligence_data)
                     
                     # 🔥 VALIDATE NO PLACEHOLDERS REMAIN
@@ -139,7 +194,7 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
                         if not subject_clean or not body_clean:
                             logger.warning(f"⚠️ Placeholders found in email {email.get('email_number', 'unknown')}")
                     
-                    logger.info(f"✅ SUCCESS: Generated {len(fixed_emails)} diverse emails with product name '{actual_product_name}'")
+                    logger.info(f"✅ SUCCESS: Generated {len(fixed_emails)} diverse emails with product name '{actual_product_name}' from source_title")
                     
                     return self._create_enhanced_response(
                         content={
@@ -147,6 +202,7 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
                             "emails": fixed_emails,
                             "campaign_focus": "Diversified affiliate email marketing with angle rotation",
                             "product_name_used": actual_product_name,
+                            "product_name_source": "source_title",
                             "placeholders_fixed": True
                         },
                         title=f"{len(fixed_emails)}-Email Campaign Sequence for {actual_product_name}",
@@ -158,7 +214,7 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
         except Exception as e:
             logger.error(f"❌ Ultra-cheap AI email generation failed: {str(e)}")
         
-        #  fallback with guaranteed diversity and product name fixes
+        # Enhanced fallback with guaranteed diversity and product name fixes
         logger.warning("🔄 Using enhanced email fallback with campaign focus")
         return self._guaranteed_campaign_email_fallback(product_details, sequence_length, uniqueness_id)
     
@@ -174,7 +230,7 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
         preferences: Dict[str, Any],
         uniqueness_id: str
     ) -> str:
-        """Create campaign-centric email generation prompt with product name enforcement"""
+        """Create campaign-centric email generation prompt with product name enforcement from source_title"""
         
         actual_product_name = product_details['name']
         
@@ -184,6 +240,7 @@ Campaign ID: {uniqueness_id}
 
 CRITICAL: Use ONLY the actual product name "{actual_product_name}" throughout all emails.
 NEVER use placeholders like "Your", "PRODUCT", "[Product]", "Your Company", etc.
+This product name comes from the authoritative source_title field.
 
 PRODUCT CAMPAIGN: {actual_product_name}
 TARGET AUDIENCE: {product_details['audience']}
@@ -225,6 +282,7 @@ CRITICAL REQUIREMENTS:
 1. Use '{actual_product_name}' consistently - NEVER use placeholders
 2. Each email must use a different strategic angle
 3. ABSOLUTELY FORBIDDEN: "Your", "PRODUCT", "[Product]", "Your Company"
+4. The product name '{actual_product_name}' is from the authoritative source_title
 
 Generate the complete {sequence_length}-email sequence now.
 """
@@ -291,6 +349,7 @@ Generate the complete {sequence_length}-email sequence now.
             "email_type": "campaign_email",
             "strategic_angle": "unknown",
             "product_name": product_name,
+            "product_name_source": "source_title",
             "ultra_cheap_generated": True
         }
         
@@ -342,7 +401,7 @@ Generate the complete {sequence_length}-email sequence now.
         if not email_data["body"]:
             email_data["body"] = f"Discover the comprehensive benefits of {product_name} through our scientifically-backed approach to health optimization."
         
-        # Apply product name fixes
+        # Apply product name fixes using substitute_product_placeholders
         for field in ["subject", "body", "campaign_focus"]:
             if email_data[field]:
                 email_data[field] = substitute_product_placeholders(email_data[field], product_name)
@@ -369,6 +428,7 @@ Generate the complete {sequence_length}-email sequence now.
                 "strategic_angle": angle["id"],
                 "emergency_generated": True,
                 "product_name": product_name,
+                "product_name_source": "source_title",
                 "ultra_cheap_generated": True
             }
             
@@ -396,6 +456,7 @@ Generate the complete {sequence_length}-email sequence now.
             enhanced_email["emotional_triggers"] = angle["triggers"]
             enhanced_email["email_type"] = "campaign_email"
             enhanced_email["content_variety"] = "high"
+            enhanced_email["product_name_source"] = "source_title"
             
             enhanced_email["campaign_focus"] = f"{angle['name']} campaign email - {angle['approach']}"
             
@@ -403,7 +464,8 @@ Generate the complete {sequence_length}-email sequence now.
                 "angle_position": i + 1,
                 "total_angles": len(self.email_angles),
                 "diversity_strategy": "angle_rotation",
-                "marketing_approach": "affiliate_campaign"
+                "marketing_approach": "affiliate_campaign",
+                "product_name_source": "source_title"
             }
             
             diversified_emails.append(enhanced_email)
@@ -411,10 +473,10 @@ Generate the complete {sequence_length}-email sequence now.
         return diversified_emails
     
     def _guaranteed_campaign_email_fallback(self, product_details: Dict[str, str], sequence_length: int, uniqueness_id: str) -> Dict[str, Any]:
-        """Guaranteed campaign email generation with product name fixes"""
+        """Guaranteed campaign email generation with source_title product names"""
         
         actual_product_name = product_details["name"]
-        logger.info(f"🔄 Generating guaranteed campaign email sequence for '{actual_product_name}'")
+        logger.info(f"🔄 Generating guaranteed campaign email sequence for '{actual_product_name}' from source_title")
         
         emails = []
         
@@ -452,7 +514,8 @@ Your {actual_product_name} Team""",
                 "emotional_triggers": angle["triggers"],
                 "email_type": "campaign_email",
                 "guaranteed_generation": True,
-                "product_name": actual_product_name
+                "product_name": actual_product_name,
+                "product_name_source": "source_title"
             }
             emails.append(email)
         
@@ -482,6 +545,7 @@ Your {actual_product_name} Team""",
                 "reliability": "guaranteed",
                 "generation_method": "fallback_with_diversity",
                 "product_name_used": actual_product_name,
+                "product_name_source": "source_title",
                 "placeholders_fixed": True
             },
             title=f"Guaranteed {sequence_length}-Email Campaign Sequence for {actual_product_name}",
@@ -491,9 +555,10 @@ Your {actual_product_name} Team""",
         )
     
     def _extract_product_details(self, intelligence_data: Dict[str, Any]) -> Dict[str, str]:
-        """Extract product details from intelligence data"""
+        """Extract product details from intelligence data using source_title for product name"""
         
-        actual_product_name = extract_product_name_from_intelligence(intelligence_data)
+        # 🔥 CRITICAL FIX: Use source_title as authoritative product name source
+        actual_product_name = get_product_name_from_intelligence(intelligence_data)
         
         offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
         
@@ -530,7 +595,7 @@ async def generate_email_sequence_with_ultra_cheap_ai(
     sequence_length: int = 5,
     preferences: Dict[str, Any] = None
 ) -> Dict[str, Any]:
-    """Generate email sequence using ultra-cheap AI system with product name fixes"""
+    """Generate email sequence using ultra-cheap AI system with source_title product names"""
     
     generator = EmailSequenceGenerator()
     if preferences is None:
@@ -544,3 +609,10 @@ def get_email_generator_cost_summary() -> Dict[str, Any]:
     """Get cost summary from email generator"""
     generator = EmailSequenceGenerator()
     return generator.get_optimization_analytics()
+
+def get_product_name_for_emails(intelligence_data: Dict[str, Any]) -> str:
+    """
+    🔥 NEW: Public function to get product name for email generation
+    Uses source_title as the authoritative source
+    """
+    return get_product_name_from_intelligence(intelligence_data)
