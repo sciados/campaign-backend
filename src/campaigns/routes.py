@@ -1,9 +1,11 @@
-# src/campaigns/routes.py - ENHANCED WITH DEMO CAMPAIGN INTEGRATION
+# src/campaigns/routes.py - ENHANCED WITH USER PREFERENCE CONTROL
 """
-Campaign routes - Streamlined workflow with auto-demo creation
-🎯 NEW: Automatically creates demo campaigns to solve empty state issues
+Campaign routes - Streamlined workflow with auto-demo creation and user preference control
+🎯 NEW: User preference system for demo campaign visibility control
+🎯 SMART: Auto-adapts based on user experience level
+🎯 COMPLETE: Full CRUD for demo preferences with protective logic
 """
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, update
@@ -13,13 +15,13 @@ from uuid import UUID
 import logging
 import json
 from datetime import datetime
+from pydantic import BaseModel
 
 from src.core.database import get_async_db
 from src.auth.dependencies import get_current_user
 from src.models import Campaign, User, Company, CampaignStatus
 from src.models.campaign import AutoAnalysisStatus, CampaignWorkflowState
 from src.models.intelligence import GeneratedContent, CampaignIntelligence
-from pydantic import BaseModel
 
 # 🆕 NEW: Import demo campaign seeder
 from src.utils.demo_campaign_seeder import ensure_demo_campaign_exists, is_demo_campaign
@@ -29,7 +31,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["campaigns"])
 
 # ============================================================================
-# PYDANTIC SCHEMAS (keeping existing schemas)
+# 🆕 NEW: USER PREFERENCE SCHEMAS
+# ============================================================================
+
+class DemoPreferenceUpdate(BaseModel):
+    show_demo_campaigns: bool
+
+class DemoPreferenceResponse(BaseModel):
+    show_demo_campaigns: bool
+    demo_available: bool
+    real_campaigns_count: int
+    demo_campaigns_count: int
+
+# ============================================================================
+# EXISTING PYDANTIC SCHEMAS (Enhanced)
 # ============================================================================
 
 class CampaignCreate(BaseModel):
@@ -101,7 +116,7 @@ class CampaignResponse(BaseModel):
         }
 
 # ============================================================================
-# 🆕 UPDATED CAMPAIGNS LIST - WITH AUTO-DEMO CREATION
+# 🆕 ENHANCED: GET CAMPAIGNS WITH USER PREFERENCE SUPPORT
 # ============================================================================
 
 @router.get("", response_model=List[CampaignResponse])
@@ -112,20 +127,14 @@ async def get_campaigns(
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
-    """🆕 ENHANCED: Get all campaigns - automatically creates demo if none exist"""
+    """🆕 ENHANCED: Get campaigns respecting user demo preference"""
     try:
         logger.info(f"Getting campaigns for user {current_user.id}, company {current_user.company_id}")
         
-        # 🆕 NEW: First, ensure demo campaign exists (solves empty state issue)
-        try:
-            demo_created = await ensure_demo_campaign_exists(db, current_user.company_id, current_user.id)
-            if demo_created:
-                logger.info(f"✅ Demo campaign auto-created for company {current_user.company_id}")
-        except Exception as demo_error:
-            logger.warning(f"⚠️ Demo campaign creation failed (non-critical): {str(demo_error)}")
-            # Continue without demo - don't block the main request
+        # 🎯 Get user's demo preference (default: show for new users, hide for experienced)
+        user_demo_preference = await get_user_demo_preference(db, current_user.id)
         
-        # Build query for campaigns
+        # Build query for all campaigns
         query = select(Campaign).where(Campaign.company_id == current_user.company_id)
         
         # Add status filter if provided
@@ -133,51 +142,54 @@ async def get_campaigns(
             try:
                 status_enum = CampaignStatus(status.upper())
                 query = query.where(Campaign.status == status_enum)
-                logger.info(f"Applied status filter: {status}")
             except ValueError:
                 logger.warning(f"Invalid status filter '{status}'")
         
-        # Add pagination
+        # Add pagination and ordering
         query = query.offset(skip).limit(limit).order_by(Campaign.updated_at.desc())
         
         # Execute query
         result = await db.execute(query)
-        campaigns = result.scalars().all()
+        all_campaigns = result.scalars().all()
         
-        logger.info(f"Found {len(campaigns)} campaigns")
+        # 🎯 SMART DEMO LOGIC based on user preference
+        real_campaigns = [c for c in all_campaigns if not is_demo_campaign(c)]
+        demo_campaigns = [c for c in all_campaigns if is_demo_campaign(c)]
+        
+        # Ensure demo exists if needed
+        if len(demo_campaigns) == 0:
+            try:
+                await ensure_demo_campaign_exists(db, current_user.company_id, current_user.id)
+                # Re-query to get the new demo
+                result = await db.execute(query)
+                all_campaigns = result.scalars().all()
+                demo_campaigns = [c for c in all_campaigns if is_demo_campaign(c)]
+                logger.info(f"✅ Demo campaign auto-created")
+            except Exception as demo_error:
+                logger.warning(f"⚠️ Demo creation failed: {str(demo_error)}")
+        
+        # 🎯 APPLY USER PREFERENCE
+        campaigns_to_return = []
+        
+        if user_demo_preference["show_demo_campaigns"]:
+            # ✅ User wants to see demo campaigns
+            campaigns_to_return = all_campaigns
+            logger.info(f"Showing all campaigns including demo (user preference: show)")
+        else:
+            # ❌ User prefers to hide demo campaigns
+            if len(real_campaigns) > 0:
+                # Has real campaigns - show only real ones
+                campaigns_to_return = real_campaigns
+                logger.info(f"Hiding demo campaigns (user preference: hide, has {len(real_campaigns)} real)")
+            else:
+                # No real campaigns - show demo for onboarding (override preference)
+                campaigns_to_return = all_campaigns
+                logger.info(f"Showing demo despite preference (no real campaigns for onboarding)")
         
         # Convert to response format
         campaign_responses = []
-        for campaign in campaigns:
+        for campaign in campaigns_to_return:
             try:
-                # Safely handle status enum
-                status_value = campaign.status.value if hasattr(campaign.status, 'value') else str(campaign.status)
-                
-                # Safely calculate completion percentage
-                completion_percentage = 25.0  # Default
-                try:
-                    completion_percentage = campaign.calculate_completion_percentage()
-                except Exception:
-                    pass
-                
-                # Safely get workflow state
-                workflow_state = "basic_setup"
-                try:
-                    workflow_state = campaign.workflow_state.value if hasattr(campaign.workflow_state, 'value') else str(campaign.workflow_state)
-                except Exception:
-                    pass
-                
-                # Safely get auto-analysis status
-                auto_analysis_status = "pending"
-                try:
-                    auto_analysis_status = campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else str(campaign.auto_analysis_status)
-                except Exception:
-                    pass
-                
-                # 🆕 NEW: Check if this is a demo campaign
-                is_demo = is_demo_campaign(campaign)
-                
-                # Create response object
                 campaign_response = CampaignResponse(
                     id=str(campaign.id),
                     title=campaign.title or "Untitled Campaign",
@@ -185,7 +197,7 @@ async def get_campaigns(
                     keywords=campaign.keywords if isinstance(campaign.keywords, list) else [],
                     target_audience=campaign.target_audience,
                     campaign_type="universal",
-                    status=status_value,
+                    status=campaign.status.value if hasattr(campaign.status, 'value') else str(campaign.status),
                     tone=campaign.tone or "conversational",
                     style=campaign.style or "modern",
                     created_at=campaign.created_at,
@@ -194,18 +206,19 @@ async def get_campaigns(
                     # Auto-analysis fields
                     competitor_url=getattr(campaign, 'competitor_url', None),
                     auto_analysis_enabled=getattr(campaign, 'auto_analysis_enabled', True),
-                    auto_analysis_status=auto_analysis_status,
+                    auto_analysis_status=campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
                     analysis_confidence_score=getattr(campaign, 'analysis_confidence_score', 0.0) or 0.0,
                     
-                    workflow_state=workflow_state,
-                    completion_percentage=completion_percentage,
+                    # Workflow fields
+                    workflow_state=campaign.workflow_state.value if hasattr(campaign.workflow_state, 'value') else "basic_setup",
+                    completion_percentage=campaign.calculate_completion_percentage() if hasattr(campaign, 'calculate_completion_percentage') else 25.0,
                     sources_count=getattr(campaign, 'sources_count', 0) or 0,
                     intelligence_count=getattr(campaign, 'intelligence_extracted', 0) or 0,
                     content_count=getattr(campaign, 'content_generated', 0) or 0,
                     total_steps=2,
                     
-                    # 🆕 NEW: Demo campaign indicator
-                    is_demo=is_demo
+                    # Demo indicator
+                    is_demo=is_demo_campaign(campaign)
                 )
                 campaign_responses.append(campaign_response)
                 
@@ -213,20 +226,120 @@ async def get_campaigns(
                 logger.error(f"Error processing campaign {campaign.id}: {campaign_error}")
                 continue
         
-        # 🆕 NEW: Sort campaigns - demo campaigns first for new users
-        campaign_responses.sort(key=lambda c: (not c.is_demo, c.updated_at), reverse=True)
+        # 🎯 SMART SORTING based on user experience
+        if len(real_campaigns) == 0:
+            # New user - demo first to show example
+            campaign_responses.sort(key=lambda c: (not c.is_demo, c.updated_at), reverse=True)
+        else:
+            # Experienced user - real campaigns first, demo at bottom
+            campaign_responses.sort(key=lambda c: (c.is_demo, c.updated_at), reverse=True)
         
-        logger.info(f"Successfully processed {len(campaign_responses)} campaigns")
+        logger.info(f"Returned {len(campaign_responses)} campaigns (user demo pref: {user_demo_preference['show_demo_campaigns']})")
+        
         return campaign_responses
         
     except Exception as e:
         logger.error(f"Error getting campaigns: {e}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve campaigns: {str(e)}"
+        )
+
+# ============================================================================
+# 🆕 NEW: DEMO PREFERENCE MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@router.get("/demo/preferences", response_model=DemoPreferenceResponse)
+async def get_demo_preferences(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get user's demo campaign preferences"""
+    try:
+        # Get user's current preference
+        user_demo_preference = await get_user_demo_preference(db, current_user.id)
+        
+        # Get campaign counts
+        demo_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.settings.op('->>')('demo_campaign') == 'true'
+        )
+        real_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.settings.op('->>')('demo_campaign') != 'true'
+        )
+        
+        demo_result = await db.execute(demo_query)
+        real_result = await db.execute(real_query)
+        
+        demo_count = demo_result.scalar() or 0
+        real_count = real_result.scalar() or 0
+        
+        return DemoPreferenceResponse(
+            show_demo_campaigns=user_demo_preference["show_demo_campaigns"],
+            demo_available=demo_count > 0,
+            real_campaigns_count=real_count,
+            demo_campaigns_count=demo_count
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting demo preferences: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get demo preferences: {str(e)}"
+        )
+
+@router.put("/demo/preferences", response_model=DemoPreferenceResponse)
+async def update_demo_preferences(
+    preferences: DemoPreferenceUpdate,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update user's demo campaign preferences"""
+    try:
+        logger.info(f"Updating demo preferences for user {current_user.id}: show_demo={preferences.show_demo_campaigns}")
+        
+        # Update user's demo preference
+        await set_user_demo_preference(db, current_user.id, preferences.show_demo_campaigns)
+        
+        # Return updated preferences
+        return await get_demo_preferences(db, current_user)
+        
+    except Exception as e:
+        logger.error(f"Error updating demo preferences: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update demo preferences: {str(e)}"
+        )
+
+@router.post("/demo/toggle")
+async def toggle_demo_visibility(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Quick toggle demo campaign visibility"""
+    try:
+        # Get current preference
+        current_pref = await get_user_demo_preference(db, current_user.id)
+        
+        # Toggle the preference
+        new_show_demo = not current_pref["show_demo_campaigns"]
+        await set_user_demo_preference(db, current_user.id, new_show_demo)
+        
+        logger.info(f"Toggled demo visibility for user {current_user.id}: {current_pref['show_demo_campaigns']} → {new_show_demo}")
+        
+        return {
+            "success": True,
+            "show_demo_campaigns": new_show_demo,
+            "message": f"Demo campaigns {'shown' if new_show_demo else 'hidden'}",
+            "action": "toggled"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error toggling demo visibility: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to toggle demo visibility: {str(e)}"
         )
 
 # ============================================================================
@@ -324,6 +437,148 @@ async def create_campaign(
         )
 
 # ============================================================================
+# 🆕 ENHANCED: DELETE WITH PREFERENCE AWARENESS
+# ============================================================================
+
+@router.delete("/{campaign_id}")
+async def delete_campaign(
+    campaign_id: UUID,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """🆕 ENHANCED: Delete campaign with preference-aware demo protection"""
+    try:
+        logger.info(f"Deleting campaign {campaign_id} for user {current_user.id}")
+        
+        # Get the campaign
+        query = select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.company_id == current_user.company_id
+        )
+        result = await db.execute(query)
+        campaign = result.scalar_one_or_none()
+        
+        if not campaign:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found"
+            )
+        
+        # Check if this is a demo campaign
+        if is_demo_campaign(campaign):
+            # Get count of real campaigns
+            real_campaigns_query = select(func.count(Campaign.id)).where(
+                Campaign.company_id == current_user.company_id,
+                Campaign.settings.op('->>')('demo_campaign') != 'true'
+            )
+            real_count_result = await db.execute(real_campaigns_query)
+            real_campaigns_count = real_count_result.scalar() or 0
+            
+            if real_campaigns_count > 0:
+                # ✅ User has real campaigns - allow deletion and ask about preference
+                await db.delete(campaign)
+                await db.commit()
+                
+                # Get user's current demo preference
+                user_pref = await get_user_demo_preference(db, current_user.id)
+                
+                logger.info(f"✅ Demo campaign deleted (user has {real_campaigns_count} real campaigns)")
+                return {
+                    "message": "Demo campaign deleted successfully",
+                    "note": "You can recreate the demo campaign or adjust your demo preferences in settings",
+                    "user_demo_preference": user_pref["show_demo_campaigns"],
+                    "real_campaigns_count": real_campaigns_count
+                }
+            else:
+                # ❌ User has no real campaigns - protect from empty state
+                return {
+                    "error": "Cannot delete demo campaign",
+                    "message": "Demo campaigns cannot be deleted when you have no other campaigns",
+                    "suggestion": "Create your first real campaign, then you can delete the demo",
+                    "alternative": "You can hide demo campaigns in your preferences instead"
+                }
+        else:
+            # Regular campaign - delete normally
+            await db.delete(campaign)
+            await db.commit()
+            
+            logger.info(f"✅ Regular campaign {campaign_id} deleted")
+            return {"message": "Campaign deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting campaign: {e}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete campaign: {str(e)}"
+        )
+
+# ============================================================================
+# 🆕 ENHANCED: DASHBOARD STATS WITH PREFERENCE INFO
+# ============================================================================
+
+@router.get("/dashboard/stats")
+async def get_dashboard_stats(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """🆕 ENHANCED: Dashboard stats with demo preference info"""
+    try:
+        # Get regular stats
+        total_query = select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
+        demo_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.settings.op('->>')('demo_campaign') == 'true'
+        )
+        real_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.settings.op('->>')('demo_campaign') != 'true'
+        )
+        
+        total_result = await db.execute(total_query)
+        demo_result = await db.execute(demo_query)
+        real_result = await db.execute(real_query)
+        
+        total_campaigns = total_result.scalar() or 0
+        demo_campaigns = demo_result.scalar() or 0
+        real_campaigns = real_result.scalar() or 0
+        
+        # Get user's demo preference
+        user_demo_pref = await get_user_demo_preference(db, current_user.id)
+        
+        return {
+            "total_campaigns_created": total_campaigns,
+            "real_campaigns": real_campaigns,
+            "demo_campaigns": demo_campaigns,
+            "workflow_type": "streamlined_2_step",
+            "demo_system": {
+                "demo_available": demo_campaigns > 0,
+                "user_demo_preference": user_demo_pref["show_demo_campaigns"],
+                "demo_visible_in_current_view": user_demo_pref["show_demo_campaigns"] or real_campaigns == 0,
+                "can_toggle_demo": True,
+                "helps_onboarding": True,
+                "user_control": "Users can show/hide demo campaigns in preferences"
+            },
+            "user_experience": {
+                "is_new_user": real_campaigns == 0,
+                "demo_recommended": real_campaigns < 3,  # Recommend demo for users with few campaigns
+                "onboarding_complete": real_campaigns >= 1
+            },
+            "user_id": str(current_user.id),
+            "company_id": str(current_user.company_id),
+            "generated_at": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting dashboard stats: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get dashboard stats: {str(e)}"
+        )
+
+# ============================================================================
 # 🆕 NEW: DEMO CAMPAIGN MANAGEMENT ENDPOINTS
 # ============================================================================
 
@@ -391,172 +646,96 @@ async def create_demo_campaign_manually(
             detail=f"Failed to create demo campaign: {str(e)}"
         )
 
-@router.delete("/{campaign_id}")
-async def delete_campaign(
-    campaign_id: UUID,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user)
-):
-    """🆕 ENHANCED: Delete campaign with demo protection"""
-    try:
-        logger.info(f"Deleting campaign {campaign_id} for user {current_user.id}")
-        
-        query = select(Campaign).where(
-            Campaign.id == campaign_id,
-            Campaign.company_id == current_user.company_id
-        )
-        
-        result = await db.execute(query)
-        campaign = result.scalar_one_or_none()
-        
-        if not campaign:
-            raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail="Campaign not found"
-            )
-        
-        # 🆕 NEW: Protect demo campaigns from accidental deletion
-        if is_demo_campaign(campaign):
-            # Allow deletion but warn
-            logger.info(f"⚠️ Deleting demo campaign {campaign_id}")
-            
-            # Delete the demo campaign
-            await db.delete(campaign)
-            await db.commit()
-            
-            # Automatically recreate demo for this company
-            try:
-                await ensure_demo_campaign_exists(db, current_user.company_id, current_user.id)
-                logger.info(f"✅ Demo campaign recreated after deletion")
-            except Exception as demo_error:
-                logger.warning(f"⚠️ Failed to recreate demo campaign: {str(demo_error)}")
-            
-            return {
-                "message": "Demo campaign deleted and recreated",
-                "note": "Demo campaigns are automatically recreated to help with onboarding"
-            }
-        else:
-            # Delete regular campaign
-            await db.delete(campaign)
-            await db.commit()
-            
-            logger.info(f"Deleted campaign {campaign_id}")
-            return {"message": "Campaign deleted successfully"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting campaign: {e}")
-        await db.rollback()
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete campaign: {str(e)}"
-        )
-
 # ============================================================================
-# DASHBOARD STATS (Enhanced with demo info)
+# 🛠️ UTILITY FUNCTIONS FOR USER PREFERENCES
 # ============================================================================
 
-@router.get("/dashboard/stats")
-async def get_dashboard_stats(
-    db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user)
-):
-    """🆕 ENHANCED: Dashboard stats with demo campaign info"""
+async def get_user_demo_preference(db: AsyncSession, user_id: UUID) -> Dict[str, Any]:
+    """Get user's demo campaign preference with smart defaults"""
     try:
-        logger.info(f"Getting dashboard stats for user {current_user.id}")
+        # Try to get user's stored preference
+        user_query = select(User).where(User.id == user_id)
+        result = await db.execute(user_query)
+        user = result.scalar_one_or_none()
         
-        # Get basic campaign counts
-        total_query = select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
-        active_query = select(func.count(Campaign.id)).where(
-            Campaign.company_id == current_user.company_id,
-            Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.ANALYZING])
-        )
+        if not user:
+            return {"show_demo_campaigns": True}  # Default for new users
         
-        # 🆕 NEW: Separate demo and real campaigns
-        demo_query = select(func.count(Campaign.id)).where(
-            Campaign.company_id == current_user.company_id,
-            Campaign.settings.op('->>')('demo_campaign') == 'true'
-        )
-        real_query = select(func.count(Campaign.id)).where(
-            Campaign.company_id == current_user.company_id,
+        # Check if user has demo preference in their settings
+        user_settings = getattr(user, 'settings', {}) or {}
+        
+        if 'demo_campaign_preferences' in user_settings:
+            stored_pref = user_settings['demo_campaign_preferences'].get('show_demo_campaigns')
+            if stored_pref is not None:
+                return {"show_demo_campaigns": stored_pref}
+        
+        # 🎯 SMART DEFAULT based on user experience
+        # Get user's real campaign count
+        real_campaigns_query = select(func.count(Campaign.id)).where(
+            Campaign.company_id == user.company_id,
             Campaign.settings.op('->>')('demo_campaign') != 'true'
         )
+        real_count_result = await db.execute(real_campaigns_query)
+        real_campaigns_count = real_count_result.scalar() or 0
         
-        # Analysis complete campaigns
-        analysis_complete_query = select(func.count(Campaign.id)).where(
-            Campaign.company_id == current_user.company_id,
-            Campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED
-        )
+        # Smart default: Show demo for new users, hide for experienced users
+        smart_default = real_campaigns_count == 0  # Show demo if no real campaigns
         
-        # Execute queries
-        total_result = await db.execute(total_query)
-        active_result = await db.execute(active_query)
-        demo_result = await db.execute(demo_query)
-        real_result = await db.execute(real_query)
-        analysis_complete_result = await db.execute(analysis_complete_query)
+        # Store this smart default for future use
+        await set_user_demo_preference(db, user_id, smart_default, store_as_smart_default=True)
         
-        total_campaigns = total_result.scalar() or 0
-        active_campaigns = active_result.scalar() or 0
-        demo_campaigns = demo_result.scalar() or 0
-        real_campaigns = real_result.scalar() or 0
-        analysis_complete_campaigns = analysis_complete_result.scalar() or 0
-        
-        # Get content and intelligence counts
-        intelligence_query = select(func.count(CampaignIntelligence.id)).join(Campaign).where(
-            Campaign.company_id == current_user.company_id
-        )
-        content_query = select(func.count(GeneratedContent.id)).join(Campaign).where(
-            Campaign.company_id == current_user.company_id
-        )
-        
-        intelligence_result = await db.execute(intelligence_query)
-        content_result = await db.execute(content_query)
-        
-        total_sources = intelligence_result.scalar() or 0
-        total_content = content_result.scalar() or 0
-        
-        # Calculate average completion
-        if total_campaigns > 0:
-            completion_query = select(func.avg(
-                func.case(
-                    (Campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED, 60),
-                    (Campaign.content_generated > 0, 100),
-                    else_=25
-                )
-            )).where(Campaign.company_id == current_user.company_id)
-            
-            avg_result = await db.execute(completion_query)
-            avg_completion = avg_result.scalar() or 25.0
-        else:
-            avg_completion = 0.0
-        
-        return {
-            "total_campaigns_created": total_campaigns,
-            "real_campaigns": real_campaigns,  # 🆕 NEW: Real vs demo split
-            "demo_campaigns": demo_campaigns,  # 🆕 NEW
-            "active_campaigns": active_campaigns,
-            "analysis_complete_campaigns": analysis_complete_campaigns,
-            "total_sources": total_sources,
-            "total_content": total_content,
-            "avg_completion": avg_completion,
-            "workflow_type": "streamlined_2_step",
-            "demo_system": {  # 🆕 NEW: Demo system info
-                "demo_available": demo_campaigns > 0,
-                "helps_onboarding": True,
-                "solves_empty_state": True
-            },
-            "user_id": str(current_user.id),
-            "company_id": str(current_user.company_id),
-            "generated_at": datetime.utcnow().isoformat()
-        }
+        return {"show_demo_campaigns": smart_default}
         
     except Exception as e:
-        logger.error(f"Error getting dashboard stats: {e}")
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get dashboard stats: {str(e)}"
-        )
+        logger.error(f"Error getting user demo preference: {e}")
+        return {"show_demo_campaigns": True}  # Safe default
+
+async def set_user_demo_preference(
+    db: AsyncSession, 
+    user_id: UUID, 
+    show_demo: bool, 
+    store_as_smart_default: bool = False
+) -> bool:
+    """Set user's demo campaign preference"""
+    try:
+        # Get user
+        user_query = select(User).where(User.id == user_id)
+        result = await db.execute(user_query)
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            logger.error(f"User {user_id} not found for demo preference update")
+            return False
+        
+        # Initialize settings if needed
+        if not hasattr(user, 'settings') or user.settings is None:
+            user.settings = {}
+        
+        # Update demo preference
+        if 'demo_campaign_preferences' not in user.settings:
+            user.settings['demo_campaign_preferences'] = {}
+        
+        user.settings['demo_campaign_preferences']['show_demo_campaigns'] = show_demo
+        user.settings['demo_campaign_preferences']['last_updated'] = datetime.utcnow().isoformat()
+        
+        if store_as_smart_default:
+            user.settings['demo_campaign_preferences']['set_by'] = 'smart_default'
+        else:
+            user.settings['demo_campaign_preferences']['set_by'] = 'user_choice'
+        
+        # Mark the field as modified for SQLAlchemy
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(user, 'settings')
+        
+        await db.commit()
+        
+        logger.info(f"✅ Updated demo preference for user {user_id}: show_demo={show_demo}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error setting user demo preference: {e}")
+        await db.rollback()
+        return False
 
 # ============================================================================
 # BACKGROUND TASK FOR AUTO-ANALYSIS (keeping existing)
@@ -643,7 +822,186 @@ async def trigger_auto_analysis_task(
         logger.error(f"❌ Auto-analysis background task failed: {str(task_error)}")
 
 # ============================================================================
-# KEEP ALL OTHER EXISTING ENDPOINTS
+# 🆕 ADDITIONAL ENDPOINTS FOR COMPLETE CAMPAIGN MANAGEMENT
 # ============================================================================
-# (Auto-analysis status, workflow state, content management, etc.)
-# [Previous endpoints remain unchanged...]
+
+@router.get("/{campaign_id}", response_model=CampaignResponse)
+async def get_campaign(
+    campaign_id: UUID,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get a specific campaign by ID"""
+    try:
+        query = select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.company_id == current_user.company_id
+        )
+        
+        result = await db.execute(query)
+        campaign = result.scalar_one_or_none()
+        
+        if not campaign:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found"
+            )
+        
+        return CampaignResponse(
+            id=str(campaign.id),
+            title=campaign.title or "Untitled Campaign",
+            description=campaign.description or "",
+            keywords=campaign.keywords if isinstance(campaign.keywords, list) else [],
+            target_audience=campaign.target_audience,
+            campaign_type="universal",
+            status=campaign.status.value if hasattr(campaign.status, 'value') else str(campaign.status),
+            tone=campaign.tone or "conversational",
+            style=campaign.style or "modern",
+            created_at=campaign.created_at,
+            updated_at=campaign.updated_at,
+            
+            competitor_url=getattr(campaign, 'competitor_url', None),
+            auto_analysis_enabled=getattr(campaign, 'auto_analysis_enabled', True),
+            auto_analysis_status=campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
+            analysis_confidence_score=getattr(campaign, 'analysis_confidence_score', 0.0) or 0.0,
+            
+            workflow_state=campaign.workflow_state.value if hasattr(campaign.workflow_state, 'value') else "basic_setup",
+            completion_percentage=campaign.calculate_completion_percentage() if hasattr(campaign, 'calculate_completion_percentage') else 25.0,
+            sources_count=getattr(campaign, 'sources_count', 0) or 0,
+            intelligence_count=getattr(campaign, 'intelligence_extracted', 0) or 0,
+            content_count=getattr(campaign, 'content_generated', 0) or 0,
+            total_steps=2,
+            is_demo=is_demo_campaign(campaign)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting campaign {campaign_id}: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get campaign: {str(e)}"
+        )
+
+@router.put("/{campaign_id}", response_model=CampaignResponse)
+async def update_campaign(
+    campaign_id: UUID,
+    campaign_update: CampaignUpdate,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update a campaign"""
+    try:
+        query = select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.company_id == current_user.company_id
+        )
+        
+        result = await db.execute(query)
+        campaign = result.scalar_one_or_none()
+        
+        if not campaign:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found"
+            )
+        
+        # Update fields that were provided
+        update_data = campaign_update.dict(exclude_unset=True)
+        
+        for field, value in update_data.items():
+            if field == "status" and value:
+                try:
+                    campaign.status = CampaignStatus(value.upper())
+                except ValueError:
+                    logger.warning(f"Invalid status value: {value}")
+            else:
+                setattr(campaign, field, value)
+        
+        campaign.updated_at = datetime.utcnow()
+        
+        await db.commit()
+        await db.refresh(campaign)
+        
+        return CampaignResponse(
+            id=str(campaign.id),
+            title=campaign.title or "Untitled Campaign",
+            description=campaign.description or "",
+            keywords=campaign.keywords if isinstance(campaign.keywords, list) else [],
+            target_audience=campaign.target_audience,
+            campaign_type="universal",
+            status=campaign.status.value if hasattr(campaign.status, 'value') else str(campaign.status),
+            tone=campaign.tone or "conversational",
+            style=campaign.style or "modern",
+            created_at=campaign.created_at,
+            updated_at=campaign.updated_at,
+            
+            competitor_url=getattr(campaign, 'competitor_url', None),
+            auto_analysis_enabled=getattr(campaign, 'auto_analysis_enabled', True),
+            auto_analysis_status=campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
+            analysis_confidence_score=getattr(campaign, 'analysis_confidence_score', 0.0) or 0.0,
+            
+            workflow_state=campaign.workflow_state.value if hasattr(campaign.workflow_state, 'value') else "basic_setup",
+            completion_percentage=campaign.calculate_completion_percentage() if hasattr(campaign, 'calculate_completion_percentage') else 25.0,
+            sources_count=getattr(campaign, 'sources_count', 0) or 0,
+            intelligence_count=getattr(campaign, 'intelligence_extracted', 0) or 0,
+            content_count=getattr(campaign, 'content_generated', 0) or 0,
+            total_steps=2,
+            is_demo=is_demo_campaign(campaign)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating campaign {campaign_id}: {e}")
+        await db.rollbook()
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update campaign: {str(e)}"
+        )
+
+# ============================================================================
+# 🆕 ADMIN ENDPOINTS FOR DEMO MANAGEMENT
+# ============================================================================
+
+@router.get("/admin/demo/overview")
+async def get_demo_overview_admin(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Admin view of demo campaigns across all companies"""
+    try:
+        # This would typically require admin permissions
+        # For now, just show current company's demo info
+        
+        demo_query = select(Campaign).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.settings.op('->>')('demo_campaign') == 'true'
+        )
+        
+        result = await db.execute(demo_query)
+        demo_campaigns = result.scalars().all()
+        
+        demo_info = []
+        for demo in demo_campaigns:
+            demo_info.append({
+                "id": str(demo.id),
+                "title": demo.title,
+                "status": demo.status.value if demo.status else "unknown",
+                "completion": demo.calculate_completion_percentage() if hasattr(demo, 'calculate_completion_percentage') else 0,
+                "created_at": demo.created_at.isoformat(),
+                "company_id": str(demo.company_id)
+            })
+        
+        return {
+            "demo_campaigns": demo_info,
+            "total_demo_campaigns": len(demo_info),
+            "company_id": str(current_user.company_id)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting demo overview: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get demo overview: {str(e)}"
+        )
