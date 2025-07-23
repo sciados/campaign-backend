@@ -3,6 +3,7 @@
 Demo Campaign Seeder - Creates educational demo campaigns for new users
 🎯 Solves empty state issues while providing excellent onboarding
 """
+from datetime import datetime, timezone
 import uuid
 import json
 from sqlalchemy import Column, DateTime, func
@@ -91,7 +92,7 @@ class DemoCampaignSeeder:
                 # Settings
                 settings={
                     "demo_campaign": True,
-                    "demo_created_at": Column(DateTime(timezone=True), server_default=func.now()),
+                    "demo_created_at": datetime.now(timezone.utc),
                     "demo_version": "1.0"
                 }
             )
