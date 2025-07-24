@@ -515,6 +515,7 @@ async def create_campaign(
             detail=f"Failed to create campaign: {str(e)}"
         )
 
+
 # ============================================================================
 # 🆕 ENHANCED: DELETE WITH PREFERENCE AWARENESS
 # ============================================================================
@@ -1216,6 +1217,417 @@ async def update_campaign(
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update campaign: {str(e)}"
+        )
+
+# ============================================================================
+# 🆕 ADMIN ENDPOINTS FOR DEMO MANAGEMENT
+# ============================================================================
+
+@router.get("/admin/demo/overview")
+async def get_demo_overview_admin(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Admin view of demo campaigns across all companies"""
+    try:
+        # This would typically require admin permissions
+        # For now, just show current company's demo info
+        
+        demo_query = select(Campaign).where(
+            Campaign.company_id == current_user.company_id,
+            Campaign.settings.op('->>')('demo_campaign') == 'true'
+        )
+        
+        result = await db.execute(demo_query)
+        demo_campaigns = result.scalars().all()
+        
+        demo_info = []
+        for demo in demo_campaigns:
+            demo_info.append({
+                "id": str(demo.id),
+                "title": demo.title,
+                "status": demo.status.value if demo.status else "unknown",
+                "completion": demo.calculate_completion_percentage() if hasattr(demo, 'calculate_completion_percentage') else 0,
+                "created_at": demo.created_at.isoformat(),
+                "company_id": str(demo.company_id)
+            })
+        
+        return {
+            "demo_campaigns": demo_info,
+            "total_demo_campaigns": len(demo_info),
+            "company_id": str(current_user.company_id)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting demo overview: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get demo overview: {str(e)}"
+        )
+
+# ============================================================================
+# 🆕 WORKFLOW & INTELLIGENCE ENDPOINTS
+# ============================================================================
+
+@router.get("/{campaign_id}/workflow-state")
+async def get_workflow_state(
+    campaign_id: UUID,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get detailed workflow state and progress for a campaign"""
+    try:
+        logger.info(f"Getting workflow state for campaign {campaign_id}")
+        
+        # Get campaign with related data
+        query = select(Campaign).options(
+            selectinload(Campaign.intelligence_entries),
+            selectinload(Campaign.generated_content)
+        ).where(
+            Campaign.id == campaign_id,
+            Campaign.company_id == current_user.company_id
+        )
+        
+        result = await db.execute(query)
+        campaign = result.scalar_one_or_none()
+        
+        if not campaign:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found"
+            )
+        
+        # Calculate detailed workflow metrics
+        intelligence_count = len(getattr(campaign, 'intelligence_entries', []))
+        content_count = len(getattr(campaign, 'generated_content', []))
+        sources_count = getattr(campaign, 'sources_count', 0) or 0
+        
+        # Determine workflow state
+        workflow_state = campaign.workflow_state.value if hasattr(campaign.workflow_state, 'value') else "basic_setup"
+        
+        # Calculate completion percentage
+        completion_percentage = 0.0
+        if hasattr(campaign, 'calculate_completion_percentage'):
+            completion_percentage = campaign.calculate_completion_percentage()
+        else:
+            # Fallback calculation
+            if workflow_state == "basic_setup":
+                completion_percentage = 25.0
+            elif workflow_state == "intelligence_gathered":
+                completion_percentage = 50.0
+            elif workflow_state == "content_generated":
+                completion_percentage = 75.0
+            elif workflow_state == "completed":
+                completion_percentage = 100.0
+        
+        # Determine next steps
+        next_steps = []
+        if workflow_state == "basic_setup":
+            if campaign.salespage_url:
+                next_steps.append({
+                    "action": "analyze_url",
+                    "label": "Analyze Sales Page",
+                    "description": "Run competitor analysis on your sales page",
+                    "priority": "high"
+                })
+            else:
+                next_steps.append({
+                    "action": "add_url",
+                    "label": "Add Sales Page URL",
+                    "description": "Add your competitor's sales page for analysis",
+                    "priority": "high"
+                })
+        elif workflow_state == "intelligence_gathered":
+            next_steps.append({
+                "action": "generate_content",
+                "label": "Generate Content",
+                "description": "Create marketing content based on intelligence",
+                "priority": "high"
+            })
+        
+        # Check for auto-analysis status
+        auto_analysis_info = {
+            "enabled": getattr(campaign, 'auto_analysis_enabled', False),
+            "status": campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
+            "confidence_score": getattr(campaign, 'analysis_confidence_score', 0.0) or 0.0,
+            "url": getattr(campaign, 'salespage_url', None)
+        }
+        
+        return {
+            "campaign_id": str(campaign.id),
+            "workflow_state": workflow_state,
+            "completion_percentage": completion_percentage,
+            "total_steps": 2,  # Based on your streamlined workflow
+            "current_step": 1 if workflow_state in ["basic_setup"] else 2,
+            
+            # Progress metrics
+            "metrics": {
+                "sources_count": sources_count,
+                "intelligence_count": intelligence_count,
+                "content_count": content_count
+            },
+            
+            # Auto-analysis info
+            "auto_analysis": auto_analysis_info,
+            
+            # Next recommended actions
+            "next_steps": next_steps,
+            
+            # Workflow capabilities
+            "can_analyze": bool(campaign.salespage_url and campaign.salespage_url.strip()),
+            "can_generate_content": intelligence_count > 0,
+            "is_demo": is_demo_campaign(campaign),
+            
+            # Timestamps
+            "created_at": campaign.created_at.isoformat(),
+            "updated_at": campaign.updated_at.isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting workflow state: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get workflow state: {str(e)}"
+        )
+
+@router.get("/{campaign_id}/intelligence") 
+async def get_campaign_intelligence(
+    campaign_id: UUID,
+    skip: int = 0,
+    limit: int = 50,
+    intelligence_type: Optional[str] = None,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get intelligence entries for a campaign"""
+    try:
+        logger.info(f"Getting intelligence for campaign {campaign_id}")
+        
+        # Verify campaign ownership
+        campaign_query = select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.company_id == current_user.company_id
+        )
+        campaign_result = await db.execute(campaign_query)
+        campaign = campaign_result.scalar_one_or_none()
+        
+        if not campaign:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found"
+            )
+        
+        # Build intelligence query
+        intelligence_query = select(CampaignIntelligence).where(
+            CampaignIntelligence.campaign_id == campaign_id
+        )
+        
+        # Add type filter if specified
+        if intelligence_type:
+            intelligence_query = intelligence_query.where(
+                CampaignIntelligence.intelligence_type == intelligence_type
+            )
+        
+        # Add pagination and ordering
+        intelligence_query = intelligence_query.offset(skip).limit(limit).order_by(
+            CampaignIntelligence.created_at.desc()
+        )
+        
+        # Execute query
+        result = await db.execute(intelligence_query)
+        intelligence_entries = result.scalars().all()
+        
+        # Format response
+        intelligence_data = []
+        for entry in intelligence_entries:
+            try:
+                intelligence_data.append({
+                    "id": str(entry.id),
+                    "intelligence_type": entry.intelligence_type,
+                    "source_url": getattr(entry, 'source_url', None),
+                    "data": entry.intelligence_data if hasattr(entry, 'intelligence_data') else {},
+                    "confidence_score": getattr(entry, 'confidence_score', 0.0) or 0.0,
+                    "status": getattr(entry, 'status', 'active'),
+                    "created_at": entry.created_at.isoformat(),
+                    "updated_at": entry.updated_at.isoformat() if hasattr(entry, 'updated_at') else None
+                })
+            except Exception as entry_error:
+                logger.warning(f"Error processing intelligence entry {entry.id}: {entry_error}")
+                continue
+        
+        # Get summary stats
+        total_query = select(func.count(CampaignIntelligence.id)).where(
+            CampaignIntelligence.campaign_id == campaign_id
+        )
+        total_result = await db.execute(total_query)
+        total_intelligence = total_result.scalar() or 0
+        
+        # Get intelligence types available
+        types_query = select(CampaignIntelligence.intelligence_type).where(
+            CampaignIntelligence.campaign_id == campaign_id
+        ).distinct()
+        types_result = await db.execute(types_query)
+        available_types = [row[0] for row in types_result.fetchall()]
+        
+        return {
+            "campaign_id": str(campaign_id),
+            "intelligence_entries": intelligence_data,
+            "pagination": {
+                "skip": skip,
+                "limit": limit,
+                "total": total_intelligence,
+                "returned": len(intelligence_data)
+            },
+            "summary": {
+                "total_intelligence_entries": total_intelligence,
+                "available_types": available_types,
+                "campaign_title": campaign.title,
+                "auto_analysis_status": campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending"
+            },
+            "is_demo": is_demo_campaign(campaign)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting campaign intelligence: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get campaign intelligence: {str(e)}"
+        )
+
+# ============================================================================
+# 🆕 WORKFLOW PROGRESS SCHEMAS
+# ============================================================================
+
+class WorkflowProgressData(BaseModel):
+    workflow_state: Optional[str] = None
+    completion_percentage: Optional[float] = None
+    step_data: Optional[Dict[str, Any]] = {}
+    auto_analysis_enabled: Optional[bool] = None
+    generate_content_after_analysis: Optional[bool] = None
+
+@router.post("/{campaign_id}/workflow/save-progress")
+async def save_progress(
+    campaign_id: UUID,
+    progress_data: WorkflowProgressData,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Save workflow progress for a campaign"""
+    try:
+        logger.info(f"Saving workflow progress for campaign {campaign_id}")
+        
+        # Get campaign
+        query = select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.company_id == current_user.company_id
+        )
+        
+        result = await db.execute(query)
+        campaign = result.scalar_one_or_none()
+        
+        if not campaign:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found"
+            )
+        
+        # Update workflow state if provided
+        if progress_data.workflow_state:
+            try:
+                # Validate workflow state
+                valid_states = ["basic_setup", "intelligence_gathered", "content_generated", "completed"]
+                if progress_data.workflow_state in valid_states:
+                    if hasattr(campaign, 'workflow_state'):
+                        # If your model has workflow_state as enum, handle appropriately
+                        from src.models.campaign import CampaignWorkflowState
+                        try:
+                            campaign.workflow_state = CampaignWorkflowState(progress_data.workflow_state.upper())
+                        except (ValueError, AttributeError):
+                            # If enum doesn't exist or value is invalid, store as string
+                            campaign.workflow_state = progress_data.workflow_state
+                    else:
+                        # If workflow_state doesn't exist on model, store in settings
+                        if not campaign.settings:
+                            campaign.settings = {}
+                        campaign.settings["workflow_state"] = progress_data.workflow_state
+                        
+                        # Mark settings as modified for SQLAlchemy
+                        try:
+                            from sqlalchemy.orm.attributes import flag_modified
+                            flag_modified(campaign, 'settings')
+                        except Exception:
+                            pass
+                            
+                else:
+                    logger.warning(f"Invalid workflow state: {progress_data.workflow_state}")
+                    
+            except Exception as state_error:
+                logger.warning(f"Error updating workflow state: {state_error}")
+        
+        # Update auto-analysis settings if provided
+        if progress_data.auto_analysis_enabled is not None:
+            campaign.auto_analysis_enabled = progress_data.auto_analysis_enabled
+            
+        if progress_data.generate_content_after_analysis is not None:
+            campaign.generate_content_after_analysis = progress_data.generate_content_after_analysis
+        
+        # Store step data in campaign settings
+        if progress_data.step_data:
+            if not campaign.settings:
+                campaign.settings = {}
+            
+            if "workflow_progress" not in campaign.settings:
+                campaign.settings["workflow_progress"] = {}
+                
+            # Merge step data
+            campaign.settings["workflow_progress"].update(progress_data.step_data)
+            campaign.settings["workflow_progress"]["last_updated"] = datetime.now(timezone.utc).isoformat()
+            
+            # Mark settings as modified
+            try:
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(campaign, 'settings')
+            except Exception:
+                pass
+        
+        # Update timestamp
+        campaign.updated_at = datetime.now(timezone.utc)
+        
+        # Commit changes
+        await db.commit()
+        await db.refresh(campaign)
+        
+        # Calculate updated completion percentage
+        completion_percentage = 0.0
+        if hasattr(campaign, 'calculate_completion_percentage'):
+            completion_percentage = campaign.calculate_completion_percentage()
+        elif progress_data.completion_percentage is not None:
+            completion_percentage = progress_data.completion_percentage
+        
+        logger.info(f"✅ Workflow progress saved for campaign {campaign_id}")
+        
+        return {
+            "success": True,
+            "message": "Workflow progress saved successfully",
+            "campaign_id": str(campaign_id),
+            "updated_workflow_state": campaign.workflow_state.value if hasattr(campaign.workflow_state, 'value') else progress_data.workflow_state,
+            "completion_percentage": completion_percentage,
+            "updated_at": campaign.updated_at.isoformat(),
+            "is_demo": is_demo_campaign(campaign)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error saving workflow progress: {e}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save workflow progress: {str(e)}"
         )
 
 # ============================================================================
