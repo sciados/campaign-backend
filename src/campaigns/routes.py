@@ -31,6 +31,91 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["campaigns"])
 
 # ============================================================================
+# 🔧 FIXED: BACKGROUND TASK FOR AUTO-ANALYSIS - MOVED TO TOP
+# ============================================================================
+
+async def trigger_auto_analysis_task(
+    campaign_id: str, 
+    salespage_url: str, 
+    user_id: str, 
+    company_id: str,
+    db_connection_params: dict
+):
+    """🔧 FIXED: Background task with proper async session management"""
+    try:
+        logger.info(f"🚀 Starting auto-analysis background task for campaign {campaign_id}")
+        
+        # 🔧 CRITICAL FIX: Create new async session within background task
+        from src.core.database import AsyncSessionLocal
+        from src.intelligence.handlers.analysis_handler import AnalysisHandler
+        
+        async with AsyncSessionLocal() as db:
+            # Get user for analysis handler
+            user_result = await db.execute(select(User).where(User.id == user_id))
+            user = user_result.scalar_one_or_none()
+            
+            if not user:
+                logger.error(f"❌ User {user_id} not found for auto-analysis")
+                return
+            
+            # Get campaign
+            campaign_result = await db.execute(
+                select(Campaign).where(
+                    and_(Campaign.id == campaign_id, Campaign.company_id == company_id)
+                )
+            )
+            campaign = campaign_result.scalar_one_or_none()
+            
+            if not campaign:
+                logger.error(f"❌ Campaign {campaign_id} not found for auto-analysis")
+                return
+            
+            # Start analysis
+            campaign.start_auto_analysis()
+            await db.commit()
+            
+            # Create analysis handler and run analysis
+            handler = AnalysisHandler(db, user)
+            
+            analysis_request = {
+                "url": salespage_url,
+                "campaign_id": str(campaign_id),
+                "analysis_type": "sales_page"
+            }
+            
+            try:
+                analysis_result = await handler.analyze_url(analysis_request)
+                
+                # Update campaign with results
+                if analysis_result.get("intelligence_id"):
+                    intelligence_id = analysis_result["intelligence_id"]
+                    confidence_score = analysis_result.get("confidence_score", 0.0)
+                    
+                    # Create analysis summary
+                    analysis_summary = {
+                        "offer_intelligence": analysis_result.get("offer_intelligence", {}),
+                        "psychology_intelligence": analysis_result.get("psychology_intelligence", {}),
+                        "competitive_opportunities": analysis_result.get("competitive_opportunities", []),
+                        "campaign_suggestions": analysis_result.get("campaign_suggestions", []),
+                        "amplification_applied": analysis_result.get("amplification_metadata", {}).get("amplification_applied", False)
+                    }
+                    
+                    campaign.complete_auto_analysis(intelligence_id, confidence_score, analysis_summary)
+                    logger.info(f"✅ Auto-analysis completed for campaign {campaign_id}")
+                    
+                else:
+                    raise Exception("Analysis failed - no intelligence ID returned")
+                    
+            except Exception as analysis_error:
+                logger.error(f"❌ Auto-analysis failed: {str(analysis_error)}")
+                campaign.fail_auto_analysis(str(analysis_error))
+            
+            await db.commit()
+            
+    except Exception as task_error:
+        logger.error(f"❌ Auto-analysis background task failed: {str(task_error)}")
+
+# ============================================================================
 # 🆕 NEW: USER PREFERENCE SCHEMAS
 # ============================================================================
 
@@ -751,13 +836,6 @@ async def get_workflow_state(
         elif auto_status == "IN_PROGRESS":
             next_steps.append({
                 "action": "wait_analysis",
-                "label": "Analysis In Progress", 
-                "description": "Auto-analysis is running - please wait",
-                "priority": "high"
-                })
-        elif auto_status == "IN_PROGRESS":
-            next_steps.append({
-                "action": "wait_analysis",
                 "label": "Analysis In Progress",
                 "description": "Auto-analysis is running - please wait",
                 "priority": "info"
@@ -982,12 +1060,6 @@ async def get_campaign_intelligence(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get campaign intelligence: {str(e)}"
         )
-
-# Fix for the timezone datetime issue in save_progress endpoint
-# Replace the existing save_progress function in routes.py with this fixed version
-
-# FIXED save_progress route for src/campaigns/routes.py
-# Replace the existing save_progress function with this complete fixed version
 
 @router.post("/{campaign_id}/workflow/save-progress")
 async def save_progress(
@@ -1390,90 +1462,6 @@ async def create_demo_campaign_manually(
         )
 
 # ============================================================================
-# BACKGROUND TASK FOR AUTO-ANALYSIS (keeping existing)
-# ============================================================================
-
-async def trigger_auto_analysis_task(
-    campaign_id: str, 
-    salespage_url: str, 
-    user_id: str, 
-    company_id: str,
-    db_connection_params: dict
-):
-    """Background task to trigger auto-analysis"""
-    try:
-        logger.info(f"🚀 Starting auto-analysis background task for campaign {campaign_id}")
-        
-        from src.intelligence.handlers.analysis_handler import AnalysisHandler
-        from src.core.database import get_async_db_session
-        
-        async with get_async_db_session() as db:
-            # Get user for analysis handler
-            user_result = await db.execute(select(User).where(User.id == user_id))
-            user = user_result.scalar_one_or_none()
-            
-            if not user:
-                logger.error(f"❌ User {user_id} not found for auto-analysis")
-                return
-            
-            # Get campaign
-            campaign_result = await db.execute(
-                select(Campaign).where(
-                    and_(Campaign.id == campaign_id, Campaign.company_id == company_id)
-                )
-            )
-            campaign = campaign_result.scalar_one_or_none()
-            
-            if not campaign:
-                logger.error(f"❌ Campaign {campaign_id} not found for auto-analysis")
-                return
-            
-            # Start analysis
-            campaign.start_auto_analysis()
-            await db.commit()
-            
-            # Create analysis handler and run analysis
-            handler = AnalysisHandler(db, user)
-            
-            analysis_request = {
-                "url": salespage_url,
-                "campaign_id": str(campaign_id),
-                "analysis_type": "sales_page"
-            }
-            
-            try:
-                analysis_result = await handler.analyze_url(analysis_request)
-                
-                # Update campaign with results
-                if analysis_result.get("intelligence_id"):
-                    intelligence_id = analysis_result["intelligence_id"]
-                    confidence_score = analysis_result.get("confidence_score", 0.0)
-                    
-                    # Create analysis summary
-                    analysis_summary = {
-                        "offer_intelligence": analysis_result.get("offer_intelligence", {}),
-                        "psychology_intelligence": analysis_result.get("psychology_intelligence", {}),
-                        "competitive_opportunities": analysis_result.get("competitive_opportunities", []),
-                        "campaign_suggestions": analysis_result.get("campaign_suggestions", []),
-                        "amplification_applied": analysis_result.get("amplification_metadata", {}).get("amplification_applied", False)
-                    }
-                    
-                    campaign.complete_auto_analysis(intelligence_id, confidence_score, analysis_summary)
-                    logger.info(f"✅ Auto-analysis completed for campaign {campaign_id}")
-                    
-                else:
-                    raise Exception("Analysis failed - no intelligence ID returned")
-                    
-            except Exception as analysis_error:
-                logger.error(f"❌ Auto-analysis failed: {str(analysis_error)}")
-                campaign.fail_auto_analysis(str(analysis_error))
-            
-            await db.commit()
-            
-    except Exception as task_error:
-        logger.error(f"❌ Auto-analysis background task failed: {str(task_error)}")
-
-# ============================================================================
 # 🆕 ADDITIONAL ENDPOINTS FOR COMPLETE CAMPAIGN MANAGEMENT
 # ============================================================================
 
@@ -1570,7 +1558,8 @@ async def update_campaign(
             else:
                 setattr(campaign, field, value)
         
-        campaign.updated_at = datetime.utcnow()
+        # 🔧 FIXED: Use timezone-aware datetime
+        campaign.updated_at = datetime.now(timezone.utc)
         
         await db.commit()
         await db.refresh(campaign)

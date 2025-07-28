@@ -7,6 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 import asyncio
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -118,9 +119,10 @@ SessionLocal = sessionmaker(
 )
 
 # Asynchronous session for async operations
-AsyncSessionLocal = sessionmaker(
+AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,
     class_=AsyncSession,
+    expire_on_commit=False,  # 🔧 CRITICAL: Prevents greenlet_spawn errors
     autocommit=False,
     autoflush=False
 )

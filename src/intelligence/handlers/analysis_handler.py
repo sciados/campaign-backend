@@ -414,7 +414,7 @@ class AnalysisHandler:
                 "modules_successful": enhancement_metadata.get("modules_successful", []),
                 "scientific_enhancements": len(enhancements.get("scientific_validation", {})) if enhancements.get("scientific_validation") else 0,
                 "system_architecture": "streamlined_modular_enhancement",
-                "amplification_timestamp": datetime.now(timezone.utc),
+                "amplification_timestamp": datetime.now(timezone.utc).isoformat(),  # 🔧 FIXED: UTC string
                 "ultra_cheap_optimization_applied": True,
                 "primary_provider_used": provider_names[0] if provider_names else "unknown",
                 "provider_priority": provider_names,
@@ -590,10 +590,10 @@ class AnalysisHandler:
             processing_metadata = enhanced_analysis.get("amplification_metadata", {})
             processing_metadata.update({
                 "storage_method": "streamlined_workflow_storage",
-                "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
+                "analysis_timestamp": datetime.now(timezone.utc).isoformat(),  # 🔧 FIXED: Always UTC
                 "commit_applied": True,
                 "workflow_type": "streamlined_2_step",
-                "storage_version": "streamlined_2024"
+                "storage_version": "streamlined_2024"  
             })
             intelligence.processing_metadata = json.dumps(processing_metadata)
             intelligence.analysis_status = AnalysisStatus.COMPLETED
