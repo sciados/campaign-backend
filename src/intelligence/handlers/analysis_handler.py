@@ -1,8 +1,9 @@
-# src/intelligence/handlers/analysis_handler.py - FIXED SQLAlchemy Async Issues
+# src/intelligence/handlers/analysis_handler.py - FIXED VERSION
 """
-Analysis Handler - Fixed SQLAlchemy async/sync confusion
-🔧 FIXED: Removed incorrect await calls on scalar_one_or_none()
+Analysis Handler - Fixed SQLAlchemy async/sync issues and timezone problems
+🔧 FIXED: Removed incorrect await calls on synchronous methods
 🔧 FIXED: Proper async/sync handling for database operations
+🔧 FIXED: Consistent timezone-aware datetime usage
 """
 import uuid
 import logging
@@ -166,7 +167,7 @@ class AnalysisHandler:
             )
         
             result = await self.db.execute(campaign_query)
-            campaign = result.scalar_one_or_none()  # 🔧 FIXED: No await here
+            campaign = result.scalar_one_or_none()  # 🔧 FIXED: No await here - this is synchronous
         
             if not campaign:
                 raise ValueError(f"Campaign {campaign_id} not found or access denied")
@@ -210,7 +211,7 @@ class AnalysisHandler:
                 # This would call your content generation system
                 logger.info("📝 Content generation would be triggered here")
             
-            await self.db.commit()
+            await self.db.commit()  # 🔧 FIXED: No try/except for commit type checking
             
             logger.info(f"✅ Campaign analysis completed - Status: {campaign.status}")
             
@@ -226,7 +227,7 @@ class AnalysisHandler:
             
             campaign.fail_auto_analysis(str(error))
             
-            await self.db.commit()
+            await self.db.commit()  # 🔧 FIXED: No try/except for commit type checking
             
             logger.info(f"✅ Campaign analysis failed - Status updated")
             
@@ -307,8 +308,8 @@ class AnalysisHandler:
             
             self.db.add(intelligence)
             
-            await self.db.commit()
-            await self.db.refresh(intelligence)
+            await self.db.commit()  # 🔧 FIXED: No try/except for commit type checking
+            await self.db.refresh(intelligence)  # 🔧 FIXED: No try/except for refresh type checking
             
             logger.info(f"✅ Created intelligence record: {intelligence.id}")
             return intelligence
@@ -572,13 +573,16 @@ class AnalysisHandler:
             intelligence.confidence_score = enhanced_analysis.get("confidence_score", 0.0)
             
             # Extract and store the correct product name
-            from src.intelligence.utils.product_name_fix import extract_product_name_from_intelligence
-            correct_product_name = extract_product_name_from_intelligence(enhanced_analysis)
+            try:
+                from src.intelligence.utils.product_name_fix import extract_product_name_from_intelligence
+                correct_product_name = extract_product_name_from_intelligence(enhanced_analysis)
 
-            if correct_product_name and correct_product_name != "Product":
-                intelligence.source_title = correct_product_name
-                logger.info(f"✅ Product name stored: '{correct_product_name}'")
-            else:
+                if correct_product_name and correct_product_name != "Product":
+                    intelligence.source_title = correct_product_name
+                    logger.info(f"✅ Product name stored: '{correct_product_name}'")
+                else:
+                    intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
+            except ImportError:
                 intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
             
             intelligence.raw_content = enhanced_analysis.get("raw_content", "")[:10000]
@@ -586,7 +590,7 @@ class AnalysisHandler:
             processing_metadata = enhanced_analysis.get("amplification_metadata", {})
             processing_metadata.update({
                 "storage_method": "streamlined_workflow_storage",
-                "analysis_timestamp": datetime.now(timezone.utc),
+                "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
                 "commit_applied": True,
                 "workflow_type": "streamlined_2_step",
                 "storage_version": "streamlined_2024"
@@ -656,7 +660,7 @@ class AnalysisHandler:
                         
                         current_metadata["ai_backup_storage"][key] = validated_data
                         current_metadata["backup_storage_applied"] = True
-                        current_metadata["backup_storage_timestamp"] = datetime.now(timezone.utc)
+                        current_metadata["backup_storage_timestamp"] = datetime.now(timezone.utc).isoformat()
                         current_metadata["workflow_type"] = "streamlined_2_step"
                         
                         intelligence.processing_metadata = json.dumps(current_metadata)
@@ -738,7 +742,7 @@ class AnalysisHandler:
                 "error": str(error),
                 "traceback": traceback.format_exc(),
                 "workflow_type": "streamlined_2_step",
-                "failure_timestamp": datetime.now(timezone.utc)
+                "failure_timestamp": datetime.now(timezone.utc).isoformat()
             })
             await self.db.commit()
         except:

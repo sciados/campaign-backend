@@ -1,7 +1,8 @@
-# src/models/campaign.py - STREAMLINED 2-STEP WORKFLOW VERSION
+# src/models/campaign.py - FIXED VERSION WITH TIMEZONE CONSISTENCY
 """
 Campaign models - Enhanced for streamlined workflow with auto-analysis
 🎯 NEW: Support for Campaign Creation → Auto-Analysis → Content Generation
+🔧 FIXED: Consistent timezone-aware datetime fields
 """
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -44,7 +45,7 @@ class AutoAnalysisStatus(str, enum.Enum):
     FAILED = "FAILED"
 
 class Campaign(BaseModel):
-    """Enhanced Campaign model - Streamlined 2-step workflow"""
+    """Enhanced Campaign model - Streamlined 2-step workflow with FIXED timezone fields"""
     __tablename__ = "campaigns"
     
     # Basic Campaign Information
@@ -57,6 +58,7 @@ class Campaign(BaseModel):
     salespage_url = Column(String(1000))  # Primary competitor URL for analysis
     auto_analysis_enabled = Column(Boolean, default=True)  # Enable auto-analysis
     auto_analysis_status = Column(Enum(AutoAnalysisStatus, name='autoanalysisstatus'), default=AutoAnalysisStatus.PENDING)
+    # 🔧 FIXED: All datetime fields now timezone-aware
     auto_analysis_started_at = Column(DateTime(timezone=True))
     auto_analysis_completed_at = Column(DateTime(timezone=True))
     auto_analysis_results = Column(JSONB, default={})  # Store analysis results
@@ -132,7 +134,8 @@ class Campaign(BaseModel):
     confidence_score = Column(Float)
     intelligence_count = Column(Integer, default=0)
     generated_content_count = Column(Integer, default=0)
-    last_activity = Column(DateTime)
+    # 🔧 FIXED: Changed to timezone-aware to match database schema
+    last_activity = Column(DateTime(timezone=True))
     
     # Content storage
     content = Column(JSONB, default={})
@@ -164,24 +167,29 @@ class Campaign(BaseModel):
         
         super().__init__(**kwargs)
     
-    # 🆕 NEW: Auto-analysis workflow methods
+    # 🆕 NEW: Auto-analysis workflow methods with FIXED timezone handling
     def start_auto_analysis(self):
-        """Start auto-analysis process"""
+        """Start auto-analysis process - FIXED timezone"""
         self.auto_analysis_status = AutoAnalysisStatus.IN_PROGRESS
-        self.auto_analysis_started_at = datetime.now(timezone.utc)
+        self.auto_analysis_started_at = datetime.now(timezone.utc)  # ✅ Always UTC timezone-aware
         self.status = CampaignStatus.ANALYZING
         self.workflow_state = CampaignWorkflowState.AUTO_ANALYZING
         
         # Update step 1 progress
-        self.step_states["step_1"]["progress"] = 50  # Setup done, analysis starting
-        self.step_states["step_1"]["status"] = "analyzing"
+        if self.step_states is None:
+            self.step_states = {}
+        if "step_1" not in self.step_states:
+            self.step_states["step_1"] = {"status": "analyzing", "progress": 50, "can_skip": False, "description": "Campaign Setup & Analysis"}
+        else:
+            self.step_states["step_1"]["progress"] = 50  # Setup done, analysis starting
+            self.step_states["step_1"]["status"] = "analyzing"
         
-        self.last_activity = datetime.now(timezone.utc)
+        self.last_activity = datetime.now(timezone.utc)  # ✅ Always UTC timezone-aware
     
     def complete_auto_analysis(self, intelligence_id: str, confidence_score: float, analysis_summary: dict):
-        """Complete auto-analysis process"""
+        """Complete auto-analysis process - FIXED timezone"""
         self.auto_analysis_status = AutoAnalysisStatus.COMPLETED
-        self.auto_analysis_completed_at = datetime.now(timezone.utc)
+        self.auto_analysis_completed_at = datetime.now(timezone.utc)  # ✅ Always UTC timezone-aware
         self.analysis_intelligence_id = intelligence_id
         self.analysis_confidence_score = confidence_score
         self.analysis_summary = analysis_summary
@@ -197,41 +205,65 @@ class Campaign(BaseModel):
         self.workflow_state = CampaignWorkflowState.ANALYSIS_COMPLETE
         
         # Complete step 1, unlock step 2
-        self.step_states["step_1"]["status"] = "completed"
-        self.step_states["step_1"]["progress"] = 100
-        self.step_states["step_2"]["status"] = "available"
+        if self.step_states is None:
+            self.step_states = {}
+        
+        # Ensure step_1 exists
+        if "step_1" not in self.step_states:
+            self.step_states["step_1"] = {"status": "completed", "progress": 100, "can_skip": False, "description": "Campaign Setup & Analysis"}
+        else:
+            self.step_states["step_1"]["status"] = "completed"
+            self.step_states["step_1"]["progress"] = 100
+        
+        # Ensure step_2 exists
+        if "step_2" not in self.step_states:
+            self.step_states["step_2"] = {"status": "available", "progress": 0, "can_skip": False, "description": "Content Generation"}
+        else:
+            self.step_states["step_2"]["status"] = "available"
         
         self.completed_steps = [1]
         self.available_steps = [1, 2]
-        self.last_activity = datetime.now(timezone.utc)
+        self.last_activity = datetime.now(timezone.utc)  # ✅ Always UTC timezone-aware
     
     def fail_auto_analysis(self, error_message: str):
-        """Handle auto-analysis failure"""
+        """Handle auto-analysis failure - FIXED timezone"""
         self.auto_analysis_status = AutoAnalysisStatus.FAILED
         self.auto_analysis_error = error_message
         self.status = CampaignStatus.DRAFT  # Back to draft for manual retry
         
         # Update step 1 to show error
-        self.step_states["step_1"]["status"] = "error"
-        self.step_states["step_1"]["progress"] = 25  # Partial progress
+        if self.step_states is None:
+            self.step_states = {}
         
-        self.last_activity = datetime.now(timezone.utc)
+        if "step_1" not in self.step_states:
+            self.step_states["step_1"] = {"status": "error", "progress": 25, "can_skip": False, "description": "Campaign Setup & Analysis"}
+        else:
+            self.step_states["step_1"]["status"] = "error"
+            self.step_states["step_1"]["progress"] = 25  # Partial progress
+        
+        self.last_activity = datetime.now(timezone.utc)  # ✅ Always UTC timezone-aware
     
     def start_content_generation(self):
-        """Start content generation (Step 2)"""
+        """Start content generation (Step 2) - FIXED timezone"""
         self.workflow_state = CampaignWorkflowState.GENERATING_CONTENT
         self.status = CampaignStatus.ACTIVE
         
         # Update step 2
-        self.step_states["step_2"]["status"] = "active"
-        self.step_states["step_2"]["progress"] = 25
+        if self.step_states is None:
+            self.step_states = {}
+        
+        if "step_2" not in self.step_states:
+            self.step_states["step_2"] = {"status": "active", "progress": 25, "can_skip": False, "description": "Content Generation"}
+        else:
+            self.step_states["step_2"]["status"] = "active"
+            self.step_states["step_2"]["progress"] = 25
         
         self.active_steps = [2]
         self.last_active_step = 2
-        self.last_activity = datetime.now(timezone.utc)
+        self.last_activity = datetime.now(timezone.utc)  # ✅ Always UTC timezone-aware
     
     def complete_content_generation(self, content_count: int):
-        """Complete content generation"""
+        """Complete content generation - FIXED timezone"""
         self.content_generated = content_count
         self.generated_content_count = content_count
         
@@ -240,32 +272,42 @@ class Campaign(BaseModel):
         self.status = CampaignStatus.COMPLETED
         
         # Complete step 2
-        self.step_states["step_2"]["status"] = "completed"
-        self.step_states["step_2"]["progress"] = 100
+        if self.step_states is None:
+            self.step_states = {}
+        
+        if "step_2" not in self.step_states:
+            self.step_states["step_2"] = {"status": "completed", "progress": 100, "can_skip": False, "description": "Content Generation"}
+        else:
+            self.step_states["step_2"]["status"] = "completed"
+            self.step_states["step_2"]["progress"] = 100
         
         self.completed_steps = [1, 2]
-        self.last_activity = datetime.now(timezone.utc)
+        self.last_activity = datetime.now(timezone.utc)  # ✅ Always UTC timezone-aware
     
     def update_workflow_progress(self):
-        """🆕 UPDATED: Update workflow progress for 2-step workflow"""
+        """🆕 UPDATED: Update workflow progress for 2-step workflow - FIXED timezone"""
         # Auto-update based on analysis and content status
         if self.auto_analysis_status == AutoAnalysisStatus.COMPLETED:
-            if self.step_states["step_1"]["status"] != "completed":
+            if self.step_states and self.step_states.get("step_1", {}).get("status") != "completed":
                 self.complete_auto_analysis(
                     str(self.analysis_intelligence_id) if self.analysis_intelligence_id else "",
                     self.analysis_confidence_score or 0.0,
                     self.analysis_summary or {}
                 )
         
-        if self.content_generated > 0:
-            if self.step_states["step_2"]["status"] != "completed":
+        if self.content_generated and self.content_generated > 0:
+            if self.step_states and self.step_states.get("step_2", {}).get("status") != "completed":
                 self.complete_content_generation(self.content_generated)
         
-        self.last_activity = datetime.now(timezone.utc)
+        self.last_activity = datetime.now(timezone.utc)  # ✅ Always UTC timezone-aware
     
     def calculate_completion_percentage(self):
         """🆕 UPDATED: Calculate completion percentage for 2-step workflow"""
         progress = 0
+        
+        # Ensure step_states exists
+        if not self.step_states:
+            return 25.0  # Basic setup
         
         # Step 1: Setup + Analysis (60% weight)
         step_1_progress = self.step_states.get("step_1", {}).get("progress", 0)

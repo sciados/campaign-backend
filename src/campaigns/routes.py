@@ -986,6 +986,9 @@ async def get_campaign_intelligence(
 # Fix for the timezone datetime issue in save_progress endpoint
 # Replace the existing save_progress function in routes.py with this fixed version
 
+# FIXED save_progress route for src/campaigns/routes.py
+# Replace the existing save_progress function with this complete fixed version
+
 @router.post("/{campaign_id}/workflow/save-progress")
 async def save_progress(
     campaign_id: UUID,
@@ -993,7 +996,7 @@ async def save_progress(
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Save workflow progress for a campaign - FIXED timezone issue"""
+    """🔧 FIXED: Save workflow progress - timezone and async fixes"""
     try:
         logger.info(f"Saving workflow progress for campaign {campaign_id}")
         
@@ -1004,7 +1007,7 @@ async def save_progress(
         )
         
         result = await db.execute(query)
-        campaign = result.scalar_one_or_none()
+        campaign = result.scalar_one_or_none()  # 🔧 FIXED: No await here - this is synchronous
         
         if not campaign:
             raise HTTPException(
@@ -1012,7 +1015,7 @@ async def save_progress(
                 detail="Campaign not found"
             )
         
-        # 🔧 FIXED: Create timezone-aware datetime once and reuse
+        # 🔧 FIXED: Create timezone-aware datetime once and reuse for ALL timestamp fields
         now_utc = datetime.now(timezone.utc)
         
         # Update workflow state if provided - using correct enum values
@@ -1078,7 +1081,7 @@ async def save_progress(
                 
             # Merge step data
             campaign.settings["workflow_progress"].update(progress_data.step_data)
-            # 🔧 FIXED: Use same timezone-aware datetime
+            # 🔧 FIXED: Use same timezone-aware datetime for consistency
             campaign.settings["workflow_progress"]["last_updated"] = now_utc.isoformat()
             
             # Mark settings as modified
@@ -1116,21 +1119,25 @@ async def save_progress(
             except Exception:
                 pass
         
-        # 🔧 FIXED: Update timestamps using the same timezone-aware datetime
+        # 🔧 FIXED: Update ALL timestamps using the SAME timezone-aware datetime
         campaign.updated_at = now_utc
         
-        # Update last activity
+        # Update last activity - ensure it uses the same timezone-aware datetime
         if hasattr(campaign, 'last_activity'):
             campaign.last_activity = now_utc
         
         # Commit changes
-        await db.commit()
-        await db.refresh(campaign)
+        await db.commit()  # 🔧 FIXED: No try/except for commit type checking
+        await db.refresh(campaign)  # 🔧 FIXED: No try/except for refresh type checking
         
         # Calculate updated completion percentage
         completion_percentage = 0.0
         if hasattr(campaign, 'calculate_completion_percentage'):
-            completion_percentage = campaign.calculate_completion_percentage()
+            try:
+                completion_percentage = campaign.calculate_completion_percentage()
+            except Exception as calc_error:
+                logger.warning(f"Error calculating completion percentage: {calc_error}")
+                completion_percentage = progress_data.completion_percentage or 25.0
         elif progress_data.completion_percentage is not None:
             completion_percentage = progress_data.completion_percentage
         else:
@@ -1156,6 +1163,7 @@ async def save_progress(
             "step_states": campaign.step_states if hasattr(campaign, 'step_states') else {},
             "auto_analysis_status": campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
             "updated_at": campaign.updated_at.isoformat(),
+            "last_activity": campaign.last_activity.isoformat() if hasattr(campaign, 'last_activity') and campaign.last_activity else None,
             "is_demo": is_demo_campaign(campaign)
         }
         
@@ -1163,6 +1171,8 @@ async def save_progress(
         raise
     except Exception as e:
         logger.error(f"Error saving workflow progress: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         await db.rollback()
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
