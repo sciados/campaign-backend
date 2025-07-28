@@ -1,9 +1,10 @@
-# src/campaigns/routes.py - ENHANCED WITH USER PREFERENCE CONTROL
+# src/campaigns/routes.py - COMPLETE ENHANCED VERSION WITH DEMO INTEGRATION
 """
 Campaign routes - Streamlined workflow with auto-demo creation and user preference control
 🎯 NEW: User preference system for demo campaign visibility control
 🎯 SMART: Auto-adapts based on user experience level
 🎯 COMPLETE: Full CRUD for demo preferences with protective logic
+🚀 ENHANCED: Instant demo creation + optional live analysis
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from fastapi import status as http_status
@@ -361,7 +362,234 @@ async def set_user_demo_preference(
         return False
 
 # ============================================================================
-# 🆕 ENHANCED: GET CAMPAIGNS WITH USER PREFERENCE SUPPORT
+# 🎯 ENHANCED: DEMO CREATION WITH FRONTEND INTEGRATION
+# ============================================================================
+
+@router.post("/demo/create-with-frontend-integration")
+async def create_demo_with_frontend_integration(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    🎯 OPTIMAL: Create demo campaign with immediate UI response + background enhancement
+    
+    This combines the best of both worlds:
+    1. Immediate UI feedback with pre-generated content (no waiting)
+    2. Optional background enhancement for educational purposes
+    """
+    try:
+        logger.info(f"🎭 Creating demo with frontend integration for user {current_user.id}")
+        
+        # 🚀 PHASE 1: Immediate Demo Creation (Pre-generated Content)
+        from src.utils.demo_campaign_seeder import DemoCampaignSeeder
+        
+        seeder = DemoCampaignSeeder(db)
+        demo_campaign = await seeder.create_demo_campaign(current_user.company_id, current_user.id)
+        
+        if not demo_campaign:
+            raise HTTPException(
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create demo campaign"
+            )
+        
+        # 🎯 IMMEDIATE RESPONSE: Return demo campaign with pre-generated content
+        demo_response = {
+            "success": True,
+            "message": "Demo campaign created successfully",
+            "demo_campaign": {
+                "id": str(demo_campaign.id),
+                "title": demo_campaign.title,
+                "status": demo_campaign.status.value if demo_campaign.status else "active",
+                "completion_percentage": 85.0,  # High completion with pre-generated content
+                "workflow_state": "analysis_complete",  # Already has intelligence
+                "auto_analysis_status": "completed",
+                "confidence_score": 0.92,  # High confidence for demo
+                "content_count": 3,  # Pre-generated content pieces
+                "intelligence_count": 1,  # Pre-generated intelligence
+                "is_demo": True,
+                "created_at": demo_campaign.created_at.isoformat()
+            },
+            "frontend_instructions": {
+                "action": "refresh_campaigns_list",
+                "show_demo": True,
+                "demo_just_created": True,
+                "highlight_campaign_id": str(demo_campaign.id)
+            },
+            "meta": {
+                "demo_type": "pre_generated",
+                "immediate_available": True,
+                "background_enhancement": "optional",
+                "educational_note": "This demo uses pre-generated professional content to showcase platform capabilities"
+            }
+        }
+        
+        logger.info(f"✅ Demo campaign created immediately: {demo_campaign.id}")
+        return demo_response
+        
+    except Exception as e:
+        logger.error(f"❌ Demo creation failed: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create demo campaign: {str(e)}"
+        )
+
+@router.post("/demo/create-with-live-analysis")
+async def create_demo_with_live_analysis(
+    background_tasks: BackgroundTasks,          # No default - comes first
+    competitor_url: str = "https://mailchimp.com",  # Has default - comes after
+    db: AsyncSession = Depends(get_async_db),       # Dependency injection
+    current_user: User = Depends(get_current_user)  # Dependency injection
+):
+    """
+    🎓 EDUCATIONAL: Create demo campaign with real-time analysis (6-minute process)
+    
+    This is for users who want to see the actual analysis process in action.
+    Most users should use the instant demo instead.
+    """
+    try:
+        logger.info(f"🎓 Creating educational demo with live analysis for user {current_user.id}")
+        
+        # Create basic demo campaign first
+        demo_campaign = Campaign(
+            title="🎓 Educational Demo - Live Analysis",
+            description="This demo shows real-time competitor analysis in action. Watch as our AI analyzes your competitor and generates content!",
+            keywords=["live demo", "real-time analysis", "educational"],
+            target_audience="Users who want to see the analysis process",
+            user_id=current_user.id,
+            company_id=current_user.company_id,
+            status=CampaignStatus.DRAFT,
+            settings={
+                "demo_campaign": "true",
+                "demo_type": "live_analysis",
+                "educational": True
+            },
+            
+            # Set up for real analysis
+            salespage_url=competitor_url,
+            auto_analysis_enabled=True,
+            auto_analysis_status=AutoAnalysisStatus.PENDING,
+            content_types=["email", "social_post", "ad_copy"],
+            content_tone="professional",
+            content_style="modern"
+        )
+        
+        db.add(demo_campaign)
+        await db.commit()
+        await db.refresh(demo_campaign)
+        
+        # 🚀 Trigger REAL analysis in background (6-minute process)
+        background_tasks.add_task(
+            trigger_auto_analysis_task,
+            str(demo_campaign.id),
+            competitor_url,
+            str(current_user.id),
+            str(current_user.company_id),
+            {}
+        )
+        
+        # Return immediate response with analysis status
+        return {
+            "success": True,
+            "message": "Educational demo created - live analysis starting",
+            "demo_campaign": {
+                "id": str(demo_campaign.id),
+                "title": demo_campaign.title,
+                "status": "analyzing",
+                "completion_percentage": 25.0,
+                "auto_analysis_status": "in_progress",
+                "estimated_completion": "5-7 minutes",
+                "competitor_url": competitor_url,
+                "is_demo": True,
+                "demo_type": "live_analysis"
+            },
+            "frontend_instructions": {
+                "action": "show_analysis_progress",
+                "poll_for_updates": True,
+                "poll_interval_seconds": 30,
+                "campaign_id": str(demo_campaign.id)
+            },
+            "educational_note": "This demo performs real competitor analysis. Watch the progress in real-time!"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Educational demo creation failed: {e}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create educational demo: {str(e)}"
+        )
+
+@router.get("/{campaign_id}/analysis-progress")
+async def get_analysis_progress(
+    campaign_id: UUID,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    🔄 Get real-time analysis progress for educational demos
+    """
+    try:
+        query = select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.company_id == current_user.company_id
+        )
+        
+        result = await db.execute(query)
+        campaign = result.scalar_one_or_none()
+        
+        if not campaign:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found"
+            )
+        
+        # Get current analysis status
+        analysis_status = campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending"
+        
+        # Calculate progress based on status
+        progress_map = {
+            "pending": 25.0,
+            "in_progress": 50.0,
+            "completed": 100.0,
+            "failed": 0.0
+        }
+        
+        completion_percentage = progress_map.get(analysis_status, 25.0)
+        
+        # Get analysis results if completed
+        analysis_results = {}
+        if analysis_status == "completed":
+            analysis_results = {
+                "confidence_score": campaign.analysis_confidence_score or 0.0,
+                "intelligence_extracted": campaign.intelligence_extracted or 0,
+                "content_generated": campaign.content_generated or 0,
+                "analysis_summary": campaign.analysis_summary or {}
+            }
+        
+        return {
+            "campaign_id": str(campaign_id),
+            "analysis_status": analysis_status,
+            "completion_percentage": completion_percentage,
+            "analysis_started_at": campaign.auto_analysis_started_at.isoformat() if campaign.auto_analysis_started_at else None,
+            "analysis_completed_at": campaign.auto_analysis_completed_at.isoformat() if campaign.auto_analysis_completed_at else None,
+            "error_message": getattr(campaign, 'auto_analysis_error', None),
+            "analysis_results": analysis_results,
+            "is_demo": is_demo_campaign(campaign),
+            "continue_polling": analysis_status in ["pending", "in_progress"],
+            "next_poll_in_seconds": 30 if analysis_status in ["pending", "in_progress"] else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting analysis progress: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get analysis progress: {str(e)}"
+        )
+
+# ============================================================================
+# 🔧 ENHANCED: GET CAMPAIGNS WITH AUTO-DEMO CREATION
 # ============================================================================
 
 @router.get("", response_model=List[CampaignResponse])
@@ -372,7 +600,7 @@ async def get_campaigns(
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
-    """🆕 ENHANCED: Get campaigns respecting user demo preference"""
+    """🆕 ENHANCED: Get campaigns with automatic demo creation and frontend integration"""
     try:
         logger.info(f"Getting campaigns for user {current_user.id}, company {current_user.company_id}")
         
@@ -416,52 +644,45 @@ async def get_campaigns(
                 # If we can't classify, assume it's real
                 real_campaigns.append(campaign)
         
-        # Ensure demo exists if needed (using your FIXED rich demo seeder)
+        # 🚀 AUTO-CREATE RICH DEMO if none exists
         if len(demo_campaigns) == 0:
             try:
-                logger.info(f"No demo campaigns found, attempting to create rich demo...")
+                logger.info(f"No demo campaigns found, creating rich demo with pre-generated content...")
                 
-                # Try rich demo creation with proper async handling
-                demo_created = await ensure_demo_campaign_exists(db, current_user.company_id, current_user.id)
+                from src.utils.demo_campaign_seeder import DemoCampaignSeeder
+                seeder = DemoCampaignSeeder(db)
+                new_demo = await seeder.create_demo_campaign(current_user.company_id, current_user.id)
                 
-                if demo_created:
-                    # Re-query to get the new rich demo
-                    fresh_result = await db.execute(query)  # Use existing query
-                    fresh_campaigns = fresh_result.scalars().all()
-                    
-                    # Update our campaign lists
-                    all_campaigns = fresh_campaigns
-                    demo_campaigns = [c for c in fresh_campaigns if is_demo_campaign(c)]
-                    real_campaigns = [c for c in fresh_campaigns if not is_demo_campaign(c)]
-                    
-                    if len(demo_campaigns) > 0:
-                        logger.info(f"✅ Rich demo campaign created successfully")
-                    else:
-                        logger.warning(f"⚠️ Rich demo creation returned success but no demo found")
+                if new_demo:
+                    demo_campaigns = [new_demo]
+                    all_campaigns = real_campaigns + demo_campaigns
+                    logger.info("✅ Rich demo created successfully with pre-generated content")
                 else:
-                    raise Exception("Rich demo creation returned False")
+                    raise Exception("Rich demo creation returned None")
                     
             except Exception as demo_error:
                 logger.error(f"⚠️ Rich demo creation failed: {str(demo_error)}")
                 
-                # If rich demo fails completely, create a basic demo directly in this function
-                # This avoids the async context issues by staying in the same session
+                # Fallback: Create basic demo using same session
                 try:
                     logger.info("🔄 Creating basic demo directly in current session...")
                     
-                    # Create basic demo using same session - no separate function calls
                     basic_demo = Campaign(
-                        title="🎭 Demo Campaign - Social Media Marketing",
+                        title="🎭 Demo Campaign - Marketing Intelligence Showcase",
                         description="This is a demo campaign showcasing our platform's capabilities. Explore to see what's possible!",
-                        keywords=["social media", "marketing", "demo"],
-                        target_audience="Small business owners and marketing teams",
+                        keywords=["demo", "marketing", "intelligence"],
+                        target_audience="Marketing professionals and small business owners",
                         tone="professional",
                         style="modern",
                         user_id=current_user.id,
                         company_id=current_user.company_id,
                         status=CampaignStatus.ACTIVE,
-                        settings={"demo_campaign": "true"},
-                        salespage_url="https://buffer.com",
+                        settings={
+                            "demo_campaign": "true",
+                            "demo_type": "basic",
+                            "created_by": "auto_fallback"
+                        },
+                        salespage_url="https://mailchimp.com",
                         auto_analysis_enabled=True,
                         content_types=["email", "social_post", "ad_copy"],
                         content_tone="professional",
@@ -472,19 +693,18 @@ async def get_campaigns(
                     await db.commit()
                     await db.refresh(basic_demo)
                     
-                    # Update our lists
                     demo_campaigns = [basic_demo]
                     all_campaigns = real_campaigns + demo_campaigns
                     
                     logger.info("✅ Basic demo campaign created successfully in current session")
                     
                 except Exception as basic_error:
-                    logger.error(f"⚠️ Basic demo creation failed: {str(basic_error)}")
+                    logger.error(f"⚠️ Basic demo creation also failed: {str(basic_error)}")
                     try:
                         await db.rollback()
                     except:
                         pass
-                    # Continue without demo - don't let this break the request
+                    # Continue without demo - don't break the request
         
         # 🎯 APPLY USER PREFERENCE
         campaigns_to_return = []
@@ -508,36 +728,65 @@ async def get_campaigns(
         campaign_responses = []
         for campaign in campaigns_to_return:
             try:
-                campaign_response = CampaignResponse(
-                    id=str(campaign.id),
-                    title=campaign.title or "Untitled Campaign",
-                    description=campaign.description or "",
-                    keywords=campaign.keywords if isinstance(campaign.keywords, list) else [],
-                    target_audience=campaign.target_audience,
-                    campaign_type="universal",
-                    status=campaign.status.value if hasattr(campaign.status, 'value') else str(campaign.status),
-                    tone=campaign.tone or "conversational",
-                    style=campaign.style or "modern",
-                    created_at=campaign.created_at,
-                    updated_at=campaign.updated_at,
-                    
-                    # Auto-analysis fields
-                    salespage_url=getattr(campaign, 'salespage_url', None),
-                    auto_analysis_enabled=getattr(campaign, 'auto_analysis_enabled', True),
-                    auto_analysis_status=campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
-                    analysis_confidence_score=getattr(campaign, 'analysis_confidence_score', 0.0) or 0.0,
-                    
-                    # Workflow fields
-                    workflow_state=campaign.workflow_state.value if hasattr(campaign.workflow_state, 'value') else "basic_setup",
-                    completion_percentage=campaign.calculate_completion_percentage() if hasattr(campaign, 'calculate_completion_percentage') else 25.0,
-                    sources_count=getattr(campaign, 'sources_count', 0) or 0,
-                    intelligence_count=getattr(campaign, 'intelligence_extracted', 0) or 0,
-                    content_count=getattr(campaign, 'content_generated', 0) or 0,
-                    total_steps=2,
-                    
-                    # Demo indicator
-                    is_demo=is_demo_campaign(campaign)
-                )
+                # Enhanced response for demo campaigns
+                if is_demo_campaign(campaign):
+                    campaign_response = CampaignResponse(
+                        id=str(campaign.id),
+                        title=campaign.title or "🎭 Demo Campaign",
+                        description=campaign.description or "Demo showcasing platform capabilities",
+                        keywords=campaign.keywords if isinstance(campaign.keywords, list) else ["demo", "example"],
+                        target_audience=campaign.target_audience or "Marketing professionals",
+                        campaign_type="universal",
+                        status=campaign.status.value if hasattr(campaign.status, 'value') else "active",
+                        tone=campaign.tone or "professional",
+                        style=campaign.style or "modern",
+                        created_at=campaign.created_at,
+                        updated_at=campaign.updated_at,
+                        
+                        # Demo campaigns have pre-generated analysis
+                        salespage_url=getattr(campaign, 'salespage_url', "https://buffer.com"),
+                        auto_analysis_enabled=True,
+                        auto_analysis_status="completed",  # Pre-generated = completed
+                        analysis_confidence_score=0.92,  # High confidence for demo
+                        
+                        # Enhanced workflow state for demos
+                        workflow_state="analysis_complete",  # Pre-generated content available
+                        completion_percentage=85.0,  # High completion with pre-generated content
+                        sources_count=1,  # Demo has 1 source (competitor URL)
+                        intelligence_count=1,  # Pre-generated intelligence
+                        content_count=3,  # Pre-generated content pieces
+                        total_steps=2,
+                        is_demo=True
+                    )
+                else:
+                    # Regular campaign response
+                    campaign_response = CampaignResponse(
+                        id=str(campaign.id),
+                        title=campaign.title or "Untitled Campaign",
+                        description=campaign.description or "",
+                        keywords=campaign.keywords if isinstance(campaign.keywords, list) else [],
+                        target_audience=campaign.target_audience,
+                        campaign_type="universal",
+                        status=campaign.status.value if hasattr(campaign.status, 'value') else str(campaign.status),
+                        tone=campaign.tone or "conversational",
+                        style=campaign.style or "modern",
+                        created_at=campaign.created_at,
+                        updated_at=campaign.updated_at,
+                        
+                        salespage_url=getattr(campaign, 'salespage_url', None),
+                        auto_analysis_enabled=getattr(campaign, 'auto_analysis_enabled', True),
+                        auto_analysis_status=campaign.auto_analysis_status.value if hasattr(campaign.auto_analysis_status, 'value') else "pending",
+                        analysis_confidence_score=getattr(campaign, 'analysis_confidence_score', 0.0) or 0.0,
+                        
+                        workflow_state=campaign.workflow_state.value if hasattr(campaign.workflow_state, 'value') else "basic_setup",
+                        completion_percentage=campaign.calculate_completion_percentage() if hasattr(campaign, 'calculate_completion_percentage') else 25.0,
+                        sources_count=getattr(campaign, 'sources_count', 0) or 0,
+                        intelligence_count=getattr(campaign, 'intelligence_extracted', 0) or 0,
+                        content_count=getattr(campaign, 'content_generated', 0) or 0,
+                        total_steps=2,
+                        is_demo=False
+                    )
+                
                 campaign_responses.append(campaign_response)
                 
             except Exception as campaign_error:
@@ -1419,7 +1668,7 @@ async def get_demo_campaign_status(
                 "demo_campaign_id": str(demo_campaign.id),
                 "demo_title": demo_campaign.title,
                 "demo_status": demo_campaign.status.value if demo_campaign.status else "unknown",
-                "demo_completion": demo_campaign.calculate_completion_percentage(),
+                "demo_completion": demo_campaign.calculate_completion_percentage() if hasattr(demo_campaign, 'calculate_completion_percentage') else 0,
                 "content_count": demo_campaign.content_generated or 0
             }
         else:
@@ -1600,143 +1849,6 @@ async def update_campaign(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update campaign: {str(e)}"
         )
-
-# ============================================================================
-# 🎯 FIXED: Simple Demo Creation Using Real Campaign Pattern
-# ============================================================================
-
-async def create_simple_demo_using_real_pattern(db: AsyncSession, company_id: UUID, user_id: UUID) -> Optional[Campaign]:
-    """Create demo campaign using the EXACT same logic as real campaigns"""
-    try:
-        logger.info(f"Creating demo campaign using real campaign pattern for company {company_id}")
-        
-        # 🎯 Create using the SAME constructor as your working create_campaign
-        new_demo_campaign = Campaign(
-            title="🎭 Demo Campaign - Email Marketing Mastery",
-            description="This is a professional demo campaign showcasing our platform's capabilities with real competitor analysis and high-quality generated content. Perfect for learning and reference!",
-            keywords=["email marketing", "conversion optimization", "social media", "demo"],
-            target_audience="Small business owners and marketing teams looking to improve their campaigns",
-            tone="professional",
-            style="modern",
-            user_id=user_id,
-            company_id=company_id,
-            status=CampaignStatus.DRAFT,  # Same default as real campaigns
-            settings={
-                "demo_campaign": "true"  # Only difference - mark as demo
-            },
-            
-            # Auto-analysis fields (same as real campaigns)
-            salespage_url="https://mailchimp.com",
-            auto_analysis_enabled=True,
-            content_types=["email", "social_post", "ad_copy"],
-            content_tone="professional", 
-            content_style="modern",
-            generate_content_after_analysis=False
-        )
-        
-        # 🎯 Let the model handle timestamps automatically
-        db.add(new_demo_campaign)
-        
-        # Commit within the same async context
-        await db.commit()
-        await db.refresh(new_demo_campaign)
-        
-        logger.info(f"✅ Demo campaign created using real pattern: {new_demo_campaign.id}")
-        return new_demo_campaign
-        
-    except Exception as e:
-        logger.error(f"❌ Demo creation using real pattern failed: {e}")
-        try:
-            await db.rollback()
-        except:
-            pass
-        return None
-
-async def create_minimal_demo_campaign(db: AsyncSession, company_id: UUID, user_id: UUID) -> Optional[Campaign]:
-    """Create the most basic demo campaign possible - no JSON fields, minimal data"""
-    try:
-        logger.info(f"Creating minimal demo campaign for company {company_id}")
-        
-        # Create the most basic campaign possible
-        demo_campaign = Campaign(
-            title="🎭 Demo Campaign",
-            description="Demo campaign showcasing platform capabilities",
-            user_id=user_id,
-            company_id=company_id,
-            status=CampaignStatus.DRAFT,
-            # Minimal settings - just mark as demo
-            settings={"demo_campaign": "true"}
-        )
-        
-        # Don't set any complex fields that might cause issues
-        # Let SQLAlchemy handle created_at/updated_at automatically
-        
-        db.add(demo_campaign)
-        
-        # Commit within the same async context
-        await db.commit()
-        
-        logger.info(f"✅ Minimal demo campaign created successfully")
-        return demo_campaign
-        
-    except Exception as e:
-        logger.error(f"❌ Minimal demo campaign creation failed: {e}")
-        try:
-            await db.rollback()
-        except:
-            pass
-        return None
-
-async def create_fallback_demo_campaign(db: AsyncSession, company_id: UUID, user_id: UUID) -> Optional[Campaign]:
-    """Create a simple fallback demo campaign using the SAME pattern as real campaigns"""
-    try:
-        logger.info(f"Creating fallback demo campaign for company {company_id}")
-        
-        # 🎯 Use the EXACT same pattern as create_campaign() function
-        # This mirrors the working campaign creation logic
-        new_demo_campaign = Campaign(
-            title="🎭 Demo Campaign - Email Marketing Mastery",
-            description="This is a professional demo campaign showcasing our platform's capabilities with real competitor analysis and high-quality generated content. Perfect for learning and reference!",
-            keywords=["email marketing", "conversion optimization", "social media", "demo"],
-            target_audience="Small business owners and marketing teams looking to improve their marketing campaigns",
-            tone="professional",
-            style="modern",
-            user_id=user_id,
-            company_id=company_id,
-            status=CampaignStatus.ACTIVE,  # Same as real campaigns
-            settings={
-                "demo_campaign": "true",  # Only difference - mark as demo
-                "demo_type": "email_marketing",
-                "created_by": "system_fallback",
-                "quality_level": "professional"
-            },
-            
-            # 🎯 Use the same fields as real campaigns
-            salespage_url="https://mailchimp.com",  # Demo competitor URL
-            auto_analysis_enabled=True,
-            content_types=["email", "social_post", "ad_copy"],
-            content_tone="professional",
-            content_style="modern",
-            generate_content_after_analysis=False
-        )
-        
-        # 🎯 Let SQLAlchemy handle timestamps automatically
-        # Don't manually set created_at/updated_at - let the model defaults work
-        
-        db.add(new_demo_campaign)
-        await db.commit()
-        await db.refresh(new_demo_campaign)
-        
-        logger.info(f"✅ Fallback demo campaign created successfully: {new_demo_campaign.id}")
-        return new_demo_campaign
-        
-    except Exception as e:
-        logger.error(f"❌ Fallback demo campaign creation failed: {e}")
-        try:
-            await db.rollback()
-        except:
-            pass
-        return None
 
 # ============================================================================
 # 🆕 ADMIN ENDPOINTS FOR DEMO MANAGEMENT
