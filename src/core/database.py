@@ -2,12 +2,11 @@
 import os
 import logging
 from sqlalchemy import create_engine, MetaData
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 import asyncio
-from sqlalchemy.ext.asyncio import async_sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -60,15 +59,15 @@ async_engine = create_async_engine(
 )
 
 # ============================================================================
-# ✅ FIXED:  Base class with conflict resolution
+# ✅ FIXED: Base class with conflict resolution
 # ============================================================================
 
 # Create a custom metadata instance with conflict handling
 metadata = MetaData()
 
-#  Base class
+# Base class
 class Base:
-    """ base class with conflict resolution"""
+    """Base class with conflict resolution"""
     
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -108,7 +107,7 @@ Base = declarative_base(
 )
 
 # ============================================================================
-# ✅ FIXED: Session configuration
+# 🔧 CRITICAL FIX: Session configuration
 # ============================================================================
 
 # Synchronous session for regular operations
@@ -118,7 +117,7 @@ SessionLocal = sessionmaker(
     bind=engine
 )
 
-# Asynchronous session for async operations
+# 🔧 CRITICAL FIX: Asynchronous session for async operations
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,
     class_=AsyncSession,
@@ -263,7 +262,7 @@ def get_table_info():
         return []
 
 # ============================================================================
-# ✅ FIXED:  initialization function
+# ✅ FIXED: Database initialization function
 # ============================================================================
 
 def initialize_database():
