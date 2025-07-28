@@ -1,7 +1,8 @@
-# src/intelligence/handlers/analysis_handler.py - STREAMLINED WORKFLOW VERSION
+# src/intelligence/handlers/analysis_handler.py - FIXED SQLAlchemy Async Issues
 """
-Analysis Handler - Streamlined 2-step workflow integration
-🎯 ENHANCED: Campaign Creation → Auto-Analysis → Content Generation
+Analysis Handler - Fixed SQLAlchemy async/sync confusion
+🔧 FIXED: Removed incorrect await calls on scalar_one_or_none()
+🔧 FIXED: Proper async/sync handling for database operations
 """
 import uuid
 import logging
@@ -153,7 +154,7 @@ class AnalysisHandler:
             return self._prepare_failure_response(intelligence, e)
     
     async def _get_and_update_campaign(self, campaign_id: str) -> Campaign:
-        """🆕 NEW: Get campaign and update status to analyzing"""
+        """🔧 FIXED: Get campaign and update status to analyzing"""
         try:
             logger.info(f"🔍 Getting campaign and updating status: {campaign_id}")
         
@@ -165,7 +166,7 @@ class AnalysisHandler:
             )
         
             result = await self.db.execute(campaign_query)
-            campaign = result.scalar_one_or_none()  # ✅ Fixed: No await here
+            campaign = result.scalar_one_or_none()  # 🔧 FIXED: No await here
         
             if not campaign:
                 raise ValueError(f"Campaign {campaign_id} not found or access denied")
@@ -209,10 +210,7 @@ class AnalysisHandler:
                 # This would call your content generation system
                 logger.info("📝 Content generation would be triggered here")
             
-            try:
-                await self.db.commit()
-            except (TypeError, AttributeError):
-                self.db.commit()
+            await self.db.commit()
             
             logger.info(f"✅ Campaign analysis completed - Status: {campaign.status}")
             
@@ -228,10 +226,7 @@ class AnalysisHandler:
             
             campaign.fail_auto_analysis(str(error))
             
-            try:
-                await self.db.commit()
-            except (TypeError, AttributeError):
-                self.db.commit()
+            await self.db.commit()
             
             logger.info(f"✅ Campaign analysis failed - Status updated")
             
@@ -297,7 +292,7 @@ class AnalysisHandler:
     async def _create_intelligence_record(
         self, url: str, campaign_id: str, analysis_type: str
     ) -> CampaignIntelligence:
-        """🔥 FIXED: Create initial intelligence record"""
+        """🔧 FIXED: Create initial intelligence record"""
         try:
             logger.info(f"📝 Creating intelligence record for: {url}")
             
@@ -312,27 +307,15 @@ class AnalysisHandler:
             
             self.db.add(intelligence)
             
-            try:
-                await self.db.commit()
-            except (TypeError, AttributeError):
-                self.db.commit()
-            
-            try:
-                await self.db.refresh(intelligence)
-            except (TypeError, AttributeError):
-                self.db.refresh(intelligence)
+            await self.db.commit()
+            await self.db.refresh(intelligence)
             
             logger.info(f"✅ Created intelligence record: {intelligence.id}")
             return intelligence
             
         except Exception as e:
             logger.error(f"❌ Error creating intelligence record: {str(e)}")
-            
-            try:
-                await self.db.rollback()
-            except (TypeError, AttributeError):
-                self.db.rollback()
-            
+            await self.db.rollback()
             raise
     
     async def _perform_base_analysis(self, url: str, analysis_type: str) -> Dict[str, Any]:
@@ -613,10 +596,7 @@ class AnalysisHandler:
             
             # Final commit for metadata and base intelligence
             logger.info("🔧 Final commit for streamlined workflow...")
-            try:
-                await self.db.commit()
-            except (TypeError, AttributeError):
-                self.db.commit()
+            await self.db.commit()
             
             logger.info("✅ All streamlined analysis results stored successfully")
             
@@ -630,15 +610,9 @@ class AnalysisHandler:
                 "storage_fix_attempted": True
             })
             try:
-                try:
-                    await self.db.commit()
-                except (TypeError, AttributeError):
-                    self.db.commit()
+                await self.db.commit()
             except:
-                try:
-                    await self.db.rollback()
-                except (TypeError, AttributeError):
-                    self.db.rollback()
+                await self.db.rollback()
                 
             raise storage_error
     
@@ -700,20 +674,14 @@ class AnalysisHandler:
         # COMMIT THE CHANGES
         try:
             logger.info("🔧 Committing streamlined fallback storage changes...")
-            try:
-                await self.db.commit()
-            except (TypeError, AttributeError):
-                self.db.commit()
+            await self.db.commit()
             logger.info(f"✅ STREAMLINED COMMIT SUCCESS: {successful_saves}/{len(ai_keys)} categories, {total_items_saved} total items")
         
             # Simple verification for streamlined workflow
             await self._verify_streamlined_storage(intelligence.id)   
         except Exception as commit_error:
             logger.error(f"❌ CRITICAL: Streamlined commit failed: {str(commit_error)}")
-            try:
-                await self.db.rollback()
-            except (TypeError, AttributeError):
-                self.db.rollback()
+            await self.db.rollback()
             raise commit_error
     
     async def _verify_streamlined_storage(self, intelligence_id: uuid.UUID):
@@ -772,15 +740,9 @@ class AnalysisHandler:
                 "workflow_type": "streamlined_2_step",
                 "failure_timestamp": datetime.now(timezone.utc)
             })
-            try:
-                await self.db.commit()
-            except (TypeError, AttributeError):
-                self.db.commit()
+            await self.db.commit()
         except:
-            try:
-                await self.db.rollback()
-            except (TypeError, AttributeError):
-                self.db.rollback()
+            await self.db.rollback()
     
     def _prepare_streamlined_response(
         self, campaign: Campaign, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]

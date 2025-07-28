@@ -983,6 +983,9 @@ async def get_campaign_intelligence(
             detail=f"Failed to get campaign intelligence: {str(e)}"
         )
 
+# Fix for the timezone datetime issue in save_progress endpoint
+# Replace the existing save_progress function in routes.py with this fixed version
+
 @router.post("/{campaign_id}/workflow/save-progress")
 async def save_progress(
     campaign_id: UUID,
@@ -990,7 +993,7 @@ async def save_progress(
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Save workflow progress for a campaign"""
+    """Save workflow progress for a campaign - FIXED timezone issue"""
     try:
         logger.info(f"Saving workflow progress for campaign {campaign_id}")
         
@@ -1008,6 +1011,9 @@ async def save_progress(
                 status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
+        
+        # 🔧 FIXED: Create timezone-aware datetime once and reuse
+        now_utc = datetime.now(timezone.utc)
         
         # Update workflow state if provided - using correct enum values
         if progress_data.workflow_state:
@@ -1072,7 +1078,8 @@ async def save_progress(
                 
             # Merge step data
             campaign.settings["workflow_progress"].update(progress_data.step_data)
-            campaign.settings["workflow_progress"]["last_updated"] = datetime.now(timezone.utc).isoformat()
+            # 🔧 FIXED: Use same timezone-aware datetime
+            campaign.settings["workflow_progress"]["last_updated"] = now_utc.isoformat()
             
             # Mark settings as modified
             try:
@@ -1109,12 +1116,12 @@ async def save_progress(
             except Exception:
                 pass
         
-        # Update timestamp
-        campaign.updated_at = datetime.now(timezone.utc)
+        # 🔧 FIXED: Update timestamps using the same timezone-aware datetime
+        campaign.updated_at = now_utc
         
         # Update last activity
         if hasattr(campaign, 'last_activity'):
-            campaign.last_activity = datetime.now(timezone.utc)
+            campaign.last_activity = now_utc
         
         # Commit changes
         await db.commit()
