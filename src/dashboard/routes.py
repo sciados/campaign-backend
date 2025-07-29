@@ -4,7 +4,7 @@ Uses the same proven pattern as admin dashboard with user-focused data
 """
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
-from admin.schemas import CompanyUpdateRequest
+from admin.schemas import CompanyAnalyticsResponse
 from models.campaign import Campaign
 from models.company import Company
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +18,7 @@ from src.models.user import User
 
 router = APIRouter(tags=["dashboard"])
 
-class CompanyStatsResponse(BaseModel):
+class CompanyAnalyticsResponse(BaseModel):
     company_name: str
     subscription_tier: str
     monthly_credits_used: int
@@ -30,7 +30,7 @@ class CompanyStatsResponse(BaseModel):
     campaigns_this_month: int
     usage_percentage: float
 
-@router.get("/stats", response_model=CompanyStatsResponse)
+@router.get("/stats", response_model=CompanyAnalyticsResponse)
 async def get_company_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db)
@@ -96,7 +96,7 @@ async def get_company_stats(
         
         print(f"✅ USER DASHBOARD STATS: Company={company_data[0]}, Campaigns={total_campaigns_created}, Active={active_campaigns}")
         
-        return CompanyStatsResponse(
+        return CompanyAnalyticsResponse(
             company_name=company_data[0] or "Unknown Company",
             subscription_tier=company_data[1] or "free",
             monthly_credits_used=monthly_credits_used,
@@ -119,7 +119,7 @@ async def get_company_stats(
         print(f"❌ Company ID: {current_user.company_id}")
         
         # ✅ SAME FALLBACK PATTERN AS ADMIN
-        return CompanyStatsResponse(
+        return CompanyAnalyticsResponse(
             company_name="RodgersDigital",
             subscription_tier="free",
             monthly_credits_used=0,
@@ -132,7 +132,7 @@ async def get_company_stats(
             usage_percentage=0.0
         )
 
-@router.get("/company/{company_id}", response_model=CompanyStatsResponse)
+@router.get("/company/{company_id}", response_model=CompanyAnalyticsResponse)
 async def get_company_details(
     company_id: str,
     current_user: User = Depends(get_current_user),
@@ -157,7 +157,7 @@ async def get_company_details(
     campaign_count_query = select(func.count(Campaign.id)).where(Campaign.company_id == company.id)
     campaign_count = await db.scalar(campaign_count_query) or 0
     
-    return CompanyStatsResponse(
+    return CompanyAnalyticsResponse(
         id=company.id,
         company_name=company.company_name,
         company_slug=company.company_slug,
@@ -176,7 +176,7 @@ async def get_company_details(
 @router.put("/companies/{company_id}")
 async def update_company_details(
     company_id: str,
-    company_update: CompanyUpdateRequest,
+    company_update: CompanyAnalyticsResponse,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db)
 ):
