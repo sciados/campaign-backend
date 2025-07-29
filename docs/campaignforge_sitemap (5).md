@@ -1,0 +1,31 @@
+\# CampaignForge Complete Sitemap - Updated Migration Status
+
+\## 🏗️ Project Structure Overview
+
+\*\*Migration Status:\*\* Old 4-Step Workflow → New 2-Step Streamlined
+Workflow \*\*Current State:\*\* Phase 1B Complete - Service Layer
+Implemented ✅ \*\*Target State:\*\* Fully functional 2-step workflow
+with service architecture
+
+\-\--
+
+\## 📁 Backend File Structure
+
+\### 🎯 Campaign System (Core) - ENHANCED
+
+\`\`\` src/campaigns/ ├── routes.py ⚠️ NEEDS UPDATE - Use service layer
+instead of direct DB calls ├── \_\_init\_\_.py ✅ OK ├── ├── schemas/ ✅
+NEW - Complete schema organization │ ├── \_\_init\_\_.py ✅ NEW -
+Package exports │ ├── campaign_schemas.py ✅ NEW - Core campaign models
+(CampaignCreate, CampaignUpdate, CampaignResponse) │ ├── demo_schemas.py
+✅ NEW - Demo system models (DemoPreferenceUpdate,
+DemoPreferenceResponse) │ └── workflow_schemas.py ✅ NEW - 2-step
+workflow models (WorkflowProgressData) └── └── services/ ✅ NEW -
+Complete service layer ├── \_\_init\_\_.py ✅ NEW - Service exports ├──
+campaign_service.py ✅ NEW - Complete CRUD + FIXED background task ├──
+demo_service.py ✅ NEW - Smart demo management with user preferences └──
+workflow_service.py ✅ NEW - 2-step workflow logic with progress
+tracking \`\`\`
+
+\*\*Status:\*\* Service layer complete, routes.py needs to be updated to
+use services
