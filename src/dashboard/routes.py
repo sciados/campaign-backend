@@ -9,7 +9,7 @@ from sqlalchemy import text
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
 
-from src.core.database import get_db
+from src.core.database import get_async_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
 
@@ -30,7 +30,7 @@ class CompanyStatsResponse(BaseModel):
 @router.get("/stats", response_model=CompanyStatsResponse)
 async def get_company_stats(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Get company dashboard statistics - SAME PATTERN AS ADMIN DASHBOARD"""
     
@@ -131,7 +131,7 @@ async def get_company_stats(
 @router.get("/company")
 async def get_company_details(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Get detailed company information - SAME PATTERN AS ADMIN"""
     
