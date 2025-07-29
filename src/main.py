@@ -174,6 +174,35 @@ STORAGE_SYSTEM_AVAILABLE = any([
     DOCUMENT_ROUTER_AVAILABLE
 ])
 
+try:
+    from src.campaigns.routes import router as campaigns_router
+    logging.info("✅ Campaigns router imported successfully")
+    CAMPAIGNS_ROUTER_AVAILABLE = True
+except ImportError as e:
+    logging.error(f"❌ Campaigns router not available: {e}")
+    
+    # Let's debug each import individually
+    try:
+        import src.campaigns
+        logging.info("✅ src.campaigns module OK")
+        
+        try:
+            import src.campaigns.schemas
+            logging.info("✅ src.campaigns.schemas OK")
+        except ImportError as schema_err:
+            logging.error(f"❌ src.campaigns.schemas failed: {schema_err}")
+            
+        try:
+            import src.campaigns.routes
+            logging.info("✅ src.campaigns.routes OK")
+        except ImportError as routes_err:
+            logging.error(f"❌ src.campaigns.routes failed: {routes_err}")
+            
+    except ImportError as campaigns_err:
+        logging.error(f"❌ src.campaigns module failed: {campaigns_err}")
+    
+    CAMPAIGNS_ROUTER_AVAILABLE = False
+
 # ============================================================================
 # ✅ APPLICATION LIFESPAN
 # ============================================================================
