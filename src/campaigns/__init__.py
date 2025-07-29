@@ -1,35 +1,17 @@
+# src/campaigns/__init__.py
 """
-Campaign Schemas Package - Following intelligence/schemas pattern
+Campaigns module for marketing campaign management with streamlined 2-step workflow
+Modular router architecture following intelligence/routers pattern
 """
 
-from .campaign_schemas import (
-    CampaignCreate,
-    CampaignUpdate, 
-    CampaignResponse,
-    WorkflowProgressData
-)
-from .demo_schemas import (
-    DemoPreferenceUpdate,
-    DemoPreferenceResponse,
-    DemoCreationRequest,
-    DemoCreationResponse
-)
-from .workflow_schemas import (
-    WorkflowStateResponse,
-    AnalysisProgressResponse,
-    CampaignIntelligenceResponse
-)
-
-__all__ = [
-    "CampaignCreate",
-    "CampaignUpdate", 
-    "CampaignResponse",
-    "WorkflowProgressData",
-    "DemoPreferenceUpdate",
-    "DemoPreferenceResponse",
-    "DemoCreationRequest",
-    "DemoCreationResponse",
-    "WorkflowStateResponse",
-    "AnalysisProgressResponse",
-    "CampaignIntelligenceResponse"
-]
+# Try to import the main router, with detailed error handling
+try:
+    from .routes import router
+    __all__ = ["router"]
+except ImportError as e:
+    import logging
+    logging.error(f"❌ Failed to import campaigns router: {e}")
+    # Create a fallback empty router to prevent complete failure
+    from fastapi import APIRouter
+    router = APIRouter(tags=["campaigns-fallback"])
+    __all__ = ["router"]

@@ -4,11 +4,8 @@ Uses the same proven pattern as admin dashboard with user-focused data
 """
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
-from admin.schemas import CompanyAnalyticsResponse
-from models.campaign import Campaign
-from models.company import Company
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, text
+from sqlalchemy import text
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
 
@@ -18,7 +15,7 @@ from src.models.user import User
 
 router = APIRouter(tags=["dashboard"])
 
-class CompanyAnalyticsResponse(BaseModel):
+class CompanyStatsResponse(BaseModel):
     company_name: str
     subscription_tier: str
     monthly_credits_used: int
@@ -30,7 +27,7 @@ class CompanyAnalyticsResponse(BaseModel):
     campaigns_this_month: int
     usage_percentage: float
 
-@router.get("/stats", response_model=CompanyAnalyticsResponse)
+@router.get("/stats", response_model=CompanyStatsResponse)
 async def get_company_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db)
@@ -60,11 +57,11 @@ async def get_company_stats(
         """), {"company_id": str(current_user.company_id)})
         total_campaigns_created = total_campaigns_result.scalar() or 0
         
-        # Get active campaigns
+        # Get active campaigns (using only status values that exist in your database)
         active_campaigns_result = await db.execute(text("""
             SELECT COUNT(*) FROM campaigns 
             WHERE company_id = :company_id 
-            AND status IN ('DRAFT', 'IN_PROGRESS', 'COMPLETED', 'ACTIVE')
+            AND status IN ('DRAFT', 'ACTIVE')
         """), {"company_id": str(current_user.company_id)})
         active_campaigns = active_campaigns_result.scalar() or 0
         
@@ -96,7 +93,7 @@ async def get_company_stats(
         
         print(f"✅ USER DASHBOARD STATS: Company={company_data[0]}, Campaigns={total_campaigns_created}, Active={active_campaigns}")
         
-        return CompanyAnalyticsResponse(
+        return CompanyStatsResponse(
             company_name=company_data[0] or "Unknown Company",
             subscription_tier=company_data[1] or "free",
             monthly_credits_used=monthly_credits_used,
@@ -108,7 +105,6 @@ async def get_company_stats(
             campaigns_this_month=campaigns_this_month,
             usage_percentage=round(usage_percentage, 1)
         )
-    
         
     except HTTPException:
         raise
@@ -119,7 +115,7 @@ async def get_company_stats(
         print(f"❌ Company ID: {current_user.company_id}")
         
         # ✅ SAME FALLBACK PATTERN AS ADMIN
-        return CompanyAnalyticsResponse(
+        return CompanyStatsResponse(
             company_name="RodgersDigital",
             subscription_tier="free",
             monthly_credits_used=0,
@@ -132,77 +128,50 @@ async def get_company_stats(
             usage_percentage=0.0
         )
 
-@router.get("/company/{company_id}", response_model=CompanyAnalyticsResponse)
+@router.get("/company")
 async def get_company_details(
-    company_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db)
 ):
     """Get detailed company information - SAME PATTERN AS ADMIN"""
     
-    result = await db.execute(select(Company).where(Company.id == company_id))
-    company = result.scalar_one_or_none()
-    
-    if not company:
+    try:
+        # ✅ EXACTLY LIKE ADMIN: Simple raw SQL
+        result = await db.execute(text("""
+            SELECT id, company_name, company_slug, industry, company_size, 
+                   website_url, subscription_tier, subscription_status,
+                   monthly_credits_used, monthly_credits_limit, created_at
+            FROM companies 
+            WHERE id = :company_id
+        """), {"company_id": str(current_user.company_id)})
+        
+        company_data = result.fetchone()
+        
+        if not company_data:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Company not found"
+            )
+        
+        return {
+            "id": str(company_data[0]),
+            "company_name": company_data[1],
+            "company_slug": company_data[2],
+            "industry": company_data[3] or "",
+            "company_size": company_data[4] or "small",
+            "website_url": company_data[5] or "",
+            "subscription_tier": company_data[6],
+            "subscription_status": company_data[7],
+            "monthly_credits_used": company_data[8] or 0,
+            "monthly_credits_limit": company_data[9] or 5000,
+            "created_at": company_data[10].isoformat() if company_data[10] else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Company details error: {str(e)}")
         raise HTTPException(
-            status_code=http_status.HTTP_404_NOT_FOUND,
-            detail="Company not found"
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch company details"
         )
-    
-    # Get user count for this company
-    user_count_query = select(func.count(User.id)).where(User.company_id == company.id)
-    user_count = await db.scalar(user_count_query) or 0
-    
-    # Get campaign count for this company
-    campaign_count_query = select(func.count(Campaign.id)).where(Campaign.company_id == company.id)
-    campaign_count = await db.scalar(campaign_count_query) or 0
-    
-    return CompanyAnalyticsResponse(
-        id=company.id,
-        company_name=company.company_name,
-        company_slug=company.company_slug,
-        industry=company.industry or "",
-        company_size=company.company_size,
-        subscription_tier=company.subscription_tier,
-        subscription_status=company.subscription_status,
-        monthly_credits_used=company.monthly_credits_used,
-        monthly_credits_limit=company.monthly_credits_limit,
-        total_campaigns_created=company.total_campaigns_created,
-        created_at=company.created_at,
-        user_count=user_count,
-        campaign_count=campaign_count
-    )
-
-@router.put("/companies/{company_id}")
-async def update_company_details(
-    company_id: str,
-    company_update: CompanyAnalyticsResponse,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
-):
-    """Update company details"""
-    
-    result = await db.execute(select(Company).where(Company.id == company_id))
-    company = result.scalar_one_or_none()
-    
-    if not company:
-        raise HTTPException(
-            status_code=http_status.HTTP_404_NOT_FOUND,
-            detail="Company not found"
-        )
-    
-    # Update company fields
-    if company_update.company_name is not None:
-        company.company_name = company_update.company_name
-    if company_update.industry is not None:
-        company.industry = company_update.industry
-    if company_update.company_size is not None:
-        company.company_size = company_update.company_size
-    if company_update.website_url is not None:
-        # Only update if the field exists on the model
-        if hasattr(company, 'website_url'):
-            company.website_url = company_update.website_url
-    
-    await db.commit()
-    
-    return {"message": "Company details updated successfully"}
