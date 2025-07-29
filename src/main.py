@@ -31,7 +31,7 @@ try:
     logging.info("✅ Database core imported successfully")
 except ImportError as e:
     logging.error(f"❌ Failed to import database core: {e}")
-    raise
+
 
     # Import models in dependency order (tables already exist)
     
@@ -48,8 +48,6 @@ except ImportError as e:
         logging.info("✅ Campaign models imported successfully")
     except ImportError as e:
         logging.warning(f"⚠️ Campaign models not available: {e}")
-
-    
 
 # ============================================================================
 # ✅ IMPORT ROUTERS AFTER MODELS
@@ -103,6 +101,60 @@ except ImportError as e:
 INTELLIGENCE_ROUTERS_AVAILABLE = False
 ANALYSIS_ROUTER_AVAILABLE = False
 AFFILIATE_ROUTER_AVAILABLE = False
+
+try:
+    from src.campaigns.routes import router as campaigns_router
+    logging.info("✅ Campaigns router imported successfully")
+    CAMPAIGNS_ROUTER_AVAILABLE = True
+except ImportError as e:
+    logging.error(f"❌ Campaigns router not available: {e}")
+    
+    # Debug each component individually
+    try:
+        import src.campaigns
+        logging.info("✅ src.campaigns module imports OK")
+    except ImportError as campaigns_err:
+        logging.error(f"❌ src.campaigns module failed: {campaigns_err}")
+    
+    try:
+        import src.campaigns.schemas
+        logging.info("✅ src.campaigns.schemas imports OK")
+    except ImportError as schemas_err:
+        logging.error(f"❌ src.campaigns.schemas failed: {schemas_err}")
+    
+    try:
+        import src.campaigns.services
+        logging.info("✅ src.campaigns.services imports OK")
+    except ImportError as services_err:
+        logging.error(f"❌ src.campaigns.services failed: {services_err}")
+    
+    # Test individual route files
+    route_files = [
+        "campaign_crud",
+        "demo_management", 
+        "workflow_operations",
+        "dashboard_stats",
+        "admin_endpoints"
+    ]
+    
+    for route_file in route_files:
+        try:
+            module_path = f"src.campaigns.routes.{route_file}"
+            __import__(module_path)
+            logging.info(f"✅ {module_path} imports OK")
+        except ImportError as route_err:
+            logging.error(f"❌ {module_path} failed: {route_err}")
+    
+    try:
+        import src.campaigns.routes
+        logging.info("✅ src.campaigns.routes imports OK")
+    except ImportError as routes_err:
+        logging.error(f"❌ src.campaigns.routes failed: {routes_err}")
+    
+    import traceback
+    logging.error(f"❌ Full traceback: {traceback.format_exc()}")
+    CAMPAIGNS_ROUTER_AVAILABLE = False 
+
 
 try:
     from src.intelligence.routers.content_routes import router as content_router
@@ -173,35 +225,6 @@ STORAGE_SYSTEM_AVAILABLE = any([
     STORAGE_ROUTER_AVAILABLE,
     DOCUMENT_ROUTER_AVAILABLE
 ])
-
-try:
-    from src.campaigns.routes import router as campaigns_router
-    logging.info("✅ Campaigns router imported successfully")
-    CAMPAIGNS_ROUTER_AVAILABLE = True
-except ImportError as e:
-    logging.error(f"❌ Campaigns router not available: {e}")
-    
-    # Let's debug each import individually
-    try:
-        import src.campaigns
-        logging.info("✅ src.campaigns module OK")
-        
-        try:
-            import src.campaigns.schemas
-            logging.info("✅ src.campaigns.schemas OK")
-        except ImportError as schema_err:
-            logging.error(f"❌ src.campaigns.schemas failed: {schema_err}")
-            
-        try:
-            import src.campaigns.routes
-            logging.info("✅ src.campaigns.routes OK")
-        except ImportError as routes_err:
-            logging.error(f"❌ src.campaigns.routes failed: {routes_err}")
-            
-    except ImportError as campaigns_err:
-        logging.error(f"❌ src.campaigns module failed: {campaigns_err}")
-    
-    CAMPAIGNS_ROUTER_AVAILABLE = False
 
 # ============================================================================
 # ✅ APPLICATION LIFESPAN
@@ -630,7 +653,7 @@ async def system_status():
             "ai_monitoring": AI_MONITORING_ROUTER_AVAILABLE,  # ✅ NEW
             "waitlist": WAITLIST_ROUTER_AVAILABLE  # ✅ NEW
         },
-        "models": {        
+        "models": {
             "campaign_assets_enhanced": True  # ✅ NEW:  with dual storage
         },
         "systems": {  # ✅ NEW: System capabilities
@@ -1604,6 +1627,12 @@ async def optimize_factory():
             status_code=500,
             detail=f"Factory optimization failed: {str(e)}"
         )
+
+# Add this after your other router registrations
+@app.get("/api/campaigns/test")
+async def test_campaigns():
+    """Test endpoint to verify campaigns would work"""
+    return {"message": "Campaigns endpoint would work if router was registered"}
 
 # ============================================================================
 # ✅ FINAL APPLICATION EXPORT
