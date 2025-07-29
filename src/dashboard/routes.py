@@ -47,8 +47,8 @@ async def get_company_stats(
             WHERE id = :company_id
         """)
         
-        result = await db.execute(company_query, {"company_id": str(current_user.company_id)})
-        company_row = result.fetchone()
+        company_result = await db.execute(company_query, {"company_id": str(current_user.company_id)})
+        company_row = company_result.fetchone()
         
         if not company_row:
             raise HTTPException(
@@ -60,7 +60,7 @@ async def get_company_stats(
         now = datetime.now(timezone.utc)
         first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
-        # ✅ FIXED: Use raw SQL for all counting queries
+        # ✅ FIXED: Use raw SQL for all counting queries with proper async handling
         stats_query = text("""
             SELECT 
                 (SELECT COUNT(*) FROM campaigns WHERE company_id = :company_id) as total_campaigns,
@@ -79,23 +79,23 @@ async def get_company_stats(
         })
         stats_row = stats_result.fetchone()
         
-        # Extract values safely
-        total_campaigns_created = stats_row.total_campaigns if stats_row else 0
-        active_campaigns = stats_row.active_campaigns if stats_row else 0
-        team_members = stats_row.team_members if stats_row else 1
-        campaigns_this_month = stats_row.campaigns_this_month if stats_row else 0
+        # Extract values safely with proper attribute access
+        total_campaigns_created = getattr(stats_row, 'total_campaigns', 0) if stats_row else 0
+        active_campaigns = getattr(stats_row, 'active_campaigns', 0) if stats_row else 0
+        team_members = getattr(stats_row, 'team_members', 1) if stats_row else 1
+        campaigns_this_month = getattr(stats_row, 'campaigns_this_month', 0) if stats_row else 0
         
-        # Calculate usage percentage
-        monthly_credits_used = company_row.monthly_credits_used or 0
-        monthly_credits_limit = company_row.monthly_credits_limit or 5000
+        # Calculate usage percentage with safe attribute access
+        monthly_credits_used = getattr(company_row, 'monthly_credits_used', 0) or 0
+        monthly_credits_limit = getattr(company_row, 'monthly_credits_limit', 5000) or 5000
         credits_remaining = max(0, monthly_credits_limit - monthly_credits_used)
         usage_percentage = (monthly_credits_used / monthly_credits_limit * 100) if monthly_credits_limit > 0 else 0
         
         print(f"✅ Successfully calculated stats: {total_campaigns_created} campaigns, {active_campaigns} active")
         
         return CompanyStatsResponse(
-            company_name=company_row.company_name or "Unknown Company",
-            subscription_tier=company_row.subscription_tier or "free",
+            company_name=getattr(company_row, 'company_name', 'Unknown Company') or "Unknown Company",
+            subscription_tier=getattr(company_row, 'subscription_tier', 'free') or "free",
             monthly_credits_used=monthly_credits_used,
             monthly_credits_limit=monthly_credits_limit,
             credits_remaining=credits_remaining,
@@ -157,8 +157,8 @@ async def get_company_details(
             WHERE id = :company_id
         """)
         
-        result = await db.execute(query, {"company_id": str(current_user.company_id)})
-        company_row = result.fetchone()
+        company_result = await db.execute(query, {"company_id": str(current_user.company_id)})
+        company_row = company_result.fetchone()
         
         if not company_row:
             raise HTTPException(
@@ -167,17 +167,17 @@ async def get_company_details(
             )
         
         return {
-            "id": str(company_row.id),
-            "company_name": company_row.company_name,
-            "company_slug": company_row.company_slug,
-            "industry": company_row.industry,
-            "company_size": company_row.company_size or 'small',
-            "website_url": company_row.website_url,
-            "subscription_tier": company_row.subscription_tier,
-            "subscription_status": company_row.subscription_status,
-            "monthly_credits_used": company_row.monthly_credits_used,
-            "monthly_credits_limit": company_row.monthly_credits_limit,
-            "created_at": company_row.created_at.isoformat() if company_row.created_at else None
+            "id": str(getattr(company_row, 'id', '')),
+            "company_name": getattr(company_row, 'company_name', ''),
+            "company_slug": getattr(company_row, 'company_slug', ''),
+            "industry": getattr(company_row, 'industry', ''),
+            "company_size": getattr(company_row, 'company_size', 'small') or 'small',
+            "website_url": getattr(company_row, 'website_url', ''),
+            "subscription_tier": getattr(company_row, 'subscription_tier', 'free'),
+            "subscription_status": getattr(company_row, 'subscription_status', 'active'),
+            "monthly_credits_used": getattr(company_row, 'monthly_credits_used', 0),
+            "monthly_credits_limit": getattr(company_row, 'monthly_credits_limit', 5000),
+            "created_at": company_row.created_at.isoformat() if hasattr(company_row, 'created_at') and company_row.created_at else None
         }
         
     except HTTPException:
