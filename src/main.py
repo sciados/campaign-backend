@@ -31,7 +31,7 @@ try:
     logging.info("✅ Database core imported successfully")
 except ImportError as e:
     logging.error(f"❌ Failed to import database core: {e}")
-
+   # raise
 
     # Import models in dependency order (tables already exist)
     

@@ -3,8 +3,9 @@ Workflow Schemas - Following intelligence/schemas pattern
 🎯 NEW: 2-step workflow state management
 """
 from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
+from typing import Optional, Dict, Any, List
 from datetime import datetime
+from uuid import UUID
 
 class WorkflowStateResponse(BaseModel):
     """Response model for workflow state"""
@@ -55,3 +56,14 @@ class CampaignIntelligenceResponse(BaseModel):
     pagination: Dict[str, Any]
     summary: Dict[str, Any]
     is_demo: bool
+
+class WorkflowProgressData(BaseModel):
+    """Data for saving workflow progress - ADDED MISSING SCHEMA"""
+    workflow_state: Optional[str] = None
+    completion_percentage: Optional[float] = None
+    step_data: Optional[Dict[str, Any]] = None
+    auto_analysis_enabled: Optional[bool] = None
+    generate_content_after_analysis: Optional[bool] = None
+    
+    class Config:
+        validate_by_name = True  # Updated for Pydantic V2
