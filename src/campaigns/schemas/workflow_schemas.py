@@ -14,24 +14,24 @@ class WorkflowStateResponse(BaseModel):
     completion_percentage: float
     total_steps: int
     current_step: int
-    
+
     # Progress metrics
     metrics: Dict[str, int]
-    
+
     # Auto-analysis info
     auto_analysis: Dict[str, Any]
-    
+
     # Next recommended actions
     next_steps: List[Dict[str, Any]]
-    
+
     # Workflow capabilities
     can_analyze: bool
     can_generate_content: bool
     is_demo: bool
-    
+
     # Step states
     step_states: Dict[str, Any]
-    
+
     # Timestamps
     created_at: str
     updated_at: str
@@ -64,6 +64,6 @@ class WorkflowProgressData(BaseModel):
     step_data: Optional[Dict[str, Any]] = None
     auto_analysis_enabled: Optional[bool] = None
     generate_content_after_analysis: Optional[bool] = None
-    
+
     class Config:
         validate_by_name = True  # Updated for Pydantic V2

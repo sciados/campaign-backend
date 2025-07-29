@@ -31,23 +31,19 @@ try:
     logging.info("✅ Database core imported successfully")
 except ImportError as e:
     logging.error(f"❌ Failed to import database core: {e}")
-   # raise
 
-    # Import models in dependency order (tables already exist)
-    
-        # Core models first
-    
-    
-    # Campaign models
-    try:
-        from src.models.campaign import Campaign
-        from src.models import CampaignAsset  # ✅ NEW:  with dual storage
-        from src.models.intelligence import CampaignIntelligence
-        from src.models.user import User
-        from src.models.company import Company
-        logging.info("✅ Campaign models imported successfully")
-    except ImportError as e:
-        logging.warning(f"⚠️ Campaign models not available: {e}")
+# Import models in dependency order (tables already exist)
+# Core models first
+# Campaign models
+try:
+    from src.models.campaign import Campaign
+    from src.models import CampaignAsset  # ✅ NEW:  with dual storage
+    from src.models.intelligence import CampaignIntelligence
+    from src.models.user import User
+    from src.models.company import Company
+    logging.info("✅ Campaign models imported successfully")
+except ImportError as e:
+    logging.warning(f"⚠️ Campaign models not available: {e}")
 
 # ============================================================================
 # ✅ IMPORT ROUTERS AFTER MODELS
@@ -62,54 +58,18 @@ except ImportError as e:
     logging.error(f"❌ Auth router not available: {e}")
     AUTH_ROUTER_AVAILABLE = False
 
-try:
-    from src.campaigns.routes import router as campaigns_router
-    logging.info("✅ Campaigns router imported successfully")
-    CAMPAIGNS_ROUTER_AVAILABLE = True
-except ImportError as e:
-    logging.error(f"❌ Campaigns router not available: {e}")
-    CAMPAIGNS_ROUTER_AVAILABLE = False
-
-try:
-    from src.dashboard.routes import router as dashboard_router
-    logging.info("✅ Dashboard router imported successfully")
-    DASHBOARD_ROUTER_AVAILABLE = True
-except ImportError as e:
-    logging.warning(f"⚠️ Dashboard router not available: {e}")
-    DASHBOARD_ROUTER_AVAILABLE = False
-
-try:
-    from src.admin.routes import router as admin_router
-    logging.info("✅ Admin router imported successfully")
-    ADMIN_ROUTER_AVAILABLE = True
-except ImportError as e:
-    logging.warning(f"⚠️ Admin router not available: {e}")
-    admin_router = None
-    ADMIN_ROUTER_AVAILABLE = False
-
-# Waitlist router import
-try:
-    from src.routes.waitlist import router as waitlist_router
-    logging.info("✅ Waitlist router imported successfully")
-    WAITLIST_ROUTER_AVAILABLE = True
-except ImportError as e:
-    logging.warning(f"⚠️ Waitlist router not available: {e}")
-    waitlist_router = None
-    WAITLIST_ROUTER_AVAILABLE = False
-
-# Import intelligence routers
-INTELLIGENCE_ROUTERS_AVAILABLE = False
-ANALYSIS_ROUTER_AVAILABLE = False
-AFFILIATE_ROUTER_AVAILABLE = False
+# ✅ FIXED: Single campaigns router import with better error handling
+CAMPAIGNS_ROUTER_AVAILABLE = False
+campaigns_router = None
 
 try:
     from src.campaigns.routes import router as campaigns_router
-    logging.info("✅ Campaigns router imported successfully")
     CAMPAIGNS_ROUTER_AVAILABLE = True
+    logging.info("✅ Campaigns router imported successfully")
 except ImportError as e:
     logging.error(f"❌ Campaigns router not available: {e}")
     
-    # Debug each component individually
+    # Debug each component individually to identify the issue
     try:
         import src.campaigns
         logging.info("✅ src.campaigns module imports OK")
@@ -153,8 +113,38 @@ except ImportError as e:
     
     import traceback
     logging.error(f"❌ Full traceback: {traceback.format_exc()}")
-    CAMPAIGNS_ROUTER_AVAILABLE = False 
 
+try:
+    from src.dashboard.routes import router as dashboard_router
+    logging.info("✅ Dashboard router imported successfully")
+    DASHBOARD_ROUTER_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"⚠️ Dashboard router not available: {e}")
+    DASHBOARD_ROUTER_AVAILABLE = False
+
+try:
+    from src.admin.routes import router as admin_router
+    logging.info("✅ Admin router imported successfully")
+    ADMIN_ROUTER_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"⚠️ Admin router not available: {e}")
+    admin_router = None
+    ADMIN_ROUTER_AVAILABLE = False
+
+# Waitlist router import
+try:
+    from src.routes.waitlist import router as waitlist_router
+    logging.info("✅ Waitlist router imported successfully")
+    WAITLIST_ROUTER_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"⚠️ Waitlist router not available: {e}")
+    waitlist_router = None
+    WAITLIST_ROUTER_AVAILABLE = False
+
+# Import intelligence routers
+INTELLIGENCE_ROUTERS_AVAILABLE = False
+ANALYSIS_ROUTER_AVAILABLE = False
+AFFILIATE_ROUTER_AVAILABLE = False
 
 try:
     from src.intelligence.routers.content_routes import router as content_router
@@ -400,13 +390,14 @@ if WAITLIST_ROUTER_AVAILABLE and waitlist_router:
     app.include_router(waitlist_router, prefix="/api/waitlist", tags=["waitlist"])
     logging.info("📡 Waitlist router registered at /api/waitlist")
     
-# Debug: Show waitlist routes
+    # Debug: Show waitlist routes
     print(f"🔍 Waitlist router has {len(waitlist_router.routes)} routes:")
     for route in waitlist_router.routes:
         if hasattr(route, 'path') and hasattr(route, 'methods'):
             print(f"  {list(route.methods)} /api/waitlist{route.path}")
 
-if CAMPAIGNS_ROUTER_AVAILABLE:
+# ✅ FIXED: Campaigns router registration with better error handling and fallback
+if CAMPAIGNS_ROUTER_AVAILABLE and campaigns_router:
     app.include_router(campaigns_router, prefix="/api/campaigns", tags=["campaigns"])
     logging.info("📡 Campaigns router registered with prefix /api/campaigns")
     
@@ -416,7 +407,28 @@ if CAMPAIGNS_ROUTER_AVAILABLE:
         if hasattr(route, 'path') and hasattr(route, 'methods'):
             print(f"  {list(route.methods)} /api/campaigns{route.path}")
 else:
-    logging.error("❌ Campaigns router not registered")
+    logging.error("❌ Campaigns router not registered - CAMPAIGNS_ROUTER_AVAILABLE = False")
+    
+    # ✅ NEW: Add fallback campaigns endpoints when main router fails
+    @app.get("/api/campaigns/fallback")
+    async def campaigns_fallback():
+        return {
+            "message": "Campaigns router import failed, using fallback",
+            "status": "error",
+            "available_endpoints": [
+                "/api/campaigns/test",
+                "/api/campaigns/fallback", 
+                "/api/campaigns/status"
+            ]
+        }
+    
+    @app.get("/api/campaigns/status")
+    async def campaigns_status():
+        return {
+            "campaigns_router_available": CAMPAIGNS_ROUTER_AVAILABLE,
+            "import_error": "Check logs for detailed import errors",
+            "debug_suggestion": "Use /api/debug/system-diagnosis to identify issues"
+        }
 
 if DASHBOARD_ROUTER_AVAILABLE:
     app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
@@ -429,15 +441,15 @@ if ANALYSIS_ROUTER_AVAILABLE and analysis_router:
     intelligence_routes_registered += 1
 
 if CONTENT_ROUTER_AVAILABLE and content_router:
-        app.include_router(content_router, prefix="/api/intelligence/content", tags=["intelligence", "content", "generation"])
-        logging.info("📡 Content generation router registered at /api/intelligence/content")
-        intelligence_routes_registered += 1
-    
-        # ✅ DEBUG: Show content routes
-        print(f"🔍 Content generation router has {len(content_router.routes)} routes:")
-        for route in content_router.routes:
-            if hasattr(route, 'path') and hasattr(route, 'methods'):
-                print(f"  {list(route.methods)} /api/intelligence/content{route.path}")
+    app.include_router(content_router, prefix="/api/intelligence/content", tags=["intelligence", "content", "generation"])
+    logging.info("📡 Content generation router registered at /api/intelligence/content")
+    intelligence_routes_registered += 1
+
+    # ✅ DEBUG: Show content routes
+    print(f"🔍 Content generation router has {len(content_router.routes)} routes:")
+    for route in content_router.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            print(f"  {list(route.methods)} /api/intelligence/content{route.path}")
 
 # ✅ NEW: Register enhanced stability routes (with ultra-cheap image generation)
 if STABILITY_ROUTER_AVAILABLE and stability_router:
