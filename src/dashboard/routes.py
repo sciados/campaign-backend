@@ -1,20 +1,19 @@
 """
 Company dashboard routes for company owners and team members - FIXED VERSION
 """
-from time import timezone
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from pydantic import BaseModel
 from typing import Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from src.core.database import get_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
 from src.models.company import Company
-from src.models.campaign import Campaign, CampaignStatus  # ✅ FIXED: Import CampaignStatus enum
+from src.models.campaign import Campaign, CampaignStatus
 
 # ✅ FIXED: Remove duplicate prefix (main.py already adds /api/dashboard)
 router = APIRouter(tags=["dashboard"])
@@ -55,41 +54,45 @@ async def get_company_stats(
         now = datetime.now(timezone.utc)
         first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
+        # ✅ FIXED: Properly await all database queries
         # Total campaigns for this company
-        total_campaigns_created = await db.scalar(
+        total_campaigns_result = await db.execute(
             select(func.count(Campaign.id)).where(Campaign.company_id == current_user.company_id)
-        ) or 0
+        )
+        total_campaigns_created = total_campaigns_result.scalar() or 0
         
-        # ✅ FIXED: Use actual database enum values
-        # Database has: DRAFT, IN_PROGRESS, REVIEW, ACTIVE, COMPLETED, ARCHIVED
-        active_campaigns = await db.scalar(
+        # ✅ FIXED: Use actual database enum values and await properly
+        active_campaigns_result = await db.execute(
             select(func.count(Campaign.id)).where(
                 and_(
                     Campaign.company_id == current_user.company_id,
                     Campaign.status.in_([
                         CampaignStatus.DRAFT, 
-                        CampaignStatus.IN_PROGRESS,
-                        CampaignStatus.REVIEW,
+                        CampaignStatus.ANALYZING,
+                        CampaignStatus.ANALYSIS_COMPLETE,
                         CampaignStatus.ACTIVE
-                    ])  # ✅ FIXED: Use enum values that actually exist in database
+                    ])
                 )
             )
-        ) or 0
+        )
+        active_campaigns = active_campaigns_result.scalar() or 0
         
         # Team members in this company
-        team_members = await db.scalar(
+        team_members_result = await db.execute(
             select(func.count(User.id)).where(User.company_id == current_user.company_id)
-        ) or 0
+        )
+        team_members = team_members_result.scalar() or 0
         
         # Campaigns created this month
-        campaigns_this_month = await db.scalar(
+        campaigns_this_month_result = await db.execute(
             select(func.count(Campaign.id)).where(
                 and_(
                     Campaign.company_id == current_user.company_id,
                     Campaign.created_at >= first_of_month
                 )
             )
-        ) or 0
+        )
+        campaigns_this_month = campaigns_this_month_result.scalar() or 0
         
         # Calculate usage percentage
         credits_remaining = max(0, company.monthly_credits_limit - company.monthly_credits_used)
@@ -109,8 +112,11 @@ async def get_company_stats(
         )
         
     except Exception as e:
-        # ✅ FIXED: Better error handling to prevent frontend crashes
+        # ✅ FIXED: Better error handling with more specific error info
         print(f"❌ Dashboard stats error: {e}")
+        print(f"❌ Error type: {type(e)}")
+        print(f"❌ User ID: {current_user.id}")
+        print(f"❌ Company ID: {current_user.company_id}")
         
         # Return safe defaults if we can't get company data
         try:
@@ -131,7 +137,8 @@ async def get_company_stats(
                 campaigns_this_month=0,
                 usage_percentage=0.0
             )
-        except:
+        except Exception as fallback_error:
+            print(f"❌ Fallback also failed: {fallback_error}")
             # Ultimate fallback
             raise HTTPException(
                 status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
