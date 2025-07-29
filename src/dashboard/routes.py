@@ -61,7 +61,7 @@ async def get_company_stats(
         active_campaigns_result = await db.execute(text("""
             SELECT COUNT(*) FROM campaigns 
             WHERE company_id = :company_id 
-            AND status IN ('DRAFT', 'ANALYZING', 'ANALYSIS_COMPLETE', 'ACTIVE')
+            AND status IN ('DRAFT', 'IN_PROGRESS', 'COMPLETED', 'ACTIVE')
         """), {"company_id": str(current_user.company_id)})
         active_campaigns = active_campaigns_result.scalar() or 0
         
