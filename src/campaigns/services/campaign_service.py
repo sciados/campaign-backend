@@ -170,6 +170,37 @@ class CampaignService:
         except Exception as task_error:
             logger.error(f"❌ FIXED auto-analysis background task failed: {str(task_error)}")
     
+    async def get_campaigns_by_company(
+        self, 
+        company_id: str, 
+        skip: int = 0, 
+        limit: int = 100, 
+        status: Optional[str] = None
+    ) -> List[Campaign]:
+        """Get campaigns by company ID"""
+        try:
+            from sqlalchemy import select
+            from ...models import Campaign
+        
+            # Build query
+            query = select(Campaign).where(Campaign.company_id == company_id)
+        
+            if status:
+                query = query.where(Campaign.status == status)
+        
+            # Apply pagination
+            query = query.offset(skip).limit(limit)
+        
+            # Execute query
+            result = await self.db.execute(query)
+            campaigns = result.scalars().all()
+        
+            return campaigns
+        
+        except Exception as e:
+            logger.error(f"Error getting campaigns by company: {e}")
+            return []
+    
     async def get_campaigns_paginated(
         self,
         skip: int = 0,
