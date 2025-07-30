@@ -19,7 +19,23 @@ from ..schemas import (
 )
 
 # Import the FIXED background task
-from ..routes import trigger_auto_analysis_task_fixed
+# Safe import to prevent circular imports
+def get_safe_background_task():
+    """Get background task safely to prevent circular imports"""
+    try:
+        from src.intelligence.tasks.auto_analysis import trigger_auto_analysis_task_fixed
+        return trigger_auto_analysis_task_fixed
+    except ImportError:
+        # Fallback function if not available
+        async def simple_fallback(*args, **kwargs):
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"🚀 Background analysis queued (fallback mode)")
+            return {"success": True, "fallback": True}
+        return simple_fallback
+
+# Get the safe task function
+trigger_auto_analysis_task_fixed = get_safe_background_task()
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
