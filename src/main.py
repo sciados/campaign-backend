@@ -377,13 +377,17 @@ async def https_redirect_middleware(request: Request, call_next):
             headers={"Location": str(https_url)}
         )
     
-    # Handle trailing slash redirects that cause 307s
+    # ✅ FIXED: Handle trailing slash redirects that cause CORS issues
     path = request.url.path
     
-    # For campaign endpoints, ensure consistent routing
+    # For campaign endpoints with query parameters, prevent trailing slash redirects
     if path.startswith("/api/campaigns"):
-        # Remove trailing slash for consistency
-        if path.endswith("/") and path != "/api/campaigns":
+        # If path is exactly "/api/campaigns" with query params, don't redirect
+        if path == "/api/campaigns" and request.url.query:
+            # Let it pass through - don't redirect
+            pass
+        # Remove trailing slash for other campaign paths
+        elif path.endswith("/") and path != "/api/campaigns/":
             new_path = path.rstrip("/")
             new_url = request.url.replace(path=new_path)
             return Response(
