@@ -75,7 +75,7 @@ class UniversalDualStorageManager:
                 raise ValueError("R2 access keys are required")
             
             # 🔥 FIXED: Proper R2 endpoint URL construction
-            r2_endpoint = f"https://{r2_account_id}.cloudflarestorage.com"
+            r2_endpoint = f"https://{r2_account_id}.r2.cloudflarestorage.com"
             
             r2_client = boto3.client(
                 's3',
@@ -406,7 +406,7 @@ class UniversalDualStorageManager:
                 if custom_domain:
                     return f"https://{custom_domain}/{filename}"
                 else:
-                    return f"https://{bucket_name}.{account_id}.cloudflarestorage.com/{filename}"
+                    return f"https://{bucket_name}.{account_id}.r2.cloudflarestorage.com/{filename}"
                     
             elif provider.name == "backblaze_b2":
                 return f"https://{bucket_name}.s3.us-west-004.backblazeb2.com/{filename}"

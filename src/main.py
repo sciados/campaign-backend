@@ -588,6 +588,51 @@ else:
 if DASHBOARD_ROUTER_AVAILABLE:
     app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
     logging.info("📡 Dashboard router registered at /api/dashboard")
+    
+    # 🔍 DEBUG: Show dashboard routes
+    print(f"🔍 Dashboard router has {len(dashboard_router.routes)} routes:")
+    for route in dashboard_router.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            print(f"  {list(route.methods)} /api/dashboard{route.path}")
+else:
+    logging.error("❌ Dashboard router not registered - dashboard stats will not work")
+    
+    # 🚨 ADD EMERGENCY DASHBOARD ENDPOINT
+    @app.get("/api/dashboard/stats", tags=["emergency-dashboard"])
+    async def emergency_dashboard_stats():
+        """Emergency dashboard stats endpoint"""
+        return {
+            "company_name": "CampaignForge",
+            "subscription_tier": "free",
+            "monthly_credits_used": 0,
+            "monthly_credits_limit": 5000,
+            "credits_remaining": 5000,
+            "total_campaigns_created": 0,
+            "active_campaigns": 0,
+            "team_members": 1,
+            "campaigns_this_month": 0,
+            "usage_percentage": 0.0,
+            "emergency_mode": True,
+            "debug_message": "Dashboard router failed to import - using fallback data"
+        }
+    
+    @app.get("/api/dashboard/company", tags=["emergency-dashboard"])
+    async def emergency_company_details():
+        """Emergency company details endpoint"""
+        return {
+            "id": "emergency-company-id",
+            "company_name": "CampaignForge",
+            "company_slug": "campaignforge",
+            "industry": "Technology",
+            "company_size": "small",
+            "website_url": "",
+            "subscription_tier": "free",
+            "subscription_status": "active",
+            "monthly_credits_used": 0,
+            "monthly_credits_limit": 5000,
+            "created_at": "2025-01-17T12:00:00Z",
+            "emergency_mode": True
+        }
 
 # Intelligence routers with correct prefixes
 if ANALYSIS_ROUTER_AVAILABLE and analysis_router:
@@ -1846,6 +1891,71 @@ async def startup_debug():
     print("  5. Monitor confidence improvements")
     
     print("=" * 80)
+
+# Add this debug endpoint to your main.py with the other debug endpoints:
+
+@app.get("/api/debug/dashboard-status")
+async def debug_dashboard_status():
+    """Debug endpoint specifically for dashboard router issues"""
+    
+    # Check dashboard-related imports
+    import_status = {}
+    
+    try:
+        import src.dashboard
+        import_status["src.dashboard"] = "✅ Available"
+    except ImportError as e:
+        import_status["src.dashboard"] = f"❌ Error: {str(e)}"
+    
+    try:
+        import src.dashboard.routes
+        import_status["src.dashboard.routes"] = "✅ Available"
+    except ImportError as e:
+        import_status["src.dashboard.routes"] = f"❌ Error: {str(e)}"
+    
+    try:
+        from src.dashboard.routes import router as dashboard_router_test
+        import_status["dashboard_router_import"] = "✅ Available"
+        router_routes_count = len(dashboard_router_test.routes) if dashboard_router_test else 0
+    except ImportError as e:
+        import_status["dashboard_router_import"] = f"❌ Error: {str(e)}"
+        router_routes_count = 0
+    
+    # Check if dashboard routes are registered in the app
+    dashboard_routes_in_app = []
+    for route in app.routes:
+        if hasattr(route, 'path') and '/dashboard/' in route.path:
+            dashboard_routes_in_app.append({
+                "path": route.path,
+                "methods": list(route.methods) if hasattr(route, 'methods') else []
+            })
+    
+    return {
+        "dashboard_router_available": DASHBOARD_ROUTER_AVAILABLE,
+        "dashboard_router_object": dashboard_router is not None,
+        "import_status": import_status,
+        "router_routes_count": router_routes_count,
+        "dashboard_routes_in_app": dashboard_routes_in_app,
+        "expected_endpoints": [
+            "/api/dashboard/stats",
+            "/api/dashboard/company"
+        ],
+        "diagnosis": {
+            "primary_issue": "Router import failed" if not DASHBOARD_ROUTER_AVAILABLE else "Router should be working",
+            "likely_causes": [
+                "Missing dependencies in dashboard.routes module",
+                "Database connection issues",
+                "Missing model imports",
+                "Auth dependency issues"
+            ],
+            "next_steps": [
+                "Check dashboard module imports",
+                "Verify database connectivity", 
+                "Check auth dependencies",
+                "Test individual dashboard endpoints"
+            ]
+        }
+    }
 
 # ============================================================================
 # ✅ ENHANCED CONTENT GENERATION ENDPOINTS
