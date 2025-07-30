@@ -68,54 +68,46 @@ async def simple_background_task(campaign_id: str, url: str, user_id: str, compa
 
 # @router.get("", response_model=List[CampaignResponse] if SCHEMAS_AVAILABLE else List[dict])
 @router.get("/", response_model=List[CampaignResponse] if SCHEMAS_AVAILABLE else List[dict])
-async def get_campaigns(
-    skip: int = 0,
-    limit: int = 100,
-    status: Optional[str] = None,
-    db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Get campaigns - FIXED VERSION"""
+# Shared logic function (put all your current get_campaigns logic here)
+async def get_campaigns(skip, limit, status, db, current_user):
+    """Shared campaigns logic with demo auto-creation"""
     try:
         logger.info(f"📋 Getting campaigns for user {current_user.id}")
         
         if not SERVICES_AVAILABLE:
-            # Fallback when services aren't available
-            return [
-                {
-                    "id": "demo-campaign-1",
-                    "name": "Demo Campaign (Fallback)",
-                    "description": "This is a fallback response when services are unavailable",
-                    "status": "active",
-                    "is_demo": True,
-                    "created_at": "2025-01-17T12:00:00Z",
-                    "updated_at": "2025-01-17T12:00:00Z"
-                }
-            ]
+            # Fallback logic here...
+            return [{"id": "fallback", "name": "Service unavailable"}]
         
-        # Use services if available
+        # Initialize services
         campaign_service = CampaignService(db)
         demo_service = DemoService(db)
         
+        # Get campaigns using service
         campaigns = await campaign_service.get_campaigns_by_company(
             current_user.company_id, skip, limit, status
         )
         
+        # Demo auto-creation logic
+        demo_campaigns = [c for c in campaigns if demo_service.is_demo_campaign(c)]
+        real_campaigns = [c for c in campaigns if not demo_service.is_demo_campaign(c)]
+        
+        # Auto-create demo if none exists
+        if len(demo_campaigns) == 0:
+            logger.info("No demo campaigns found, creating demo...")
+            try:
+                demo_campaign = await demo_service.create_demo_campaign(
+                    current_user.company_id, current_user.id
+                )
+                if demo_campaign:
+                    demo_campaigns = [demo_campaign]
+                    campaigns = real_campaigns + demo_campaigns
+            except Exception as demo_error:
+                logger.warning(f"Demo creation failed: {demo_error}")
+        
         # Convert to response format
         campaign_responses = []
         for campaign in campaigns:
-            if hasattr(campaign_service, 'to_response'):
-                response = campaign_service.to_response(campaign)
-            else:
-                # Fallback response format
-                response = {
-                    "id": str(campaign.id),
-                    "name": campaign.name,
-                    "description": campaign.description or "",
-                    "status": getattr(campaign, 'status', 'active'),
-                    "created_at": campaign.created_at.isoformat() if hasattr(campaign, 'created_at') else None,
-                    "updated_at": campaign.updated_at.isoformat() if hasattr(campaign, 'updated_at') else None
-                }
+            response = campaign_service.to_response(campaign)
             campaign_responses.append(response)
         
         logger.info(f"✅ Returned {len(campaign_responses)} campaigns")
@@ -123,17 +115,24 @@ async def get_campaigns(
         
     except Exception as e:
         logger.error(f"❌ Error getting campaigns: {e}")
-        # Return a fallback response instead of raising an error
-        return [
-            {
-                "id": "error-fallback",
-                "name": "Error Getting Campaigns",
-                "description": f"Error: {str(e)}",
-                "status": "error",
-                "created_at": "2025-01-17T12:00:00Z",
-                "updated_at": "2025-01-17T12:00:00Z"
-            }
-        ]
+        return [{"id": "error", "name": "Error getting campaigns", "description": str(e)}]
+
+# Two separate endpoint functions
+@router.get("/", response_model=List[CampaignResponse] if SCHEMAS_AVAILABLE else List[dict])
+async def get_campaigns_with_slash(
+    skip: int = 0, limit: int = 100, status: Optional[str] = None,
+    db: AsyncSession = Depends(get_async_db), current_user: User = Depends(get_current_user)
+):
+    """Get campaigns - with trailing slash"""
+    return await get_campaigns(skip, limit, status, db, current_user)
+
+@router.get("", response_model=List[CampaignResponse] if SCHEMAS_AVAILABLE else List[dict])
+async def get_campaigns_no_slash(
+    skip: int = 0, limit: int = 100, status: Optional[str] = None,
+    db: AsyncSession = Depends(get_async_db), current_user: User = Depends(get_current_user)
+):
+    """Get campaigns - no trailing slash"""
+    return await get_campaigns(skip, limit, status, db, current_user)
 
 # @router.post("", response_model=CampaignResponse if SCHEMAS_AVAILABLE else dict)
 @router.post("/", response_model=CampaignResponse if SCHEMAS_AVAILABLE else dict)
