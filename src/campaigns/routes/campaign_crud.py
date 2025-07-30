@@ -54,12 +54,10 @@ router = APIRouter()
 # ============================================================================
 
 async def simple_background_task(campaign_id: str, url: str, user_id: str, company_id: str):
-    """
-    Simplified background task that doesn't cause circular imports
-    """
+    """Simplified background task - no imports needed"""
     try:
-        logger.info(f"🚀 Starting background analysis for campaign {campaign_id}")
-        # This would trigger analysis - simplified for now
+        logger.info(f"🚀 Background analysis queued for campaign {campaign_id}")
+        # Just log for now - no complex imports
         logger.info(f"✅ Background task completed for campaign {campaign_id}")
     except Exception as e:
         logger.error(f"❌ Background task failed: {e}")
@@ -68,7 +66,7 @@ async def simple_background_task(campaign_id: str, url: str, user_id: str, compa
 # ✅ CRUD ENDPOINTS - FIXED VERSIONS
 # ============================================================================
 
-@router.get("", response_model=List[CampaignResponse] if SCHEMAS_AVAILABLE else List[dict])
+@router.get("/", response_model=List[CampaignResponse] if SCHEMAS_AVAILABLE else List[dict])
 async def get_campaigns(
     skip: int = 0,
     limit: int = 100,
@@ -136,7 +134,7 @@ async def get_campaigns(
             }
         ]
 
-@router.post("", response_model=CampaignResponse if SCHEMAS_AVAILABLE else dict)
+@router.post("/", response_model=CampaignResponse if SCHEMAS_AVAILABLE else dict)
 async def create_campaign(
     campaign_data: CampaignCreate,
     background_tasks: BackgroundTasks,
