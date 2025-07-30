@@ -476,18 +476,66 @@ if CAMPAIGNS_ROUTER_AVAILABLE and campaigns_router:
         if hasattr(route, 'path') and hasattr(route, 'methods'):
             print(f"  {list(route.methods)} /api/campaigns{route.path}")
 else:
-    logging.error("❌ Campaigns router not registered - CAMPAIGNS_ROUTER_AVAILABLE = False")
+    logging.error("❌ Campaigns router not registered - Adding emergency CRUD endpoints")
     
-    # ✅ NEW: Add fallback campaigns endpoints when main router fails
+    # ============================================================================
+    # 🚨 EMERGENCY CRUD ENDPOINTS
+    # ============================================================================
+    
+    @app.get("/api/campaigns", tags=["emergency-campaigns"])
+    async def emergency_get_campaigns():
+        """Emergency endpoint for getting campaigns"""
+        return [
+            {
+                "id": "emergency-campaign-1",
+                "name": "Emergency Campaign Response",
+                "description": "CRUD router failed to load. This is an emergency response.",
+                "status": "fallback",
+                "is_demo": True,
+                "created_at": "2025-01-17T12:00:00Z",
+                "updated_at": "2025-01-17T12:00:00Z",
+                "error_context": "campaigns router import failed",
+                "debug_url": "/api/debug/campaigns-status"
+            }
+        ]
+    
+    @app.post("/api/campaigns", tags=["emergency-campaigns"]) 
+    async def emergency_create_campaign():
+        """Emergency endpoint for creating campaigns"""
+        import uuid
+        return {
+            "id": str(uuid.uuid4()),
+            "name": "Emergency Campaign Creation",
+            "description": "CRUD router failed. Campaign creation in emergency mode.",
+            "status": "emergency",
+            "created_at": "2025-01-17T12:00:00Z",
+            "message": "CRUD router import failed - check logs",
+            "debug_url": "/api/debug/campaigns-status"
+        }
+    
+    @app.get("/api/campaigns/{campaign_id}", tags=["emergency-campaigns"])
+    async def emergency_get_campaign(campaign_id: str):
+        """Emergency endpoint for getting single campaign"""
+        return {
+            "id": campaign_id,
+            "name": f"Emergency Campaign {campaign_id}",
+            "description": "CRUD router failed. Single campaign in emergency mode.",
+            "status": "emergency",
+            "created_at": "2025-01-17T12:00:00Z",
+            "debug_url": "/api/debug/campaigns-status"
+        }
+    
     @app.get("/api/campaigns/fallback")
     async def campaigns_fallback():
         return {
-            "message": "Campaigns router import failed, using fallback",
-            "status": "error",
+            "message": "Campaigns router import failed, using emergency endpoints",
+            "status": "emergency",
             "available_endpoints": [
+                "GET /api/campaigns",
+                "POST /api/campaigns",
+                "GET /api/campaigns/{id}",
                 "/api/campaigns/test",
-                "/api/campaigns/fallback", 
-                "/api/campaigns/status"
+                "/api/campaigns/fallback"
             ]
         }
     
@@ -495,9 +543,12 @@ else:
     async def campaigns_status():
         return {
             "campaigns_router_available": CAMPAIGNS_ROUTER_AVAILABLE,
+            "emergency_mode": True,
             "import_error": "Check logs for detailed import errors",
-            "debug_suggestion": "Use /api/debug/system-diagnosis to identify issues"
+            "debug_suggestion": "Use /api/debug/campaigns-status to identify issues"
         }
+    
+    logging.warning("⚠️ Emergency CRUD endpoints added due to campaigns router failure")
 
 if DASHBOARD_ROUTER_AVAILABLE:
     app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
