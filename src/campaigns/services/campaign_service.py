@@ -13,7 +13,7 @@ from sqlalchemy import select, func, and_
 
 from src.core.database import AsyncSessionLocal  # 🔧 CRITICAL FIX: Import at module level
 from src.models import Campaign, User, CampaignStatus
-from src.models.campaign import AutoAnalysisStatus, CampaignWorkflowState
+# from src.models.campaign import AutoAnalysisStatus, CampaignWorkflowState
 from src.utils.demo_campaign_seeder import is_demo_campaign
 
 logger = logging.getLogger(__name__)
@@ -180,7 +180,7 @@ class CampaignService:
         """Get campaigns by company ID"""
         try:
             from sqlalchemy import select
-            from ...models import Campaign
+            # from ...models import Campaign
         
             # Build query
             query = select(Campaign).where(Campaign.company_id == company_id)
