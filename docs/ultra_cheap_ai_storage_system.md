@@ -213,7 +213,7 @@ cloudflare-storage API token: 5CE6ZGzpBr-JyXMiBGn9PosSKe8AGrN_5z9LL6X9
 Token value: jmVyvvm8ictSaCYLihGOaqWLiiHOXnQLgUMwzLix
 R2_ACCESS_KEY_ID=f2d72bf04039d50c1008ef3ff91b9309
 R2_SECRET_ACCESS_KEY=a640cc08a32c4dee50228640d11040ac6033b6acec93952315ef92cd2bca7cb6
-R2_ACCOUNT_ID= shaunpgp@gmail.com
+CLOUDFLARE_ACCOUNT_ID= shaunpgp@gmail.com
 R2_BUCKET_NAME=campaignforge-storage
 Use jurisdiction-specific endpoints for S3 clients: https://f90ef5581b1301b7b68addfc9fa42297.r2.cloudflarestorage.com
 
@@ -887,7 +887,7 @@ class UniversalDualStorageManager:
         try:
             r2_client = boto3.client(
                 's3',
-                endpoint_url=f"https://{os.getenv('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com",
+                endpoint_url=f"https://{os.getenv('CLOUDFLARE_ACCOUNT_ID')}.r2.cloudflarestorage.com",
                 aws_access_key_id=os.getenv('R2_ACCESS_KEY_ID'),
                 aws_secret_access_key=os.getenv('R2_SECRET_ACCESS_KEY'),
                 region_name='auto'
@@ -1090,7 +1090,7 @@ class UniversalDualStorageManager:
         
         # Return public URL
         if provider.name == "cloudflare_r2":
-            return f"https://{bucket_name}.{os.getenv('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com/{filename}"
+            return f"https://{bucket_name}.{os.getenv('CLOUDFLARE_ACCOUNT_ID')}.r2.cloudflarestorage.com/{filename}"
         else:
             return f"https://{bucket_name}.s3.us-west-004.backblazeb2.com/{filename}"
     

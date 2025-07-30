@@ -2,6 +2,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import asynccontextmanager
 from sqlalchemy import text
 import logging
@@ -24,6 +27,9 @@ if app_path not in sys.path:
 # ============================================================================
 # ✅ IMPORT MODELS IN PROPER ORDER (no table creation needed)
 # ============================================================================
+
+from src.core.database import get_async_db
+from src.auth.dependencies import get_current_user
 
 # Import database setup (no table creation)
 try:
@@ -479,6 +485,31 @@ if CAMPAIGNS_ROUTER_AVAILABLE and campaigns_router:
     for route in campaigns_router.routes:
         if hasattr(route, 'path') and hasattr(route, 'methods'):
             print(f"  {list(route.methods)} /api/campaigns{route.path}")
+    
+    # 🔧 ADD THIS DIRECT ROUTE HERE TO PREVENT REDIRECTS
+    @app.get("/api/campaigns")
+    async def campaigns_direct_route(
+        skip: int = 0,
+        limit: int = 100,
+        db: AsyncSession = Depends(get_async_db),
+        current_user: User = Depends(get_current_user)
+    ):
+        """Direct route to prevent redirects"""
+        from src.campaigns.routes.campaign_crud import get_campaigns
+        return await get_campaigns(skip, limit, None, db, current_user)
+    
+    @app.post("/api/campaigns")
+    async def campaigns_create_direct_route(
+        campaign_data: dict,
+        background_tasks: BackgroundTasks,
+        db: AsyncSession = Depends(get_async_db),
+        current_user: User = Depends(get_current_user)
+    ):
+        """Direct create route to prevent redirects"""
+        from src.campaigns.routes.campaign_crud import create_campaign
+        from src.campaigns.schemas import CampaignCreate
+        campaign_obj = CampaignCreate(**campaign_data)
+        return await create_campaign(campaign_obj, background_tasks, db, current_user)
 else:
     logging.error("❌ Campaigns router not registered - Adding emergency CRUD endpoints")
     

@@ -64,12 +64,12 @@ class UniversalDualStorageManager:
         # 🔥 FIXED: Cloudflare R2 (Primary) - Proper endpoint configuration
         try:
             # Get R2 configuration with validation
-            r2_account_id = os.getenv('R2_ACCOUNT_ID') or os.getenv('CLOUDFLARE_ACCOUNT_ID')
-            r2_access_key = os.getenv('CLOUDFLARE_R2_ACCESS_KEY') or os.getenv('R2_ACCESS_KEY_ID')
-            r2_secret_key = os.getenv('CLOUDFLARE_R2_SECRET_KEY') or os.getenv('R2_SECRET_ACCESS_KEY')
+            r2_account_id = os.getenv('CLOUDFLARE_ACCOUNT_ID') or os.getenv('CLOUDFLARE_ACCOUNT_ID')
+            r2_access_key = os.getenv('CLOUDFLARE_R2_ACCESS_KEY_ID') or os.getenv('R2_ACCESS_KEY_ID')
+            r2_secret_key = os.getenv('CLOUDFLARE_R2_SECRET_ACCESS_KEY') or os.getenv('R2_SECRET_ACCESS_KEY')
             
             if not r2_account_id:
-                raise ValueError("R2_ACCOUNT_ID or CLOUDFLARE_ACCOUNT_ID is required for Cloudflare R2")
+                raise ValueError("CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_ACCOUNT_ID is required for Cloudflare R2")
             
             if not r2_access_key or not r2_secret_key:
                 raise ValueError("R2 access keys are required")
@@ -98,7 +98,7 @@ class UniversalDualStorageManager:
             
         except Exception as e:
             logger.error(f"❌ Cloudflare R2 initialization failed: {str(e)}")
-            logger.error(f"   Missing env vars: R2_ACCOUNT_ID, CLOUDFLARE_R2_ACCESS_KEY, CLOUDFLARE_R2_SECRET_KEY")
+            logger.error(f"   Missing env vars: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_R2_ACCESS_KEY_ID, CLOUDFLARE_R2_SECRET_ACCESS_KEY")
         
         # Backblaze B2 (Backup)
         try:
@@ -154,7 +154,7 @@ class UniversalDualStorageManager:
         
         if not providers:
             logger.error("❌ NO STORAGE PROVIDERS AVAILABLE!")
-            logger.error("   Add R2_ACCOUNT_ID and Cloudflare R2 credentials to Railway")
+            logger.error("   Add CLOUDFLARE_ACCOUNT_ID and Cloudflare R2 credentials to Railway")
         else:
             providers.sort(key=lambda x: x.priority)
             logger.info(f"📊 Storage providers initialized: {[p.name for p in providers]}")
@@ -400,7 +400,7 @@ class UniversalDualStorageManager:
             
             # Return appropriate public URL
             if provider.name == "cloudflare_r2":
-                account_id = os.getenv('R2_ACCOUNT_ID') or os.getenv('CLOUDFLARE_ACCOUNT_ID')
+                account_id = os.getenv('CLOUDFLARE_ACCOUNT_ID') or os.getenv('CLOUDFLARE_ACCOUNT_ID')
                 # Check for custom domain first
                 custom_domain = os.getenv('R2_CUSTOM_DOMAIN')
                 if custom_domain:
@@ -781,7 +781,7 @@ def validate_storage_configuration() -> Dict[str, Any]:
     }
     
     # Check R2 configuration
-    r2_vars = ["R2_ACCOUNT_ID", "CLOUDFLARE_R2_ACCESS_KEY", "CLOUDFLARE_R2_SECRET_KEY", "CLOUDFLARE_R2_BUCKET"]
+    r2_vars = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_R2_ACCESS_KEY_ID", "CLOUDFLARE_R2_SECRET_ACCESS_KEY", "CLOUDFLARE_R2_BUCKET"]
     r2_missing = [var for var in r2_vars if not os.getenv(var)]
     
     if not r2_missing:

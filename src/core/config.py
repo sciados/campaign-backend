@@ -79,7 +79,7 @@ class Settings(BaseSettings):
     CLOUDFLARE_R2_BUCKET_NAME: Optional[str] = None
     
     # Alternative scheme (R2_ prefix) - for backwards compatibility
-    R2_ACCOUNT_ID: Optional[str] = None
+    CLOUDFLARE_ACCOUNT_ID: Optional[str] = None
     R2_ACCESS_KEY_ID: Optional[str] = None
     R2_SECRET_ACCESS_KEY: Optional[str] = None
     R2_BUCKET_NAME: Optional[str] = None
@@ -88,7 +88,7 @@ class Settings(BaseSettings):
     @property
     def r2_account_id(self) -> Optional[str]:
         """Get R2 account ID from either variable scheme"""
-        return self.CLOUDFLARE_ACCOUNT_ID or self.R2_ACCOUNT_ID
+        return self.CLOUDFLARE_ACCOUNT_ID or self.CLOUDFLARE_ACCOUNT_ID
 
     @property
     def r2_access_key_id(self) -> Optional[str]:
@@ -268,7 +268,7 @@ def validate_railway_deployment():
     # Next steps
     if not r2_ok:
         print(f"\n🔧 IMMEDIATE ACTION NEEDED:")
-        print(f"   1. Set R2_ACCOUNT_ID = '{settings.CLOUDFLARE_ACCOUNT_ID or 'MISSING'}'")
+        print(f"   1. Set CLOUDFLARE_ACCOUNT_ID = '{settings.CLOUDFLARE_ACCOUNT_ID or 'MISSING'}'")
         if not settings.r2_account_id:
             print(f"   2. Check if CLOUDFLARE_ACCOUNT_ID is properly set")
     
@@ -288,10 +288,10 @@ def check_immediate_fixes_needed():
     
     fixes_needed = []
     
-    # Check if R2_ACCOUNT_ID is missing but CLOUDFLARE_ACCOUNT_ID exists
-    if not settings.R2_ACCOUNT_ID and settings.CLOUDFLARE_ACCOUNT_ID:
+    # Check if CLOUDFLARE_ACCOUNT_ID is missing but CLOUDFLARE_ACCOUNT_ID exists
+    if not settings.CLOUDFLARE_ACCOUNT_ID and settings.CLOUDFLARE_ACCOUNT_ID:
         fixes_needed.append({
-            "variable": "R2_ACCOUNT_ID",
+            "variable": "CLOUDFLARE_ACCOUNT_ID",
             "value": settings.CLOUDFLARE_ACCOUNT_ID,
             "action": "ADD this variable to Railway"
         })

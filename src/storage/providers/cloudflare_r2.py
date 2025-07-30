@@ -54,14 +54,14 @@ class CloudflareR2Provider:
     def _load_config(self) -> R2Config:
         """Load R2 configuration from environment variables"""
         
-        account_id = os.getenv('R2_ACCOUNT_ID')
+        account_id = os.getenv('CLOUDFLARE_ACCOUNT_ID')
         access_key_id = os.getenv('R2_ACCESS_KEY_ID')
         secret_access_key = os.getenv('R2_SECRET_ACCESS_KEY')
         bucket_name = os.getenv('R2_BUCKET_NAME')
         
         if not all([account_id, access_key_id, secret_access_key, bucket_name]):
             missing_vars = []
-            if not account_id: missing_vars.append('R2_ACCOUNT_ID')
+            if not account_id: missing_vars.append('CLOUDFLARE_ACCOUNT_ID')
             if not access_key_id: missing_vars.append('R2_ACCESS_KEY_ID')
             if not secret_access_key: missing_vars.append('R2_SECRET_ACCESS_KEY')
             if not bucket_name: missing_vars.append('R2_BUCKET_NAME')
