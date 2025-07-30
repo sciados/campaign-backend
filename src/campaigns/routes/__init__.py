@@ -1,206 +1,228 @@
 """
-Campaign Routes Package - FINAL FIX
-Following intelligence/routers pattern for modular organization
-Ensures CRUD routes are properly included and exported
+Campaign Routes Package - Production Ready Architecture
+Clean, maintainable, and properly structured for long-term use
 """
 
 from fastapi import APIRouter
+from typing import Dict, List, Optional
 import logging
+import importlib
 
-# Create main campaigns router
-router = APIRouter()
+logger = logging.getLogger(__name__)
 
-# ============================================================================
-# ✅ SAFE IMPORT AND INCLUDE CRUD ROUTES (Priority #1)
-# ============================================================================
-
-def include_crud_routes():
-    """Include CRUD routes with proper error handling"""
-    try:
-        from .campaign_crud import router as crud_router
-        # Include CRUD routes at the ROOT level (no prefix)
-        # This makes /api/campaigns/ work directly
-        router.include_router(crud_router, tags=["campaigns-crud"])
-        logging.info("✅ CRUD router included successfully")
-        return True
-    except ImportError as e:
-        logging.error(f"❌ CRUD router import failed: {e}")
-        return False
-    except Exception as e:
-        logging.error(f"❌ CRUD router inclusion failed: {e}")
-        return False
-
-# ============================================================================
-# ✅ INCLUDE OTHER ROUTE MODULES
-# ============================================================================
-
-def include_other_routes():
-    """Include other route modules safely"""
-    included_count = 0
+class CampaignRouterRegistry:
+    """
+    Router Registry Pattern for Campaign Routes
+    Manages route module loading with proper error handling and monitoring
+    """
     
-    # Include workflow operations
-    try:
-        from .workflow_operations import router as workflow_router
-        router.include_router(workflow_router, tags=["campaigns-workflow"])
-        logging.info("✅ Workflow operations router included")
-        included_count += 1
-    except ImportError as e:
-        logging.warning(f"⚠️ Workflow operations router not available: {e}")
+    def __init__(self):
+        self.modules: Dict[str, dict] = {}
+        self.main_router = APIRouter()
+        self.loaded_count = 0
+        self.failed_count = 0
     
-    # Include dashboard stats
-    try:
-        from .dashboard_stats import router as dashboard_router
-        router.include_router(dashboard_router, tags=["campaigns-dashboard"])
-        logging.info("✅ Dashboard stats router included")
-        included_count += 1
-    except ImportError as e:
-        logging.warning(f"⚠️ Dashboard stats router not available: {e}")
-    
-    # Include admin endpoints
-    try:
-        from .admin_endpoints import router as admin_router
-        router.include_router(admin_router, tags=["campaigns-admin"])
-        logging.info("✅ Admin endpoints router included")
-        included_count += 1
-    except ImportError as e:
-        logging.warning(f"⚠️ Admin endpoints router not available: {e}")
-    
-    # Include demo management
-    try:
-        from .demo_management import router as demo_router
-        router.include_router(demo_router, tags=["campaigns-demo"])
-        logging.info("✅ Demo management router included")
-        included_count += 1
-    except ImportError as e:
-        logging.warning(f"⚠️ Demo management router not available: {e}")
-    
-    return included_count
-
-# ============================================================================
-# ✅ EXECUTE ROUTER SETUP
-# ============================================================================
-
-# Include CRUD routes first (highest priority)
-crud_included = include_crud_routes()
-
-# Include other routes
-other_routes_count = include_other_routes()
-
-# ============================================================================
-# ✅ FALLBACK HEALTH ENDPOINTS
-# ============================================================================
-
-@router.get("/health")
-async def campaigns_health():
-    """Health check for campaigns router"""
-    return {
-        "status": "healthy",
-        "module": "campaigns.routes",
-        "crud_included": crud_included,
-        "other_routes_count": other_routes_count,
-        "total_routes": len(router.routes),
-        "message": "Campaigns routes operational"
-    }
-
-@router.get("/import-status")
-async def campaigns_import_status():
-    """Detailed import status for debugging"""
-    return {
-        "campaigns_routes_status": "operational",
-        "crud_router_included": crud_included,
-        "other_routes_included": other_routes_count,
-        "total_routes": len(router.routes),
-        "expected_endpoints": [
-            "GET /api/campaigns/ (list campaigns)",
-            "POST /api/campaigns/ (create campaign)",
-            "GET /api/campaigns/{id} (get campaign)",
-            "PUT /api/campaigns/{id} (update campaign)",
-            "DELETE /api/campaigns/{id} (delete campaign)"
-        ] if crud_included else ["CRUD endpoints missing - check campaign_crud.py import"],
-        "router_info": {
-            "total_routes": len(router.routes),
-            "router_type": str(type(router)),
-            "available": True
+    def register_module(self, name: str, module_name: str, required: bool = False, prefix: str = ""):
+        """Register a route module for loading"""
+        self.modules[name] = {
+            "module_name": module_name,
+            "required": required,
+            "prefix": prefix,
+            "loaded": False,
+            "router": None,
+            "error": None,
+            "route_count": 0
         }
-    }
+    
+    def _load_single_module(self, name: str) -> bool:
+        """Load and validate a single route module"""
+        module_info = self.modules[name]
+        
+        try:
+            # Import the module
+            module = importlib.import_module(f".{module_info['module_name']}", package="src.campaigns.routes")
+            
+            # Validate it has a router
+            if not hasattr(module, 'router'):
+                raise ImportError(f"Module {module_info['module_name']} missing 'router' attribute")
+            
+            if not hasattr(module.router, 'routes'):
+                raise ImportError(f"Module {module_info['module_name']} router is invalid")
+            
+            # Store the router and metadata
+            module_info['router'] = module.router
+            module_info['loaded'] = True
+            module_info['error'] = None
+            module_info['route_count'] = len(module.router.routes)
+            
+            logger.info(f"✅ Loaded {name}: {module_info['route_count']} routes")
+            return True
+            
+        except Exception as e:
+            module_info['error'] = str(e)
+            module_info['loaded'] = False
+            
+            if module_info['required']:
+                logger.error(f"❌ CRITICAL: Required module '{name}' failed: {e}")
+                raise RuntimeError(f"Critical module {name} failed to load: {e}")
+            else:
+                logger.warning(f"⚠️ Optional module '{name}' failed: {e}")
+                return False
+    
+    def build_router(self) -> APIRouter:
+        """Build the main router with all registered modules"""
+        
+        for name, module_info in self.modules.items():
+            try:
+                if self._load_single_module(name):
+                    # Include the router in main router
+                    self.main_router.include_router(
+                        module_info['router'],
+                        prefix=module_info['prefix'],
+                        tags=[f"campaigns-{name}"]
+                    )
+                    self.loaded_count += 1
+                    logger.info(f"✅ Included {name} router with {module_info['route_count']} routes")
+                else:
+                    self.failed_count += 1
+                    
+            except Exception as e:
+                self.failed_count += 1
+                logger.error(f"❌ Failed to include {name}: {e}")
+                
+                # For critical modules, this will have already raised an exception
+                # For optional modules, we continue
+        
+        # Add registry status endpoints
+        self._add_registry_endpoints()
+        
+        total_routes = len(self.main_router.routes)
+        logger.info(f"📦 Router registry complete: {self.loaded_count} loaded, {self.failed_count} failed, {total_routes} total routes")
+        
+        return self.main_router
+    
+    def _add_registry_endpoints(self):
+        """Add endpoints for monitoring the registry status"""
+        
+        @self.main_router.get("/registry/status")
+        async def registry_status():
+            """Get detailed status of all registered modules"""
+            return {
+                "registry_status": "healthy",
+                "total_modules": len(self.modules),
+                "loaded_modules": self.loaded_count,
+                "failed_modules": self.failed_count,
+                "total_routes": len(self.main_router.routes),
+                "modules": {
+                    name: {
+                        "loaded": info['loaded'],
+                        "required": info['required'],
+                        "route_count": info['route_count'],
+                        "error": info['error'] if info['error'] else None
+                    }
+                    for name, info in self.modules.items()
+                }
+            }
+        
+        @self.main_router.get("/registry/routes")
+        async def registry_routes():
+            """Get detailed information about all registered routes"""
+            route_details = []
+            
+            for route in self.main_router.routes:
+                if hasattr(route, 'path') and hasattr(route, 'methods'):
+                    route_details.append({
+                        "path": route.path,
+                        "methods": list(route.methods),
+                        "name": getattr(route, 'name', 'unnamed'),
+                        "tags": getattr(route, 'tags', [])
+                    })
+            
+            return {
+                "total_routes": len(route_details),
+                "routes": route_details
+            }
 
 # ============================================================================
-# ✅ ADD MISSING FUNCTION FOR BACKWARDS COMPATIBILITY
+# ✅ INITIALIZE REGISTRY AND REGISTER MODULES
 # ============================================================================
 
-def get_trigger_auto_analysis_task_fixed():
-    """
-    Safely get the auto analysis task function
-    This prevents the circular import that was causing issues
-    """
+# Create the registry
+registry = CampaignRouterRegistry()
+
+# Register all campaign route modules
+# CRUD is marked as required since dashboard depends on it
+registry.register_module("crud", "campaign_crud", required=True)
+registry.register_module("workflow", "workflow_operations", required=False)
+registry.register_module("dashboard", "dashboard_stats", required=False)
+registry.register_module("admin", "admin_endpoints", required=False)
+registry.register_module("demo", "demo_management", required=False)
+
+# Build the main router
+try:
+    router = registry.build_router()
+    logger.info("🎉 Campaign routes successfully initialized")
+except Exception as e:
+    logger.error(f"💥 FATAL: Campaign routes initialization failed: {e}")
+    # Create a minimal fallback router
+    router = APIRouter()
+    
+    @router.get("/error")
+    async def initialization_error():
+        return {
+            "error": "Campaign routes failed to initialize",
+            "details": str(e),
+            "status": "failed"
+        }
+
+# ============================================================================
+# ✅ BACKWARDS COMPATIBILITY AND UTILITIES
+# ============================================================================
+
+def get_safe_analysis_task():
+    """Safely import analysis task to prevent circular imports"""
     try:
-        # Try to import from the intelligence module
         from src.intelligence.tasks.auto_analysis import trigger_auto_analysis_task_fixed
         return trigger_auto_analysis_task_fixed
     except ImportError:
-        # If not available, return a safe fallback function
-        async def fallback_analysis_task(campaign_id: str, **kwargs):
-            logging.warning(f"⚠️ Auto analysis task not available for campaign {campaign_id}")
+        async def fallback_task(*args, **kwargs):
+            logger.warning("⚠️ Auto analysis task not available, using fallback")
             return {
                 "success": False,
-                "error": "Auto analysis task not available",
-                "campaign_id": campaign_id,
+                "error": "Analysis task not available",
                 "fallback_used": True
             }
-        return fallback_analysis_task
+        return fallback_task
 
-# Make the function available at module level for backwards compatibility
-trigger_auto_analysis_task_fixed = get_trigger_auto_analysis_task_fixed()
+# Make analysis task available for backwards compatibility
+trigger_auto_analysis_task_fixed = get_safe_analysis_task()
 
 # ============================================================================
-# ✅ EXPORT EVERYTHING FOR BACKWARDS COMPATIBILITY
+# ✅ MODULE EXPORTS
 # ============================================================================
 
-# Export the main router (this is what src/campaigns/__init__.py needs)
 __all__ = [
-    "router",  # Main export - this is critical!
-    "trigger_auto_analysis_task_fixed",  # Prevent import errors
-    "get_trigger_auto_analysis_task_fixed"
+    "router",
+    "registry", 
+    "trigger_auto_analysis_task_fixed"
 ]
 
-# Import modules for backwards compatibility (but safely)
-try:
-    from . import campaign_crud
-except ImportError as e:
-    logging.error(f"❌ campaign_crud import failed: {e}")
+# Module metadata
+__version__ = "2.0.0"
+__description__ = "Campaign routes with production-ready registry pattern"
 
-try:
-    from . import demo_management
-except ImportError as e:
-    logging.error(f"❌ demo_management import failed: {e}")
+# Import modules for backwards compatibility (safe imports)
+campaign_crud = None
+workflow_operations = None
+dashboard_stats = None
+admin_endpoints = None
+demo_management = None
 
-try:
-    from . import workflow_operations
-except ImportError as e:
-    logging.error(f"❌ workflow_operations import failed: {e}")
+for module_name in ["campaign_crud", "workflow_operations", "dashboard_stats", "admin_endpoints", "demo_management"]:
+    try:
+        imported_module = importlib.import_module(f".{module_name}", package="src.campaigns.routes")
+        globals()[module_name] = imported_module
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not import {module_name} for backwards compatibility: {e}")
 
-try:
-    from . import dashboard_stats
-except ImportError as e:
-    logging.error(f"❌ dashboard_stats import failed: {e}")
-
-try:
-    from . import admin_endpoints
-except ImportError as e:
-    logging.error(f"❌ admin_endpoints import failed: {e}")
-
-# Log final status
-total_routes_registered = len(router.routes)
-logging.info(f"📦 Campaigns routes package loaded successfully")
-logging.info(f"🔗 Main campaigns router created with {total_routes_registered} routes")
-logging.info(f"✅ CRUD router included: {crud_included}")
-logging.info(f"📊 Other routes included: {other_routes_count}")
-
-if not crud_included:
-    logging.error("🚨 CRITICAL: CRUD router not included - dashboard will fail!")
-    logging.error("🔧 Check campaign_crud.py import and dependencies")
-
-if total_routes_registered < 5:
-    logging.warning(f"⚠️ Low route count ({total_routes_registered}) - expected 10+ routes")
-else:
-    logging.info(f"🎯 Good route count: {total_routes_registered} routes registered")
+logger.info(f"📦 Campaign routes package loaded (v{__version__})")
