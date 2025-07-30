@@ -717,6 +717,7 @@ async def debug_all_routes():
     """Debug endpoint to show all registered routes"""
     routes_info = []
     auth_routes = []
+    campaigns_routes = []  # ✅ NEW: Track campaigns routes specifically
     storage_routes = []  # ✅ NEW: Track storage routes
     monitoring_routes = []  # ✅ NEW: Track monitoring routes
     
@@ -733,6 +734,10 @@ async def debug_all_routes():
             if '/auth/' in route.path:
                 auth_routes.append(route_info)
             
+            # ✅ NEW: Track campaigns routes specifically
+            if '/campaigns/' in route.path:
+                campaigns_routes.append(route_info)
+            
             # ✅ NEW: Track storage routes
             if '/storage/' in route.path or '/documents/' in route.path:
                 storage_routes.append(route_info)
@@ -744,18 +749,120 @@ async def debug_all_routes():
     return {
         "total_routes": len(routes_info),
         "auth_routes": len(auth_routes),
+        "campaigns_routes": len(campaigns_routes),  # ✅ NEW
         "storage_routes": len(storage_routes),  # ✅ NEW
         "monitoring_routes": len(monitoring_routes),  # ✅ NEW
+        "campaigns_router_status": CAMPAIGNS_ROUTER_AVAILABLE,  # ✅ NEW
         "auth_route_details": auth_routes,
+        "campaigns_route_details": campaigns_routes,  # ✅ NEW
         "storage_route_details": storage_routes,  # ✅ NEW
         "monitoring_route_details": monitoring_routes,  # ✅ NEW
         "system_capabilities": {  # ✅ NEW
             "ultra_cheap_ai": STABILITY_ROUTER_AVAILABLE,
             "dual_storage": STORAGE_ROUTER_AVAILABLE,
             "document_management": DOCUMENT_ROUTER_AVAILABLE,
-            "ai_monitoring": AI_MONITORING_ROUTER_AVAILABLE  # ✅ NEW
+            "ai_monitoring": AI_MONITORING_ROUTER_AVAILABLE,  # ✅ NEW
+            "campaigns_available": CAMPAIGNS_ROUTER_AVAILABLE  # ✅ NEW
         },
         "all_routes": routes_info
+    }
+
+# ✅ NEW: Campaigns-specific debug endpoint
+@app.get("/api/debug/campaigns-status")
+async def debug_campaigns_status():
+    """Debug endpoint specifically for campaigns router issues"""
+    
+    # Check campaigns-related imports
+    import_status = {}
+    
+    try:
+        import src.campaigns
+        import_status["src.campaigns"] = "✅ Available"
+    except ImportError as e:
+        import_status["src.campaigns"] = f"❌ Error: {str(e)}"
+    
+    try:
+        import src.campaigns.routes
+        import_status["src.campaigns.routes"] = "✅ Available"
+    except ImportError as e:
+        import_status["src.campaigns.routes"] = f"❌ Error: {str(e)}"
+    
+    try:
+        import src.campaigns.schemas
+        import_status["src.campaigns.schemas"] = "✅ Available"
+    except ImportError as e:
+        import_status["src.campaigns.schemas"] = f"❌ Error: {str(e)}"
+    
+    try:
+        import src.campaigns.services
+        import_status["src.campaigns.services"] = "✅ Available"
+    except ImportError as e:
+        import_status["src.campaigns.services"] = f"❌ Error: {str(e)}"
+    
+    # Check individual route files
+    route_files = [
+        "campaign_crud",
+        "demo_management", 
+        "workflow_operations",
+        "dashboard_stats",
+        "admin_endpoints"
+    ]
+    
+    route_file_status = {}
+    for route_file in route_files:
+        try:
+            module_path = f"src.campaigns.routes.{route_file}"
+            __import__(module_path)
+            route_file_status[route_file] = "✅ Available"
+        except ImportError as e:
+            route_file_status[route_file] = f"❌ Error: {str(e)}"
+    
+    # Check model dependencies
+    model_status = {}
+    try:
+        from src.models.campaign import Campaign
+        model_status["Campaign"] = "✅ Available"
+    except ImportError as e:
+        model_status["Campaign"] = f"❌ Error: {str(e)}"
+    
+    try:
+        from src.models import CampaignAsset
+        model_status["CampaignAsset"] = "✅ Available"
+    except ImportError as e:
+        model_status["CampaignAsset"] = f"❌ Error: {str(e)}"
+    
+    try:
+        from src.models.intelligence import CampaignIntelligence
+        model_status["CampaignIntelligence"] = "✅ Available"
+    except ImportError as e:
+        model_status["CampaignIntelligence"] = f"❌ Error: {str(e)}"
+    
+    return {
+        "campaigns_router_available": CAMPAIGNS_ROUTER_AVAILABLE,
+        "campaigns_router_object": campaigns_router is not None,
+        "import_status": import_status,
+        "route_file_status": route_file_status,
+        "model_dependencies": model_status,
+        "fallback_endpoints_available": [
+            "/api/campaigns/test",
+            "/api/campaigns/fallback",
+            "/api/campaigns/status"
+        ],
+        "diagnosis": {
+            "primary_issue": "Router import failed" if not CAMPAIGNS_ROUTER_AVAILABLE else "Router should be working",
+            "likely_causes": [
+                "Missing dependencies in campaigns.routes module",
+                "Circular import issues",
+                "Missing model imports",
+                "Database connection issues"
+            ],
+            "next_steps": [
+                "Check individual route file imports",
+                "Verify model dependencies",
+                "Check database connectivity",
+                "Review campaigns module structure"
+            ]
+        }
     }
 
 # ✅ NEW: Cost savings calculator endpoint
@@ -993,13 +1100,18 @@ async def debug_system_diagnosis():
         issues.append("AI monitoring system not available")
         solutions.append("Check src/intelligence/routers/ai_monitoring_routes.py import")
     
+    if not CAMPAIGNS_ROUTER_AVAILABLE:  # ✅ NEW: Add campaigns router check
+        issues.append("Campaigns router not available")
+        solutions.append("Check src/campaigns/routes.py import and dependencies")
+    
     # Determine confidence impact
     system_health_score = 0
-    if r2_configured: system_health_score += 20
-    if groq_configured or together_configured: system_health_score += 25
+    if r2_configured: system_health_score += 15
+    if groq_configured or together_configured: system_health_score += 20
     if db_connected: system_health_score += 15
-    if ANALYSIS_ROUTER_AVAILABLE: system_health_score += 20
-    if AI_MONITORING_ROUTER_AVAILABLE: system_health_score += 20
+    if ANALYSIS_ROUTER_AVAILABLE: system_health_score += 15
+    if AI_MONITORING_ROUTER_AVAILABLE: system_health_score += 15
+    if CAMPAIGNS_ROUTER_AVAILABLE: system_health_score += 20  # ✅ NEW: High weight for campaigns
     
     return {
         "success": True,
@@ -1008,8 +1120,8 @@ async def debug_system_diagnosis():
             "current_confidence": "60%",
             "expected_confidence": "95%",
             "confidence_gap": "35%",
-            "primary_issues": issues[:3],  # Top 3 issues
-            "quick_fixes": solutions[:3]
+            "primary_issues": issues[:4],  # Top 4 issues
+            "quick_fixes": solutions[:4]
         },
         "system_status": {
             "r2_storage": r2_configured,
@@ -1017,7 +1129,8 @@ async def debug_system_diagnosis():
             "database": db_connected,
             "analysis_system": ANALYSIS_ROUTER_AVAILABLE,
             "ai_monitoring": AI_MONITORING_ROUTER_AVAILABLE,
-            "storage_system": STORAGE_ROUTER_AVAILABLE
+            "storage_system": STORAGE_ROUTER_AVAILABLE,
+            "campaigns_system": CAMPAIGNS_ROUTER_AVAILABLE  # ✅ NEW
         },
         "cost_optimization_status": {
             "image_generation_savings": "90%" if STABILITY_ROUTER_AVAILABLE else "0%",
@@ -1026,12 +1139,14 @@ async def debug_system_diagnosis():
         },
         "next_steps": solutions + [
             "Deploy changes to Railway",
+            "Test campaigns endpoint after fixes",  # ✅ NEW
             "Test analysis endpoint after fixes",
             "Monitor confidence scores"
         ],
         "confidence_prediction": {
-            "with_r2_fix": "75%",
-            "with_groq_fix": "80%", 
+            "with_r2_fix": "70%",
+            "with_groq_fix": "75%", 
+            "with_campaigns_fix": "85%",  # ✅ NEW
             "with_all_fixes": "95%+"
         }
     }
@@ -1109,12 +1224,14 @@ async def debug_environment_check():
         "confidence_correlation": {
             "environment_completion": f"{overall_completion:.1f}%",
             "analysis_confidence": "60%",
-            "gap_analysis": "Environment issues likely causing confidence drop"
+            "campaigns_availability": CAMPAIGNS_ROUTER_AVAILABLE,  # ✅ NEW
+            "gap_analysis": "Environment issues + campaigns router likely causing confidence drop"
         },
         "priority_fixes": [
             "Add missing AI provider keys (GROQ_API_KEY)",
             "Configure R2 storage variables", 
-            "Verify database connection"
+            "Verify database connection",
+            "Fix campaigns router import issues"  # ✅ NEW
         ]
     }
 
@@ -1146,19 +1263,19 @@ async def debug_confidence_trace():
             "impact": "Medium"
         },
         "system_stability": {
-            "score": 80,
-            "issues": ["Some routers unavailable"],
-            "impact": "Low"
+            "score": 60 if CAMPAIGNS_ROUTER_AVAILABLE else 40,  # ✅ NEW: Factor in campaigns
+            "issues": ["Campaigns router unavailable"] if not CAMPAIGNS_ROUTER_AVAILABLE else ["Some routers unavailable"],
+            "impact": "High" if not CAMPAIGNS_ROUTER_AVAILABLE else "Medium"  # ✅ NEW
         }
     }
     
     # Calculate weighted confidence
     weights = {
-        "data_quality": 0.2,
-        "ai_provider_reliability": 0.3,  # High weight
-        "storage_availability": 0.2,
-        "analysis_depth": 0.2,
-        "system_stability": 0.1
+        "data_quality": 0.15,
+        "ai_provider_reliability": 0.25,  # High weight
+        "storage_availability": 0.15,
+        "analysis_depth": 0.15,
+        "system_stability": 0.3  # ✅ NEW: Higher weight for system stability
     }
     
     weighted_score = sum(
@@ -1172,9 +1289,10 @@ async def debug_confidence_trace():
         "actual_confidence": "60%",
         "confidence_factors": confidence_factors,
         "factor_weights": weights,
-        "primary_bottleneck": "ai_provider_reliability",
+        "primary_bottleneck": "system_stability" if not CAMPAIGNS_ROUTER_AVAILABLE else "ai_provider_reliability",  # ✅ NEW
         "improvement_plan": {
             "immediate": [
+                "Fix campaigns router import issues",  # ✅ NEW: Top priority
                 "Fix Groq API configuration",
                 "Add backup AI provider (Together AI)",
                 "Complete R2 storage setup"
@@ -1182,7 +1300,8 @@ async def debug_confidence_trace():
             "short_term": [
                 "Implement error handling for AI responses",
                 "Add response validation",
-                "Set up monitoring dashboards"
+                "Set up monitoring dashboards",
+                "Test all campaign endpoints"  # ✅ NEW
             ],
             "long_term": [
                 "Collect more historical data",
@@ -1272,6 +1391,11 @@ async def debug_database_test():
             "table_status": table_tests,
             "tables_working": sum(1 for t in table_tests.values() if t["exists"]),
             "total_tables_tested": len(test_tables),
+            "campaigns_impact": {
+                "campaigns_table_exists": table_tests.get("campaigns", {}).get("exists", False),
+                "campaign_assets_exists": table_tests.get("campaign_assets", {}).get("exists", False),
+                "database_blocking_campaigns": not basic_test
+            },
             "confidence_impact": {
                 "database_health": "95%" if basic_test else "0%",
                 "table_availability": f"{(sum(1 for t in table_tests.values() if t['exists']) / len(test_tables)) * 100:.0f}%"
@@ -1283,6 +1407,10 @@ async def debug_database_test():
             "success": False,
             "error": str(e),
             "database_connected": False,
+            "campaigns_impact": {
+                "database_blocking_campaigns": True,
+                "issue": "Database connection completely failed"
+            },
             "confidence_impact": {
                 "database_health": "0%",
                 "issue": "Database connection failed"
@@ -1299,61 +1427,74 @@ async def debug_system_readiness():
     overall_score = 0
     max_score = 0
     
-    # Database check (20 points)
+    # Database check (15 points)
     try:
         from src.core.database import engine
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        readiness_checks["database"] = {"status": "✅ Connected", "score": 20}
-        overall_score += 20
+        readiness_checks["database"] = {"status": "✅ Connected", "score": 15}
+        overall_score += 15
     except Exception as e:
         readiness_checks["database"] = {"status": f"❌ Error: {str(e)}", "score": 0}
-    max_score += 20
+    max_score += 15
     
-    # AI Providers check (25 points)
+    # AI Providers check (20 points)
     ai_providers = ["GROQ_API_KEY", "TOGETHER_API_KEY", "OPENAI_API_KEY"]
     configured_providers = sum(1 for key in ai_providers if os.getenv(key))
-    ai_score = (configured_providers / len(ai_providers)) * 25
+    ai_score = (configured_providers / len(ai_providers)) * 20
     readiness_checks["ai_providers"] = {
         "status": f"✅ {configured_providers}/{len(ai_providers)} configured" if configured_providers > 0 else "❌ No providers configured",
         "score": ai_score,
         "details": {key: bool(os.getenv(key)) for key in ai_providers}
     }
     overall_score += ai_score
-    max_score += 25
+    max_score += 20
     
-    # Storage check (20 points)
+    # Storage check (15 points)
     r2_vars = ["CLOUDFLARE_R2_ACCESS_KEY_ID", "CLOUDFLARE_R2_SECRET_ACCESS_KEY", "CLOUDFLARE_R2_BUCKET_NAME"]
     configured_storage = sum(1 for key in r2_vars if os.getenv(key))
-    storage_score = (configured_storage / len(r2_vars)) * 20
+    storage_score = (configured_storage / len(r2_vars)) * 15
     readiness_checks["storage"] = {
         "status": f"✅ R2 configured" if configured_storage == len(r2_vars) else f"⚠️ {configured_storage}/{len(r2_vars)} R2 vars set",
         "score": storage_score
     }
     overall_score += storage_score
-    max_score += 20
+    max_score += 15
     
-    # Intelligence System check (20 points)
+    # ✅ NEW: Campaigns System check (25 points - HIGH PRIORITY)
+    campaigns_score = 25 if CAMPAIGNS_ROUTER_AVAILABLE else 0
+    readiness_checks["campaigns_system"] = {
+        "status": "✅ Campaigns router available" if CAMPAIGNS_ROUTER_AVAILABLE else "❌ Campaigns router failed to import",
+        "score": campaigns_score,
+        "details": {
+            "router_imported": CAMPAIGNS_ROUTER_AVAILABLE,
+            "router_object_exists": campaigns_router is not None
+        }
+    }
+    overall_score += campaigns_score
+    max_score += 25
+    
+    # Intelligence System check (15 points)
     intelligence_systems = [ANALYSIS_ROUTER_AVAILABLE, CONTENT_ROUTER_AVAILABLE, AI_MONITORING_ROUTER_AVAILABLE]
     working_intelligence = sum(intelligence_systems)
-    intelligence_score = (working_intelligence / len(intelligence_systems)) * 20
+    intelligence_score = (working_intelligence / len(intelligence_systems)) * 15
     readiness_checks["intelligence"] = {
         "status": f"✅ {working_intelligence}/{len(intelligence_systems)} systems online" if working_intelligence > 0 else "❌ Intelligence system offline",
         "score": intelligence_score
     }
     overall_score += intelligence_score
-    max_score += 20
+    max_score += 15
     
-    # Router Availability check (15 points)
-    critical_routers = [AUTH_ROUTER_AVAILABLE, CAMPAIGNS_ROUTER_AVAILABLE]
+    # Core Router Availability check (10 points)
+    critical_routers = [AUTH_ROUTER_AVAILABLE, DASHBOARD_ROUTER_AVAILABLE]
     working_routers = sum(critical_routers)
-    router_score = (working_routers / len(critical_routers)) * 15
+    router_score = (working_routers / len(critical_routers)) * 10
     readiness_checks["core_routers"] = {
         "status": f"✅ {working_routers}/{len(critical_routers)} core routers" if working_routers == len(critical_routers) else f"⚠️ {working_routers}/{len(critical_routers)} core routers",
         "score": router_score
     }
     overall_score += router_score
-    max_score += 15
+    max_score += 10
     
     # Calculate final readiness percentage
     readiness_percentage = (overall_score / max_score) * 100
@@ -1385,16 +1526,24 @@ async def debug_system_readiness():
         },
         "priority_actions": [
             action for action in [
+                "Fix campaigns router import issues (HIGH PRIORITY)" if not CAMPAIGNS_ROUTER_AVAILABLE else None,
                 "Add GROQ_API_KEY for ultra-cheap AI" if not os.getenv("GROQ_API_KEY") else None,
                 "Complete R2 storage setup" if configured_storage < len(r2_vars) else None,
                 "Fix database connection" if "database" in readiness_checks and readiness_checks["database"]["score"] == 0 else None,
                 "Check intelligence system imports" if working_intelligence < len(intelligence_systems) else None
             ] if action is not None
         ],
+        "campaigns_specific_actions": [
+            "Check src/campaigns/routes.py import",
+            "Verify campaigns model dependencies",
+            "Test individual route files",
+            "Check for circular import issues"
+        ] if not CAMPAIGNS_ROUTER_AVAILABLE else ["Campaigns system is working"],
         "next_deployment_steps": [
+            "Fix campaigns router import issues",
             "Add missing environment variables to Railway",
             "Deploy updated configuration",
-            "Test all endpoints after deployment",
+            "Test /api/campaigns endpoints after deployment",
             "Monitor confidence scores in production"
         ]
     }
@@ -1429,6 +1578,7 @@ async def startup_debug():
     # Count routes by category
     total_routes = len(app.routes)
     auth_routes = len([r for r in app.routes if hasattr(r, 'path') and '/auth/' in r.path])
+    campaigns_routes = len([r for r in app.routes if hasattr(r, 'path') and '/campaigns/' in r.path])  # ✅ NEW
     storage_routes = len([r for r in app.routes if hasattr(r, 'path') and ('/storage/' in r.path or '/documents/' in r.path)])
     stability_routes = len([r for r in app.routes if hasattr(r, 'path') and '/stability/' in r.path])
     monitoring_routes = len([r for r in app.routes if hasattr(r, 'path') and '/ai-monitoring/' in r.path])
@@ -1436,13 +1586,28 @@ async def startup_debug():
     
     print(f"📊 Total routes registered: {total_routes}")
     print(f"🔐 Auth routes: {auth_routes}")
-    print(f"🗄️ Storage routes: {storage_routes}")  # ✅ NEW
-    print(f"🎨 Stability AI routes: {stability_routes}")  # ✅ NEW
-    print(f"📊 AI monitoring routes: {monitoring_routes}")  # ✅ NEW
-    print(f"🐛 Debug routes: {debug_routes}")  # ✅ NEW
+    print(f"🎯 Campaigns routes: {campaigns_routes}")  # ✅ NEW: Highlight campaigns
+    print(f"🗄️ Storage routes: {storage_routes}")
+    print(f"🎨 Stability AI routes: {stability_routes}")
+    print(f"📊 AI monitoring routes: {monitoring_routes}")
+    print(f"🐛 Debug routes: {debug_routes}")
+    
+    # ✅ NEW: Highlight campaigns router status
+    print(f"\n🎯 CAMPAIGNS ROUTER STATUS:")
+    print(f"  • Available: {'✅ YES' if CAMPAIGNS_ROUTER_AVAILABLE else '❌ NO'}")
+    print(f"  • Router object: {'✅ EXISTS' if campaigns_router is not None else '❌ NONE'}")
+    if CAMPAIGNS_ROUTER_AVAILABLE and campaigns_router:
+        print(f"  • Routes count: {len(campaigns_router.routes)}")
+    else:
+        print(f"  • Fallback endpoints: /api/campaigns/test, /api/campaigns/fallback")
+        print(f"  • Debug endpoint: /api/debug/campaigns-status")
     
     # ✅ NEW: Show system capabilities
     print("\n🎯 SYSTEM CAPABILITIES:")
+    if CAMPAIGNS_ROUTER_AVAILABLE:
+        print("  ✅ Campaigns System: Full campaign management")
+    else:
+        print("  ❌ Campaigns System: Import failed - using fallback")
     if STABILITY_ROUTER_AVAILABLE:
         print("  ✅ Ultra-Cheap AI Images: 90% cost savings vs DALL-E")
     if STORAGE_ROUTER_AVAILABLE:
@@ -1464,16 +1629,13 @@ async def startup_debug():
         print("  • Annual savings: $19,980")
     
     # Show debug routes for troubleshooting
-    print("\n🐛 DEBUG ENDPOINTS AVAILABLE:")
+    print("\n🐛 KEY DEBUG ENDPOINTS:")
     debug_endpoints = [
-        "/api/debug/system-diagnosis - Complete system diagnosis",
+        "/api/debug/campaigns-status - Campaigns router diagnosis",  # ✅ NEW: Priority
         "/api/debug/system-readiness - Deployment readiness check", 
+        "/api/debug/system-diagnosis - Complete system diagnosis",
         "/api/debug/groq-status - AI provider configuration",
-        "/api/debug/r2-status - Storage configuration",
-        "/api/debug/environment-check - Environment variables check",
-        "/api/debug/confidence-trace - Confidence calculation analysis",
-        "/api/debug/intelligence-system - Intelligence system status",
-        "/api/debug/database-test - Database connection test"
+        "/api/debug/routes - All registered routes"
     ]
     
     for endpoint in debug_endpoints:
@@ -1485,15 +1647,15 @@ async def startup_debug():
     for route in app.routes:
         if hasattr(route, 'path') and hasattr(route, 'methods'):
             path = route.path
-            if any(keyword in path for keyword in ['/auth/', '/storage/', '/stability/', '/ai-monitoring/', '/debug/']):
+            if any(keyword in path for keyword in ['/auth/', '/campaigns/', '/storage/', '/stability/', '/ai-monitoring/', '/debug/']):
                 key_routes.append(f"  {list(route.methods)} {path}")
     
-    # Show only first 10 key routes to avoid clutter
-    for route_info in key_routes[:10]:
+    # Show only first 12 key routes to avoid clutter
+    for route_info in key_routes[:12]:
         print(route_info)
     
-    if len(key_routes) > 10:
-        print(f"  ... and {len(key_routes) - 10} more routes")
+    if len(key_routes) > 12:
+        print(f"  ... and {len(key_routes) - 12} more routes")
     
     # ✅ NEW: Show AI monitoring system status
     if AI_MONITORING_ROUTER_AVAILABLE:
@@ -1508,20 +1670,25 @@ async def startup_debug():
     import os
     print("\n🔧 ENVIRONMENT STATUS:")
     critical_vars = [
-        ("GROQ_API_KEY", "Ultra-cheap AI provider"),
-        ("CLOUDFLARE_R2_ACCESS_KEY_ID", "R2 storage access"),
-        ("DATABASE_URL", "Database connection")
+        ("CAMPAIGNS_ROUTER_AVAILABLE", "Campaigns system", CAMPAIGNS_ROUTER_AVAILABLE),  # ✅ NEW
+        ("GROQ_API_KEY", "Ultra-cheap AI provider", bool(os.getenv("GROQ_API_KEY"))),
+        ("CLOUDFLARE_R2_ACCESS_KEY_ID", "R2 storage access", bool(os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"))),
+        ("DATABASE_URL", "Database connection", bool(os.getenv("DATABASE_URL")))
     ]
     
-    for var, description in critical_vars:
-        status = "✅ SET" if os.getenv(var) else "❌ MISSING"
-        print(f"  • {var}: {status} ({description})")
+    for var, description, status in critical_vars:
+        status_text = "✅ SET" if status else "❌ MISSING"
+        print(f"  • {description}: {status_text}")
     
-    print("\n📍 NEXT STEPS TO REACH 95% CONFIDENCE:")
-    print("  1. Visit debug endpoints to identify missing configurations")
-    print("  2. Add missing environment variables to Railway")
-    print("  3. Deploy and test analysis endpoint")
-    print("  4. Monitor confidence improvements")
+    print(f"\n📍 NEXT STEPS TO REACH 95% CONFIDENCE:")
+    if not CAMPAIGNS_ROUTER_AVAILABLE:
+        print("  🚨 PRIORITY 1: Fix campaigns router import (blocking core functionality)")
+        print("    - Check /api/debug/campaigns-status for detailed diagnosis")
+        print("    - Review src/campaigns/routes.py and dependencies")
+    print("  2. Visit other debug endpoints to identify missing configurations")
+    print("  3. Add missing environment variables to Railway")
+    print("  4. Deploy and test campaigns + analysis endpoints")
+    print("  5. Monitor confidence improvements")
     
     print("=" * 80)
 
@@ -1640,11 +1807,21 @@ async def optimize_factory():
             detail=f"Factory optimization failed: {str(e)}"
         )
 
-# Add this after your other router registrations
+# ✅ FIXED: Test endpoints - keep the original test endpoint that works
 @app.get("/api/campaigns/test")
 async def test_campaigns():
-    """Test endpoint to verify campaigns would work"""
-    return {"message": "Campaigns endpoint would work if router was registered"}
+    """Test endpoint to verify campaigns functionality"""
+    return {
+        "message": "Campaigns endpoint accessible",
+        "campaigns_router_available": CAMPAIGNS_ROUTER_AVAILABLE,
+        "router_registered": campaigns_router is not None,
+        "status": "success" if CAMPAIGNS_ROUTER_AVAILABLE else "fallback",
+        "debug_endpoints": [
+            "/api/debug/campaigns-status",
+            "/api/debug/system-readiness",
+            "/api/campaigns/fallback"
+        ]
+    }
 
 # ============================================================================
 # ✅ FINAL APPLICATION EXPORT

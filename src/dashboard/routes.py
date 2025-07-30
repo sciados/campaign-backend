@@ -35,8 +35,6 @@ async def get_company_stats(
     """Get company dashboard statistics - SAME PATTERN AS ADMIN DASHBOARD"""
     
     try:
-        # ✅ EXACTLY LIKE ADMIN: Use raw SQL patterns that work
-        
         # Get company basic info
         company_result = await db.execute(text("""
             SELECT company_name, subscription_tier, monthly_credits_used, monthly_credits_limit
@@ -116,7 +114,7 @@ async def get_company_stats(
         
         # ✅ SAME FALLBACK PATTERN AS ADMIN
         return CompanyStatsResponse(
-            company_name="RodgersDigital",
+            company_name="DigitalSpace",
             subscription_tier="free",
             monthly_credits_used=0,
             monthly_credits_limit=5000,
@@ -133,17 +131,10 @@ async def get_company_details(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db)
 ):
-    """Get detailed company information - SAME PATTERN AS ADMIN"""
-    
     try:
         # ✅ EXACTLY LIKE ADMIN: Simple raw SQL
-        result = await db.execute(text("""
-            SELECT id, company_name, company_slug, industry, company_size, 
-                   website_url, subscription_tier, subscription_status,
-                   monthly_credits_used, monthly_credits_limit, created_at
-            FROM companies 
-            WHERE id = :company_id
-        """), {"company_id": str(current_user.company_id)})
+        result = await db.execute(text(""" SELECT id, company_name, company_slug, industry, company_size, website_url, subscription_tier, subscription_status, monthly_credits_used, monthly_credits_limit, created_at
+            FROM companies WHERE id = :company_id """), {"company_id": str(current_user.company_id)})
         
         company_data = result.fetchone()
         
