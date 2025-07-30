@@ -78,7 +78,7 @@ else:
     logger.error(f"🚨 CRITICAL: CRUD router failed to load - Dashboard will not work: {crud_error}")
     
     # Add emergency fallback endpoints
-    @router.get("/")
+    @router.get("")
     async def emergency_get_campaigns():
         """Emergency fallback for campaigns list"""
         return [
@@ -93,7 +93,7 @@ else:
             }
         ]
     
-    @router.post("/")
+    @router.post("")
     async def emergency_create_campaign():
         """Emergency fallback for campaign creation"""
         return {

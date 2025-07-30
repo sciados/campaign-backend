@@ -351,6 +351,75 @@ app.add_middleware(
     ]
 )
 
+# Add this to your main.py after the CORS middleware and before router registration
+
+from fastapi import Request
+from fastapi.responses import Response
+import os
+
+# ============================================================================
+# ✅ HTTPS REDIRECT FIX MIDDLEWARE
+# ============================================================================
+
+@app.middleware("http")
+async def https_redirect_middleware(request: Request, call_next):
+    """
+    Fix HTTPS redirect issues that cause 307 redirects
+    """
+    # Force HTTPS in production
+    if (os.getenv("RAILWAY_ENVIRONMENT_NAME") == "production" and 
+        request.headers.get("x-forwarded-proto") == "http"):
+        
+        # Redirect HTTP to HTTPS
+        https_url = request.url.replace(scheme="https")
+        return Response(
+            status_code=301,
+            headers={"Location": str(https_url)}
+        )
+    
+    # Handle trailing slash redirects that cause 307s
+    path = request.url.path
+    
+    # For campaign endpoints, ensure consistent routing
+    if path.startswith("/api/campaigns"):
+        # Remove trailing slash for consistency
+        if path.endswith("/") and path != "/api/campaigns":
+            new_path = path.rstrip("/")
+            new_url = request.url.replace(path=new_path)
+            return Response(
+                status_code=301,
+                headers={"Location": str(new_url)}
+            )
+    
+    response = await call_next(request)
+    
+    # Add security headers for HTTPS
+    if os.getenv("RAILWAY_ENVIRONMENT_NAME") == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+    return response
+
+# ============================================================================
+# ✅ RAILWAY DEPLOYMENT CONFIGURATION
+# ============================================================================
+
+# Add this to ensure proper Railway HTTPS handling
+@app.middleware("http")
+async def railway_https_middleware(request: Request, call_next):
+    """
+    Handle Railway-specific HTTPS forwarding
+    """
+    # Railway sets x-forwarded-proto header
+    if request.headers.get("x-forwarded-proto") == "https":
+        # Ensure the request URL reflects HTTPS
+        request.scope["scheme"] = "https"
+    
+    response = await call_next(request)
+    return response
+
 # ============================================================================
 # ✅ ROUTER REGISTRATION WITH DEBUG
 # ============================================================================
@@ -650,7 +719,7 @@ async def system_status():
     return {
         "application": "CampaignForge AI Backend",
         "version": "3.0.0",  # ✅ NEW: Updated version for AI monitoring
-        "environment": os.getenv("ENVIRONMENT", "development"),
+        "environment": os.getenv("RAILWAY_ENVIRONMENT_NAME", "development"),
         "database": db_status,
         "tables": "existing",
         "routers": {
@@ -1183,7 +1252,7 @@ async def debug_environment_check():
         ],
         "app_config": [
             "SECRET_KEY",
-            "ENVIRONMENT",
+            "RAILWAY_ENVIRONMENT_NAME",
             "DEBUG"
         ]
     }
@@ -1668,7 +1737,7 @@ async def startup_debug():
     
     # ✅ NEW: Show environment status summary
     import os
-    print("\n🔧 ENVIRONMENT STATUS:")
+    print("\n🔧 RAILWAY_ENVIRONMENT_NAME STATUS:")
     critical_vars = [
         ("CAMPAIGNS_ROUTER_AVAILABLE", "Campaigns system", CAMPAIGNS_ROUTER_AVAILABLE),  # ✅ NEW
         ("GROQ_API_KEY", "Ultra-cheap AI provider", bool(os.getenv("GROQ_API_KEY"))),

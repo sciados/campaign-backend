@@ -68,7 +68,7 @@ async def simple_background_task(campaign_id: str, url: str, user_id: str, compa
 # ✅ CRUD ENDPOINTS - FIXED VERSIONS
 # ============================================================================
 
-@router.get("/", response_model=List[CampaignResponse] if SCHEMAS_AVAILABLE else List[dict])
+@router.get("", response_model=List[CampaignResponse] if SCHEMAS_AVAILABLE else List[dict])
 async def get_campaigns(
     skip: int = 0,
     limit: int = 100,
@@ -136,7 +136,7 @@ async def get_campaigns(
             }
         ]
 
-@router.post("/", response_model=CampaignResponse if SCHEMAS_AVAILABLE else dict)
+@router.post("", response_model=CampaignResponse if SCHEMAS_AVAILABLE else dict)
 async def create_campaign(
     campaign_data: CampaignCreate,
     background_tasks: BackgroundTasks,
