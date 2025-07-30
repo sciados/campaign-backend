@@ -336,7 +336,7 @@ def display_deployment_status():
     }
 
 # 🔥 ENHANCED: Run validation on import (only in development)
-if os.getenv("DEBUG", "false").lower() == "true" or os.getenv("RAILWAY_ENVIRONMENT_NAME", "production") == "production":
+if os.getenv("DEBUG", "false").lower() == "true" or os.getenv("RAILWAY_ENVIRONMENT_NAME", "development") == "development":
     deployment_status = display_deployment_status()
 else:
     # Production: Silent validation  
