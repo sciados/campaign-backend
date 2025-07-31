@@ -1,6 +1,6 @@
 """
 Campaign CRUD Routes - Core campaign operations
-FIXED VERSION - Resolves import and route registration issues
+FIXED VERSION - Resolves route conflict and import issues
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi import status as http_status
@@ -63,13 +63,10 @@ async def simple_background_task(campaign_id: str, url: str, user_id: str, compa
         logger.error(f"❌ Background task failed: {e}")
 
 # ============================================================================
-# ✅ CRUD ENDPOINTS - FIXED VERSIONS
+# ✅ SHARED LOGIC FUNCTION
 # ============================================================================
 
-# @router.get("", response_model=List[CampaignResponse] if SCHEMAS_AVAILABLE else List[dict])
-@router.get("/", response_model=List[CampaignResponse] if SCHEMAS_AVAILABLE else List[dict])
-# Shared logic function (put all your current get_campaigns logic here)
-async def get_campaigns(skip, limit, status, db, current_user):
+async def get_campaigns_logic(skip, limit, status, db, current_user):
     """Shared campaigns logic with demo auto-creation"""
     try:
         logger.info(f"📋 Getting campaigns for user {current_user.id}")
@@ -117,24 +114,21 @@ async def get_campaigns(skip, limit, status, db, current_user):
         logger.error(f"❌ Error getting campaigns: {e}")
         return [{"id": "error", "name": "Error getting campaigns", "description": str(e)}]
 
-# Two separate endpoint functions
+# ============================================================================
+# ✅ CRUD ENDPOINTS - FIXED: NO CONFLICTING ROUTES
+# ============================================================================
+
 @router.get("/", response_model=List[CampaignResponse] if SCHEMAS_AVAILABLE else List[dict])
-async def get_campaigns_with_slash(
-    skip: int = 0, limit: int = 100, status: Optional[str] = None,
-    db: AsyncSession = Depends(get_async_db), current_user: User = Depends(get_current_user)
+async def get_campaigns(
+    skip: int = 0, 
+    limit: int = 100, 
+    status: Optional[str] = None,
+    db: AsyncSession = Depends(get_async_db), 
+    current_user: User = Depends(get_current_user)
 ):
-    """Get campaigns - with trailing slash"""
-    return await get_campaigns(skip, limit, status, db, current_user)
+    """Get campaigns - SINGLE ROUTE (no conflict)"""
+    return await get_campaigns_logic(skip, limit, status, db, current_user)
 
-@router.get("", response_model=List[CampaignResponse] if SCHEMAS_AVAILABLE else List[dict])
-async def get_campaigns_no_slash(
-    skip: int = 0, limit: int = 100, status: Optional[str] = None,
-    db: AsyncSession = Depends(get_async_db), current_user: User = Depends(get_current_user)
-):
-    """Get campaigns - no trailing slash"""
-    return await get_campaigns(skip, limit, status, db, current_user)
-
-# @router.post("", response_model=CampaignResponse if SCHEMAS_AVAILABLE else dict)
 @router.post("/", response_model=CampaignResponse if SCHEMAS_AVAILABLE else dict)
 async def create_campaign(
     campaign_data: CampaignCreate,
@@ -164,22 +158,8 @@ async def create_campaign(
         # Use service if available
         campaign_service = CampaignService(db)
         new_campaign = await campaign_service.create_campaign(
-            campaign_data, current_user.id, current_user.company_id
+            campaign_data.dict(), current_user, background_tasks
         )
-        
-        # Trigger background analysis if needed
-        if (hasattr(campaign_data, 'auto_analysis_enabled') and 
-            campaign_data.auto_analysis_enabled and 
-            hasattr(campaign_data, 'salespage_url') and 
-            campaign_data.salespage_url):
-            
-            background_tasks.add_task(
-                simple_background_task,
-                str(new_campaign.id),
-                campaign_data.salespage_url,
-                str(current_user.id),
-                str(current_user.company_id)
-            )
         
         # Convert to response
         if hasattr(campaign_service, 'to_response'):
@@ -187,7 +167,7 @@ async def create_campaign(
         else:
             return {
                 "id": str(new_campaign.id),
-                "name": new_campaign.name,
+                "name": new_campaign.title,
                 "description": new_campaign.description or "",
                 "status": "created",
                 "created_at": new_campaign.created_at.isoformat() if hasattr(new_campaign, 'created_at') else None,
@@ -225,7 +205,7 @@ async def get_campaign(
         
         campaign_service = CampaignService(db)
         campaign = await campaign_service.get_campaign_by_id_and_company(
-            campaign_id, current_user.company_id
+            str(campaign_id), str(current_user.company_id)
         )
         
         if not campaign:
@@ -239,7 +219,7 @@ async def get_campaign(
         else:
             return {
                 "id": str(campaign.id),
-                "name": campaign.name,
+                "title": campaign.title,
                 "description": campaign.description or "",
                 "status": getattr(campaign, 'status', 'active'),
                 "created_at": campaign.created_at.isoformat() if hasattr(campaign, 'created_at') else None,
@@ -279,7 +259,7 @@ async def update_campaign(
         
         campaign_service = CampaignService(db)
         updated_campaign = await campaign_service.update_campaign(
-            campaign_id, campaign_update, current_user.company_id
+            str(campaign_id), campaign_update.dict(exclude_unset=True), str(current_user.company_id)
         )
         
         if not updated_campaign:
@@ -293,7 +273,7 @@ async def update_campaign(
         else:
             return {
                 "id": str(updated_campaign.id),
-                "name": updated_campaign.name,
+                "title": updated_campaign.title,
                 "description": updated_campaign.description or "",
                 "status": "updated",
                 "updated_at": updated_campaign.updated_at.isoformat() if hasattr(updated_campaign, 'updated_at') else None
@@ -326,34 +306,15 @@ async def delete_campaign(
             }
         
         campaign_service = CampaignService(db)
-        demo_service = DemoService(db)
-        
-        # Get the campaign first
-        campaign = await campaign_service.get_campaign_by_id_and_company(
-            campaign_id, current_user.company_id
-        )
-        
-        if not campaign:
-            raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail="Campaign not found"
-            )
-        
-        # Check if it's a demo campaign
-        if hasattr(demo_service, 'is_demo_campaign') and demo_service.is_demo_campaign(campaign):
-            can_delete, message = await demo_service.can_delete_demo_campaign(
-                current_user.company_id
-            )
-            
-            if not can_delete:
-                return {
-                    "error": "Cannot delete demo campaign",
-                    "message": message,
-                    "suggestion": "Create your first real campaign, then you can delete the demo"
-                }
         
         # Delete the campaign
-        await campaign_service.delete_campaign(campaign_id, current_user.company_id)
+        success = await campaign_service.delete_campaign(str(campaign_id), str(current_user.company_id))
+        
+        if not success:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found or could not be deleted"
+            )
         
         logger.info(f"✅ Campaign {campaign_id} deleted successfully")
         return {"message": "Campaign deleted successfully"}
