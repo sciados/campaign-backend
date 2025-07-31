@@ -1,6 +1,7 @@
 """
 Workflow Operations Routes - Workflow and intelligence operations
 Extracted from main routes.py for better organization
+🔧 CRITICAL FIX: Corrected service method calls and parameter passing
 """
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
@@ -32,22 +33,19 @@ async def get_workflow_state(
         logger.info(f"Getting workflow state for campaign {campaign_id}")
         
         # Initialize services
-        campaign_service = CampaignService(db)
         workflow_service = WorkflowService(db)
         
-        # Get campaign
-        campaign = await campaign_service.get_campaign_by_id_and_company(
-            campaign_id, current_user.company_id
+        # 🔧 CRITICAL FIX: Use correct method with proper parameters
+        workflow_data = await workflow_service.get_workflow_state(
+            campaign_id, 
+            current_user.company_id  # Pass UUID directly
         )
         
-        if not campaign:
+        if not workflow_data:
             raise HTTPException(
                 status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
-        
-        # Get workflow progress using service
-        workflow_data = await workflow_service.get_workflow_progress(campaign)
         
         return workflow_data
         
@@ -71,23 +69,21 @@ async def save_progress(
     try:
         logger.info(f"Saving workflow progress for campaign {campaign_id}")
         
-        # Initialize services
-        campaign_service = CampaignService(db)
+        # Initialize service
         workflow_service = WorkflowService(db)
         
-        # Get campaign
-        campaign = await campaign_service.get_campaign_by_id_and_company(
-            campaign_id, current_user.company_id
+        # 🔧 CRITICAL FIX: Use correct method with proper parameters
+        result = await workflow_service.save_workflow_progress(
+            campaign_id,
+            current_user.company_id,  # Pass UUID directly
+            progress_data
         )
         
-        if not campaign:
+        if not result:
             raise HTTPException(
                 status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
-        
-        # Save progress using service
-        result = await workflow_service.save_workflow_progress(campaign, progress_data)
         
         logger.info(f"✅ Workflow progress saved for campaign {campaign_id}")
         return result
@@ -109,25 +105,36 @@ async def get_analysis_progress(
 ):
     """Get real-time analysis progress using service layer"""
     try:
-        # Initialize services
-        campaign_service = CampaignService(db)
+        # Initialize service
         workflow_service = WorkflowService(db)
         
-        # Get campaign
-        campaign = await campaign_service.get_campaign_by_id_and_company(
-            campaign_id, current_user.company_id
+        # 🔧 CRITICAL FIX: Use get_workflow_state since get_analysis_progress doesn't exist
+        # The workflow state contains all the analysis progress information
+        workflow_data = await workflow_service.get_workflow_state(
+            campaign_id,
+            current_user.company_id  # Pass UUID directly
         )
         
-        if not campaign:
+        if not workflow_data:
             raise HTTPException(
                 status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Campaign not found"
             )
         
-        # Get analysis progress using service
-        progress_data = await workflow_service.get_analysis_progress(campaign)
+        # Extract analysis-specific progress data
+        analysis_progress = {
+            "campaign_id": workflow_data["campaign_id"],
+            "auto_analysis": workflow_data["auto_analysis"],
+            "completion_percentage": workflow_data["completion_percentage"],
+            "current_step": workflow_data["current_step"],
+            "total_steps": workflow_data["total_steps"],
+            "can_analyze": workflow_data["can_analyze"],
+            "can_generate_content": workflow_data["can_generate_content"],
+            "next_steps": workflow_data["next_steps"],
+            "metrics": workflow_data["metrics"]
+        }
         
-        return progress_data
+        return analysis_progress
         
     except HTTPException:
         raise
@@ -151,24 +158,16 @@ async def get_campaign_intelligence(
     try:
         logger.info(f"Getting intelligence for campaign {campaign_id}")
         
-        # Initialize services
-        campaign_service = CampaignService(db)
+        # Initialize service
         workflow_service = WorkflowService(db)
         
-        # Verify campaign ownership
-        campaign = await campaign_service.get_campaign_by_id_and_company(
-            campaign_id, current_user.company_id
-        )
-        
-        if not campaign:
-            raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail="Campaign not found"
-            )
-        
-        # Get intelligence data using service
+        # 🔧 CRITICAL FIX: Use correct method with proper parameters
         intelligence_data = await workflow_service.get_campaign_intelligence(
-            campaign_id, skip, limit, intelligence_type
+            campaign_id, 
+            current_user.company_id,  # Pass UUID directly
+            skip, 
+            limit, 
+            intelligence_type
         )
         
         return intelligence_data
