@@ -136,12 +136,12 @@ else:
     loading_results["failed"].append({"module": "workflow_operations", "error": workflow_error})
     logger.warning(f"⚠️ Workflow router failed: {workflow_error}")
 
-# Dashboard stats router
+# Dashboard stats router - 🔧 CRITICAL FIX: Changed prefix to match frontend
 dashboard_router, dashboard_error = safe_import_router("dashboard_stats")
 if dashboard_router:
     router.include_router(
         dashboard_router,
-        prefix="/stats",  # Changed prefix to avoid conflicts
+        prefix="/dashboard",  # 🔧 FIXED: Match frontend expectation (/api/campaigns/dashboard/stats)
         tags=["campaigns-dashboard"]
     )
     loading_results["loaded"].append("dashboard_stats")
