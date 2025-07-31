@@ -1,12 +1,11 @@
 # src/utils/demo_campaign_seeder.py
 """
 Demo Campaign Seeder - Creates educational demo campaigns for new users
-🎯 Solves empty state issues while providing excellent onboarding
+🎯 FIXED: Campaign + Intelligence Only - Users test content generation manually
 """
 from datetime import datetime, timezone
 import uuid
 import json
-# from sqlalchemy import DateTime, func
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -25,95 +24,138 @@ class DemoCampaignSeeder:
     
     async def create_demo_campaign(self, company_id: uuid.UUID, user_id: uuid.UUID) -> Campaign:
         """
-        Create a complete demo campaign with analysis and generated content
-        🎯 Shows users the full workflow and capabilities
+        Create demo campaign with intelligence analysis - STOPS BEFORE CONTENT GENERATION
+        🎯 Perfect onboarding: Users see analysis results, then manually test content tools
         """
         try:
-            logger.info(f"🎭 Creating demo campaign for company {company_id}")
+            logger.info(f"🎭 Creating demo campaign with intelligence for company {company_id}")
             
-            # Create the demo campaign
+            # ✅ STEP 1: Create demo campaign
             demo_campaign = Campaign(
                 id=uuid.uuid4(),
                 title="🎯 Demo: Social Media Scheduler Analysis",
-                description="This is a demo campaign showing how CampaignForge analyzes competitors and generates marketing content. Explore the analysis results and generated content to see what's possible!",
+                description="This is a demo campaign showing how CampaignForge analyzes competitors. Try the content generation tools when you're ready!",
                 keywords=["social media", "scheduling", "automation", "marketing"],
                 target_audience="Small business owners and marketing teams who need to manage multiple social media accounts efficiently",
                 company_id=company_id,
                 user_id=user_id,
                 
-                # Demo competitor URL
+                # Demo competitor URL - analyzed
                 salespage_url="https://buffer.com",
                 auto_analysis_enabled=True,
                 auto_analysis_status=AutoAnalysisStatus.COMPLETED,
                 
-                # Analysis results
+                # Analysis completed with high confidence
                 analysis_confidence_score=0.92,
-                analysis_summary=self._get_demo_analysis_summary(),
+                analysis_summary={
+                    "competitor_analyzed": "Buffer - Social Media Management Platform",
+                    "analysis_type": "Comprehensive competitor analysis",
+                    "key_findings": [
+                        "Freemium model with 3-account limit",
+                        "Premium analytics at $35/month",
+                        "Strong brand recognition but limited automation"
+                    ],
+                    "content_opportunities": [
+                        "Email sequences highlighting unlimited accounts",
+                        "Ad copy emphasizing cost savings",
+                        "Social posts showcasing advanced features"
+                    ],
+                    "competitive_advantages": [
+                        "No account limits vs Buffer's 3-account restriction",
+                        "Included analytics vs $35/month add-on",
+                        "Advanced automation features"
+                    ],
+                    "confidence_level": "High - Ready for content generation",
+                    "next_step": "Use content generation tools to create marketing materials"
+                },
                 
-                # Campaign status
+                # Campaign ready for content generation
                 status=CampaignStatus.ANALYSIS_COMPLETE,
                 workflow_state=CampaignWorkflowState.ANALYSIS_COMPLETE,
                 
-                # Progress tracking
+                # Analysis complete, content ready to be generated
                 sources_count=1,
                 sources_processed=1,
                 intelligence_extracted=1,
                 intelligence_count=1,
-                content_generated=3,  # We'll create 3 demo content pieces
-                generated_content_count=3,
+                content_generated=0,  # ✅ ZERO - User will generate manually
+                generated_content_count=0,
                 
-                # Step states for 2-step workflow
+                # Step states: Step 1 complete, Step 2 ready
                 step_states={
                     "step_1": {
                         "status": "completed",
                         "progress": 100,
                         "can_skip": False,
-                        "description": "Campaign Setup & Analysis"
+                        "description": "Campaign Setup & Analysis - COMPLETE ✅"
                     },
                     "step_2": {
                         "status": "available", 
-                        "progress": 75,
+                        "progress": 0,
                         "can_skip": False,
-                        "description": "Content Generation"
+                        "description": "Content Generation - Ready when you are!"
                     }
                 },
                 completed_steps=[1],
                 available_steps=[1, 2],
-                active_steps=[2],
+                active_steps=[2],  # Ready for Step 2
                 last_active_step=2,
                 
-                # Content preferences
+                # Content preferences ready for generation
                 content_types=["email_sequence", "ad_copy", "social_post"],
                 content_tone="professional",
                 content_style="modern",
+                generate_content_after_analysis=False,  # ✅ MANUAL ONLY
                 
-                # Settings
+                # Demo settings
                 settings={
                     "demo_campaign": True,
                     "demo_created_at": datetime.now(timezone.utc).isoformat(),
-                    "demo_version": "1.0"
+                    "demo_version": "1.0",
+                    "demo_description": "Analysis complete - ready for content generation testing",
+                    "user_instructions": "This demo shows completed analysis. Use content generation tools to create marketing materials."
                 }
             )
 
+            # Set analysis timestamps
             demo_campaign.auto_analysis_started_at = datetime.now(timezone.utc)
             demo_campaign.auto_analysis_completed_at = datetime.now(timezone.utc)
+            
+            logger.info("✅ STEP 1: Demo campaign created, saving to database...")
             
             # Save the campaign
             self.db.add(demo_campaign)
             await self.db.commit()
             await self.db.refresh(demo_campaign)
             
-            # Create demo intelligence record
-            demo_intelligence = await self._create_demo_intelligence(demo_campaign.id, user_id, company_id)
+            logger.info(f"✅ STEP 1 COMPLETE: Demo campaign saved: {demo_campaign.id}")
             
-            # Create demo generated content
-            await self._create_demo_content(demo_campaign.id, demo_intelligence.id, user_id, company_id)
+            # ✅ STEP 2: Create demo intelligence (realistic Buffer analysis)
+            logger.info("🧠 STEP 2: Creating demo intelligence analysis...")
+            try:
+                demo_intelligence = await self._create_demo_intelligence(demo_campaign.id, user_id, company_id)
+                logger.info(f"✅ STEP 2 COMPLETE: Demo intelligence created: {demo_intelligence.id}")
+            except Exception as intel_error:
+                logger.error(f"❌ Demo intelligence creation failed: {intel_error}")
+                # Campaign still works without intelligence, but log the error
+                
+            # ✅ STEP 3: DELIBERATELY SKIP CONTENT GENERATION
+            logger.info("📝 STEP 3: SKIPPING content generation - users will test manually")
+            logger.info("🎯 Demo Philosophy: Show analysis results, let users discover content tools themselves")
             
-            logger.info(f"✅ Demo campaign created successfully: {demo_campaign.id}")
+            logger.info(f"🎉 DEMO READY FOR USER TESTING: {demo_campaign.id}")
+            logger.info("📋 Users can now:")
+            logger.info("   • View comprehensive analysis results")
+            logger.info("   • Explore intelligence insights")
+            logger.info("   • Test content generation tools manually")
+            logger.info("   • Learn the workflow at their own pace")
+            
             return demo_campaign
             
         except Exception as e:
-            logger.error(f"❌ Failed to create demo campaign: {str(e)}")
+            logger.error(f"❌ Demo creation failed: {str(e)}")
+            import traceback
+            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
             await self.db.rollback()
             raise e
     
@@ -302,204 +344,6 @@ class DemoCampaignSeeder:
         await self.db.refresh(demo_intelligence)
         
         return demo_intelligence
-    
-    # Fix your demo_campaign_seeder.py _create_demo_content method with CORRECT field names
-
-async def _create_demo_content(self, campaign_id: uuid.UUID, intelligence_id: uuid.UUID, user_id: uuid.UUID, company_id: uuid.UUID):
-    """Create demo generated content pieces - FIXED with correct database fields"""
-    
-    demo_content_pieces = [
-        {
-            "content_type": "email_sequence",
-            "content_title": "5-Email Welcome Series for Social Media Tool",
-            "content_body": json.dumps({
-                "emails": [
-                    {
-                        "subject": "Welcome! Your social media success starts now 🚀",
-                        "body": "Hi there!\n\nWelcome to [Your Tool Name]! You've just joined thousands of businesses who've discovered the secret to effortless social media management.\n\nUnlike tools like Buffer that limit your free plan to just 3 accounts, we believe in giving you the freedom to grow from day one.\n\nHere's what makes us different:\n✅ Unlimited social accounts (even on free plan)\n✅ Advanced analytics that actually help you grow\n✅ Smart automation that saves you 10+ hours per week\n\nReady to see the difference? Let's get your first post scheduled!\n\n[Get Started Button]\n\nBest,\nThe [Your Tool] Team",
-                        "day": 0
-                    },
-                    {
-                        "subject": "The #1 mistake 87% of businesses make with social media",
-                        "body": "Hi [Name],\n\nI just analyzed 10,000+ social media accounts, and I discovered something shocking...\n\n87% of businesses post inconsistently, killing their engagement rates.\n\nHere's what happens when you post irregularly:\n❌ Algorithm stops showing your content\n❌ Followers forget about your brand\n❌ Competitors steal your audience\n\nBut here's the good news...\n\nWith [Your Tool], you can schedule a month's worth of content in just 30 minutes. Our AI even suggests the best times to post for maximum engagement.\n\nWant to see how? Watch this 2-minute demo:\n\n[Watch Demo Button]\n\nTo your success,\n[Your Name]",
-                        "day": 2
-                    }
-                ],
-                "metadata": {
-                    "sequence_type": "welcome_onboarding",
-                    "target_audience": "social_media_managers",
-                    "tone": "professional_friendly",
-                    "competitor_analysis": "buffer_comparison"
-                }
-            }),
-            "generation_settings": {
-                "style": "professional",
-                "tone": "helpful",
-                "competitor_focus": "buffer"
-            }
-        },
-        {
-            "content_type": "ad_copy",
-            "content_title": "Facebook/Google Ads - Social Media Tool",
-            "content_body": json.dumps({
-                "ads": [
-                    {
-                        "platform": "facebook",
-                        "type": "conversion",
-                        "headline": "Stop Wasting 10+ Hours/Week on Social Media",
-                        "primary_text": "While you're manually posting one by one, your competitors are using smart automation to dominate social media.\n\nOur social media tool does what Buffer can't:\n✅ Unlimited accounts (Buffer limits you to 3)\n✅ Advanced analytics included (Buffer charges $35/month extra)\n✅ AI-powered posting optimization\n✅ True team collaboration\n\nJoin 50,000+ businesses saving 10+ hours weekly.\n\n👆 Start your free trial - no credit card required",
-                        "cta": "Start Free Trial",
-                        "audience": "business_owners_social_media"
-                    }
-                ]
-            }),
-            "generation_settings": {
-                "competitive_angle": "buffer_comparison",
-                "focus": "feature_superiority",
-                "tone": "confident_professional"
-            }
-        },
-        {
-            "content_type": "social_post",
-            "content_title": "Social Media Content - Launch Sequence",
-            "content_body": json.dumps({
-                "posts": [
-                    {
-                        "platform": "linkedin",
-                        "content": "🚀 Just discovered something that's going to change how businesses think about social media management...\n\nAfter analyzing 10,000+ social accounts, we found that 87% of businesses are making the same critical mistake:\n\nThey're stuck with tools that worked 5 years ago.\n\nWhile Buffer charges $35/month for basic analytics, smart businesses are moving to platforms that include advanced AI optimization, unlimited accounts, and comprehensive analytics as standard features.\n\nThe result? 67% increase in engagement within 30 days.\n\nWhat old tool are you ready to upgrade? 👇\n\n#SocialMediaMarketing #MarketingAutomation #DigitalTransformation",
-                        "image_suggestion": "Chart showing engagement improvement statistics",
-                        "best_time": "Tuesday 9:00 AM"
-                    }
-                ]
-            }),
-            "generation_settings": {
-                "content_mix": "educational_promotional",
-                "competitive_positioning": "innovation_focus",
-                "engagement_style": "high_value_content"
-            }
-        }
-    ]
-    
-    for content_data in demo_content_pieces:
-        # ✅ FIXED: Using correct database field names from generated_content table
-        demo_content = GeneratedContent(
-            id=uuid.uuid4(),
-            user_id=user_id,
-            campaign_id=campaign_id,
-            # ❌ REMOVED: intelligence_id - this field doesn't exist in your table
-            
-            # ✅ CORRECT: Using actual database field names
-            content_type=content_data["content_type"],
-            content_title=content_data["content_title"],
-            content_body=content_data["content_body"],
-            content_metadata=json.dumps({
-                "demo_content": True,
-                "created_for_onboarding": True,
-                "content_quality": "high",
-                "competitive_analysis_applied": True
-            }),
-            generation_settings=json.dumps(content_data["generation_settings"]),
-            intelligence_used=json.dumps({
-                "intelligence_id": str(intelligence_id),  # Store as metadata instead
-                "amplified": True,
-                "confidence_score": 0.92,
-                "competitive_insights": True,
-                "psychological_triggers": True,
-                "scientific_backing": True
-            }),
-            is_published=False,
-            user_rating=5,
-            # published_at=None,  # Will be null by default
-            performance_score=0.0,
-            view_count=0,
-            company_id=company_id,
-            performance_data=json.dumps({
-                "demo_metrics": {
-                    "estimated_engagement": "67% above average",
-                    "conversion_potential": "high",
-                    "competitive_advantage": "strong"
-                }
-            })
-        )
-        
-        self.db.add(demo_content)
-    
-    await self.db.commit()
-    logger.info(f"✅ Created {len(demo_content_pieces)} demo content pieces with correct field names")
-    
-    def _get_demo_analysis_summary(self) -> Dict[str, Any]:
-        """Get comprehensive demo analysis summary for content generation"""
-        return {
-            "product_analysis": {
-                "products": [
-                    "Buffer Publish - Social media scheduling platform",
-                    "Buffer Analyze - Social media analytics tool"
-                ],
-                "key_value_props": [
-                    "Save time with batch scheduling",
-                    "Grow with consistent posting", 
-                    "Analyze performance with detailed insights",
-                    "Collaborate seamlessly with teams",
-                    "Professional social media presence"
-                ],
-                "pricing_strategy": [
-                    "Freemium model with 3 account limit",
-                    "Tiered pricing from $6-12/month",
-                    "Analytics as premium add-on ($35/month)"
-                ],
-                "guarantees": [
-                    "14-day free trial",
-                    "Cancel anytime policy"
-                ]
-            },
-            "audience_insights": {
-                "target_audience": "Small business owners, marketing teams, social media managers",
-                "pain_points": [
-                    "Time-consuming manual posting",
-                    "Inconsistent posting hurting engagement",
-                    "Difficulty measuring social ROI",
-                    "Team coordination challenges",
-                    "Content planning overwhelm"
-                ],
-                "emotional_triggers": [
-                    "Time scarcity and efficiency needs",
-                    "Professional growth aspirations",
-                    "Simplicity and ease of use desires",
-                    "Social proof and validation",
-                    "Control and organization needs"
-                ],
-                "persuasion_techniques": [
-                    "Social proof through testimonials",
-                    "Risk reduction with free trials",
-                    "Simplicity in pricing structure",
-                    "Feature comparison advantages"
-                ]
-            },
-            "competitive_advantages": [
-                "Emphasize unlimited accounts vs Buffer's 3-account limit",
-                "Highlight included analytics vs Buffer's $35/month add-on",
-                "Focus on advanced automation features",
-                "Promote stronger team collaboration tools",
-                "Showcase better pricing value"
-            ],
-            "content_opportunities": [
-                "Create email sequences highlighting feature advantages",
-                "Develop comparison-focused ad copy",
-                "Generate social proof content with switching stories",
-                "Build educational content around social media best practices",
-                "Design case studies showing superior results",
-                "Craft landing pages with competitive comparisons",
-                "Produce video content demonstrating ease of use",
-                "Write blog posts about social media automation trends"
-            ],
-            "amplification_data": {
-                "scientific_backing_available": True,
-                "credibility_enhancements": 0.87,
-                "total_enhancements": 24,
-                "confidence_boost": 0.15,
-                "enhancement_quality": "excellent"
-            }
-        }
     
     async def check_and_create_demo_campaign(self, company_id: uuid.UUID, user_id: uuid.UUID) -> Optional[Campaign]:
         """
