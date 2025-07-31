@@ -365,7 +365,7 @@ class ContentHandler(EnumSerializerMixin):
         parsed_content = self._parse_content_body(content_item.content_body)
         
         # Get intelligence source info
-        intelligence_info = await self._get_intelligence_source_info(content_item.intelligence_source_id)
+        intelligence_info = await self._get_intelligence_source_info(content_item.intelligence_id)
         
         # Extract ultra-cheap AI info
         intelligence_used = content_item.intelligence_used or {}
@@ -684,14 +684,14 @@ class ContentHandler(EnumSerializerMixin):
         except:
             return "Content available"
     
-    async def _get_intelligence_source_info(self, intelligence_source_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    async def _get_intelligence_source_info(self, intelligence_id: Optional[str]) -> Optional[Dict[str, Any]]:
         """Get intelligence source information if available"""
-        if not intelligence_source_id:
+        if not intelligence_id:
             return None
         
         intel_result = await self.db.execute(
             select(CampaignIntelligence).where(
-                CampaignIntelligence.id == intelligence_source_id
+                CampaignIntelligence.id == intelligence_id
             )
         )
         intelligence_source = intel_result.scalar_one_or_none()

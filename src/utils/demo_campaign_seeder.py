@@ -417,7 +417,7 @@ class DemoCampaignSeeder:
             demo_content = GeneratedContent(
                 id=uuid.uuid4(),
                 campaign_id=campaign_id,
-                intelligence_source_id=intelligence_id,
+                intelligence_id=intelligence_id,  # ✅ FIXED: Use intelligence_id instead of intelligence_source_id
                 user_id=user_id,
                 company_id=company_id,
                 

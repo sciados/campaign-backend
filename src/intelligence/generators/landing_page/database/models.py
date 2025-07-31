@@ -199,7 +199,7 @@ class GeneratedContent(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False)
-    intelligence_source_id = Column(UUID(as_uuid=True), ForeignKey("campaign_intelligence.id", ondelete="SET NULL"))
+    intelligence_id = Column(UUID(as_uuid=True), ForeignKey("campaign_intelligence.id", ondelete="SET NULL"))
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"))
     

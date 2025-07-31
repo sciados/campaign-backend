@@ -345,3 +345,87 @@ class CampaignService:
         except Exception as e:
             logger.error(f"Error getting dashboard stats: {e}")
             return {"error": str(e)}
+        
+    # Add this method to campaign_service.py - CampaignService class
+
+    def to_response(self, campaign: Campaign) -> Dict[str, Any]:
+        """
+        Convert Campaign model to API response format
+        🔧 CRITICAL FIX: Missing method causing 'CampaignService' object has no attribute 'to_response'
+        """
+        try:
+            return {
+                "id": str(campaign.id),
+                "title": campaign.title,
+                "description": campaign.description,
+                "keywords": campaign.keywords or [],
+                "target_audience": campaign.target_audience,
+                "campaign_type": getattr(campaign, 'campaign_type', 'universal'),
+                "status": campaign.status.value if campaign.status else 'DRAFT',
+                "tone": campaign.tone,
+                "style": campaign.style,
+                "settings": campaign.settings or {},
+                "created_at": campaign.created_at.isoformat() if campaign.created_at else None,
+                "updated_at": campaign.updated_at.isoformat() if campaign.updated_at else None,
+                "user_id": str(campaign.user_id),
+                "company_id": str(campaign.company_id),
+                
+                # Auto-Analysis Fields
+                "salespage_url": campaign.salespage_url,
+                "auto_analysis_enabled": campaign.auto_analysis_enabled,
+                "auto_analysis_status": campaign.auto_analysis_status.value if campaign.auto_analysis_status else None,
+                "analysis_confidence_score": campaign.analysis_confidence_score,
+                
+                # Workflow Fields
+                "workflow_state": campaign.workflow_state.value if campaign.workflow_state else None,
+                "completion_percentage": self._calculate_completion_percentage(campaign),
+                "sources_count": campaign.sources_count or 0,
+                "intelligence_count": campaign.intelligence_count or 0,
+                "content_count": campaign.generated_content_count or 0,
+                "total_steps": 2,  # 2-step workflow
+                
+                # Content preferences
+                "content_types": campaign.content_types or [],
+                "content_tone": campaign.content_tone,
+                "content_style": campaign.content_style,
+                "generate_content_after_analysis": campaign.generate_content_after_analysis,
+                
+                # Demo campaign fields
+                "is_demo": is_demo_campaign(campaign),
+                
+                # Legacy fields for backward compatibility
+                "confidence_score": campaign.analysis_confidence_score,
+                "last_activity": campaign.updated_at.isoformat() if campaign.updated_at else None
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error converting campaign to response: {str(e)}")
+            # Return minimal response on error
+            return {
+                "id": str(campaign.id) if campaign.id else "unknown",
+                "title": campaign.title or "Unknown Campaign",
+                "status": "ERROR",
+                "error": "Failed to convert campaign data"
+            }
+    
+    def _calculate_completion_percentage(self, campaign: Campaign) -> int:
+        """Calculate campaign completion percentage based on workflow state"""
+        try:
+            if not campaign.workflow_state:
+                return 0
+            
+            # Map workflow states to completion percentages
+            completion_map = {
+                "SETUP": 25,
+                "ANALYSIS_STARTED": 50,
+                "ANALYSIS_COMPLETE": 75,
+                "CONTENT_GENERATION": 90,
+                "COMPLETED": 100
+            }
+            
+            state_value = campaign.workflow_state.value if hasattr(campaign.workflow_state, 'value') else str(campaign.workflow_state)
+            return completion_map.get(state_value, 0)
+            
+        except Exception as e:
+            logger.error(f"Error calculating completion percentage: {e}")
+            return 0

@@ -229,7 +229,7 @@ async def generate_campaign_with_images(
                 "total_image_cost": total_cost,
                 "cost_savings_vs_dalle": (len(generated_images) * 0.040) - total_cost,
                 "generation_timestamp": datetime.now(timezone.utc),
-                "intelligence_source_id": str(intelligence_record.id),
+                "intelligence_id": str(intelligence_record.id),
                 "ready_to_publish": True,
                 "product_name": intelligence_data["product_name"]
             },
@@ -244,7 +244,7 @@ async def generate_campaign_with_images(
                 "confidence_score": intelligence_record.confidence_score,
                 "source_url": intelligence_record.source_url
             },
-            intelligence_source_id=intelligence_record.id
+            intelligence_id=intelligence_record.id
         )
         
         db.add(generated_content)
