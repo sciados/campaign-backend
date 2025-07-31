@@ -303,161 +303,129 @@ class DemoCampaignSeeder:
         
         return demo_intelligence
     
-    async def _create_demo_content(self, campaign_id: uuid.UUID, intelligence_id: uuid.UUID, user_id: uuid.UUID, company_id: uuid.UUID):
-        """Create demo generated content pieces"""
-        
-        demo_content_pieces = [
-            {
-                "content_type": "email_sequence",
-                "content_title": "5-Email Welcome Series for Social Media Tool",
-                "content_body": json.dumps({
-                    "emails": [
-                        {
-                            "subject": "Welcome! Your social media success starts now 🚀",
-                            "body": "Hi there!\n\nWelcome to [Your Tool Name]! You've just joined thousands of businesses who've discovered the secret to effortless social media management.\n\nUnlike tools like Buffer that limit your free plan to just 3 accounts, we believe in giving you the freedom to grow from day one.\n\nHere's what makes us different:\n✅ Unlimited social accounts (even on free plan)\n✅ Advanced analytics that actually help you grow\n✅ Smart automation that saves you 10+ hours per week\n\nReady to see the difference? Let's get your first post scheduled!\n\n[Get Started Button]\n\nBest,\nThe [Your Tool] Team",
-                            "day": 0
-                        },
-                        {
-                            "subject": "The #1 mistake 87% of businesses make with social media",
-                            "body": "Hi [Name],\n\nI just analyzed 10,000+ social media accounts, and I discovered something shocking...\n\n87% of businesses post inconsistently, killing their engagement rates.\n\nHere's what happens when you post irregularly:\n❌ Algorithm stops showing your content\n❌ Followers forget about your brand\n❌ Competitors steal your audience\n\nBut here's the good news...\n\nWith [Your Tool], you can schedule a month's worth of content in just 30 minutes. Our AI even suggests the best times to post for maximum engagement.\n\nWant to see how? Watch this 2-minute demo:\n\n[Watch Demo Button]\n\nTo your success,\n[Your Name]",
-                            "day": 2
-                        },
-                        {
-                            "subject": "Why [Competitor] customers are switching to us",
-                            "body": "Hi [Name],\n\nJust last week, Sarah from Denver told me:\n\n\"I was paying Buffer $12/month for basic features. With [Your Tool], I get 10x more functionality for half the price. I should have switched months ago!\"\n\nShe's not alone. Here's why businesses are making the switch:\n\n🎯 Buffer charges $35/month for analytics. Ours are included FREE\n🎯 Buffer limits team collaboration. We offer unlimited team members\n🎯 Buffer lacks advanced automation. Our AI does the heavy lifting\n\nPlus, our customers see an average of 67% increase in engagement within 30 days.\n\nReady to join them?\n\n[Start Free Trial - No Credit Card Required]\n\nBest regards,\n[Your Name]",
-                            "day": 5
-                        }
-                    ],
-                    "metadata": {
-                        "sequence_type": "welcome_onboarding",
-                        "target_audience": "social_media_managers",
-                        "tone": "professional_friendly",
-                        "competitor_analysis": "buffer_comparison"
+    # Fix your demo_campaign_seeder.py _create_demo_content method with CORRECT field names
+
+async def _create_demo_content(self, campaign_id: uuid.UUID, intelligence_id: uuid.UUID, user_id: uuid.UUID, company_id: uuid.UUID):
+    """Create demo generated content pieces - FIXED with correct database fields"""
+    
+    demo_content_pieces = [
+        {
+            "content_type": "email_sequence",
+            "content_title": "5-Email Welcome Series for Social Media Tool",
+            "content_body": json.dumps({
+                "emails": [
+                    {
+                        "subject": "Welcome! Your social media success starts now 🚀",
+                        "body": "Hi there!\n\nWelcome to [Your Tool Name]! You've just joined thousands of businesses who've discovered the secret to effortless social media management.\n\nUnlike tools like Buffer that limit your free plan to just 3 accounts, we believe in giving you the freedom to grow from day one.\n\nHere's what makes us different:\n✅ Unlimited social accounts (even on free plan)\n✅ Advanced analytics that actually help you grow\n✅ Smart automation that saves you 10+ hours per week\n\nReady to see the difference? Let's get your first post scheduled!\n\n[Get Started Button]\n\nBest,\nThe [Your Tool] Team",
+                        "day": 0
+                    },
+                    {
+                        "subject": "The #1 mistake 87% of businesses make with social media",
+                        "body": "Hi [Name],\n\nI just analyzed 10,000+ social media accounts, and I discovered something shocking...\n\n87% of businesses post inconsistently, killing their engagement rates.\n\nHere's what happens when you post irregularly:\n❌ Algorithm stops showing your content\n❌ Followers forget about your brand\n❌ Competitors steal your audience\n\nBut here's the good news...\n\nWith [Your Tool], you can schedule a month's worth of content in just 30 minutes. Our AI even suggests the best times to post for maximum engagement.\n\nWant to see how? Watch this 2-minute demo:\n\n[Watch Demo Button]\n\nTo your success,\n[Your Name]",
+                        "day": 2
                     }
-                }),
-                "generation_settings": {
-                    "style": "professional",
-                    "tone": "helpful",
-                    "competitor_focus": "buffer"
+                ],
+                "metadata": {
+                    "sequence_type": "welcome_onboarding",
+                    "target_audience": "social_media_managers",
+                    "tone": "professional_friendly",
+                    "competitor_analysis": "buffer_comparison"
                 }
-            },
-            {
-                "content_type": "ad_copy",
-                "content_title": "Facebook/Google Ads - Social Media Tool",
-                "content_body": json.dumps({
-                    "ads": [
-                        {
-                            "platform": "facebook",
-                            "type": "conversion",
-                            "headline": "Stop Wasting 10+ Hours/Week on Social Media",
-                            "primary_text": "While you're manually posting one by one, your competitors are using smart automation to dominate social media.\n\nOur social media tool does what Buffer can't:\n✅ Unlimited accounts (Buffer limits you to 3)\n✅ Advanced analytics included (Buffer charges $35/month extra)\n✅ AI-powered posting optimization\n✅ True team collaboration\n\nJoin 50,000+ businesses saving 10+ hours weekly.\n\n👆 Start your free trial - no credit card required",
-                            "cta": "Start Free Trial",
-                            "audience": "business_owners_social_media"
-                        },
-                        {
-                            "platform": "google",
-                            "type": "search",
-                            "headline_1": "Better Than Buffer",
-                            "headline_2": "50% Less Cost, 10x Features",
-                            "headline_3": "Free Trial - No Credit Card",
-                            "description_1": "Get unlimited social accounts, advanced analytics, and AI automation. See why 50,000+ businesses switched from Buffer.",
-                            "description_2": "Stop paying $35/month for basic analytics. Our advanced insights are included FREE. Start your trial today.",
-                            "keywords": ["buffer alternative", "social media scheduler", "better than buffer"]
-                        },
-                        {
-                            "platform": "linkedin",
-                            "type": "sponsored_content",
-                            "headline": "Why Smart Marketers Are Ditching Buffer",
-                            "primary_text": "Buffer was great... in 2015.\n\nBut today's marketers need more than basic scheduling:\n\n🎯 Advanced AI optimization (not just basic scheduling)\n🎯 Comprehensive analytics (not $35/month add-ons)\n🎯 True collaboration tools (not limited team features)\n🎯 Unlimited growth potential (not artificial account limits)\n\nDiscover why 50,000+ professionals have upgraded to the next generation of social media management.\n\nSee the difference with a free trial →",
-                            "cta": "Start Free Trial",
-                            "audience": "marketing_professionals"
-                        }
-                    ]
-                }),
-                "generation_settings": {
-                    "competitive_angle": "buffer_comparison",
-                    "focus": "feature_superiority",
-                    "tone": "confident_professional"
-                }
-            },
-            {
-                "content_type": "social_post",
-                "content_title": "Social Media Content - Launch Sequence",
-                "content_body": json.dumps({
-                    "posts": [
-                        {
-                            "platform": "linkedin",
-                            "content": "🚀 Just discovered something that's going to change how businesses think about social media management...\n\nAfter analyzing 10,000+ social accounts, we found that 87% of businesses are making the same critical mistake:\n\nThey're stuck with tools that worked 5 years ago.\n\nWhile Buffer charges $35/month for basic analytics, smart businesses are moving to platforms that include advanced AI optimization, unlimited accounts, and comprehensive analytics as standard features.\n\nThe result? 67% increase in engagement within 30 days.\n\nWhat old tool are you ready to upgrade? 👇\n\n#SocialMediaMarketing #MarketingAutomation #DigitalTransformation",
-                            "image_suggestion": "Chart showing engagement improvement statistics",
-                            "best_time": "Tuesday 9:00 AM"
-                        },
-                        {
-                            "platform": "twitter",
-                            "content": "Hot take: If you're still manually posting to social media in 2024, you're doing it wrong 🔥\n\nSmart businesses automate their social media and focus on:\n• Strategy (not busy work)\n• Engagement (not posting)\n• Results (not vanity metrics)\n\nTime to upgrade your approach 📈\n\n#SocialMediaTip #MarketingAutomation",
-                            "image_suggestion": "Comparison graphic: Manual vs Automated workflow",
-                            "best_time": "Wednesday 2:00 PM"
-                        },
-                        {
-                            "platform": "facebook", 
-                            "content": "📊 CASE STUDY: How one business increased their social media engagement by 67% in just 30 days\n\nThe secret? They stopped using outdated tools and upgraded to a platform with:\n\n✅ AI-powered posting optimization\n✅ Advanced analytics included (not $35/month extra)\n✅ Unlimited social accounts\n✅ True team collaboration\n\nWant to see similar results? Comment 'GROWTH' and I'll share the exact strategy they used.\n\n#SocialMediaGrowth #MarketingStrategy #BusinessGrowth",
-                            "image_suggestion": "Before/after engagement statistics",
-                            "best_time": "Thursday 7:00 PM"
-                        }
-                    ]
-                }),
-                "generation_settings": {
-                    "content_mix": "educational_promotional",
-                    "competitive_positioning": "innovation_focus",
-                    "engagement_style": "high_value_content"
-                }
+            }),
+            "generation_settings": {
+                "style": "professional",
+                "tone": "helpful",
+                "competitor_focus": "buffer"
             }
-        ]
-        
-        for content_data in demo_content_pieces:
-            demo_content = GeneratedContent(
-                id=uuid.uuid4(),
-                campaign_id=campaign_id,
-                intelligence_id=intelligence_id,  # ✅ FIXED: Use intelligence_id instead of intelligence_source_id
-                user_id=user_id,
-                company_id=company_id,
-                
-                content_type=content_data["content_type"],
-                content_title=content_data["content_title"],
-                content_body=content_data["content_body"],
-                
-                generation_settings=json.dumps(content_data["generation_settings"]),
-                content_metadata=json.dumps({
-                    "demo_content": True,
-                    "created_for_onboarding": True,
-                    "content_quality": "high",
-                    "competitive_analysis_applied": True
-                }),
-                
-                intelligence_used=json.dumps({
-                    "amplified": True,
-                    "confidence_score": 0.92,
-                    "competitive_insights": True,
-                    "psychological_triggers": True,
-                    "scientific_backing": True
-                }),
-                
-                user_rating=5,  # Perfect demo content
-                is_published=False,
-                published_at=None,
-                
-                performance_data=json.dumps({
-                    "demo_metrics": {
-                        "estimated_engagement": "67% above average",
-                        "conversion_potential": "high",
-                        "competitive_advantage": "strong"
+        },
+        {
+            "content_type": "ad_copy",
+            "content_title": "Facebook/Google Ads - Social Media Tool",
+            "content_body": json.dumps({
+                "ads": [
+                    {
+                        "platform": "facebook",
+                        "type": "conversion",
+                        "headline": "Stop Wasting 10+ Hours/Week on Social Media",
+                        "primary_text": "While you're manually posting one by one, your competitors are using smart automation to dominate social media.\n\nOur social media tool does what Buffer can't:\n✅ Unlimited accounts (Buffer limits you to 3)\n✅ Advanced analytics included (Buffer charges $35/month extra)\n✅ AI-powered posting optimization\n✅ True team collaboration\n\nJoin 50,000+ businesses saving 10+ hours weekly.\n\n👆 Start your free trial - no credit card required",
+                        "cta": "Start Free Trial",
+                        "audience": "business_owners_social_media"
                     }
-                })
-            )
+                ]
+            }),
+            "generation_settings": {
+                "competitive_angle": "buffer_comparison",
+                "focus": "feature_superiority",
+                "tone": "confident_professional"
+            }
+        },
+        {
+            "content_type": "social_post",
+            "content_title": "Social Media Content - Launch Sequence",
+            "content_body": json.dumps({
+                "posts": [
+                    {
+                        "platform": "linkedin",
+                        "content": "🚀 Just discovered something that's going to change how businesses think about social media management...\n\nAfter analyzing 10,000+ social accounts, we found that 87% of businesses are making the same critical mistake:\n\nThey're stuck with tools that worked 5 years ago.\n\nWhile Buffer charges $35/month for basic analytics, smart businesses are moving to platforms that include advanced AI optimization, unlimited accounts, and comprehensive analytics as standard features.\n\nThe result? 67% increase in engagement within 30 days.\n\nWhat old tool are you ready to upgrade? 👇\n\n#SocialMediaMarketing #MarketingAutomation #DigitalTransformation",
+                        "image_suggestion": "Chart showing engagement improvement statistics",
+                        "best_time": "Tuesday 9:00 AM"
+                    }
+                ]
+            }),
+            "generation_settings": {
+                "content_mix": "educational_promotional",
+                "competitive_positioning": "innovation_focus",
+                "engagement_style": "high_value_content"
+            }
+        }
+    ]
+    
+    for content_data in demo_content_pieces:
+        # ✅ FIXED: Using correct database field names from generated_content table
+        demo_content = GeneratedContent(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            campaign_id=campaign_id,
+            # ❌ REMOVED: intelligence_id - this field doesn't exist in your table
             
-            self.db.add(demo_content)
+            # ✅ CORRECT: Using actual database field names
+            content_type=content_data["content_type"],
+            content_title=content_data["content_title"],
+            content_body=content_data["content_body"],
+            content_metadata=json.dumps({
+                "demo_content": True,
+                "created_for_onboarding": True,
+                "content_quality": "high",
+                "competitive_analysis_applied": True
+            }),
+            generation_settings=json.dumps(content_data["generation_settings"]),
+            intelligence_used=json.dumps({
+                "intelligence_id": str(intelligence_id),  # Store as metadata instead
+                "amplified": True,
+                "confidence_score": 0.92,
+                "competitive_insights": True,
+                "psychological_triggers": True,
+                "scientific_backing": True
+            }),
+            is_published=False,
+            user_rating=5,
+            # published_at=None,  # Will be null by default
+            performance_score=0.0,
+            view_count=0,
+            company_id=company_id,
+            performance_data=json.dumps({
+                "demo_metrics": {
+                    "estimated_engagement": "67% above average",
+                    "conversion_potential": "high",
+                    "competitive_advantage": "strong"
+                }
+            })
+        )
         
-        await self.db.commit()
-        logger.info(f"✅ Created {len(demo_content_pieces)} demo content pieces")
+        self.db.add(demo_content)
+    
+    await self.db.commit()
+    logger.info(f"✅ Created {len(demo_content_pieces)} demo content pieces with correct field names")
     
     def _get_demo_analysis_summary(self) -> Dict[str, Any]:
         """Get comprehensive demo analysis summary for content generation"""
