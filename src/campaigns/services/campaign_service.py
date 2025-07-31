@@ -241,6 +241,13 @@ class CampaignService:
             logger.error(f"Error getting campaign {campaign_id}: {e}")
             return None
     
+    async def get_campaign_by_id_and_company(self, campaign_id: str, company_id: str) -> Optional[Campaign]:
+        """
+        Get campaign by ID with company verification (alias for get_campaign_by_id)
+        🔧 CRITICAL FIX: Missing method being called from workflow_operations.py
+        """
+        return await self.get_campaign_by_id(campaign_id, company_id)
+    
     async def update_campaign(
         self, 
         campaign_id: str, 
