@@ -1,6 +1,6 @@
-# src/models/user_storage.py - NEW FILE
+# src/models/user_storage.py - FIXED VERSION
 """
-User storage usage tracking model
+User storage usage tracking model - FIXED: Renamed 'metadata' field to avoid SQLAlchemy conflict
 """
 
 from models.campaign import Campaign
@@ -39,8 +39,8 @@ class UserStorageUsage(BaseModel):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
-    # Additional metadata (JSON for extensibility)
-    metadata: Mapped[Optional[dict]] = mapped_column("metadata", Text, nullable=True)  # JSON string storage
+    # Additional file metadata (JSON for extensibility) - RENAMED TO AVOID CONFLICT
+    file_metadata: Mapped[Optional[dict]] = mapped_column("file_metadata", Text, nullable=True)  # JSON string storage
     
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="storage_usage")
@@ -74,20 +74,20 @@ class UserStorageUsage(BaseModel):
         """Check if file is a video"""
         return self.content_category == "video" or self.content_type.startswith("video/")
     
-    def get_metadata(self) -> dict:
-        """Get metadata as dict"""
-        if not self.metadata:
+    def get_file_metadata(self) -> dict:
+        """Get file metadata as dict"""
+        if not self.file_metadata:
             return {}
         try:
             import json
-            return json.loads(self.metadata) if isinstance(self.metadata, str) else self.metadata
+            return json.loads(self.file_metadata) if isinstance(self.file_metadata, str) else self.file_metadata
         except (json.JSONDecodeError, ValueError):
             return {}
     
-    def set_metadata(self, metadata_dict: dict):
-        """Set metadata from dict"""
+    def set_file_metadata(self, metadata_dict: dict):
+        """Set file metadata from dict"""
         import json
-        self.metadata = json.dumps(metadata_dict) if metadata_dict else None
+        self.file_metadata = json.dumps(metadata_dict) if metadata_dict else None
     
     def mark_accessed(self):
         """Mark file as accessed (update access count and timestamp)"""
