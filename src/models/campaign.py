@@ -3,7 +3,7 @@
 Campaign models - Enhanced for streamlined workflow with auto-analysis + Storage Integration
 🎯 NEW: Support for Campaign Creation → Auto-Analysis → Content Generation
 🔧 FIXED: Consistent timezone-aware datetime fields + duplicate table prevention
-📁 NEW: Storage file integration for user quota system
+📁 NEW: Storage file integration for user quota system - TEMPORARILY DISABLED
 """
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -156,17 +156,8 @@ class Campaign(BaseModel):
     generated_content = relationship("GeneratedContent", back_populates="campaign", cascade="all, delete-orphan")
     smart_urls = relationship("SmartURL", back_populates="campaign", cascade="all, delete-orphan")
     
-    # 🆕 NEW: Storage integration for user quota system
-    # 🔧 FIXED: Use try/except to handle if UserStorageUsage doesn't exist yet
-    def __init_relationships__(self):
-        """Initialize storage relationships if available"""
-        try:
-            from .user_storage import UserStorageUsage
-            if not hasattr(self, 'storage_files'):
-                self.storage_files = relationship("UserStorageUsage", back_populates="campaign", cascade="all, delete-orphan")
-        except ImportError:
-            # UserStorageUsage model doesn't exist yet, skip storage relationship
-            pass
+    # 🆕 NEW: Storage integration for user quota system - TEMPORARILY DISABLED TO FIX REGISTRATION
+    # storage_files = relationship("UserStorageUsage", back_populates="campaign", cascade="all, delete-orphan")
     
     def __init__(self, **kwargs):
         # Set default ID if not provided
@@ -181,9 +172,6 @@ class Campaign(BaseModel):
             }
         
         super().__init__(**kwargs)
-        
-        # Initialize storage relationships if available
-        self.__init_relationships__()
     
     # 🆕 NEW: Auto-analysis workflow methods with FIXED timezone handling
     def start_auto_analysis(self):
@@ -385,7 +373,7 @@ class Campaign(BaseModel):
             "can_generate_content": self.auto_analysis_status == AutoAnalysisStatus.COMPLETED
         }
     
-    # 🆕 NEW: Storage utility methods for user quota system (with safety checks)
+    # 🆕 NEW: Storage utility methods for user quota system (SAFE VERSIONS - handle missing relationship)
     def get_total_storage_used(self) -> int:
         """Get total storage used by this campaign in bytes"""
         try:

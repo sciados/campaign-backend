@@ -1,4 +1,4 @@
-# src/models/user.py - UPDATED WITH STORAGE FIELDS
+# src/models/user.py - TEMPORARILY DISABLE STORAGE RELATIONSHIP
 """
 User model and related schemas - Updated with storage tracking
 """
@@ -78,8 +78,8 @@ class User(BaseModel):
         back_populates="inviter"
     )
     
-    # 🆕 STORAGE RELATIONSHIP
-    storage_usage = relationship("UserStorageUsage", back_populates="user", cascade="all, delete-orphan")
+    # 🆕 STORAGE RELATIONSHIP - TEMPORARILY DISABLED TO FIX REGISTRATION
+    # storage_usage = relationship("UserStorageUsage", back_populates="user", cascade="all, delete-orphan")
     
     def get_preferences(self) -> dict:
         """Get user preferences with proper handling"""
@@ -126,8 +126,17 @@ class User(BaseModel):
     
     def get_storage_tier_info(self) -> dict:
         """Get storage tier information"""
-        from ..storage.storage_tiers import STORAGE_TIERS
-        return STORAGE_TIERS.get(self.storage_tier, STORAGE_TIERS["free"])
+        try:
+            from ..storage.storage_tiers import STORAGE_TIERS
+            return STORAGE_TIERS.get(self.storage_tier, STORAGE_TIERS["free"])
+        except ImportError:
+            # Return default if storage_tiers not available
+            return {
+                "limit_gb": 1,
+                "limit_bytes": 1073741824,
+                "max_file_size_mb": 10,
+                "price_monthly": 0
+            }
     
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}', role='{self.role}', storage_tier='{self.storage_tier}')>"
