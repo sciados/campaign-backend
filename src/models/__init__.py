@@ -1,6 +1,7 @@
-# src/models/__init__.py - FIXED VERSION with models and proper order
+# src/models/__init__.py - FIXED VERSION with correct imports
 """
-Central model imports and exports with proper dependency order to prevent conflicts
+Central model imports and exports with proper dependency order
+Fixed to match actual database structure and prevent import conflicts
 """
 
 import logging
@@ -18,11 +19,19 @@ except ImportError as e:
     raise
 
 # ============================================================================
-# ✅ PHASE 2: Import core models (Company, User - minimal dependencies)
+# ✅ PHASE 2: Import storage models first (new - no dependencies)
 # ============================================================================
 
+try:
+    from .user_storage import UserStorageUsage
+    logger.debug("✅ User storage model imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ User storage model not available: {e}")
+    UserStorageUsage = None
 
-from .user_storage import UserStorageUsage
+# ============================================================================
+# ✅ PHASE 3: Import core models (Company, User - minimal dependencies)
+# ============================================================================
 
 try:
     from .company import (
@@ -56,7 +65,7 @@ except ImportError as e:
     User = None
 
 # ============================================================================
-# ✅ PHASE 3: Import campaign models (depends on User, Company)
+# ✅ PHASE 4: Import campaign models (depends on User, Company)
 # ============================================================================
 
 try:
@@ -64,7 +73,8 @@ try:
         Campaign,
         CampaignStatus,
         WorkflowPreference, 
-        CampaignWorkflowState
+        CampaignWorkflowState,
+        AutoAnalysisStatus
     )
     logger.debug("✅ Campaign models imported successfully")
 except ImportError as e:
@@ -73,9 +83,10 @@ except ImportError as e:
     CampaignStatus = None
     WorkflowPreference = None
     CampaignWorkflowState = None
+    AutoAnalysisStatus = None
 
 # ============================================================================
-# ✅ PHASE 4: Import asset models (depends on Campaign)
+# ✅ PHASE 5: Import asset models (depends on Campaign, User)
 # ============================================================================
 
 try:
@@ -120,9 +131,8 @@ except Exception as e:
         generate_file_hash = None
         get_allowed_extensions = None
 
-
 # ============================================================================
-# ✅ PHASE 5: Import intelligence models (depends on Campaign)
+# ✅ PHASE 6: Import intelligence models (depends on Campaign, User)
 # ============================================================================
 
 try:
@@ -145,41 +155,15 @@ except ImportError as e:
     AnalysisRequest = None
 
 # ============================================================================
-# ✅ PHASE 6: Import models LAST (most likely to have conflicts)
+# ✅ PHASE 7: Import waitlist model (minimal dependencies)
 # ============================================================================
 
+try:
+    from .waitlist import Waitlist
+    logger.debug("✅ Waitlist model imported successfully")
 except ImportError as e:
-    logger.warning(f"⚠️ Models not available: {e}")
-    # Create placeholder classes to prevent import errors    
-    ScrapingSchedule = None
-    ScrapingLog = None
-    ProductPerformance = None
-    UserAffiliatePreferences = None
-    AffiliateLinkClick = None
-    
-except Exception as e:
-    logger.error(f"❌ Models import failed with error: {e}")
-    # This is likely the "Table already defined" error
-    logger.info("🔧 Attempting to resolve model conflicts...")
-    
-    try:
-        # Clear any existing metadata that might be causing conflicts
-        from .base import Base
-        if hasattr(Base, 'metadata'):
-            # Clear metadata to reset table definitions
-            Base.metadata.clear()
-            logger.debug("🧹 SQLAlchemy metadata cleared")       
-        
-        logger.info("✅ models imported successfully after conflict resolution")        
-        
-    except Exception as retry_error:
-        logger.error(f"❌ models still failing after retry: {retry_error}")
-        # Set placeholders
-        ScrapingSchedule = None
-        ScrapingLog = None
-        ProductPerformance = None
-        UserAffiliatePreferences = None
-        AffiliateLinkClick = None
+    logger.warning(f"⚠️ Waitlist model not available: {e}")
+    Waitlist = None
 
 # ============================================================================
 # ✅ ENHANCED EXPORTS WITH AVAILABILITY CHECKING
@@ -192,20 +176,23 @@ def get_available_models():
     """
     return {
         'base_models': BaseModel is not None,
+        'storage_models': UserStorageUsage is not None,
         'company_models': Company is not None,
         'user_models': User is not None,
         'campaign_models': Campaign is not None,
         'asset_models': CampaignAsset is not None,
         'intelligence_models': CampaignIntelligence is not None,
-        'affiliate_preferences': UserAffiliatePreferences is not None
+        'waitlist_models': Waitlist is not None
     }
 
-#  __all__ export with conditional inclusion
+# __all__ export with conditional inclusion
 _base_exports = [
     'BaseModel',
     'EnumSerializerMixin', 
     'Base',
 ]
+
+_storage_exports = ['UserStorageUsage'] if UserStorageUsage is not None else []
 
 _company_exports = [
     'Company',
@@ -225,6 +212,7 @@ _campaign_exports = [
     'CampaignStatus',
     'WorkflowPreference',
     'CampaignWorkflowState',
+    'AutoAnalysisStatus',
 ] if Campaign is not None else []
 
 _asset_exports = [
@@ -246,6 +234,8 @@ _intelligence_exports = [
     'AnalysisRequest',
 ] if CampaignIntelligence is not None else []
 
+_waitlist_exports = ['Waitlist'] if Waitlist is not None else []
+
 # Utility exports (always available)
 _utility_exports = [
     'get_available_models',
@@ -254,11 +244,13 @@ _utility_exports = [
 # Combine all exports
 __all__ = (
     _base_exports + 
+    _storage_exports +
     _company_exports + 
     _user_exports + 
     _campaign_exports + 
     _asset_exports + 
     _intelligence_exports +
+    _waitlist_exports +
     _utility_exports
 )
 
@@ -274,11 +266,13 @@ def log_model_status():
     
     logger.info("📊 Model Import Status:")
     logger.info(f"  ✅ Base models: {'Available' if available['base_models'] else 'Failed'}")
+    logger.info(f"  ✅ Storage models: {'Available' if available['storage_models'] else 'Failed'}")
     logger.info(f"  ✅ Company models: {'Available' if available['company_models'] else 'Failed'}")
     logger.info(f"  ✅ User models: {'Available' if available['user_models'] else 'Failed'}")
     logger.info(f"  ✅ Campaign models: {'Available' if available['campaign_models'] else 'Failed'}")
     logger.info(f"  ✅ Asset models: {'Available' if available['asset_models'] else 'Failed'}")
     logger.info(f"  ✅ Intelligence models: {'Available' if available['intelligence_models'] else 'Failed'}")
+    logger.info(f"  ✅ Waitlist models: {'Available' if available['waitlist_models'] else 'Failed'}")
     
     total_available = sum(1 for v in available.values() if v)
     total_models = len(available)
@@ -290,28 +284,3 @@ try:
 except:
     # Suppress logging errors during import
     pass
-
-
-# ============================================================================
-# ✅ SUMMARY OF ENHANCEMENTS
-# ============================================================================
-"""
-ENHANCEMENTS APPLIED TO models/__init__.py:
-
-2. ✅ Imported models in proper dependency order to prevent conflicts
-3. ✅ Added error handling for each model group
-4. ✅ Created placeholder classes for failed imports to prevent cascading errors
-5. ✅ Added SQLAlchemy metadata clearing for conflict resolution
-6. ✅ Created conditional exports based on successful imports
-7. ✅ Added model availability checking and diagnostics
-9. ✅  logging for debugging import issues
-10. ✅ Maintained backward compatibility with existing code
-
-KEY CHANGES:
-- Each import phase wrapped in try/catch with graceful degradation
-- SQLAlchemy metadata clearing to resolve "Table already defined" errors
-- Conditional exports ensure only successfully imported models are available
-- Diagnostic functions help identify what's working and what's not
-
-This should resolve the table conflicts while maintaining all functionality.
-"""
