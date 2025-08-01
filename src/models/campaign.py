@@ -34,7 +34,7 @@ class WorkflowPreference(str, enum.Enum):
 class CampaignWorkflowState(str, enum.Enum):
     # Streamlined workflow states
     BASIC_SETUP = "BASIC_SETUP"              # Step 1: Campaign created
-    AUTO_ANALYZING = "AUTO_ANALYZING"        # 🆕 NEW: Auto-analysis running
+    ANALYZING_SOURCES = "ANALYZING_SOURCES"        # 🆕 NEW: Auto-analysis running
     ANALYSIS_COMPLETE = "ANALYSIS_COMPLETE"   # Analysis done, ready for content
     GENERATING_CONTENT = "GENERATING_CONTENT" # Step 2: Creating content
     CAMPAIGN_COMPLETE = "CAMPAIGN_COMPLETE"   # All done
@@ -180,7 +180,7 @@ class Campaign(BaseModel):
         self.auto_analysis_status = AutoAnalysisStatus.IN_PROGRESS
         self.auto_analysis_started_at = datetime.now(timezone.utc)  # ✅ Always UTC timezone-aware
         self.status = CampaignStatus.IN_PROGRESS
-        self.workflow_state = CampaignWorkflowState.AUTO_ANALYZING
+        self.workflow_state = CampaignWorkflowState.ANALYZING_SOURCES
         
         # Update step 1 progress
         if self.step_states is None:

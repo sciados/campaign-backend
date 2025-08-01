@@ -323,7 +323,7 @@ class WorkflowService:
                 # Fallback calculation
                 state_percentages = {
                     "BASIC_SETUP": 25.0,
-                    "AUTO_ANALYZING": 50.0,
+                    "ANALYZING_SOURCES": 50.0,
                     "ANALYSIS_COMPLETE": 75.0,
                     "GENERATING_CONTENT": 85.0,
                     "CAMPAIGN_COMPLETE": 100.0
@@ -398,7 +398,7 @@ class WorkflowService:
             # Map to correct enum values 
             valid_states = {
                 "basic_setup": "BASIC_SETUP",
-                "auto_analyzing": "AUTO_ANALYZING", 
+                "auto_analyzing": "ANALYZING_SOURCES", 
                 "analysis_complete": "ANALYSIS_COMPLETE",
                 "generating_content": "GENERATING_CONTENT",
                 "campaign_complete": "CAMPAIGN_COMPLETE"
@@ -450,7 +450,7 @@ class WorkflowService:
         # Update step progress based on workflow state
         current_state = campaign.workflow_state.value if hasattr(campaign.workflow_state, 'value') else "BASIC_SETUP"
         
-        if current_state in ["AUTO_ANALYZING"]:
+        if current_state in ["ANALYZING_SOURCES"]:
             campaign.step_states["step_1"]["status"] = "analyzing"
             campaign.step_states["step_1"]["progress"] = 50
         elif current_state in ["ANALYSIS_COMPLETE"]:
