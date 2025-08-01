@@ -79,7 +79,7 @@ class User(BaseModel):
     )
     
     # 🆕 STORAGE RELATIONSHIP - TEMPORARILY DISABLED TO FIX REGISTRATION
-    # storage_usage = relationship("UserStorageUsage", back_populates="user", cascade="all, delete-orphan")
+    storage_usage = relationship("UserStorageUsage", back_populates="user", cascade="all, delete-orphan")
     
     def get_preferences(self) -> dict:
         """Get user preferences with proper handling"""

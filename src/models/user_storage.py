@@ -46,8 +46,8 @@ class UserStorageUsage(BaseModel):
     file_metadata: Mapped[Optional[str]] = mapped_column("file_metadata", Text, nullable=True)  # JSON string storage
     
     # RELATIONSHIPS REMOVED - No back references to avoid relationship errors
-    # user: Mapped["User"] = relationship("User", back_populates="storage_usage")
-    # campaign: Mapped[Optional["Campaign"]] = relationship("Campaign", back_populates="storage_files")
+    user: Mapped["User"] = relationship("User", back_populates="storage_usage")
+    campaign: Mapped[Optional["Campaign"]] = relationship("Campaign", back_populates="storage_files")
     
     @property
     def file_size_mb(self) -> float:

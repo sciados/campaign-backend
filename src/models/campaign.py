@@ -157,7 +157,7 @@ class Campaign(BaseModel):
     smart_urls = relationship("SmartURL", back_populates="campaign", cascade="all, delete-orphan")
     
     # 🆕 NEW: Storage integration for user quota system - TEMPORARILY DISABLED TO FIX REGISTRATION
-    # storage_files = relationship("UserStorageUsage", back_populates="campaign", cascade="all, delete-orphan")
+    storage_files = relationship("UserStorageUsage", back_populates="campaign", cascade="all, delete-orphan")
     
     def __init__(self, **kwargs):
         # Set default ID if not provided
