@@ -1,6 +1,6 @@
-# src/models/user_storage.py - FINAL FIXED VERSION
+# src/models/user_storage.py - FINAL FIXED VERSION - Remove back references
 """
-User storage usage tracking model - FIXED: No circular imports + renamed metadata field
+User storage usage tracking model - FIXED: No circular imports + no back references
 """
 
 from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Text
@@ -45,9 +45,9 @@ class UserStorageUsage(BaseModel):
     # Additional file metadata (JSON for extensibility) - RENAMED TO AVOID CONFLICT
     file_metadata: Mapped[Optional[str]] = mapped_column("file_metadata", Text, nullable=True)  # JSON string storage
     
-    # Relationships - Use string references to avoid circular imports
-    user: Mapped["User"] = relationship("User", back_populates="storage_usage")
-    campaign: Mapped[Optional["Campaign"]] = relationship("Campaign", back_populates="storage_files")
+    # RELATIONSHIPS REMOVED - No back references to avoid relationship errors
+    # user: Mapped["User"] = relationship("User", back_populates="storage_usage")
+    # campaign: Mapped[Optional["Campaign"]] = relationship("Campaign", back_populates="storage_files")
     
     @property
     def file_size_mb(self) -> float:
