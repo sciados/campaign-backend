@@ -9,7 +9,7 @@ import uuid
 import logging
 import traceback
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, text, update
@@ -414,7 +414,7 @@ class AnalysisHandler:
                 "modules_successful": enhancement_metadata.get("modules_successful", []),
                 "scientific_enhancements": len(enhancements.get("scientific_validation", {})) if enhancements.get("scientific_validation") else 0,
                 "system_architecture": "streamlined_modular_enhancement",
-                "amplification_timestamp": datetime.now(timezone.utc).isoformat(),  # 🔧 FIXED: UTC string
+                "amplification_timestamp": datetime.now(timezone.utc), # datetime.now(timezone.utc).isoformat(),  # 🔧 FIXED: UTC string
                 "ultra_cheap_optimization_applied": True,
                 "primary_provider_used": provider_names[0] if provider_names else "unknown",
                 "provider_priority": provider_names,
@@ -590,7 +590,7 @@ class AnalysisHandler:
             processing_metadata = enhanced_analysis.get("amplification_metadata", {})
             processing_metadata.update({
                 "storage_method": "streamlined_workflow_storage",
-                "analysis_timestamp": datetime.now(timezone.utc).isoformat(),  # 🔧 FIXED: Always UTC
+                "analysis_timestamp": datetime.now(timezone.utc),  # 🔧 FIXED: Always UTC
                 "commit_applied": True,
                 "workflow_type": "streamlined_2_step",
                 "storage_version": "streamlined_2024"  
@@ -660,7 +660,7 @@ class AnalysisHandler:
                         
                         current_metadata["ai_backup_storage"][key] = validated_data
                         current_metadata["backup_storage_applied"] = True
-                        current_metadata["backup_storage_timestamp"] = datetime.now(timezone.utc).isoformat()
+                        current_metadata["backup_storage_timestamp"] = datetime.now(timezone.utc)
                         current_metadata["workflow_type"] = "streamlined_2_step"
                         
                         intelligence.processing_metadata = json.dumps(current_metadata)
@@ -742,7 +742,7 @@ class AnalysisHandler:
                 "error": str(error),
                 "traceback": traceback.format_exc(),
                 "workflow_type": "streamlined_2_step",
-                "failure_timestamp": datetime.now(timezone.utc).isoformat()
+                "failure_timestamp": datetime.now(timezone.utc)
             })
             await self.db.commit()
         except:
