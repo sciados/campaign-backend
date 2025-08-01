@@ -21,6 +21,9 @@ except ImportError as e:
 # ✅ PHASE 2: Import core models (Company, User - minimal dependencies)
 # ============================================================================
 
+
+from .user_storage import UserStorageUsage
+
 try:
     from .company import (
         Company, 

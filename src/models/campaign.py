@@ -1,8 +1,9 @@
-# src/models/campaign.py - FIXED VERSION WITH TIMEZONE CONSISTENCY
+# src/models/campaign.py - FIXED TO PREVENT DUPLICATE TABLE DEFINITION
 """
-Campaign models - Enhanced for streamlined workflow with auto-analysis
+Campaign models - Enhanced for streamlined workflow with auto-analysis + Storage Integration
 🎯 NEW: Support for Campaign Creation → Auto-Analysis → Content Generation
-🔧 FIXED: Consistent timezone-aware datetime fields
+🔧 FIXED: Consistent timezone-aware datetime fields + duplicate table prevention
+📁 NEW: Storage file integration for user quota system
 """
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -45,8 +46,10 @@ class AutoAnalysisStatus(str, enum.Enum):
     FAILED = "FAILED"
 
 class Campaign(BaseModel):
-    """Enhanced Campaign model - Streamlined 2-step workflow with FIXED timezone fields"""
+    """Enhanced Campaign model - Streamlined 2-step workflow with FIXED timezone fields + Storage Integration"""
     __tablename__ = "campaigns"
+    # 🔧 FIXED: Prevent duplicate table definition
+    __table_args__ = {'extend_existing': True}
     
     # Basic Campaign Information
     title = Column(String(500), nullable=False)
@@ -144,14 +147,26 @@ class Campaign(BaseModel):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
-    # Relationships
-    user = relationship("src.models.user.User", back_populates="campaigns")
-    company = relationship("src.models.company.Company", back_populates="campaigns")
+    # Relationships - 🔧 FIXED: Use string references to avoid circular imports
+    user = relationship("User", back_populates="campaigns")
+    company = relationship("Company", back_populates="campaigns")
     
     # Intelligence and content relationships
-    intelligence_sources = relationship("src.models.intelligence.CampaignIntelligence", back_populates="campaign", cascade="all, delete-orphan")
-    generated_content = relationship("src.models.intelligence.GeneratedContent", back_populates="campaign", cascade="all, delete-orphan")
-    smart_urls = relationship("src.models.intelligence.SmartURL", back_populates="campaign", cascade="all, delete-orphan")
+    intelligence_sources = relationship("CampaignIntelligence", back_populates="campaign", cascade="all, delete-orphan")
+    generated_content = relationship("GeneratedContent", back_populates="campaign", cascade="all, delete-orphan")
+    smart_urls = relationship("SmartURL", back_populates="campaign", cascade="all, delete-orphan")
+    
+    # 🆕 NEW: Storage integration for user quota system
+    # 🔧 FIXED: Use try/except to handle if UserStorageUsage doesn't exist yet
+    def __init_relationships__(self):
+        """Initialize storage relationships if available"""
+        try:
+            from .user_storage import UserStorageUsage
+            if not hasattr(self, 'storage_files'):
+                self.storage_files = relationship("UserStorageUsage", back_populates="campaign", cascade="all, delete-orphan")
+        except ImportError:
+            # UserStorageUsage model doesn't exist yet, skip storage relationship
+            pass
     
     def __init__(self, **kwargs):
         # Set default ID if not provided
@@ -166,6 +181,9 @@ class Campaign(BaseModel):
             }
         
         super().__init__(**kwargs)
+        
+        # Initialize storage relationships if available
+        self.__init_relationships__()
     
     # 🆕 NEW: Auto-analysis workflow methods with FIXED timezone handling
     def start_auto_analysis(self):
@@ -367,6 +385,63 @@ class Campaign(BaseModel):
             "can_generate_content": self.auto_analysis_status == AutoAnalysisStatus.COMPLETED
         }
     
+    # 🆕 NEW: Storage utility methods for user quota system (with safety checks)
+    def get_total_storage_used(self) -> int:
+        """Get total storage used by this campaign in bytes"""
+        try:
+            if hasattr(self, 'storage_files') and self.storage_files:
+                return sum(file.file_size for file in self.storage_files if not file.is_deleted)
+            return 0
+        except:
+            return 0
+    
+    def get_total_storage_used_mb(self) -> float:
+        """Get total storage used by this campaign in MB"""
+        return round(self.get_total_storage_used() / 1024 / 1024, 2)
+    
+    def get_total_storage_used_gb(self) -> float:
+        """Get total storage used by this campaign in GB"""
+        return round(self.get_total_storage_used() / 1024 / 1024 / 1024, 2)
+    
+    def get_file_count_by_type(self) -> dict:
+        """Get count of files by content category"""
+        counts = {"image": 0, "document": 0, "video": 0}
+        try:
+            if hasattr(self, 'storage_files') and self.storage_files:
+                for file in self.storage_files:
+                    if not file.is_deleted:
+                        counts[file.content_category] = counts.get(file.content_category, 0) + 1
+        except:
+            pass
+        return counts
+    
+    def get_campaign_files(self, content_category: str = None, include_deleted: bool = False):
+        """Get files associated with this campaign"""
+        try:
+            if not hasattr(self, 'storage_files') or not self.storage_files:
+                return []
+                
+            files = self.storage_files
+            if not include_deleted:
+                files = [f for f in files if not f.is_deleted]
+            if content_category:
+                files = [f for f in files if f.content_category == content_category]
+            return files
+        except:
+            return []
+    
+    def get_storage_summary(self) -> dict:
+        """Get comprehensive storage summary for this campaign"""
+        file_counts = self.get_file_count_by_type()
+        return {
+            "total_files": sum(file_counts.values()),
+            "file_counts_by_type": file_counts,
+            "total_storage_bytes": self.get_total_storage_used(),
+            "total_storage_mb": self.get_total_storage_used_mb(),
+            "total_storage_gb": self.get_total_storage_used_gb(),
+            "has_files": self.get_total_storage_used() > 0
+        }
+    
     # Helper property for backward compatibility
     @property
     def campaign_type(self):
@@ -374,4 +449,4 @@ class Campaign(BaseModel):
         return "universal"
     
     def __repr__(self):
-        return f"<Campaign(id={self.id}, title='{self.title}', status='{self.status}', analysis_status='{self.auto_analysis_status}')>"
+        return f"<Campaign(id={self.id}, title='{self.title}', status='{self.status}', analysis_status='{self.auto_analysis_status}', storage={self.get_total_storage_used_mb()}MB)>"
