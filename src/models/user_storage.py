@@ -1,15 +1,18 @@
-# src/models/user_storage.py - FIXED VERSION
+# src/models/user_storage.py - FINAL FIXED VERSION
 """
-User storage usage tracking model - FIXED: Renamed 'metadata' field to avoid SQLAlchemy conflict
+User storage usage tracking model - FIXED: No circular imports + renamed metadata field
 """
 
-from models.campaign import Campaign
-from models.user import User
 from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+# Only import for type hints to avoid circular imports
+if TYPE_CHECKING:
+    from .campaign import Campaign
+    from .user import User
 
 from .base import BaseModel
 
@@ -40,9 +43,9 @@ class UserStorageUsage(BaseModel):
     deleted_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
     # Additional file metadata (JSON for extensibility) - RENAMED TO AVOID CONFLICT
-    file_metadata: Mapped[Optional[dict]] = mapped_column("file_metadata", Text, nullable=True)  # JSON string storage
+    file_metadata: Mapped[Optional[str]] = mapped_column("file_metadata", Text, nullable=True)  # JSON string storage
     
-    # Relationships
+    # Relationships - Use string references to avoid circular imports
     user: Mapped["User"] = relationship("User", back_populates="storage_usage")
     campaign: Mapped[Optional["Campaign"]] = relationship("Campaign", back_populates="storage_files")
     
@@ -80,7 +83,7 @@ class UserStorageUsage(BaseModel):
             return {}
         try:
             import json
-            return json.loads(self.file_metadata) if isinstance(self.file_metadata, str) else self.file_metadata
+            return json.loads(self.file_metadata) if isinstance(self.file_metadata, str) else {}
         except (json.JSONDecodeError, ValueError):
             return {}
     
