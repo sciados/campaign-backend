@@ -1,9 +1,8 @@
-# src/auth/routes.py - FIXED VERSION with synchronous database operations
+# src/auth/routes.py - FIXED VERSION with correct timezone import
 
 import os
 import logging
-from datetime import datetime, timedelta
-from time import timezone
+from datetime import datetime, timedelta, timezone  # ✅ FIXED: Import timezone from datetime, not time
 from uuid import UUID, uuid4 # Import uuid4 to generate new UUIDs
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
@@ -102,7 +101,7 @@ async def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
             monthly_credits_used=0,
             monthly_credits_limit=5000, # Example default limit
             total_campaigns_created=0,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc)  # ✅ FIXED: Now timezone.utc will work correctly
         )
         db.add(new_company)
         db.flush() # ✅ FIXED: Remove await - Flush to assign company_id before user creation if needed immediately
@@ -117,7 +116,7 @@ async def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
             role="owner", # First user of a new company is the owner
             is_active=True,
             is_verified=False, # Set to False for email verification flow
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc)  # ✅ FIXED: Now timezone.utc will work correctly
         )
         db.add(new_user)
         
