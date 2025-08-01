@@ -30,6 +30,8 @@ if app_path not in sys.path:
 
 from src.core.database import get_async_db
 from src.auth.dependencies import get_current_user
+from src.routes.health import health_router
+
 
 # Import database setup (no table creation)
 try:
@@ -356,6 +358,8 @@ app.add_middleware(
         "campaign-backend-production-e2db.up.railway.app"
     ]
 )
+
+app.include_router(health_router)
 
 # Add this to your main.py after the CORS middleware and before router registration
 

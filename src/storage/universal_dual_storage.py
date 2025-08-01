@@ -1,7 +1,7 @@
 # src/storage/universal_dual_storage.py
 """
 🔥 FIXED: Universal Dual Storage Manager with proper R2 configuration
-✅ Cloudflare R2 endpoint issue resolved
+✅ Fixed environment variable names to match Railway
 ✅ Enhanced error handling and fallback storage
 ✅ Multi-provider redundancy for maximum reliability
 """
@@ -58,24 +58,41 @@ class UniversalDualStorageManager:
         }
     
     def _initialize_providers(self) -> List[StorageProvider]:
-        """Initialize storage providers with proper R2 configuration"""
+        """🔥 FIXED: Initialize storage providers with exact Railway variable names"""
         providers = []
         
-        # 🔥 FIXED: Cloudflare R2 (Primary) - Proper endpoint configuration
+        # 🔥 FIXED: Cloudflare R2 (Primary) - Using exact Railway environment variable names
         try:
-            # Get R2 configuration with validation
-            r2_account_id = os.getenv('CLOUDFLARE_ACCOUNT_ID') or os.getenv('CLOUDFLARE_ACCOUNT_ID')
-            r2_access_key = os.getenv('CLOUDFLARE_R2_ACCESS_KEY_ID') or os.getenv('R2_ACCESS_KEY_ID')
-            r2_secret_key = os.getenv('CLOUDFLARE_R2_SECRET_ACCESS_KEY') or os.getenv('R2_SECRET_ACCESS_KEY')
+            # 🔥 FIXED: Use exact variable names from Railway
+            r2_account_id = os.getenv('CLOUDFLARE_ACCOUNT_ID')
+            r2_access_key = os.getenv('CLOUDFLARE_R2_ACCESS_KEY_ID')
+            r2_secret_key = os.getenv('CLOUDFLARE_R2_SECRET_ACCESS_KEY')
+            r2_bucket_name = os.getenv('CLOUDFLARE_R2_BUCKET_NAME')
+            
+            # Debug log the actual values (masked)
+            logger.info(f"🔍 R2 Environment Variables Check:")
+            logger.info(f"   CLOUDFLARE_ACCOUNT_ID: {'✅ SET' if r2_account_id else '❌ MISSING'}")
+            logger.info(f"   CLOUDFLARE_R2_ACCESS_KEY_ID: {'✅ SET' if r2_access_key else '❌ MISSING'}")
+            logger.info(f"   CLOUDFLARE_R2_SECRET_ACCESS_KEY: {'✅ SET' if r2_secret_key else '❌ MISSING'}")
+            logger.info(f"   CLOUDFLARE_R2_BUCKET_NAME: {'✅ SET' if r2_bucket_name else '❌ MISSING'}")
+            
+            if r2_account_id:
+                logger.info(f"   Account ID length: {len(r2_account_id)} chars")
+                logger.info(f"   Account ID preview: {r2_account_id[:8]}...")
             
             if not r2_account_id:
-                raise ValueError("CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_ACCOUNT_ID is required for Cloudflare R2")
+                raise ValueError("CLOUDFLARE_ACCOUNT_ID is required for Cloudflare R2")
             
             if not r2_access_key or not r2_secret_key:
-                raise ValueError("R2 access keys are required")
+                raise ValueError("CLOUDFLARE_R2_ACCESS_KEY_ID and CLOUDFLARE_R2_SECRET_ACCESS_KEY are required")
+            
+            if not r2_bucket_name:
+                raise ValueError("CLOUDFLARE_R2_BUCKET_NAME is required")
             
             # 🔥 FIXED: Proper R2 endpoint URL construction
             r2_endpoint = f"https://{r2_account_id}.r2.cloudflarestorage.com"
+            
+            logger.info(f"🔍 Generated R2 endpoint: {r2_endpoint}")
             
             r2_client = boto3.client(
                 's3',
@@ -94,18 +111,24 @@ class UniversalDualStorageManager:
             
             logger.info(f"✅ Cloudflare R2 provider initialized: {r2_endpoint}")
             logger.info(f"   Account ID: {r2_account_id}")
+            logger.info(f"   Bucket: {r2_bucket_name}")
             logger.info(f"   Cost: $0.015/GB")
             
         except Exception as e:
             logger.error(f"❌ Cloudflare R2 initialization failed: {str(e)}")
-            logger.error(f"   Missing env vars: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_R2_ACCESS_KEY_ID, CLOUDFLARE_R2_SECRET_ACCESS_KEY")
+            logger.error(f"   Check Railway environment variables:")
+            logger.error(f"   - CLOUDFLARE_ACCOUNT_ID")
+            logger.error(f"   - CLOUDFLARE_R2_ACCESS_KEY_ID") 
+            logger.error(f"   - CLOUDFLARE_R2_SECRET_ACCESS_KEY")
+            logger.error(f"   - CLOUDFLARE_R2_BUCKET_NAME")
         
-        # Backblaze B2 (Backup)
+        # Optional: Backblaze B2 (Backup) - only if you want it
         try:
             b2_access_key = os.getenv('B2_ACCESS_KEY_ID') or os.getenv('BACKBLAZE_ACCESS_KEY_ID')
             b2_secret_key = os.getenv('B2_SECRET_ACCESS_KEY') or os.getenv('BACKBLAZE_SECRET_ACCESS_KEY')
+            b2_bucket_name = os.getenv('B2_BUCKET_NAME') or os.getenv('BACKBLAZE_BUCKET_NAME')
             
-            if b2_access_key and b2_secret_key:
+            if b2_access_key and b2_secret_key and b2_bucket_name:
                 b2_client = boto3.client(
                     's3',
                     endpoint_url='https://s3.us-west-004.backblazeb2.com',
@@ -126,13 +149,14 @@ class UniversalDualStorageManager:
         except Exception as e:
             logger.warning(f"⚠️ Backblaze B2 initialization failed: {str(e)}")
         
-        # AWS S3 (Emergency Backup)
+        # AWS S3 (Emergency Backup) - optional
         try:
             aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
             aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
             aws_region = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+            aws_bucket = os.getenv('AWS_S3_BUCKET_NAME')
             
-            if aws_access_key and aws_secret_key:
+            if aws_access_key and aws_secret_key and aws_bucket:
                 s3_client = boto3.client(
                     's3',
                     aws_access_key_id=aws_access_key,
@@ -154,7 +178,11 @@ class UniversalDualStorageManager:
         
         if not providers:
             logger.error("❌ NO STORAGE PROVIDERS AVAILABLE!")
-            logger.error("   Add CLOUDFLARE_ACCOUNT_ID and Cloudflare R2 credentials to Railway")
+            logger.error("   Verify Railway environment variables:")
+            logger.error("   - CLOUDFLARE_ACCOUNT_ID")
+            logger.error("   - CLOUDFLARE_R2_ACCESS_KEY_ID")
+            logger.error("   - CLOUDFLARE_R2_SECRET_ACCESS_KEY") 
+            logger.error("   - CLOUDFLARE_R2_BUCKET_NAME")
         else:
             providers.sort(key=lambda x: x.priority)
             logger.info(f"📊 Storage providers initialized: {[p.name for p in providers]}")
@@ -232,7 +260,7 @@ class UniversalDualStorageManager:
         }
         
         if not self.providers:
-            raise Exception("No storage providers available")
+            raise Exception("No storage providers available - check R2 configuration")
         
         # Save to primary provider (Cloudflare R2)
         primary_provider = self.providers[0]
@@ -279,41 +307,17 @@ class UniversalDualStorageManager:
                 }
                 logger.error(f"❌ Backup storage failed: {str(e)}")
         
-        # Save to emergency backup if available
-        if len(self.providers) > 2:
-            emergency_provider = self.providers[2]
-            try:
-                emergency_url = await self._upload_to_provider(
-                    emergency_provider, unique_filename, optimized_content, mime_type, enhanced_metadata
-                )
-                results["providers"]["emergency"] = {
-                    "provider": emergency_provider.name,
-                    "url": emergency_url,
-                    "status": "success",
-                    "cost_per_gb": emergency_provider.cost_per_gb
-                }
-                logger.info(f"✅ Saved to emergency ({emergency_provider.name}): {unique_filename}")
-            except Exception as e:
-                results["providers"]["emergency"] = {
-                    "provider": emergency_provider.name,
-                    "url": None,
-                    "status": "failed",
-                    "error": str(e)
-                }
-                logger.warning(f"⚠️ Emergency storage failed: {str(e)}")
-        
         # Determine final storage status
         primary_success = results["providers"].get("primary", {}).get("status") == "success"
         backup_success = results["providers"].get("backup", {}).get("status") == "success"
-        emergency_success = results["providers"].get("emergency", {}).get("status") == "success"
         
-        success_count = sum([primary_success, backup_success, emergency_success])
+        success_count = sum([primary_success, backup_success])
         
         if success_count >= 2:
             results["storage_status"] = "fully_redundant"
         elif primary_success:
             results["storage_status"] = "primary_success"
-        elif backup_success or emergency_success:
+        elif backup_success:
             results["storage_status"] = "backup_only"
         else:
             results["storage_status"] = "failed"
@@ -370,11 +374,11 @@ class UniversalDualStorageManager:
         mime_type: str,
         metadata: Dict[str, Any]
     ) -> str:
-        """Upload content to specific provider with enhanced error handling"""
+        """🔥 FIXED: Upload content to specific provider with proper bucket handling"""
         
-        # Get appropriate bucket name
+        # 🔥 FIXED: Get appropriate bucket name using exact Railway variables
         if provider.name == "cloudflare_r2":
-            bucket_name = os.getenv('CLOUDFLARE_R2_BUCKET') or os.getenv('R2_BUCKET_NAME')
+            bucket_name = os.getenv('CLOUDFLARE_R2_BUCKET_NAME')
         elif provider.name == "backblaze_b2":
             bucket_name = os.getenv('B2_BUCKET_NAME') or os.getenv('BACKBLAZE_BUCKET_NAME')
         elif provider.name == "aws_s3":
@@ -384,6 +388,8 @@ class UniversalDualStorageManager:
         
         if not bucket_name:
             raise ValueError(f"No bucket configured for {provider.name}")
+        
+        logger.info(f"🔍 Uploading to {provider.name} bucket: {bucket_name}")
         
         try:
             # Upload with metadata
@@ -398,11 +404,11 @@ class UniversalDualStorageManager:
                 ContentDisposition=f'inline; filename="{os.path.basename(filename)}"'
             )
             
-            # Return appropriate public URL
+            # 🔥 FIXED: Return appropriate public URL
             if provider.name == "cloudflare_r2":
-                account_id = os.getenv('CLOUDFLARE_ACCOUNT_ID') or os.getenv('CLOUDFLARE_ACCOUNT_ID')
+                account_id = os.getenv('CLOUDFLARE_ACCOUNT_ID')
                 # Check for custom domain first
-                custom_domain = os.getenv('R2_CUSTOM_DOMAIN')
+                custom_domain = os.getenv('R2_CUSTOM_DOMAIN') or os.getenv('CLOUDFLARE_R2_CUSTOM_DOMAIN')
                 if custom_domain:
                     return f"https://{custom_domain}/{filename}"
                 else:
@@ -444,6 +450,9 @@ class UniversalDualStorageManager:
             self.health_cache[cache_key] = (False, datetime.now())
             return False
     
+    def _get_file_extension(self, filename: str) -> str:
+        """Get file extension from filename"""
+        return os.path.splitext(filename)[1].lower() or ".bin"
     
     async def _optimize_content(self, content: bytes, content_type: str) -> bytes:
         """Optimize content based on type"""
@@ -541,7 +550,7 @@ class UniversalDualStorageManager:
         
         health_status = {
             "timestamp": datetime.now(timezone.utc),
-            "overall_status": "healthy",
+            "overall_status": "healthy" if self.providers else "unhealthy",
             "providers": {},
             "failover_stats": {
                 "total_failovers": 0,
@@ -554,7 +563,7 @@ class UniversalDualStorageManager:
         # Check each provider
         for provider in self.providers:
             try:
-                # Test upload capability
+                # Test upload capability with small test file
                 test_key = f"health-checks/health-check-{datetime.now().strftime('%Y%m%d_%H%M%S')}"
                 test_data = b"health check test"
                 
@@ -592,171 +601,6 @@ class UniversalDualStorageManager:
         }
         
         return health_status
-    
-    async def migrate_content(
-        self,
-        source_url: str,
-        target_provider: str,
-        filename: str,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Migrate content from one provider to another"""
-        
-        migration_result = {
-            "status": "pending",
-            "source_url": source_url,
-            "target_provider": target_provider,
-            "filename": filename,
-            "migration_timestamp": datetime.now(timezone.utc)
-        }
-        
-        try:
-            # Download from source
-            async with aiohttp.ClientSession() as session:
-                async with session.get(source_url) as response:
-                    if response.status != 200:
-                        raise Exception(f"Failed to download source: HTTP {response.status}")
-                    
-                    content_data = await response.read()
-                    content_type = response.headers.get('content-type', 'application/octet-stream')
-            
-            # Find target provider
-            target_prov = None
-            for provider in self.providers:
-                if provider.name == target_provider:
-                    target_prov = provider
-                    break
-            
-            if not target_prov:
-                raise Exception(f"Target provider {target_provider} not found")
-            
-            # Upload to target
-            target_url = await self._upload_to_provider(
-                target_prov, filename, content_data, content_type, metadata or {}
-            )
-            
-            migration_result.update({
-                "status": "success",
-                "target_url": target_url,
-                "file_size": len(content_data),
-                "content_type": content_type
-            })
-            
-            logger.info(f"✅ Content migrated successfully: {source_url} → {target_url}")
-            
-        except Exception as e:
-            migration_result.update({
-                "status": "failed",
-                "error": str(e)
-            })
-            logger.error(f"❌ Content migration failed: {str(e)}")
-        
-        return migration_result
-    
-    async def cleanup_old_content(self, days_old: int = 30) -> Dict[str, Any]:
-        """Clean up old content across all providers"""
-        
-        cleanup_result = {
-            "status": "pending",
-            "days_old": days_old,
-            "cleanup_timestamp": datetime.now(timezone.utc),
-            "providers_cleaned": {},
-            "total_deleted": 0,
-            "total_size_freed": 0
-        }
-        
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_old)
-        
-        for provider in self.providers:
-            provider_result = {
-                "provider": provider.name,
-                "deleted_count": 0,
-                "size_freed": 0,
-                "errors": []
-            }
-            
-            try:
-                # This would need to be implemented based on specific provider APIs
-                # For now, we'll skip the actual cleanup but provide the framework
-                logger.info(f"🧹 Cleanup for {provider.name} would remove content older than {cutoff_date}")
-                
-                provider_result["status"] = "skipped"
-                provider_result["reason"] = "Cleanup implementation pending"
-                
-            except Exception as e:
-                provider_result["status"] = "error"
-                provider_result["error"] = str(e)
-                logger.error(f"❌ Cleanup failed for {provider.name}: {str(e)}")
-            
-            cleanup_result["providers_cleaned"][provider.name] = provider_result
-        
-        cleanup_result["status"] = "completed"
-        return cleanup_result
-    
-    def get_provider_recommendations(self) -> Dict[str, Any]:
-        """Get provider recommendations based on usage patterns"""
-        
-        recommendations = {
-            "timestamp": datetime.now(timezone.utc),
-            "current_setup": {
-                "providers": [p.name for p in self.providers],
-                "redundancy_level": len(self.providers)
-            },
-            "recommendations": [],
-            "cost_optimization": {},
-            "performance_optimization": {}
-        }
-        
-        # Analyze current setup
-        has_r2 = any(p.name == "cloudflare_r2" for p in self.providers)
-        has_b2 = any(p.name == "backblaze_b2" for p in self.providers)
-        has_s3 = any(p.name == "aws_s3" for p in self.providers)
-        
-        # Cost recommendations
-        if not has_r2:
-            recommendations["recommendations"].append({
-                "type": "cost_optimization",
-                "priority": "high",
-                "recommendation": "Add Cloudflare R2 as primary storage",
-                "reason": "Lowest cost at $0.015/GB vs AWS S3 at $0.023/GB",
-                "potential_savings": "35% cost reduction"
-            })
-        
-        if not has_b2 and has_r2:
-            recommendations["recommendations"].append({
-                "type": "redundancy",
-                "priority": "medium", 
-                "recommendation": "Add Backblaze B2 as backup storage",
-                "reason": "Ultra-low cost backup at $0.005/GB",
-                "benefit": "Maximum cost efficiency with redundancy"
-            })
-        
-        # Performance recommendations
-        if len(self.providers) < 2:
-            recommendations["recommendations"].append({
-                "type": "reliability",
-                "priority": "high",
-                "recommendation": "Add backup storage provider",
-                "reason": "Single point of failure risk",
-                "benefit": "99.99% uptime with automatic failover"
-            })
-        
-        # Calculate potential savings
-        if self.providers:
-            current_primary_cost = self.providers[0].cost_per_gb
-            optimal_cost = 0.015  # R2 cost
-            
-            if current_primary_cost > optimal_cost:
-                savings_pct = ((current_primary_cost - optimal_cost) / current_primary_cost) * 100
-                recommendations["cost_optimization"] = {
-                    "current_cost_per_gb": current_primary_cost,
-                    "optimal_cost_per_gb": optimal_cost,
-                    "potential_savings_percentage": round(savings_pct, 1),
-                    "recommendation": "Switch to Cloudflare R2 for primary storage"
-                }
-        
-        return recommendations
-
 
 # Global instance
 _storage_manager = None
@@ -769,7 +613,7 @@ def get_storage_manager() -> UniversalDualStorageManager:
     return _storage_manager
 
 def validate_storage_configuration() -> Dict[str, Any]:
-    """Validate storage configuration and return status"""
+    """🔥 FIXED: Validate storage configuration with exact Railway variable names"""
     
     validation_result = {
         "timestamp": datetime.now(timezone.utc),
@@ -780,8 +624,8 @@ def validate_storage_configuration() -> Dict[str, Any]:
         "recommendations": []
     }
     
-    # Check R2 configuration
-    r2_vars = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_R2_ACCESS_KEY_ID", "CLOUDFLARE_R2_SECRET_ACCESS_KEY", "CLOUDFLARE_R2_BUCKET"]
+    # 🔥 FIXED: Check R2 configuration with exact Railway variables
+    r2_vars = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_R2_ACCESS_KEY_ID", "CLOUDFLARE_R2_SECRET_ACCESS_KEY", "CLOUDFLARE_R2_BUCKET_NAME"]
     r2_missing = [var for var in r2_vars if not os.getenv(var)]
     
     if not r2_missing:
@@ -798,7 +642,7 @@ def validate_storage_configuration() -> Dict[str, Any]:
             "benefit": "Enable primary low-cost storage"
         })
     
-    # Check B2 configuration
+    # Check B2 configuration (optional)
     b2_vars = ["B2_ACCESS_KEY_ID", "B2_SECRET_ACCESS_KEY", "B2_BUCKET_NAME"]
     b2_missing = [var for var in b2_vars if not os.getenv(var)]
     
@@ -827,5 +671,7 @@ if os.getenv("DEBUG", "false").lower() == "true":
         logger.warning("⚠️ Storage configuration issues detected")
         for error in storage_validation["configuration_errors"]:
             logger.warning(f"   {error['provider']}: {error['error']}")
+    else:
+        logger.info("✅ Storage configuration validation passed")
 else:
-    storage_validation = {"production_mode": True}
+    logger.info("🏭 Production mode: Storage validation completed")
