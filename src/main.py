@@ -31,6 +31,8 @@ if app_path not in sys.path:
 from src.core.database import get_async_db
 from src.auth.dependencies import get_current_user
 from src.routes.health import health_router
+from src.routes.user_storage import router as user_storage_router
+from src.routes.admin_storage import router as admin_storage_router
 
 
 # Import database setup (no table creation)
@@ -1960,6 +1962,13 @@ async def debug_dashboard_status():
             ]
         }
     }
+
+# ============================================================================
+# ✅ ENHANCED CLOUDFLARE STORAGE ENDPOINTS
+# ============================================================================
+
+app.include_router(user_storage_router)
+app.include_router(admin_storage_router)
 
 # ============================================================================
 # ✅ ENHANCED CONTENT GENERATION ENDPOINTS

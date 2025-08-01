@@ -1,17 +1,18 @@
-# src/models/user.py - PERMANENT CLEAN VERSION
+# src/models/user.py - UPDATED WITH STORAGE FIELDS
 """
-User model and related schemas - Clean permanent version
+User model and related schemas - Updated with storage tracking
 """
 
-from sqlalchemy import Column, String, Boolean, ForeignKey, Text
+from sqlalchemy import Column, String, Boolean, ForeignKey, Text, Integer, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
+from datetime import datetime
 
 # Import from our clean base module
 from .base import BaseModel
 
 class User(BaseModel):
-    """User model - Clean permanent version"""
+    """User model - Updated with storage tracking fields"""
     __tablename__ = "users"
     
     email = Column(String(255), unique=True, index=True, nullable=False)
@@ -30,6 +31,12 @@ class User(BaseModel):
     # User Preferences (personal, not company-wide)
     preferences = Column(JSONB, default={})
     settings = Column(JSONB, default={})
+    
+    # 🆕 STORAGE TRACKING FIELDS
+    storage_used_bytes = Column(Integer, default=0, nullable=False)
+    storage_limit_bytes = Column(Integer, default=1073741824, nullable=False)  # 1GB default (free tier)
+    storage_tier = Column(String(20), default="free", nullable=False)  # free, pro, enterprise
+    last_storage_check = Column(DateTime, nullable=True)
     
     # Clean relationships (will work once all models use proper imports)
     company = relationship("Company", back_populates="users")
@@ -71,6 +78,9 @@ class User(BaseModel):
         back_populates="inviter"
     )
     
+    # 🆕 STORAGE RELATIONSHIP
+    storage_usage = relationship("UserStorageUsage", back_populates="user", cascade="all, delete-orphan")
+    
     def get_preferences(self) -> dict:
         """Get user preferences with proper handling"""
         if isinstance(self.preferences, dict):
@@ -83,5 +93,41 @@ class User(BaseModel):
                 return {}
         return {}
     
+    # 🆕 STORAGE UTILITY METHODS
+    def get_storage_used_mb(self) -> float:
+        """Get storage used in MB"""
+        return round(self.storage_used_bytes / 1024 / 1024, 2)
+    
+    def get_storage_limit_mb(self) -> float:
+        """Get storage limit in MB"""
+        return round(self.storage_limit_bytes / 1024 / 1024, 2)
+    
+    def get_storage_used_gb(self) -> float:
+        """Get storage used in GB"""
+        return round(self.storage_used_bytes / 1024 / 1024 / 1024, 2)
+    
+    def get_storage_limit_gb(self) -> float:
+        """Get storage limit in GB"""
+        return round(self.storage_limit_bytes / 1024 / 1024 / 1024, 2)
+    
+    def get_storage_usage_percentage(self) -> float:
+        """Get storage usage as percentage"""
+        if self.storage_limit_bytes == 0:
+            return 0.0
+        return round((self.storage_used_bytes / self.storage_limit_bytes) * 100, 1)
+    
+    def has_storage_available(self, bytes_needed: int) -> bool:
+        """Check if user has enough storage available"""
+        return (self.storage_used_bytes + bytes_needed) <= self.storage_limit_bytes
+    
+    def get_storage_available_bytes(self) -> int:
+        """Get available storage in bytes"""
+        return max(0, self.storage_limit_bytes - self.storage_used_bytes)
+    
+    def get_storage_tier_info(self) -> dict:
+        """Get storage tier information"""
+        from ..storage.storage_tiers import STORAGE_TIERS
+        return STORAGE_TIERS.get(self.storage_tier, STORAGE_TIERS["free"])
+    
     def __repr__(self):
-        return f"<User(id={self.id}, email='{self.email}', role='{self.role}')>"
+        return f"<User(id={self.id}, email='{self.email}', role='{self.role}', storage_tier='{self.storage_tier}')>"

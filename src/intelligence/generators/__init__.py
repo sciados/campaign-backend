@@ -78,7 +78,7 @@ except ImportError as e:
 
 # Ultra-Cheap Image Generator
 try:
-    from .ultra_cheap_image_generator import UltraCheapImageGenerator
+    from .image_generator import UltraCheapImageGenerator
     ULTRA_CHEAP_IMAGE_GENERATOR_AVAILABLE = True
     logger.info("✅ Ultra-cheap image generator imported successfully")
 except ImportError as e:

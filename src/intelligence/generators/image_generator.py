@@ -1,4 +1,4 @@
-# src/intelligence/generators/ultra_cheap_image_generator.py
+# src/intelligence/generators/image_generator.py
 import asyncio
 import aiohttp
 import base64

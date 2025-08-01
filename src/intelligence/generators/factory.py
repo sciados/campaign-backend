@@ -106,7 +106,7 @@ class ContentGeneratorFactory:
         
         # Ultra-Cheap Image Generator (Already optimized)
         try:
-            from .ultra_cheap_image_generator import UltraCheapImageGenerator
+            from .image_generator import UltraCheapImageGenerator
             self._generators["ultra_cheap_image"] = UltraCheapImageGenerator()
             logger.info("✅ Ultra-Cheap Image Generator: 95% savings vs DALL-E")
         except Exception as e:
@@ -114,7 +114,7 @@ class ContentGeneratorFactory:
         
         # Standard Image Generator
         try:
-            from .ultra_cheap_image_generator import UltraCheapImageGenerator
+            from .image_generator import UltraCheapImageGenerator
             self._generators["image"] = UltraCheapImageGenerator()
             logger.info("✅ Standard Image Generator: Available")
         except Exception as e:

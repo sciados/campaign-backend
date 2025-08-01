@@ -158,7 +158,7 @@ ANNUAL SAVINGS: $20,565.72
 ### Phase 1 Files
 ```
 src/intelligence/generators/
-├── ultra_cheap_image_generator.py    # NEW - Main AI image generation
+├── image_generator.py    # NEW - Main AI image generation
 ├── factory.py                        # MODIFY - Add new generators
 
 src/intelligence/routers/
@@ -275,7 +275,7 @@ CREATE INDEX idx_campaign_assets_content_category ON campaign_assets(content_cat
 ### 1. Ultra-Cheap Image Generator
 
 ```python
-# src/intelligence/generators/ultra_cheap_image_generator.py
+# src/intelligence/generators/image_generator.py
 import asyncio
 import aiohttp
 import base64
@@ -1994,7 +1994,7 @@ import logging
 from src.core.database import get_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
-from src.intelligence.generators.ultra_cheap_image_generator import UltraCheapImageGenerator
+from src.intelligence.generators.image_generator import UltraCheapImageGenerator
 from src.storage.universal_dual_storage import get_storage_manager
 
 router = APIRouter()
@@ -2254,7 +2254,7 @@ curl -X POST "https://your-railway-url.up.railway.app/storage/generate-slideshow
 ### Step 1: Deploy Phase 1 (Ultra-Cheap Images)
 ```bash
 # 1. Create the ultra-cheap image generator file
-touch src/intelligence/generators/ultra_cheap_image_generator.py
+touch src/intelligence/generators/image_generator.py
 # Copy the UltraCheapImageGenerator code above
 
 # 2. Update existing stability routes
@@ -2494,7 +2494,7 @@ def check_video_requirements():
 ### Implementation Checklist
 ```
 □ Phase 1 - Ultra-Cheap AI Images (Week 1)
-  □ Create ultra_cheap_image_generator.py
+  □ Create image_generator.py
   □ Update stability_routes.py
   □ Test with HepatoBurn campaign
   □ Verify 90% cost savings

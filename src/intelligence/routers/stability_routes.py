@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Import ultra-cheap generator if available
 try:
-    from ..generators.ultra_cheap_image_generator import UltraCheapImageGenerator
+    from ..generators.image_generator import UltraCheapImageGenerator
     ULTRA_CHEAP_AVAILABLE = True
 except ImportError:
     ULTRA_CHEAP_AVAILABLE = False
