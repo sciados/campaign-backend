@@ -19,7 +19,8 @@ from .base import BaseModel
 # Campaign-specific enums
 class CampaignStatus(str, enum.Enum):
     DRAFT = "DRAFT"
-    ANALYZING = "ANALYZING"  # 🆕 NEW: Auto-analysis in progress
+    IN_PROGRESS = "IN_PROGRESS"  # 🆕 NEW: Auto-analysis in progress
+    REVIEW = "REVIEW"  # 🆕
     ANALYSIS_COMPLETE = "ANALYSIS_COMPLETE"  # 🆕 NEW: Ready for content generation
     ACTIVE = "ACTIVE"
     COMPLETED = "COMPLETED"
@@ -178,7 +179,7 @@ class Campaign(BaseModel):
         """Start auto-analysis process - FIXED timezone"""
         self.auto_analysis_status = AutoAnalysisStatus.IN_PROGRESS
         self.auto_analysis_started_at = datetime.now(timezone.utc)  # ✅ Always UTC timezone-aware
-        self.status = CampaignStatus.ANALYZING
+        self.status = CampaignStatus.IN_PROGRESS
         self.workflow_state = CampaignWorkflowState.AUTO_ANALYZING
         
         # Update step 1 progress
