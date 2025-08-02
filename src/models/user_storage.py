@@ -9,7 +9,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
-from src.utils.json_utils import safe_json_dumps
+from src.utils.json_utils import safe_json_dumps, serialize_metadata
 
 # Only import for type hints to avoid circular imports
 if TYPE_CHECKING:
@@ -79,20 +79,37 @@ class UserStorageUsage(BaseModel):
         """Check if file is a video"""
         return self.content_category == "video" or self.content_type.startswith("video/")
     
-    def get_file_metadata(self) -> dict:
-        """Get file metadata as dict"""
-        if not self.file_metadata:
-            return {}
-        try:
-            import json
-            return json.loads(self.file_metadata) if isinstance(self.file_metadata, str) else {}
-        except (json.JSONDecodeError, ValueError):
-            return {}
+    # ==============================================================================
+# 🔧 UPDATED METHODS: Using centralized JSON utilities
+# ==============================================================================
+
+def get_file_metadata(self) -> dict:
+    """
+    Get file metadata as dict using centralized JSON utilities
     
-    def set_file_metadata(self, metadata_dict: dict):
-        """Set file metadata from dict"""
-        import json
-        self.file_metadata = safe_json_dumps(metadata_dict) if metadata_dict else None
+    🔧 IMPROVEMENT: Uses safe_json_loads for better error handling
+    """
+    if not self.file_metadata:
+        return {}
+    
+    if isinstance(self.file_metadata, dict):
+        return self.file_metadata
+    elif isinstance(self.file_metadata, str):
+        return safe_json_dumps(self.file_metadata)
+    else:
+        return {}
+
+def set_file_metadata(self, metadata_dict: dict):
+    """
+    Set file metadata from dict using centralized JSON utilities
+    
+    🔧 IMPROVEMENT: Uses safe_json_dumps for datetime support and better error handling
+    """
+    if not metadata_dict:
+        self.file_metadata = None
+    else:
+        # Use the centralized serialize_metadata function which adds timestamp
+        self.file_metadata = serialize_metadata(metadata_dict)
     
     def mark_accessed(self):
         """Mark file as accessed (update access count and timestamp)"""
