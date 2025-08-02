@@ -4,6 +4,7 @@ Analysis Handler - Clean version with centralized JSON utilities
 🔧 FIXED: All JSON serialization uses centralized json_utils.py
 🔧 FIXED: SQLAlchemy async/sync issues resolved
 🔧 FIXED: Proper error handling and workflow management
+🔧 FIXED: Always use campaign product name as primary source
 """
 import uuid
 import logging
@@ -478,7 +479,7 @@ class AnalysisHandler:
         return providers
     
     async def _store_analysis_results(self, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]):
-        """Store analysis results using centralized JSON utilities"""
+        """Store analysis results using centralized JSON utilities - FIXED to use campaign product name"""
         try:
             enhanced_analysis = analysis_result
             
@@ -503,7 +504,7 @@ class AnalysisHandler:
             # Store metadata and finalize
             intelligence.confidence_score = enhanced_analysis.get("confidence_score", 0.0)
             
-            # 🔧 FIX: Use campaign product name instead of extracted name
+            # 🔧 CRITICAL FIX: Always use campaign product name as primary source
             try:
                 # Get the campaign to access the user-provided product name
                 campaign_query = select(Campaign).where(Campaign.id == intelligence.campaign_id)
@@ -511,23 +512,24 @@ class AnalysisHandler:
                 campaign = result.scalar_one_or_none()
                 
                 if campaign and hasattr(campaign, 'product_name') and campaign.product_name:
-                    # Use the user-provided product name from campaign setup
-                    intelligence.source_title = campaign.product_name
+                    # ✅ PRIORITY 1: Use the user-provided product name from campaign setup
+                    intelligence.source_title = campaign.product_name.strip()
                     logger.info(f"✅ Using campaign product name: '{campaign.product_name}'")
+                    
+                    # 🔧 NEW: Also update the analysis results to use correct product name
+                    enhanced_analysis = self._fix_product_names_in_analysis(enhanced_analysis, campaign.product_name)
+                    
+                elif campaign and hasattr(campaign, 'title') and campaign.title:
+                    # ✅ PRIORITY 2: Use campaign title as fallback
+                    intelligence.source_title = campaign.title.strip()
+                    logger.info(f"✅ Using campaign title as product name: '{campaign.title}'")
                 else:
-                    # Fallback to extracted/page title if no campaign product name
-                    try:
-                        from src.intelligence.utils.product_name_fix import extract_product_name_from_intelligence
-                        correct_product_name = extract_product_name_from_intelligence(enhanced_analysis)
-                        if correct_product_name and correct_product_name != "Product":
-                            intelligence.source_title = correct_product_name
-                            logger.info(f"✅ Using extracted product name: '{correct_product_name}'")
-                        else:
-                            intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
-                    except ImportError:
-                        intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
+                    # ❌ PRIORITY 3: Extraction fallback (should rarely be needed now)
+                    logger.warning("⚠️ No campaign product name found, using extraction fallback")
+                    intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
+                    
             except Exception as name_error:
-                logger.warning(f"⚠️ Failed to get campaign product name: {str(name_error)}")
+                logger.error(f"❌ Failed to get campaign product name: {str(name_error)}")
                 intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
             
             intelligence.raw_content = enhanced_analysis.get("raw_content", "")[:10000]
@@ -538,7 +540,8 @@ class AnalysisHandler:
                 "analysis_timestamp": datetime.now(timezone.utc),
                 "commit_applied": True,
                 "workflow_type": "streamlined_2_step",
-                "storage_version": "streamlined_2024"  
+                "storage_version": "streamlined_2024",
+                "product_name_source": "campaign_user_input"  # 🔧 NEW: Track source
             })
             
             intelligence.processing_metadata = serialize_metadata(processing_metadata)
@@ -569,6 +572,76 @@ class AnalysisHandler:
                 await self.db.rollback()
                 
             raise storage_error
+
+    def _fix_product_names_in_analysis(self, analysis_result: Dict[str, Any], correct_product_name: str) -> Dict[str, Any]:
+        """🔧 NEW: Fix product names throughout analysis results"""
+        
+        logger.info(f"🔧 Applied product name fix: {correct_product_name}")
+        
+        # Create a copy to avoid modifying original
+        fixed_analysis = analysis_result.copy()
+        
+        # Fix offer intelligence products
+        if "offer_intelligence" in fixed_analysis:
+            offer_intel = fixed_analysis["offer_intelligence"]
+            if isinstance(offer_intel, dict) and "products" in offer_intel:
+                # Replace any extracted/hallucinated product names with correct one
+                offer_intel["products"] = [correct_product_name]
+                logger.info(f"🔧 Fixed offer_intelligence products: [{correct_product_name}]")
+        
+        # Fix any text content that mentions wrong product names
+        def replace_product_references(data, correct_name):
+            """Recursively replace product name references"""
+            if isinstance(data, dict):
+                return {k: replace_product_references(v, correct_name) for k, v in data.items()}
+            elif isinstance(data, list):
+                return [replace_product_references(item, correct_name) for item in data]
+            elif isinstance(data, str):
+                # Replace common incorrect patterns
+                replacements = {
+                    # Common extraction errors
+                    "HepatoburnTRY": correct_name,
+                    "HepatoburnGET": correct_name, 
+                    "HepatoburnNOW": correct_name,
+                    "Hepatoburn TRY": correct_name,
+                    "Hepatoburn GET": correct_name,
+                    # AI hallucinations
+                    "Island": correct_name,
+                    "Solution": correct_name,
+                    "Formula": correct_name,
+                    "System": correct_name,
+                    # Generic placeholders
+                    "[PRODUCT]": correct_name,
+                    "[Product]": correct_name,
+                    "Your Product": correct_name,
+                    "your product": correct_name,
+                    "this product": correct_name,
+                    "the product": correct_name
+                }
+                
+                result = data
+                for old, new in replacements.items():
+                    result = result.replace(old, new)
+                
+                return result
+            else:
+                return data
+        
+        # Apply recursive replacement
+        fixed_analysis = replace_product_references(fixed_analysis, correct_product_name)
+        
+        # Add metadata about the fix
+        if "amplification_metadata" not in fixed_analysis:
+            fixed_analysis["amplification_metadata"] = {}
+        
+        fixed_analysis["amplification_metadata"].update({
+            "product_name_fix_applied": True,
+            "correct_product_name": correct_product_name,
+            "product_name_source": "campaign_user_input",
+            "fix_timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+        return fixed_analysis
     
     async def _store_ai_data_fallback(self, intelligence: CampaignIntelligence, enhanced_analysis: Dict[str, Any]):
         """Fallback AI data storage using centralized JSON utilities"""

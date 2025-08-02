@@ -44,13 +44,21 @@ class CampaignService:
         user: User,
         background_tasks
     ) -> Campaign:
-        """Create new campaign with optional auto-analysis trigger"""
+        """Create new campaign with optional auto-analysis trigger - FIXED to require product name"""
         try:
             logger.info(f"🎯 Creating streamlined campaign for user {user.id}")
+            
+            # 🔧 CRITICAL FIX: Validate required product name
+            product_name = campaign_data.get("product_name", "").strip()
+            if not product_name or len(product_name) < 2:
+                raise ValueError("Product name is required and must be at least 2 characters long")
+            
+            logger.info(f"✅ Product name provided: '{product_name}'")
             
             new_campaign = Campaign(
                 title=campaign_data.get("title"),
                 description=campaign_data.get("description"),
+                product_name=product_name,  # 🔧 NEW: Store product name from user input
                 keywords=campaign_data.get("keywords", []),
                 target_audience=campaign_data.get("target_audience"),
                 tone=campaign_data.get("tone", "conversational"),
@@ -73,7 +81,7 @@ class CampaignService:
             await self.db.commit()
             await self.db.refresh(new_campaign)
             
-            logger.info(f"✅ Created campaign {new_campaign.id}")
+            logger.info(f"✅ Created campaign {new_campaign.id} with product name: '{product_name}'")
             
             # 🔧 CRITICAL FIX: Trigger auto-analysis if enabled and URL provided
             if (campaign_data.get("auto_analysis_enabled") and 
