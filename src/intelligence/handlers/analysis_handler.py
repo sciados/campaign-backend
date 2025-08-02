@@ -35,6 +35,35 @@ from src.utils.json_utils import (
     create_success_response
 )
 
+# 🔧 UPDATED: File metadata helper methods using centralized JSON utilities
+def get_file_metadata(self) -> dict:
+    """
+    Get file metadata as dict using centralized JSON utilities
+    
+    🔧 IMPROVEMENT: Uses safe_json_loads for better error handling
+    """
+    if not self.file_metadata:
+        return {}
+    
+    if isinstance(self.file_metadata, dict):
+        return self.file_metadata
+    elif isinstance(self.file_metadata, str):
+        return safe_json_loads(self.file_metadata)
+    else:
+        return {}
+
+def set_file_metadata(self, metadata_dict: dict):
+    """
+    Set file metadata from dict using centralized JSON utilities
+    
+    🔧 IMPROVEMENT: Uses safe_json_dumps for datetime support and better error handling
+    """
+    if not metadata_dict:
+        self.file_metadata = None
+    else:
+        # Use the centralized serialize_metadata function which adds timestamp
+        self.file_metadata = serialize_metadata(metadata_dict)
+
 # Enhancement modules - using enhancement.py directly  
 from src.intelligence.amplifier.enhancement import (
     identify_opportunities,
@@ -120,7 +149,321 @@ class AnalysisHandler:
         campaign_id = request_data.get('campaign_id')
         analysis_type = request_data.get('analysis_type', 'sales_page')
         
-        # Get campaign and update status to analyzing
+    async def _verify_streamlined_storage(self, intelligence_id: uuid.UUID):
+        """Simplified verification for streamlined workflow"""
+        try:
+            logger.info("📊 Streamlined storage verification...")
+            
+            count_query = text("SELECT COUNT(*) FROM campaign_intelligence WHERE id = :intelligence_id")
+            count_result = await self.db.execute(count_query, {'intelligence_id': intelligence_id})
+            count = count_result.scalar()
+            
+            if count > 0:
+                logger.info(f"✅ STREAMLINED VERIFICATION: Record exists in database")
+                logger.info(f"   📊 Intelligence ID: {intelligence_id}")
+                logger.info(f"   📊 Workflow: Streamlined 2-step")
+            else:
+                logger.error("❌ STREAMLINED VERIFICATION FAILED: No record found!")
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Streamlined verification skipped: {str(e)}")
+            logger.info("✅ Non-critical - streamlined analysis data was stored successfully")
+    
+    def _validate_intelligence_section(self, data: Any) -> Dict[str, Any]:
+        """Validate and clean intelligence data section"""
+        if isinstance(data, dict):
+            return data
+        elif isinstance(data, list):
+            return {"items": data}
+        elif isinstance(data, str):
+            return {"content": data}
+        else:
+            return {"value": str(data) if data is not None else ""}
+    
+    async def _update_campaign_counters(self, campaign_id: str):
+        """Update campaign counters for streamlined workflow"""
+        try:
+            logger.info(f"📊 Updating streamlined campaign counters for: {campaign_id}")
+            
+            success = await update_campaign_counters(campaign_id, self.db)
+            
+            if success:
+                logger.info(f"✅ Streamlined campaign counters updated successfully")
+            else:
+                logger.warning(f"⚠️ Streamlined campaign counter update failed (non-critical)")
+                
+        except Exception as counter_error:
+            logger.warning(f"⚠️ Streamlined counter update failed (non-critical): {str(counter_error)}")
+    
+    async def _handle_analysis_failure(self, intelligence: CampaignIntelligence, error: Exception):
+        """Handle analysis failure in streamlined workflow"""
+        try:
+            intelligence.analysis_status = AnalysisStatus.FAILED
+            error_metadata = {
+                "error": str(error),
+                "traceback": traceback.format_exc(),
+                "workflow_type": "streamlined_2_step",
+                "failure_timestamp": datetime.now(timezone.utc)
+            }
+            intelligence.processing_metadata = serialize_metadata(error_metadata)
+            await self.db.commit()
+        except:
+            await self.db.rollback()
+    
+    def _prepare_streamlined_response(
+        self, campaign: Campaign, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """🆕 NEW: Prepare successful streamlined analysis response"""
+        
+        # Extract competitive opportunities
+        competitive_intel = analysis_result.get("competitive_intelligence", {})
+        competitive_opportunities = []
+        if isinstance(competitive_intel.get("opportunities"), list):
+            for opp in competitive_intel["opportunities"]:
+                competitive_opportunities.append({"description": str(opp), "priority": "medium"})
+
+        campaign_suggestions = analysis_result.get("campaign_suggestions", [])
+
+        # Add streamlined workflow-specific suggestions
+        amplification_metadata = analysis_result.get("amplification_metadata", {})
+        if amplification_metadata.get("amplification_applied"):
+            campaign_suggestions.extend([
+                "✅ Ready for streamlined content generation",
+                "✅ Scientific backing prepared for content",
+                "✅ Credibility enhancements available",
+                "✅ Competitive insights ready to use"
+            ])
+            
+            scientific_enhancements = amplification_metadata.get("scientific_enhancements", 0)
+            if scientific_enhancements > 0:
+                campaign_suggestions.append(f"🔬 {scientific_enhancements} scientific validations ready")
+            
+            total_enhancements = amplification_metadata.get("total_enhancements", 0)
+            if total_enhancements > 0:
+                campaign_suggestions.append(f"🚀 {total_enhancements} intelligence enhancements available")
+
+            # Add ultra-cheap optimization notifications
+            if amplification_metadata.get("ultra_cheap_optimization_applied"):
+                cost_savings = amplification_metadata.get("cost_savings_percentage", 0)
+                primary_provider = amplification_metadata.get("primary_provider_used", "unknown")
+                campaign_suggestions.append(f"💰 Cost-optimized analysis: {cost_savings:.0f}% savings using {primary_provider}")
+
+        # Add streamlined workflow status
+        campaign_suggestions.append("🎯 Campaign ready for Step 2: Content Generation")
+        
+        # Add content generation hints based on analysis
+        analysis_summary = analysis_result.get("analysis_summary", campaign.analysis_summary or {})
+        if analysis_summary:
+            content_opps = analysis_summary.get("content_opportunities", [])
+            if content_opps:
+                campaign_suggestions.append(f"📝 {len(content_opps)} content opportunities identified")
+
+        return {
+            "intelligence_id": str(intelligence.id),
+            "campaign_id": str(campaign.id),
+            "analysis_status": intelligence.analysis_status.value,
+            "campaign_analysis_status": campaign.auto_analysis_status.value if campaign.auto_analysis_status else "completed",
+            "confidence_score": intelligence.confidence_score,
+            "campaign_confidence_score": campaign.analysis_confidence_score or 0.0,
+            "workflow_type": "streamlined_2_step",
+            "workflow_state": campaign.workflow_state.value if campaign.workflow_state else "analysis_complete",
+            "can_proceed_to_content": campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED,
+            "offer_intelligence": self._serialize_enum_field(intelligence.offer_intelligence),
+            "psychology_intelligence": self._serialize_enum_field(intelligence.psychology_intelligence),
+            "competitive_opportunities": competitive_opportunities,
+            "campaign_suggestions": campaign_suggestions,
+            "amplification_metadata": amplification_metadata,
+            "analysis_summary": analysis_summary,
+            "content_generation_ready": True,
+            "next_step": "content_generation",
+            "step_progress": {
+                "step_1": campaign.step_states.get("step_1", {}).get("progress", 100),
+                "step_2": campaign.step_states.get("step_2", {}).get("progress", 0)
+            }
+        }
+    
+    def _prepare_failure_response(
+        self, intelligence: CampaignIntelligence, error: Exception
+    ) -> Dict[str, Any]:
+        """Prepare failure response for streamlined workflow"""
+        return {
+            "intelligence_id": str(intelligence.id),
+            "analysis_status": "failed",
+            "campaign_analysis_status": "failed",
+            "confidence_score": 0.0,
+            "campaign_confidence_score": 0.0,
+            "workflow_type": "streamlined_2_step",
+            "workflow_state": "analysis_failed",
+            "can_proceed_to_content": False,
+            "offer_intelligence": {"products": [], "pricing": [], "bonuses": [], "guarantees": [], "value_propositions": []},
+            "psychology_intelligence": {"emotional_triggers": [], "pain_points": [], "target_audience": "Unknown", "persuasion_techniques": []},
+            "competitive_opportunities": [{"description": f"Analysis failed: {str(error)}", "priority": "high"}],
+            "campaign_suggestions": [
+                "❌ Analysis failed - check error details",
+                "🔄 Try retrying the analysis",
+                "🛠️ Check server logs for detailed error information",
+                "🔗 Verify the competitor URL is accessible"
+            ],
+            "analysis_summary": {},
+            "content_generation_ready": False,
+            "next_step": "retry_analysis",
+            "error_message": str(error),
+            "step_progress": {
+                "step_1": 25,  # Partial progress before failure
+                "step_2": 0
+            }
+        }
+
+
+# 🆕 NEW: Streamlined Workflow Utilities
+class StreamlinedWorkflowManager:
+    """🆕 NEW: Manager for streamlined 2-step workflow operations"""
+    
+    def __init__(self, db: AsyncSession):
+        self.db = db
+    
+    async def get_campaigns_ready_for_content(self, company_id: uuid.UUID) -> List[Campaign]:
+        """Get campaigns that have completed analysis and are ready for content generation"""
+        try:
+            query = select(Campaign).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED,
+                    Campaign.content_generated == 0
+                )
+            ).order_by(Campaign.auto_analysis_completed_at.desc())
+            
+            result = await self.db.execute(query)
+            campaigns = result.scalars().all()
+            
+            logger.info(f"📊 Found {len(campaigns)} campaigns ready for content generation")
+            return campaigns
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting campaigns ready for content: {str(e)}")
+            return []
+    
+    async def get_campaigns_in_analysis(self, company_id: uuid.UUID) -> List[Campaign]:
+        """Get campaigns currently being analyzed"""
+        try:
+            query = select(Campaign).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.IN_PROGRESS
+                )
+            ).order_by(Campaign.auto_analysis_started_at.desc())
+            
+            result = await self.db.execute(query)
+            campaigns = result.scalars().all()
+            
+            logger.info(f"📊 Found {len(campaigns)} campaigns currently in analysis")
+            return campaigns
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting campaigns in analysis: {str(e)}")
+            return []
+    
+    async def get_failed_analyses(self, company_id: uuid.UUID) -> List[Campaign]:
+        """Get campaigns with failed analyses that need retry"""
+        try:
+            query = select(Campaign).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.FAILED
+                )
+            ).order_by(Campaign.updated_at.desc())
+            
+            result = await self.db.execute(query)
+            campaigns = result.scalars().all()
+            
+            logger.info(f"📊 Found {len(campaigns)} campaigns with failed analyses")
+            return campaigns
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting failed analyses: {str(e)}")
+            return []
+    
+    async def get_workflow_summary(self, company_id: uuid.UUID) -> Dict[str, Any]:
+        """Get comprehensive workflow summary for dashboard"""
+        try:
+            # Get counts for different analysis states
+            pending_query = select(func.count(Campaign.id)).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.PENDING
+                )
+            )
+            
+            analyzing_query = select(func.count(Campaign.id)).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.IN_PROGRESS
+                )
+            )
+            
+            completed_query = select(func.count(Campaign.id)).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED
+                )
+            )
+            
+            failed_query = select(func.count(Campaign.id)).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.FAILED
+                )
+            )
+            
+            content_ready_query = select(func.count(Campaign.id)).where(
+                and_(
+                    Campaign.company_id == company_id,
+                    Campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED,
+                    Campaign.content_generated == 0
+                )
+            )
+            
+            # Execute all queries
+            pending_result = await self.db.execute(pending_query)
+            analyzing_result = await self.db.execute(analyzing_query)
+            completed_result = await self.db.execute(completed_query)
+            failed_result = await self.db.execute(failed_query)
+            content_ready_result = await self.db.execute(content_ready_query)
+            
+            return {
+                "workflow_type": "streamlined_2_step",
+                "analysis_pending": pending_result.scalar() or 0,
+                "analysis_in_progress": analyzing_result.scalar() or 0,
+                "analysis_completed": completed_result.scalar() or 0,
+                "analysis_failed": failed_result.scalar() or 0,
+                "ready_for_content": content_ready_result.scalar() or 0,
+                "total_campaigns": (
+                    (pending_result.scalar() or 0) +
+                    (analyzing_result.scalar() or 0) +
+                    (completed_result.scalar() or 0) +
+                    (failed_result.scalar() or 0)
+                ),
+                "analysis_success_rate": self._calculate_success_rate(
+                    completed_result.scalar() or 0,
+                    failed_result.scalar() or 0
+                ),
+                "generated_at": datetime.now(timezone.utc)  # Will be handled by json_serial
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting workflow summary: {str(e)}")
+            return {
+                "workflow_type": "streamlined_2_step",
+                "error": str(e),
+                "generated_at": datetime.now(timezone.utc)  # Will be handled by json_serial
+            }
+    
+    def _calculate_success_rate(self, completed: int, failed: int) -> float:
+        """Calculate analysis success rate"""
+        total = completed + failed
+        if total == 0:
+            return 100.0
+        return (completed / total) * 100.0 # Get campaign and update status to analyzing
         campaign = await self._get_and_update_campaign(campaign_id)
         
         # Create intelligence record
@@ -224,7 +567,7 @@ class AnalysisHandler:
             
         except Exception as e:
             logger.error(f"❌ Failed to complete campaign analysis: {str(e)}")
-            await self._fail_campaign_analysis(campaign, e)
+            # Re-raise to be handled by the main exception handler
             raise
     
     async def _fail_campaign_analysis(self, campaign: Campaign, error: Exception):
@@ -690,3 +1033,18 @@ class AnalysisHandler:
                         logger.error(f"❌ Streamlined backup storage also failed for {key}: {str(backup_error)}")
             else:
                 logger.warning(f"⚠️ No valid data to store for {key} in streamlined workflow")
+        
+        # COMMIT THE CHANGES
+        try:
+            logger.info("🔧 Committing streamlined fallback storage changes...")
+            await self.db.commit()
+            logger.info(f"✅ STREAMLINED COMMIT SUCCESS: {successful_saves}/{len(ai_keys)} categories, {total_items_saved} total items")
+        
+            # Simple verification for streamlined workflow
+            await self._verify_streamlined_storage(intelligence.id)
+        except Exception as commit_error:
+            logger.error(f"❌ CRITICAL: Streamlined commit failed: {str(commit_error)}")
+            await self.db.rollback()
+            raise commit_error
+        
+        #
