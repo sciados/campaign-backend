@@ -211,6 +211,19 @@ class AnalysisHandler:
             if not campaign:
                 raise ValueError(f"Campaign {campaign_id} not found or access denied")
         
+            # 🔧 DEBUG: Check campaign status before updating
+            logger.info(f"📊 Campaign current status: {campaign.auto_analysis_status}")
+            
+            # Check if analysis is already in progress or completed to prevent duplicate runs
+            if hasattr(campaign, 'auto_analysis_status') and campaign.auto_analysis_status:
+                if campaign.auto_analysis_status.value in ['in_progress', 'completed']:
+                    logger.warning(f"⚠️ Campaign {campaign_id} analysis already {campaign.auto_analysis_status.value}")
+                    # Don't start analysis again if it's already running or completed
+                    if campaign.auto_analysis_status.value == 'completed':
+                        raise ValueError(f"Campaign {campaign_id} analysis already completed")
+                    elif campaign.auto_analysis_status.value == 'in_progress':
+                        raise ValueError(f"Campaign {campaign_id} analysis already in progress")
+            
             # Update campaign to analyzing status
             campaign.start_auto_analysis()  # This is synchronous - no await
             
@@ -222,6 +235,9 @@ class AnalysisHandler:
         
         except Exception as e:
             logger.error(f"❌ Failed to get/update campaign: {str(e)}")
+            # Add more specific error logging
+            logger.error(f"❌ Exception type: {type(e).__name__}")
+            logger.error(f"❌ Exception args: {e.args}")
             await self.db.rollback()
             raise ValueError(f"Campaign update failed: {str(e)}")
     
@@ -487,16 +503,31 @@ class AnalysisHandler:
             # Store metadata and finalize
             intelligence.confidence_score = enhanced_analysis.get("confidence_score", 0.0)
             
-            # Extract and store product name
+            # 🔧 FIX: Use campaign product name instead of extracted name
             try:
-                from src.intelligence.utils.product_name_fix import extract_product_name_from_intelligence
-                correct_product_name = extract_product_name_from_intelligence(enhanced_analysis)
-                if correct_product_name and correct_product_name != "Product":
-                    intelligence.source_title = correct_product_name
-                    logger.info(f"✅ Product name stored: '{correct_product_name}'")
+                # Get the campaign to access the user-provided product name
+                campaign_query = select(Campaign).where(Campaign.id == intelligence.campaign_id)
+                result = await self.db.execute(campaign_query)
+                campaign = result.scalar_one_or_none()
+                
+                if campaign and hasattr(campaign, 'product_name') and campaign.product_name:
+                    # Use the user-provided product name from campaign setup
+                    intelligence.source_title = campaign.product_name
+                    logger.info(f"✅ Using campaign product name: '{campaign.product_name}'")
                 else:
-                    intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
-            except ImportError:
+                    # Fallback to extracted/page title if no campaign product name
+                    try:
+                        from src.intelligence.utils.product_name_fix import extract_product_name_from_intelligence
+                        correct_product_name = extract_product_name_from_intelligence(enhanced_analysis)
+                        if correct_product_name and correct_product_name != "Product":
+                            intelligence.source_title = correct_product_name
+                            logger.info(f"✅ Using extracted product name: '{correct_product_name}'")
+                        else:
+                            intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
+                    except ImportError:
+                        intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
+            except Exception as name_error:
+                logger.warning(f"⚠️ Failed to get campaign product name: {str(name_error)}")
                 intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
             
             intelligence.raw_content = enhanced_analysis.get("raw_content", "")[:10000]

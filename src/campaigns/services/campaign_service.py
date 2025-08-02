@@ -2,6 +2,7 @@
 Campaign Service - Business Logic Layer
 🔧 CRITICAL FIX: Proper async session management for background tasks
 🔧 FIXED: Background task session creation to prevent SQLAlchemy errors
+🔧 FIXED: UUID conversion in background task to prevent ChunkedIteratorResult errors
 🎯 Following intelligence/handlers/analysis_handler.py pattern
 """
 import uuid
@@ -97,7 +98,7 @@ class CampaignService:
             await self.db.rollback()
             raise e
     
-    # 🔧 CRITICAL FIX: NEW WORKING BACKGROUND TASK
+    # 🔧 CRITICAL FIX: NEW WORKING BACKGROUND TASK WITH UUID CONVERSION
     @staticmethod
     async def trigger_auto_analysis_task_fixed(
         campaign_id: str, 
@@ -106,26 +107,36 @@ class CampaignService:
         company_id: str
     ):
         """
-        🔧 CRITICAL FIX: Background task with proper async session management
-        This replaces the broken version and fixes SQLAlchemy errors
+        🔧 CRITICAL FIX: Background task with proper async session management + UUID conversion
+        This replaces the broken version and fixes SQLAlchemy ChunkedIteratorResult errors
         """
         # 🔧 CRITICAL FIX: Create new async session within background task
         async with AsyncSessionLocal() as db:
             try:
                 logger.info(f"🚀 Starting FIXED auto-analysis background task for campaign {campaign_id}")
                 
-                # Get user for analysis handler
-                user_result = await db.execute(select(User).where(User.id == user_id))
+                # 🔧 CRITICAL FIX: Convert string IDs to UUID objects
+                try:
+                    campaign_uuid = uuid.UUID(campaign_id)
+                    user_uuid = uuid.UUID(user_id) 
+                    company_uuid = uuid.UUID(company_id)
+                    logger.info(f"✅ UUID conversion successful for campaign {campaign_id}")
+                except ValueError as uuid_error:
+                    logger.error(f"❌ Invalid UUID format: {str(uuid_error)}")
+                    return
+                
+                # Get user for analysis handler with proper UUID
+                user_result = await db.execute(select(User).where(User.id == user_uuid))
                 user = user_result.scalar_one_or_none()
                 
                 if not user:
                     logger.error(f"❌ User {user_id} not found for auto-analysis")
                     return
                 
-                # Get campaign 
+                # Get campaign with proper UUID comparison 
                 campaign_result = await db.execute(
                     select(Campaign).where(
-                        and_(Campaign.id == campaign_id, Campaign.company_id == company_id)
+                        and_(Campaign.id == campaign_uuid, Campaign.company_id == company_uuid)
                     )
                 )
                 campaign = campaign_result.scalar_one_or_none()
@@ -134,7 +145,7 @@ class CampaignService:
                     logger.error(f"❌ Campaign {campaign_id} not found for auto-analysis")
                     return
                 
-                # Start analysis using campaign's method
+                # Start analysis using campaign's method (synchronous - no await)
                 campaign.start_auto_analysis()
                 await db.commit()
                 
@@ -144,7 +155,7 @@ class CampaignService:
                 
                 analysis_request = {
                     "url": salespage_url,
-                    "campaign_id": str(campaign_id),
+                    "campaign_id": str(campaign_id),  # Keep as string for analysis handler
                     "analysis_type": "sales_page"
                 }
                 
@@ -165,6 +176,7 @@ class CampaignService:
                             "amplification_applied": analysis_result.get("amplification_metadata", {}).get("amplification_applied", False)
                         }
                         
+                        # These are synchronous methods - no await
                         campaign.complete_auto_analysis(intelligence_id, confidence_score, analysis_summary)
                         logger.info(f"✅ FIXED auto-analysis completed for campaign {campaign_id}")
                         
@@ -173,6 +185,7 @@ class CampaignService:
                         
                 except Exception as analysis_error:
                     logger.error(f"❌ Auto-analysis failed: {str(analysis_error)}")
+                    # This is a synchronous method - no await
                     campaign.fail_auto_analysis(str(analysis_error))
                 
                 await db.commit()
