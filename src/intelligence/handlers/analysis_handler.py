@@ -140,21 +140,57 @@ class AnalysisHandler:
         except Exception as e:
             logger.error(f"❌ Analysis failed for {url}: {str(e)}")
             
-            # Handle failures
+            # Handle failures - check if objects exist before calling async methods
             if intelligence:
-                await self._handle_analysis_failure(intelligence, e)
+                try:
+                    await self._handle_analysis_failure(intelligence, e)
+                except Exception as failure_error:
+                    logger.error(f"❌ Failed to handle intelligence failure: {str(failure_error)}")
+            
             if campaign:
-                await self._fail_campaign_analysis(campaign, e)
+                try:
+                    await self._fail_campaign_analysis(campaign, e)
+                except Exception as campaign_error:
+                    logger.error(f"❌ Failed to handle campaign failure: {str(campaign_error)}")
                 
             # Return failure response
             if intelligence:
                 return self._prepare_failure_response(intelligence, e)
             else:
+                # Fallback response when no intelligence record was created
                 return {
+                    "intelligence_id": "00000000-0000-0000-0000-000000000000",  # Required field
+                    "campaign_id": campaign_id if 'campaign_id' in locals() else "unknown",
                     "analysis_status": "failed",
-                    "error_message": str(e),
+                    "campaign_analysis_status": "failed",
+                    "confidence_score": 0.0,  # Required field
+                    "campaign_confidence_score": 0.0,
                     "workflow_type": "streamlined_2_step",
-                    "can_proceed_to_content": False
+                    "workflow_state": "analysis_failed",
+                    "can_proceed_to_content": False,
+                    "offer_intelligence": {"products": [], "pricing": [], "bonuses": [], "guarantees": [], "value_propositions": []},  # Required field
+                    "psychology_intelligence": {"emotional_triggers": [], "pain_points": [], "target_audience": "Unknown", "persuasion_techniques": []},  # Required field
+                    "competitive_opportunities": [{"description": f"Analysis failed before completion: {str(e)}", "priority": "high"}],  # Required field
+                    "campaign_suggestions": [  # Required field
+                        "❌ Analysis failed during initialization",
+                        "🔄 Try retrying the analysis",
+                        "🛠️ Check server logs for detailed error information",
+                        "🔗 Verify the competitor URL is accessible",
+                        f"Error: {str(e)}"
+                    ],
+                    "amplification_metadata": {
+                        "amplification_applied": False,
+                        "amplification_error": "Analysis failed before amplification",
+                        "workflow_type": "streamlined_2_step"
+                    },
+                    "analysis_summary": {},
+                    "content_generation_ready": False,
+                    "next_step": "retry_analysis",
+                    "error_message": str(e),
+                    "step_progress": {
+                        "step_1": 0,  # No progress made
+                        "step_2": 0
+                    }
                 }
     
     async def _get_and_update_campaign(self, campaign_id: str) -> Campaign:
@@ -170,12 +206,15 @@ class AnalysisHandler:
             )
         
             result = await self.db.execute(campaign_query)
-            campaign = result.scalar_one_or_none()
+            campaign = result.scalar_one_or_none()  # This is synchronous - no await
         
             if not campaign:
                 raise ValueError(f"Campaign {campaign_id} not found or access denied")
         
-            campaign.start_auto_analysis()
+            # Update campaign to analyzing status
+            campaign.start_auto_analysis()  # This is synchronous - no await
+            
+            # Only the database commit needs await
             await self.db.commit()
         
             logger.info(f"✅ Campaign {campaign_id} updated to analyzing status")
@@ -683,11 +722,20 @@ class AnalysisHandler:
         """Handle campaign analysis failure"""
         try:
             logger.info(f"❌ Failing campaign analysis for {campaign.id}")
+            
+            # This method call is synchronous - no await needed
             campaign.fail_auto_analysis(str(error))
+            
+            # Only database operations need await
             await self.db.commit()
+            
             logger.info(f"✅ Campaign analysis failed - Status updated")
         except Exception as update_error:
             logger.error(f"❌ Failed to update campaign failure status: {str(update_error)}")
+            try:
+                await self.db.rollback()
+            except Exception as rollback_error:
+                logger.error(f"❌ Failed to rollback: {str(rollback_error)}")
     
     async def _update_campaign_counters(self, campaign_id: str):
         """Update campaign counters for streamlined workflow"""
