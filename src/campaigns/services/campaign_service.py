@@ -1,6 +1,7 @@
 """
 Campaign Service - Business Logic Layer
 🔧 CRITICAL FIX: Proper async session management for background tasks
+🔧 FIXED: Background task session creation to prevent SQLAlchemy errors
 🎯 Following intelligence/handlers/analysis_handler.py pattern
 """
 import uuid
@@ -97,13 +98,13 @@ class CampaignService:
     ):
         """
         🔧 CRITICAL FIX: Background task with proper async session management
-        This replaces the broken version in routes.py
+        This replaces the broken version and fixes SQLAlchemy errors
         """
-        try:
-            logger.info(f"🚀 Starting FIXED auto-analysis background task for campaign {campaign_id}")
-            
-            # 🔧 CRITICAL FIX: Create new async session within background task
-            async with AsyncSessionLocal() as db:
+        # 🔧 CRITICAL FIX: Create new async session within background task
+        async with AsyncSessionLocal() as db:
+            try:
+                logger.info(f"🚀 Starting FIXED auto-analysis background task for campaign {campaign_id}")
+                
                 # Get user for analysis handler
                 user_result = await db.execute(select(User).where(User.id == user_id))
                 user = user_result.scalar_one_or_none()
@@ -112,7 +113,7 @@ class CampaignService:
                     logger.error(f"❌ User {user_id} not found for auto-analysis")
                     return
                 
-                # Get campaign
+                # Get campaign 
                 campaign_result = await db.execute(
                     select(Campaign).where(
                         and_(Campaign.id == campaign_id, Campaign.company_id == company_id)
@@ -167,8 +168,10 @@ class CampaignService:
                 
                 await db.commit()
                 
-        except Exception as task_error:
-            logger.error(f"❌ FIXED auto-analysis background task failed: {str(task_error)}")
+            except Exception as task_error:
+                logger.error(f"❌ FIXED auto-analysis background task failed: {str(task_error)}")
+                # 🔧 CRITICAL FIX: Handle rollback properly in background task context
+                await db.rollback()
     
     async def get_campaigns_by_company(
         self, 

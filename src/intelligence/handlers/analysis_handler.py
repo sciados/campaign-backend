@@ -1,9 +1,9 @@
-# src/intelligence/handlers/analysis_handler.py - FIXED VERSION
+# src/intelligence/handlers/analysis_handler.py - CRITICAL FIXES APPLIED
 """
-Analysis Handler - Fixed SQLAlchemy async/sync issues and timezone problems
-🔧 FIXED: Removed incorrect await calls on synchronous methods
-🔧 FIXED: Proper async/sync handling for database operations
-🔧 FIXED: Consistent timezone-aware datetime usage
+Analysis Handler - CRITICAL FIXES for JSON serialization and async/sync issues
+🔧 FIXED: JSON serialization error with datetime objects
+🔧 FIXED: SQLAlchemy async/sync confusion (removed incorrect await calls)
+🔧 FIXED: Background task compatibility for FastAPI
 """
 import uuid
 import logging
@@ -33,6 +33,15 @@ from src.intelligence.amplifier.enhancement import (
 from ..utils.campaign_helpers import update_campaign_counters
 
 logger = logging.getLogger(__name__)
+
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+    if isinstance(obj, (datetime, datetime.date)):
+        return obj.isoformat()
+    if isinstance(obj, timedelta):
+        return str(obj)
+    raise TypeError(f"Type {type(obj)} not serializable")
 
 def diagnose_amplification_output(enhanced_analysis: Dict[str, Any]):
     """Diagnostic function to understand what's happening to your AI data"""
@@ -211,7 +220,7 @@ class AnalysisHandler:
                 # This would call your content generation system
                 logger.info("📝 Content generation would be triggered here")
             
-            await self.db.commit()  # 🔧 FIXED: No try/except for commit type checking
+            await self.db.commit()
             
             logger.info(f"✅ Campaign analysis completed - Status: {campaign.status}")
             
@@ -227,7 +236,7 @@ class AnalysisHandler:
             
             campaign.fail_auto_analysis(str(error))
             
-            await self.db.commit()  # 🔧 FIXED: No try/except for commit type checking
+            await self.db.commit()
             
             logger.info(f"✅ Campaign analysis failed - Status updated")
             
@@ -308,8 +317,8 @@ class AnalysisHandler:
             
             self.db.add(intelligence)
             
-            await self.db.commit()  # 🔧 FIXED: No try/except for commit type checking
-            await self.db.refresh(intelligence)  # 🔧 FIXED: No try/except for refresh type checking
+            await self.db.commit()
+            await self.db.refresh(intelligence)
             
             logger.info(f"✅ Created intelligence record: {intelligence.id}")
             return intelligence
@@ -401,6 +410,7 @@ class AnalysisHandler:
             except:
                 cost_summary = {"error": "Cost tracking not available"}
             
+            # 🔧 CRITICAL FIX: Convert datetime to ISO string for JSON serialization
             enriched_intelligence["amplification_metadata"] = {
                 "amplification_applied": True,
                 "amplification_method": "streamlined_workflow_enhancement",
@@ -414,7 +424,7 @@ class AnalysisHandler:
                 "modules_successful": enhancement_metadata.get("modules_successful", []),
                 "scientific_enhancements": len(enhancements.get("scientific_validation", {})) if enhancements.get("scientific_validation") else 0,
                 "system_architecture": "streamlined_modular_enhancement",
-                "amplification_timestamp": datetime.now(timezone.utc), # datetime.now(timezone.utc).isoformat(),  # 🔧 FIXED: UTC string
+                "amplification_timestamp": datetime.now(timezone.utc).isoformat(),  # 🔧 FIXED: Convert to ISO string
                 "ultra_cheap_optimization_applied": True,
                 "primary_provider_used": provider_names[0] if provider_names else "unknown",
                 "provider_priority": provider_names,
@@ -590,12 +600,14 @@ class AnalysisHandler:
             processing_metadata = enhanced_analysis.get("amplification_metadata", {})
             processing_metadata.update({
                 "storage_method": "streamlined_workflow_storage",
-                "analysis_timestamp": datetime.now(timezone.utc),  # 🔧 FIXED: Always UTC
+                "analysis_timestamp": datetime.now(timezone.utc).isoformat(),  # 🔧 FIXED: Convert to ISO string
                 "commit_applied": True,
                 "workflow_type": "streamlined_2_step",
                 "storage_version": "streamlined_2024"  
             })
-            intelligence.processing_metadata = json.dumps(processing_metadata)
+            
+            # 🔧 CRITICAL FIX: Use custom JSON serializer to handle datetime objects
+            intelligence.processing_metadata = json.dumps(processing_metadata, default=json_serial)
             intelligence.analysis_status = AnalysisStatus.COMPLETED
             
             # Final commit for metadata and base intelligence
@@ -611,8 +623,9 @@ class AnalysisHandler:
                 "storage_error": str(storage_error),
                 "error_type": type(storage_error).__name__,
                 "workflow_type": "streamlined_2_step",
-                "storage_fix_attempted": True
-            })
+                "storage_fix_attempted": True,
+                "failure_timestamp": datetime.now(timezone.utc).isoformat()  # 🔧 FIXED: Convert to ISO string
+            }, default=json_serial)  # 🔧 FIXED: Use custom serializer
             try:
                 await self.db.commit()
             except:
@@ -637,7 +650,8 @@ class AnalysisHandler:
             
             if validated_data and validated_data != {}:
                 try:
-                    json_string = json.dumps(validated_data)
+                    # 🔧 CRITICAL FIX: Use custom JSON serializer
+                    json_string = json.dumps(validated_data, default=json_serial)
                     setattr(intelligence, key, json_string)
                     flag_modified(intelligence, key)
                     
@@ -660,10 +674,11 @@ class AnalysisHandler:
                         
                         current_metadata["ai_backup_storage"][key] = validated_data
                         current_metadata["backup_storage_applied"] = True
-                        current_metadata["backup_storage_timestamp"] = datetime.now(timezone.utc)
+                        current_metadata["backup_storage_timestamp"] = datetime.now(timezone.utc).isoformat()  # 🔧 FIXED: Convert to ISO string
                         current_metadata["workflow_type"] = "streamlined_2_step"
                         
-                        intelligence.processing_metadata = json.dumps(current_metadata)
+                        # 🔧 CRITICAL FIX: Use custom JSON serializer
+                        intelligence.processing_metadata = json.dumps(current_metadata, default=json_serial)
                         flag_modified(intelligence, 'processing_metadata')
                         
                         logger.info(f"🔄 Stored {key} in streamlined metadata backup ({len(validated_data)} items)")
@@ -682,7 +697,7 @@ class AnalysisHandler:
             logger.info(f"✅ STREAMLINED COMMIT SUCCESS: {successful_saves}/{len(ai_keys)} categories, {total_items_saved} total items")
         
             # Simple verification for streamlined workflow
-            await self._verify_streamlined_storage(intelligence.id)   
+            await self._verify_streamlined_storage(intelligence.id)
         except Exception as commit_error:
             logger.error(f"❌ CRITICAL: Streamlined commit failed: {str(commit_error)}")
             await self.db.rollback()
@@ -742,8 +757,8 @@ class AnalysisHandler:
                 "error": str(error),
                 "traceback": traceback.format_exc(),
                 "workflow_type": "streamlined_2_step",
-                "failure_timestamp": datetime.now(timezone.utc)
-            })
+                "failure_timestamp": datetime.now(timezone.utc).isoformat()  # 🔧 FIXED: Convert to ISO string
+            }, default=json_serial)  # 🔧 FIXED: Use custom serializer
             await self.db.commit()
         except:
             await self.db.rollback()
@@ -985,7 +1000,7 @@ class StreamlinedWorkflowManager:
                     completed_result.scalar() or 0,
                     failed_result.scalar() or 0
                 ),
-                "generated_at": datetime.now(timezone.utc)
+                "generated_at": datetime.now(timezone.utc).isoformat()  # 🔧 FIXED: Convert to ISO string
             }
             
         except Exception as e:
@@ -993,7 +1008,7 @@ class StreamlinedWorkflowManager:
             return {
                 "workflow_type": "streamlined_2_step",
                 "error": str(e),
-                "generated_at": datetime.now(timezone.utc)
+                "generated_at": datetime.now(timezone.utc).isoformat()  # 🔧 FIXED: Convert to ISO string
             }
     
     def _calculate_success_rate(self, completed: int, failed: int) -> float:
