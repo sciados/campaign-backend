@@ -21,6 +21,9 @@ from ...utils.product_name_fix import (
     validate_no_placeholders
 )
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import json_serial, safe_json_dumps
+
 logger = logging.getLogger(__name__)
 
 class MarketIntelligenceEnhancer:
@@ -209,7 +212,7 @@ class MarketIntelligenceEnhancer:
                 "market_opportunities": market_opportunities,
                 "market_positioning": market_positioning,
                 "market_intelligence_score": market_intelligence_score,
-                "generated_at": datetime.now(timezone.utc),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.82,
                 "product_name_fix_applied": True,  # 🔥 Track that fix was applied
@@ -287,8 +290,8 @@ class MarketIntelligenceEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Product value propositions: {json.dumps(value_props, indent=2)}
-        Pricing information: {json.dumps(pricing_info, indent=2)}
+        Product value propositions: {safe_json_dumps(value_props, indent=2)}
+        Pricing information: {safe_json_dumps(pricing_info, indent=2)}
         
         Generate comprehensive market analysis including:
         1. Market size estimation and trends
@@ -345,7 +348,7 @@ class MarketIntelligenceEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Existing competitor information: {json.dumps(existing_competitors, indent=2)}
+        Existing competitor information: {safe_json_dumps(existing_competitors, indent=2)}
         
         Generate competitive landscape analysis including:
         1. Competitor categories and segments
@@ -397,8 +400,8 @@ class MarketIntelligenceEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Current pricing: {json.dumps(pricing_info, indent=2)}
-        Value propositions: {json.dumps(value_props, indent=2)}
+        Current pricing: {safe_json_dumps(pricing_info, indent=2)}
+        Value propositions: {safe_json_dumps(value_props, indent=2)}
         
         Generate pricing analysis including:
         1. Pricing strategy assessment
@@ -449,7 +452,7 @@ class MarketIntelligenceEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Product benefits: {json.dumps(value_props, indent=2)}
+        Product benefits: {safe_json_dumps(value_props, indent=2)}
         
         Generate target market insights including:
         1. Primary target segments
@@ -499,7 +502,7 @@ class MarketIntelligenceEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Competitive context: {json.dumps(competitive_intel, indent=2)}
+        Competitive context: {safe_json_dumps(competitive_intel, indent=2)}
         
         Generate market opportunities including:
         1. Market gaps and unmet needs
@@ -551,7 +554,7 @@ class MarketIntelligenceEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Value propositions: {json.dumps(value_props, indent=2)}
+        Value propositions: {safe_json_dumps(value_props, indent=2)}
         
         Generate market positioning including:
         1. Unique value proposition refinement
@@ -627,7 +630,7 @@ class MarketIntelligenceEnhancer:
             "market_opportunities": self._fallback_market_opportunities(),
             "market_positioning": self._fallback_market_positioning(),
             "market_intelligence_score": 0.65,
-            "generated_at": datetime.now(timezone.utc),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.65,
             "product_name_fix_applied": True,

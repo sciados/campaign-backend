@@ -6,8 +6,10 @@ User storage usage tracking model - FIXED: No circular imports + no back referen
 from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
+
+from src.utils.json_utils import safe_json_dumps
 
 # Only import for type hints to avoid circular imports
 if TYPE_CHECKING:
@@ -90,17 +92,17 @@ class UserStorageUsage(BaseModel):
     def set_file_metadata(self, metadata_dict: dict):
         """Set file metadata from dict"""
         import json
-        self.file_metadata = json.dumps(metadata_dict) if metadata_dict else None
+        self.file_metadata = safe_json_dumps(metadata_dict) if metadata_dict else None
     
     def mark_accessed(self):
         """Mark file as accessed (update access count and timestamp)"""
-        self.last_accessed = datetime.utcnow()
+        self.last_accessed = datetime.now(timezone.utc)
         self.access_count += 1
     
     def soft_delete(self):
         """Soft delete the file record"""
         self.is_deleted = True
-        self.deleted_date = datetime.utcnow()
+        self.deleted_date = datetime.now(timezone.utc)
     
     def __repr__(self):
         return f"<UserStorageUsage(id={self.id}, user_id={self.user_id}, filename='{self.original_filename}', size={self.file_size_mb}MB)>"

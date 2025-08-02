@@ -9,6 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, text, func
 from dataclasses import dataclass
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import safe_json_dumps
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -119,7 +122,7 @@ class GlobalIntelligenceCache:
                     "source_url": row.source_url,
                     "source_title": row.source_title,
                     "confidence_score": row.confidence_score,
-                    "cached_at": datetime.now(timezone.utc),
+                    "cached_at": datetime.now(timezone.utc).isoformat(),
                     "original_analysis_date": row.created_at.isoformat(),
                     
                     # Base intelligence
@@ -227,18 +230,18 @@ class GlobalIntelligenceCache:
                 "source_url": url,
                 "source_title": analysis_result.get("page_title", "Unknown"),
                 "confidence_score": analysis_result.get("confidence_score", 0.0),
-                "offer_intelligence": json.dumps(analysis_result.get("offer_intelligence", {})),
-                "psychology_intelligence": json.dumps(analysis_result.get("psychology_intelligence", {})),
-                "content_intelligence": json.dumps(analysis_result.get("content_intelligence", {})),
-                "competitive_intelligence": json.dumps(analysis_result.get("competitive_intelligence", {})),
-                "brand_intelligence": json.dumps(analysis_result.get("brand_intelligence", {})),
-                "scientific_intelligence": json.dumps(analysis_result.get("scientific_intelligence", {})),
-                "credibility_intelligence": json.dumps(analysis_result.get("credibility_intelligence", {})),
-                "market_intelligence": json.dumps(analysis_result.get("market_intelligence", {})),
-                "emotional_transformation_intelligence": json.dumps(analysis_result.get("emotional_transformation_intelligence", {})),
-                "scientific_authority_intelligence": json.dumps(analysis_result.get("scientific_authority_intelligence", {})),
+                "offer_intelligence": safe_json_dumps(analysis_result.get("offer_intelligence", {})),
+                "psychology_intelligence": safe_json_dumps(analysis_result.get("psychology_intelligence", {})),
+                "content_intelligence": safe_json_dumps(analysis_result.get("content_intelligence", {})),
+                "competitive_intelligence": safe_json_dumps(analysis_result.get("competitive_intelligence", {})),
+                "brand_intelligence": safe_json_dumps(analysis_result.get("brand_intelligence", {})),
+                "scientific_intelligence": safe_json_dumps(analysis_result.get("scientific_intelligence", {})),
+                "credibility_intelligence": safe_json_dumps(analysis_result.get("credibility_intelligence", {})),
+                "market_intelligence": safe_json_dumps(analysis_result.get("market_intelligence", {})),
+                "emotional_transformation_intelligence": safe_json_dumps(analysis_result.get("emotional_transformation_intelligence", {})),
+                "scientific_authority_intelligence": safe_json_dumps(analysis_result.get("scientific_authority_intelligence", {})),
                 "raw_content": analysis_result.get("raw_content", "")[:50000],  # Limit size
-                "processing_metadata": json.dumps(analysis_result.get("amplification_metadata", {}))
+                "processing_metadata": safe_json_dumps(analysis_result.get("amplification_metadata", {}))
             })
             
             await self.db.commit()

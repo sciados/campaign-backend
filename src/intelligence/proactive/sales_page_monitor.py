@@ -5,12 +5,14 @@ import json
 import logging
 import asyncio
 import aiohttp
-from datetime import datetime, timedelta
+# from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from core.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, text
 from dataclasses import dataclass
+
+from src.utils.json_utils import safe_json_dumps
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +206,7 @@ class ProactiveSalesPageMonitor:
                 url,
                 priority,
                 source,
-                json.dumps(metadata or {})
+                safe_json_dumps(metadata or {})
             ])
             
             await self.db.commit()

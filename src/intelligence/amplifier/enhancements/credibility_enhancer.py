@@ -19,6 +19,9 @@ from ...utils.product_name_fix import (
     validate_no_placeholders
 )
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import json_serial, safe_json_dumps
+
 logger = logging.getLogger(__name__)
 
 class CredibilityIntelligenceEnhancer:
@@ -207,7 +210,7 @@ class CredibilityIntelligenceEnhancer:
                 "reputation_factors": reputation_factors,
                 "expertise_indicators": expertise_indicators,
                 "overall_credibility_score": overall_credibility,
-                "generated_at": datetime.now(timezone.utc),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.88,
                 "product_name_fix_applied": True,  # 🔥 Track that fix was applied
@@ -281,8 +284,8 @@ class CredibilityIntelligenceEnhancer:
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Current guarantees and value propositions:
-        Guarantees: {json.dumps(guarantees, indent=2)}
-        Value Propositions: {json.dumps(value_props, indent=2)}
+        Guarantees: {safe_json_dumps(guarantees, indent=2)}
+        Value Propositions: {safe_json_dumps(value_props, indent=2)}
         
         Generate comprehensive trust indicators including:
         1. Trust-building elements and signals
@@ -334,7 +337,7 @@ class CredibilityIntelligenceEnhancer:
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Product context:
-        {json.dumps(offer_intel, indent=2)}
+        {safe_json_dumps(offer_intel, indent=2)}
         
         Generate authority signals including:
         1. Professional endorsements and certifications
@@ -390,10 +393,10 @@ class CredibilityIntelligenceEnhancer:
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Existing social proof:
-        {json.dumps(existing_social_proof, indent=2)}
+        {safe_json_dumps(existing_social_proof, indent=2)}
         
         Success stories:
-        {json.dumps(success_stories, indent=2)}
+        {safe_json_dumps(success_stories, indent=2)}
         
         Generate enhanced social proof including:
         1. Customer testimonial types and categories
@@ -448,7 +451,7 @@ class CredibilityIntelligenceEnhancer:
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Current confidence score: {confidence_score}
-        Base intelligence: {json.dumps(data, indent=2)[:1000]}
+        Base intelligence: {safe_json_dumps(data, indent=2)[:1000]}
         
         Generate credibility scoring including:
         1. Credibility strength assessment
@@ -501,7 +504,7 @@ class CredibilityIntelligenceEnhancer:
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Product information:
-        {json.dumps(offer_intel, indent=2)}
+        {safe_json_dumps(offer_intel, indent=2)}
         
         Generate reputation factors including:
         1. Brand reputation elements
@@ -554,7 +557,7 @@ class CredibilityIntelligenceEnhancer:
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Product context:
-        {json.dumps(offer_intel, indent=2)}
+        {safe_json_dumps(offer_intel, indent=2)}
         
         Generate expertise indicators including:
         1. Technical expertise demonstrations
@@ -632,7 +635,7 @@ class CredibilityIntelligenceEnhancer:
             "reputation_factors": self._fallback_reputation_factors(),
             "expertise_indicators": self._fallback_expertise_indicators(),
             "overall_credibility_score": 0.72,
-            "generated_at": datetime.now(timezone.utc),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.70,
             "product_name_fix_applied": True,

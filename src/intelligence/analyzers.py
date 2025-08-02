@@ -18,6 +18,8 @@ import uuid
 from datetime import datetime, timezone
 import os
 
+from src.utils.json_utils import safe_json_dumps
+
 logger = logging.getLogger(__name__)
 
 # ✅ UPDATED: Import both tiered provider AND load balancing utilities
@@ -487,7 +489,7 @@ class SalesPageAnalyzer:
                 "source_url": url,
                 "page_title": structured_content["title"],
                 "product_name": product_name,
-                "analysis_timestamp": datetime.now(timezone.utc),
+                "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
                 "confidence_score": self._calculate_confidence_score(intelligence, structured_content),
                 "raw_content": structured_content["content"][:1000],
                 "load_balanced_analysis": {
@@ -556,20 +558,35 @@ class SalesPageAnalyzer:
             # Handle response
             if isinstance(response, dict):
                 if response.get("fallback"):
-                    # Extract fallback content if available
+                # Extract fallback content if available
                     fallback_data = response.get("fallback_data", {})
-                    return json.dumps(fallback_data)
+                    return safe_json_dumps(fallback_data)  # 🔧 FIXED: Use safe_json_dumps
                 else:
                     # Response is structured data, convert to string
-                    return json.dumps(response)
+                    return safe_json_dumps(response)  # 🔧 FIXED: Use safe_json_dumps instead of json.dumps
             elif isinstance(response, str):
                 return response
             else:
-                raise Exception("Unexpected response format")
-                
+                # 🔧 IMPROVED: Better error handling and logging
+                logger.error(f"❌ Unexpected response format for {provider_name}: {type(response)}")
+                # 🔧 FIXED: Return safe fallback instead of raising exception
+                return safe_json_dumps({
+                    "error": "Unexpected response format",
+                    "response_type": str(type(response)),
+                    "provider": provider_name,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+    
         except Exception as e:
             logger.error(f"❌ AI request failed for {provider_name}: {str(e)}")
-            raise
+            # 🔧 IMPROVED: Return error response instead of raising
+            return safe_json_dumps({
+                "error": "AI request failed",
+                "error_message": str(e),
+                "provider": provider_name,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "fallback": True
+        })
     
     async def _extract_intelligence_ultra_cheap(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
         """Extract intelligence using ultra-cheap AI providers (original method)"""
@@ -613,7 +630,7 @@ class SalesPageAnalyzer:
                 "source_url": url,
                 "page_title": structured_content["title"],
                 "product_name": product_name,
-                "analysis_timestamp": datetime.now(timezone.utc),
+                "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
                 "confidence_score": self._calculate_confidence_score(intelligence, structured_content),
                 "raw_content": structured_content["content"][:1000],
                 "ultra_cheap_analysis": {
@@ -779,7 +796,7 @@ Respond with structured analysis using "{product_name}" throughout."""
                 "source_url": url,
                 "page_title": structured_content["title"],
                 "product_name": product_name,
-                "analysis_timestamp": datetime.now(timezone.utc),
+                "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
                 "confidence_score": self._calculate_confidence_score(intelligence, structured_content),
                 "raw_content": structured_content["content"][:1000],
                 "expensive_analysis_warning": {
@@ -1069,7 +1086,7 @@ Respond with structured analysis using "{product_name}" throughout."""
             "source_url": url,
             "page_title": structured_content.get("title", f"{product_name} Analyzed Page"),  # 🔥 FIXED
             "product_name": product_name,  # ✅ Correct
-            "analysis_timestamp": datetime.now(timezone.utc),
+            "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
             "confidence_score": 0.6,
             "raw_content": structured_content.get("content", "")[:1000],
             "analysis_note": f"Fallback analysis for {product_name} - AI providers recommended for enhanced insights",  # 🔥 FIXED
@@ -1124,7 +1141,7 @@ Respond with structured analysis using "{product_name}" throughout."""
             "source_url": url,
             "page_title": "Analysis Failed",
             "product_name": "Unknown",
-            "analysis_timestamp": datetime.now(timezone.utc),
+            "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
             "confidence_score": 0.0,
             "raw_content": "",
             "error_message": error_msg,
@@ -1404,7 +1421,7 @@ class CompetitiveAnalyzer:
                     "analyzer_type": "CompetitiveAnalyzer",
                     "competitive_focus": True,
                     "campaign_id": campaign_id,
-                    "analysis_timestamp": datetime.now(timezone.utc)
+                    "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
                 }
             }
             

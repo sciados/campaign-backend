@@ -20,6 +20,9 @@ from ...utils.product_name_fix import (
     validate_no_placeholders
 )
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import json_serial, safe_json_dumps
+
 logger = logging.getLogger(__name__)
 
 class ContentIntelligenceEnhancer:
@@ -204,7 +207,7 @@ class ContentIntelligenceEnhancer:
                 "messaging_hierarchy": messaging_hierarchy,
                 "engagement_optimization": engagement_optimization,
                 "content_performance_score": content_performance,
-                "generated_at": datetime.now(timezone.utc),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.83,
                 "product_name_fix_applied": True,  # 🔥 Track that fix was applied
@@ -277,8 +280,8 @@ class ContentIntelligenceEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Existing messages: {json.dumps(existing_messages, indent=2)}
-        Value propositions: {json.dumps(value_props, indent=2)}
+        Existing messages: {safe_json_dumps(existing_messages, indent=2)}
+        Value propositions: {safe_json_dumps(value_props, indent=2)}
         
         Generate enhanced messaging including:
         1. Primary headline variations
@@ -329,7 +332,7 @@ class ContentIntelligenceEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Existing social proof: {json.dumps(existing_social_proof, indent=2)}
+        Existing social proof: {safe_json_dumps(existing_social_proof, indent=2)}
         
         Generate social proof amplification including:
         1. Testimonial enhancement strategies
@@ -380,7 +383,7 @@ class ContentIntelligenceEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Existing stories: {json.dumps(existing_stories, indent=2)}
+        Existing stories: {safe_json_dumps(existing_stories, indent=2)}
         
         Generate success story frameworks including:
         1. Story structure templates
@@ -429,7 +432,7 @@ class ContentIntelligenceEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Product context: {json.dumps(offer_intel, indent=2)}
+        Product context: {safe_json_dumps(offer_intel, indent=2)}
         
         Generate messaging hierarchy including:
         1. Primary message priority
@@ -550,7 +553,7 @@ class ContentIntelligenceEnhancer:
             "messaging_hierarchy": self._fallback_messaging_hierarchy(),
             "engagement_optimization": self._fallback_engagement_optimization(),
             "content_performance_score": 0.68,
-            "generated_at": datetime.now(timezone.utc),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.68,
             "product_name_fix_applied": True,

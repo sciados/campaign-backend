@@ -20,6 +20,8 @@ from ...utils.product_name_fix import (
     validate_no_placeholders
 )
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import json_serial, safe_json_dumps
 logger = logging.getLogger(__name__)
 
 class ScientificIntelligenceEnhancer:
@@ -245,7 +247,7 @@ class ScientificIntelligenceEnhancer:
                 "clinical_evidence": clinical_evidence,
                 "safety_profile": safety_profile,
                 "research_quality_score": research_quality,
-                "generated_at": datetime.now(timezone.utc),
+                "generated_at": datetime.now(timezone.utc).isoformat(),  # 
                 "ai_provider": provider_used,
                 "enhancement_confidence": 0.85,
                 "product_name_fix_applied": True,  # 🔥 Track that fix was applied
@@ -321,7 +323,7 @@ class ScientificIntelligenceEnhancer:
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
         Product claims and benefits:
-        {json.dumps(value_props + benefits, indent=2)}
+        {safe_json_dumps(value_props + benefits, indent=2)}
         
         Generate 6-8 scientific backing statements that:
         1. Reference general research categories (not specific studies)
@@ -600,7 +602,7 @@ class ScientificIntelligenceEnhancer:
             "clinical_evidence": self._fallback_clinical_evidence(),
             "safety_profile": self._fallback_safety_profile(),
             "research_quality_score": 0.6,
-            "generated_at": datetime.now(timezone.utc),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.6,
             "product_name_fix_applied": True,

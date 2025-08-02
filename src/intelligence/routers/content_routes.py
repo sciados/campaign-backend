@@ -33,6 +33,8 @@ from ..schemas.responses import (
     UltraCheapMetadata
 )
 
+from src.utils.json_utils import safe_json_dumps
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -108,7 +110,7 @@ async def safe_content_generation(
                 "status": "fallback",
                 "error": str(e),
                 "generation_cost": 0.0,
-                "generated_at": datetime.now(timezone.utc)
+                "generated_at": datetime.now(timezone.utc).isoformat(),
             }
         }
 
@@ -141,7 +143,7 @@ async def save_content_to_database(
             campaign_id=uuid.UUID(campaign_id) if campaign_id else None,
             content_type=content_type,
             content_title=create_intelligent_title(content_data, content_type),
-            content_body=json.dumps(content_data),
+            content_body=safe_json_dumps(content_data),
             content_metadata=metadata,
             generation_settings={"prompt": prompt, "ultra_cheap_ai_used": ultra_cheap_used},
             intelligence_used={"ultra_cheap_ai_used": ultra_cheap_used},
@@ -232,7 +234,7 @@ async def generate_content(
             "generated_content": result.get("content", result),
             "success": True,
             "metadata": {
-                "generated_at": datetime.now(timezone.utc),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "ultra_cheap_ai_used": metadata.get("ultra_cheap_ai_used", True),
                 "provider_used": metadata.get("provider_used", "ultra_cheap"),
                 "generation_cost": cost_optimization.get("total_cost", 0.001),
@@ -256,7 +258,7 @@ async def generate_content(
             "success": False,
             "error": str(e),
             "metadata": {
-                "generated_at": datetime.now(timezone.utc),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "ultra_cheap_ai_used": False,
                 "error_occurred": True
             }

@@ -6,6 +6,8 @@ import json
 import logging
 from typing import Dict, Any, Union, List
 
+from src.utils.json_utils import safe_json_dumps
+
 logger = logging.getLogger(__name__)
 
 class EnumSerializerMixin:
@@ -51,13 +53,13 @@ class EnumSerializerMixin:
                 json.loads(data)
                 return data
             except (json.JSONDecodeError, ValueError):
-                return json.dumps({"error": "Invalid JSON", "original": data})
+                return safe_json_dumps({"error": "Invalid JSON", "original": data})
         
         try:
-            return json.dumps(data)
+            return safe_json_dumps(data)
         except (TypeError, ValueError) as e:
             logger.error(f"Failed to serialize data for storage: {e}")
-            return json.dumps({"error": "Serialization failed", "type": str(type(data))})
+            return safe_json_dumps({"error": "Serialization failed", "type": str(type(data))})
     
     def _serialize_intelligence_source(self, source) -> Dict[str, Any]:
         """

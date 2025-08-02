@@ -9,7 +9,7 @@ import uuid
 import logging
 import traceback
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, text, update
@@ -24,6 +24,10 @@ from src.models.intelligence import (
 )
 from ..utils.analyzer_factory import get_analyzer
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import json_serial, safe_json_dumps
+
+
 # Enhancement modules - using enhancement.py directly  
 from src.intelligence.amplifier.enhancement import (
     identify_opportunities,
@@ -33,15 +37,6 @@ from src.intelligence.amplifier.enhancement import (
 from ..utils.campaign_helpers import update_campaign_counters
 
 logger = logging.getLogger(__name__)
-
-# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
-def json_serial(obj):
-    """JSON serializer for objects not serializable by default json code"""
-    if isinstance(obj, (datetime, datetime.date)):
-        return obj.isoformat()
-    if isinstance(obj, timedelta):
-        return str(obj)
-    raise TypeError(f"Type {type(obj)} not serializable")
 
 def diagnose_amplification_output(enhanced_analysis: Dict[str, Any]):
     """Diagnostic function to understand what's happening to your AI data"""
@@ -567,11 +562,11 @@ class AnalysisHandler:
             brand_intel = self._validate_intelligence_section(enhanced_analysis.get("brand_intelligence", {}))
 
             # Serialize as JSON strings for enum storage
-            intelligence.offer_intelligence = json.dumps(offer_intel)
-            intelligence.psychology_intelligence = json.dumps(psychology_intel)
-            intelligence.content_intelligence = json.dumps(content_intel)
-            intelligence.competitive_intelligence = json.dumps(competitive_intel)
-            intelligence.brand_intelligence = json.dumps(brand_intel)
+            intelligence.offer_intelligence = safe_json_dumps(offer_intel)
+            intelligence.psychology_intelligence = safe_json_dumps(psychology_intel)
+            intelligence.content_intelligence = safe_json_dumps(content_intel)
+            intelligence.competitive_intelligence = safe_json_dumps(competitive_intel)
+            intelligence.brand_intelligence = safe_json_dumps(brand_intel)
             
             logger.info(f"✅ Base intelligence prepared for streamlined storage")
             

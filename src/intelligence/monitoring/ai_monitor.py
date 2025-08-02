@@ -17,6 +17,9 @@ from dataclasses import dataclass
 import aiohttp
 import os
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import json_serial, safe_json_dumps
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -116,13 +119,13 @@ class AIMonitorService:
                     return_exceptions=True  # Don't stop if one task fails
                 )
                 
-                self.last_monitoring_cycle = datetime.now(timezone.utc)
+                self.last_monitoring_cycle = datetime.now(timezone.utc).isoformat()
                 logger.info("✅ Monitoring cycle completed successfully")
                 
             except Exception as e:
                 logger.error(f"❌ Monitoring cycle failed: {str(e)}")
                 self.monitoring_errors.append({
-                    "timestamp": datetime.now(timezone.utc),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "error": str(e),
                     "cycle_type": "full_monitoring"
                 })
@@ -159,7 +162,7 @@ class AIMonitorService:
                         # Cache pricing data
                         self.pricing_cache[provider] = {
                             "data": pricing_data,
-                            "updated_at": datetime.now(timezone.utc),
+                            "updated_at": datetime.now(timezone.utc).isoformat(),
                             "status": "success"
                         }
                         
@@ -167,7 +170,7 @@ class AIMonitorService:
                     logger.warning(f"⚠️ Failed to fetch pricing for {provider}: {str(e)}")
                     self.pricing_cache[provider] = {
                         "data": [],
-                        "updated_at": datetime.now(timezone.utc),
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
                         "status": "failed",
                         "error": str(e)
                     }
@@ -196,7 +199,7 @@ class AIMonitorService:
                         # Cache health data
                         self.health_cache[provider] = {
                             "health": health_data,
-                            "updated_at": datetime.now(timezone.utc)
+                            "updated_at": datetime.now(timezone.utc).isoformat()
                         }
                         
                 except Exception as e:
@@ -206,9 +209,9 @@ class AIMonitorService:
                             "provider": provider,
                             "status": "error",
                             "error": str(e),
-                            "checked_at": datetime.now(timezone.utc)
+                            "checked_at": datetime.now(timezone.utc).isoformat()
                         },
-                        "updated_at": datetime.now(timezone.utc)
+                        "updated_at": datetime.now(timezone.utc).isoformat()
                     }
         
         if health_checks:
@@ -287,7 +290,7 @@ class AIMonitorService:
                     # Cache recommendation
                     self.recommendations_cache[content_type] = {
                         "recommendation": recommendation,
-                        "calculated_at": datetime.now(timezone.utc),
+                        "calculated_at": datetime.now(timezone.utc).isoformat(),
                         "metrics_used": len(metrics)
                     }
                     
@@ -319,7 +322,7 @@ class AIMonitorService:
                         "reasoning": rec.reasoning,
                         "cost_savings": rec.cost_savings,
                         "quality_impact": rec.quality_impact,
-                        "updated_at": datetime.now(timezone.utc)
+                        "updated_at": datetime.now(timezone.utc).isoformat()
                     }
                 }
                 routing_updates.append(routing_decision)
@@ -412,7 +415,7 @@ class AIMonitorService:
         test_endpoint = self._get_health_check_endpoint(provider)
         headers = self._get_auth_headers(provider, api_key)
         
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(timezone.utc).isoformat()
         
         try:
             async with session.get(test_endpoint, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
@@ -423,7 +426,7 @@ class AIMonitorService:
                     "status": "healthy" if response.status == 200 else "degraded",
                     "response_time_ms": int(response_time),
                     "status_code": response.status,
-                    "checked_at": datetime.now(timezone.utc),
+                    "checked_at": datetime.now(timezone.utc).isoformat(),
                     "endpoint": test_endpoint
                 }
         except asyncio.TimeoutError:
@@ -432,7 +435,7 @@ class AIMonitorService:
                 "status": "down",
                 "response_time_ms": 10000,
                 "error": "timeout",
-                "checked_at": datetime.now(timezone.utc),
+                "checked_at": datetime.now(timezone.utc).isoformat(),
                 "endpoint": test_endpoint
             }
         except Exception as e:
@@ -440,13 +443,13 @@ class AIMonitorService:
                 "provider": provider,
                 "status": "down",
                 "error": str(e),
-                "checked_at": datetime.now(timezone.utc),
+                "checked_at": datetime.now(timezone.utc).isoformat(),
                 "endpoint": test_endpoint
             }
     
     async def _benchmark_provider(self, provider: str, content_type: str, prompt: str) -> Optional[Dict]:
         """Benchmark individual provider performance (Complete Implementation)"""
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(timezone.utc).isoformat()
         
         try:
             api_key = self._get_provider_api_key(provider)
@@ -472,7 +475,7 @@ class AIMonitorService:
                     "success": result.get("success", False),
                     "cost_estimate": result.get("cost", 0.001),
                     "quality_estimate": result.get("quality", 0.8),
-                    "benchmarked_at": datetime.now(timezone.utc)
+                    "benchmarked_at": datetime.now(timezone.utc).isoformat()
                 }
         
         except Exception as e:
@@ -523,7 +526,7 @@ class AIMonitorService:
                         "model": model.get("id", "unknown"),
                         "input_cost": 0.00013,  # Known Groq pricing
                         "output_cost": 0.00013,
-                        "updated_at": datetime.now(timezone.utc)
+                        "updated_at": datetime.now(timezone.utc).isoformat()
                     })
             
             elif provider == "deepseek":
@@ -533,7 +536,7 @@ class AIMonitorService:
                     "model": "deepseek-chat",
                     "input_cost": 0.00014,
                     "output_cost": 0.00028,
-                    "updated_at": datetime.now(timezone.utc)
+                    "updated_at": datetime.now(timezone.utc).isoformat()
                 })
             
             # Add more provider-specific parsing as needed
@@ -610,7 +613,7 @@ class AIMonitorService:
                         speed_score=max(0.1, 1.0 - (response_time / 5000)),  # Normalize response time
                         reliability_score=success_rate,
                         value_score=0.8 / max(0.001, avg_cost) if avg_cost > 0 else 1.0,
-                        last_updated=datetime.now(timezone.utc)
+                        last_updated=datetime.now(timezone.utc).isoformat()
                     ))
         
         # If no cached metrics, create default metrics for available providers
@@ -626,7 +629,7 @@ class AIMonitorService:
                     speed_score=0.8,
                     reliability_score=0.9,
                     value_score=0.8 / max(0.001, self._get_default_cost(provider)),
-                    last_updated=datetime.now(timezone.utc)
+                    last_updated=datetime.now(timezone.utc).isoformat()
                 ))
         
         return metrics
@@ -923,11 +926,11 @@ class AIMonitorService:
                         await session.execute(query, {
                             "content_type": rec.content_type,
                             "primary_provider": rec.primary_provider,
-                            "backup_providers": json.dumps(rec.backup_providers),
+                            "backup_providers": safe_json_dumps(rec.backup_providers),
                             "reasoning": rec.reasoning,
                             "cost_savings": rec.cost_savings,
                             "quality_impact": rec.quality_impact,
-                            "created_at": datetime.now(timezone.utc)
+                            "created_at": datetime.now(timezone.utc).isoformat()
                         })
                     
                     await session.commit()
@@ -965,8 +968,8 @@ class AIMonitorService:
                         await session.execute(insert_query, {
                             "content_type": routing["content_type"],
                             "selected_provider": routing["selected_provider"],
-                            "alternative_providers": json.dumps(routing["backup_providers"]),
-                            "decision_factors": json.dumps(routing["decision_factors"])
+                            "alternative_providers": safe_json_dumps(routing["backup_providers"]),
+                            "decision_factors": safe_json_dumps(routing["decision_factors"])
                         })
                     
                     await session.commit()
@@ -1064,7 +1067,7 @@ class AIMonitorService:
                     await session.execute(query, {
                         "fallback_provider": provider_name,
                         "content_type": content_type,
-                        "failed_providers": json.dumps(failed_providers),
+                        "failed_providers": safe_json_dumps(failed_providers),
                         "timestamp": timestamp
                     })
                     await session.commit()
@@ -1093,7 +1096,7 @@ class AIMonitorService:
             "system_health": "operational" if self.monitoring_active else "stopped",
             "database_available": self.db_url is not None,
             "database_connected": self._db_engine is not None and self._db_engine is not False,
-            "last_updated": datetime.now(timezone.utc)
+            "last_updated": datetime.now(timezone.utc).isoformat()
         }
     
     async def get_provider_analytics(self) -> Dict[str, Any]:
@@ -1276,7 +1279,7 @@ async def check_monitoring_health() -> Dict[str, Any]:
             "error": str(e),
             "system_health": "error",
             "circular_imports_resolved": True,
-            "last_updated": datetime.now(timezone.utc)
+            "last_updated": datetime.now(timezone.utc).isoformat()
         }
 
 # API convenience functions (complete implementation)
@@ -1308,7 +1311,7 @@ if __name__ == "__main__":
         # Show dashboard
         async def show_dashboard():
             data = await get_monitoring_dashboard()
-            print(json.dumps(data, indent=2))
+            print(safe_json_dumps(data, indent=2))
         
         asyncio.run(show_dashboard())
     else:

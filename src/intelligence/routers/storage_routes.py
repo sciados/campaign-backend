@@ -36,6 +36,9 @@ from src.storage.universal_dual_storage import (
 from src.storage.document_manager import DocumentManager
 from src.intelligence.generators.slideshow_video_generator import SlideshowVideoGenerator
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import safe_json_dumps
+
 router = APIRouter(prefix="/storage", tags=["storage"])
 logger = logging.getLogger(__name__)
 
@@ -360,7 +363,7 @@ async def list_user_assets(
             tag_list = [tag.strip() for tag in tags.split(",")]
             for tag in tag_list:
                 query = query.where(
-                    CampaignAsset.tags.op("@>")(json.dumps([tag]))
+                    CampaignAsset.tags.op("@>")(safe_json_dumps([tag]))
                 )
         
         # Apply sorting

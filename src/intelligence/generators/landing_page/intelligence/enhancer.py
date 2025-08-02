@@ -8,6 +8,10 @@ FIXED: Added enum serialization support and safe data handling
 import logging
 from typing import Dict, Any, List, Optional
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import safe_json_dumps
+
+
 logger = logging.getLogger(__name__)
 
 class IntelligenceEnhancer:
@@ -79,7 +83,7 @@ class IntelligenceEnhancer:
         """
         try:
             import json
-            return json.dumps(data)
+            return safe_json_dumps(data)
         except:
             logger.warning(f"Could not serialize data to JSON: {data}")
             return "{}"

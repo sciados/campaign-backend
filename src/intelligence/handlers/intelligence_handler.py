@@ -24,6 +24,9 @@ from ..utils.campaign_helpers import (
     update_campaign_counters
 )
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import json_serial, safe_json_dumps
+
 # NEW - using enhancement.py directly  
 try:
     from ..amplifier.enhancement import (
@@ -369,27 +372,27 @@ class IntelligenceHandler(EnumSerializerMixin):
             logger.info("💾 Storing enriched intelligence data...")
             
             # Update existing intelligence categories (merge with existing data)
-            intelligence_source.offer_intelligence = json.dumps(self._merge_intelligence_data(
+            intelligence_source.offer_intelligence = safe_json_dumps(self._merge_intelligence_data(
                 self._serialize_enum_field(intelligence_source.offer_intelligence), 
                 enriched_intelligence.get("offer_intelligence", {})
             ))
             
-            intelligence_source.psychology_intelligence = json.dumps(self._merge_intelligence_data(
+            intelligence_source.psychology_intelligence = safe_json_dumps(self._merge_intelligence_data(
                 self._serialize_enum_field(intelligence_source.psychology_intelligence),
                 enriched_intelligence.get("psychology_intelligence", {})
             ))
             
-            intelligence_source.content_intelligence = json.dumps(self._merge_intelligence_data(
+            intelligence_source.content_intelligence = safe_json_dumps(self._merge_intelligence_data(
                 self._serialize_enum_field(intelligence_source.content_intelligence),
                 enriched_intelligence.get("content_intelligence", {})
             ))
             
-            intelligence_source.competitive_intelligence = json.dumps(self._merge_intelligence_data(
+            intelligence_source.competitive_intelligence = safe_json_dumps(self._merge_intelligence_data(
                 self._serialize_enum_field(intelligence_source.competitive_intelligence),
                 enriched_intelligence.get("competitive_intelligence", {})
             ))
             
-            intelligence_source.brand_intelligence = json.dumps(self._merge_intelligence_data(
+            intelligence_source.brand_intelligence = safe_json_dumps(self._merge_intelligence_data(
                 self._serialize_enum_field(intelligence_source.brand_intelligence),
                 enriched_intelligence.get("brand_intelligence", {})
             ))
@@ -400,7 +403,7 @@ class IntelligenceHandler(EnumSerializerMixin):
             # Scientific Intelligence
             scientific_data = enriched_intelligence.get("scientific_intelligence", {})
             if scientific_data and len(scientific_data) > 0:
-                intelligence_source.scientific_intelligence = json.dumps(scientific_data)
+                intelligence_source.scientific_intelligence = safe_json_dumps(scientific_data)
                 ai_intelligence_stored["scientific_intelligence"] = len(scientific_data)
                 logger.info(f"✅ Stored scientific_intelligence: {len(scientific_data)} items")
             else:
@@ -408,83 +411,83 @@ class IntelligenceHandler(EnumSerializerMixin):
                 fallback_data = {
                     "scientific_backing": ["General health and wellness support"],
                     "research_quality_score": 0.5,
-                    "generated_at": datetime.now(timezone.utc),
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
-                intelligence_source.scientific_intelligence = json.dumps(fallback_data)
+                intelligence_source.scientific_intelligence = safe_json_dumps(fallback_data)
                 ai_intelligence_stored["scientific_intelligence"] = 1
                 logger.warning("⚠️ Using fallback data for scientific_intelligence")
             
             # Credibility Intelligence
             credibility_data = enriched_intelligence.get("credibility_intelligence", {})
             if credibility_data and len(credibility_data) > 0:
-                intelligence_source.credibility_intelligence = json.dumps(credibility_data)
+                intelligence_source.credibility_intelligence = safe_json_dumps(credibility_data)
                 ai_intelligence_stored["credibility_intelligence"] = len(credibility_data)
                 logger.info(f"✅ Stored credibility_intelligence: {len(credibility_data)} items")
             else:
                 fallback_data = {
                     "trust_indicators": ["Quality assurance", "Professional presentation"],
                     "overall_credibility_score": 0.6,
-                    "generated_at": datetime.now(timezone.utc),
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
-                intelligence_source.credibility_intelligence = json.dumps(fallback_data)
+                intelligence_source.credibility_intelligence = safe_json_dumps(fallback_data)
                 ai_intelligence_stored["credibility_intelligence"] = 1
                 logger.warning("⚠️ Using fallback data for credibility_intelligence")
             
             # Market Intelligence
             market_data = enriched_intelligence.get("market_intelligence", {})
             if market_data and len(market_data) > 0:
-                intelligence_source.market_intelligence = json.dumps(market_data)
+                intelligence_source.market_intelligence = safe_json_dumps(market_data)
                 ai_intelligence_stored["market_intelligence"] = len(market_data)
                 logger.info(f"✅ Stored market_intelligence: {len(market_data)} items")
             else:
                 fallback_data = {
                     "market_analysis": {"market_size": {"current_estimate": "Growing market"}},
                     "market_intelligence_score": 0.5,
-                    "generated_at": datetime.now(timezone.utc),
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
-                intelligence_source.market_intelligence = json.dumps(fallback_data)
+                intelligence_source.market_intelligence = safe_json_dumps(fallback_data)
                 ai_intelligence_stored["market_intelligence"] = 1
                 logger.warning("⚠️ Using fallback data for market_intelligence")
             
             # Emotional Transformation Intelligence
             emotional_data = enriched_intelligence.get("emotional_transformation_intelligence", {})
             if emotional_data and len(emotional_data) > 0:
-                intelligence_source.emotional_transformation_intelligence = json.dumps(emotional_data)
+                intelligence_source.emotional_transformation_intelligence = safe_json_dumps(emotional_data)
                 ai_intelligence_stored["emotional_transformation_intelligence"] = len(emotional_data)
                 logger.info(f"✅ Stored emotional_transformation_intelligence: {len(emotional_data)} items")
             else:
                 fallback_data = {
                     "emotional_journey": {"current_state": ["Seeking health solutions"]},
                     "transformation_confidence": 0.5,
-                    "generated_at": datetime.now(timezone.utc),
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
-                intelligence_source.emotional_transformation_intelligence = json.dumps(fallback_data)
+                intelligence_source.emotional_transformation_intelligence = safe_json_dumps(fallback_data)
                 ai_intelligence_stored["emotional_transformation_intelligence"] = 1
                 logger.warning("⚠️ Using fallback data for emotional_transformation_intelligence")
             
             # Scientific Authority Intelligence
             authority_data = enriched_intelligence.get("scientific_authority_intelligence", {})
             if authority_data and len(authority_data) > 0:
-                intelligence_source.scientific_authority_intelligence = json.dumps(authority_data)
+                intelligence_source.scientific_authority_intelligence = safe_json_dumps(authority_data)
                 ai_intelligence_stored["scientific_authority_intelligence"] = len(authority_data)
                 logger.info(f"✅ Stored scientific_authority_intelligence: {len(authority_data)} items")
             else:
                 fallback_data = {
                     "research_validation": {"evidence_strength": "Basic validation"},
                     "authority_score": 0.6,
-                    "generated_at": datetime.now(timezone.utc),
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
                     "ai_provider": "fallback",
                     "enhancement_applied": False
                 }
-                intelligence_source.scientific_authority_intelligence = json.dumps(fallback_data)
+                intelligence_source.scientific_authority_intelligence = safe_json_dumps(fallback_data)
                 ai_intelligence_stored["scientific_authority_intelligence"] = 1
                 logger.warning("⚠️ Using fallback data for scientific_authority_intelligence")
             
@@ -509,13 +512,13 @@ class IntelligenceHandler(EnumSerializerMixin):
                 "enhancement_quality": enhancement_metadata.get("enhancement_quality", "unknown"),
                 "modules_successful": enhancement_metadata.get("modules_successful", []),
                 "scientific_enhancements": len(enhancements.get("scientific_validation", {})) if enhancements.get("scientific_validation") else 0,
-                "amplified_at": datetime.now(timezone.utc),
+                "amplified_at": datetime.now(timezone.utc).isoformat(),
                 
                 # Storage validation
                 "intelligence_categories_stored": ai_intelligence_stored,
                 "storage_validation_applied": True,
                 "extraction_successful": True,
-                "amplification_timestamp": datetime.now(timezone.utc),
+                "amplification_timestamp": datetime.now(timezone.utc).isoformat(),
                 
                 # System info
                 "system_architecture": "direct_modular_enhancement",
@@ -538,7 +541,7 @@ class IntelligenceHandler(EnumSerializerMixin):
                 }
             }
             
-            intelligence_source.processing_metadata = json.dumps({
+            intelligence_source.processing_metadata = safe_json_dumps({
                 **self._serialize_enum_field(intelligence_source.processing_metadata),
                 **amplification_metadata
             })
@@ -574,7 +577,7 @@ class IntelligenceHandler(EnumSerializerMixin):
             error_metadata = {
                 "amplification_applied": False,
                 "amplification_error": str(e),
-                "amplification_attempted_at": datetime.now(timezone.utc),
+                "amplification_attempted_at": datetime.now(timezone.utc).isoformat(),
                 "fallback_to_base": True,
                 "error_details": {
                     "error_type": type(e).__name__,
@@ -582,7 +585,7 @@ class IntelligenceHandler(EnumSerializerMixin):
                 }
             }
             
-            intelligence_source.processing_metadata = json.dumps({
+            intelligence_source.processing_metadata = safe_json_dumps({
                 **self._serialize_enum_field(intelligence_source.processing_metadata),
                 **error_metadata
             })

@@ -7,6 +7,7 @@ DOCUMENT MANAGEMENT ROUTES
 ✅ Document preview generation
 ✅ Text extraction for search
 ✅ Metadata management and tagging
+🔧 FIXED: JSON serialization issues with datetime objects
 """
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
@@ -25,6 +26,8 @@ from src.models.user import User
 from src.models import CampaignAsset
 from src.storage.document_manager import DocumentManager
 from src.storage.universal_dual_storage import get_storage_manager
+
+from src.utils.json_utils import safe_json_dumps
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -110,7 +113,7 @@ async def upload_document(
             "page_count": result["metadata"].get("page_count", 1),
             "tags": document_tags,
             "description": description,
-            "created_at": asset.created_at.isoformat()
+            "created_at": asset.created_at.isoformat() if asset.created_at else None
         }
         
         # Add preview URL if available
@@ -172,7 +175,7 @@ async def get_document(
         
         # Update access statistics
         asset.access_count += 1
-        asset.last_accessed = datetime.now(timezone.utc)
+        asset.last_accessed = datetime.now(timezone.utc)  # 🔧 FIXED: Store datetime object
         await db.commit()
         
         # Get best available URL with failover
@@ -264,8 +267,8 @@ async def get_document_info(
             "metadata": asset.asset_metadata,
             "access_count": asset.access_count,
             "last_accessed": asset.last_accessed.isoformat() if asset.last_accessed else None,
-            "created_at": asset.created_at.isoformat(),
-            "updated_at": asset.updated_at.isoformat(),
+            "created_at": asset.created_at.isoformat() if asset.created_at else None,
+            "updated_at": asset.updated_at.isoformat() if asset.updated_at else None,
             "preview": {
                 "available": preview_asset is not None,
                 "preview_id": str(preview_asset.id) if preview_asset else None,
@@ -419,7 +422,7 @@ async def regenerate_document_preview(
                             "success": True,
                             "preview_id": str(new_preview.id),
                             "preview_url": new_preview.file_url_primary,
-                            "regenerated_at": datetime.now(timezone.utc)
+                            "regenerated_at": datetime.now(timezone.utc).isoformat(),
                         }
                     else:
                         raise HTTPException(status_code=400, detail="Preview generation failed")
@@ -479,7 +482,7 @@ async def search_documents(
             tag_list = [tag.strip() for tag in tags.split(",")]
             for tag in tag_list:
                 search_query = search_query.where(
-                    CampaignAsset.tags.op("@>")(json.dumps([tag]))
+                    CampaignAsset.tags.op("@>")(safe_json_dumps([tag]))
                 )
         
         # Apply pagination
@@ -503,7 +506,7 @@ async def search_documents(
                 "tags": doc.tags,
                 "description": doc.description,
                 "campaign_id": str(doc.campaign_id) if doc.campaign_id else None,
-                "created_at": doc.created_at.isoformat(),
+                "created_at": doc.created_at.isoformat() if doc.created_at else None,
                 "last_accessed": doc.last_accessed.isoformat() if doc.last_accessed else None,
                 "access_count": doc.access_count,
                 "storage_status": doc.storage_status,
@@ -590,7 +593,7 @@ async def update_document_metadata(
             asset.asset_metadata = current_metadata
         
         # Update timestamp
-        asset.updated_at = datetime.now(timezone.utc)
+        asset.updated_at = datetime.now(timezone.utc)  # 🔧 FIXED: Store datetime object
         
         await db.commit()
         
@@ -598,7 +601,7 @@ async def update_document_metadata(
             "success": True,
             "document_id": document_id,
             "updated_fields": list(metadata_update.keys()),
-            "updated_at": asset.updated_at.isoformat()
+            "updated_at": asset.updated_at.isoformat()  # 🔧 CORRECT: Convert for API response
         }
         
     except HTTPException:
@@ -653,7 +656,7 @@ async def delete_document(
         return {
             "success": True,
             "document_id": document_id,
-            "deleted_at": datetime.now(timezone.utc),
+            "deleted_at": datetime.now(timezone.utc).isoformat(),
             "preview_deleted": delete_preview
         }
         
@@ -727,14 +730,14 @@ async def get_document_stats(
                 {
                     "document_id": str(doc.id),
                     "filename": doc.original_filename,
-                    "created_at": doc.created_at.isoformat(),
+                    "created_at": doc.created_at.isoformat() if doc.created_at else None,
                     "file_size": doc.file_size,
                     "file_type": doc.asset_metadata.get("document_type", "unknown")
                 }
                 for doc in recent_documents
             ],
             "campaign_id": campaign_id,
-            "generated_at": datetime.now(timezone.utc)
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
         
     except Exception as e:
@@ -772,7 +775,7 @@ async def document_system_health(
                 "automatic_failover": True
             },
             "user_id": str(current_user.id),
-            "timestamp": datetime.now(timezone.utc)
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:
@@ -780,5 +783,5 @@ async def document_system_health(
         return {
             "success": False,
             "error": str(e),
-            "timestamp": datetime.now(timezone.utc)
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }

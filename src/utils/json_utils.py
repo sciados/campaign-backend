@@ -10,6 +10,9 @@ from enum import Enum
 from typing import Any, Dict
 import logging
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import safe_json_dumps
+
 logger = logging.getLogger(__name__)
 
 def json_serial(obj: Any) -> str:
@@ -44,11 +47,11 @@ def safe_json_dumps(data: Any, **kwargs) -> str:
         JSON string
     """
     try:
-        return json.dumps(data, default=json_serial, **kwargs)
+        return safe_json_dumps(data, default=json_serial, **kwargs)
     except Exception as e:
         logger.error(f"❌ JSON serialization failed: {str(e)}")
         # Fallback to string representation
-        return json.dumps({"error": "Serialization failed", "data": str(data)})
+        return safe_json_dumps({"error": "Serialization failed", "data": str(data)})
 
 def safe_json_loads(json_str: str) -> Any:
     """

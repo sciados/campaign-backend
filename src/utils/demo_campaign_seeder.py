@@ -14,6 +14,9 @@ from src.models.campaign import Campaign, AutoAnalysisStatus, CampaignStatus, Ca
 from src.models.intelligence import CampaignIntelligence, GeneratedContent, IntelligenceSourceType, AnalysisStatus
 
 import logging
+
+from src.utils.json_utils import safe_json_dumps
+
 logger = logging.getLogger(__name__)
 
 class DemoCampaignSeeder:
@@ -175,7 +178,7 @@ class DemoCampaignSeeder:
             confidence_score=0.92,
             
             # Realistic analysis results
-            offer_intelligence=json.dumps({
+            offer_intelligence=safe_json_dumps({
                 "products": [
                     {
                         "name": "Buffer Publish",
@@ -208,7 +211,7 @@ class DemoCampaignSeeder:
                 ]
             }),
             
-            psychology_intelligence=json.dumps({
+            psychology_intelligence=safe_json_dumps({
                 "target_audience": "Small business owners, marketing teams, social media managers",
                 "pain_points": [
                     "Spending too much time on social media management",
@@ -233,7 +236,7 @@ class DemoCampaignSeeder:
                 ]
             }),
             
-            competitive_intelligence=json.dumps({
+            competitive_intelligence=safe_json_dumps({
                 "strengths": [
                     "Clean, intuitive interface",
                     "Strong brand recognition",
@@ -256,7 +259,7 @@ class DemoCampaignSeeder:
                 ]
             }),
             
-            content_intelligence=json.dumps({
+            content_intelligence=safe_json_dumps({
                 "content_themes": [
                     "Time-saving automation",
                     "Professional social presence", 
@@ -279,7 +282,7 @@ class DemoCampaignSeeder:
                 ]
             }),
             
-            brand_intelligence=json.dumps({
+            brand_intelligence=safe_json_dumps({
                 "brand_personality": "Professional, friendly, helpful, innovative",
                 "brand_values": ["Simplicity", "Efficiency", "Growth", "Collaboration"],
                 "visual_style": "Clean, modern, blue and white color scheme",
@@ -287,7 +290,7 @@ class DemoCampaignSeeder:
             }),
             
             # Demo scientific intelligence (showing amplification)
-            scientific_intelligence=json.dumps({
+            scientific_intelligence=safe_json_dumps({
                 "research_backing": [
                     {
                         "finding": "Consistent social media posting increases engagement by 67%",
@@ -313,7 +316,7 @@ class DemoCampaignSeeder:
             }),
             
             # Demo credibility intelligence
-            credibility_intelligence=json.dumps({
+            credibility_intelligence=safe_json_dumps({
                 "trust_signals": [
                     "Over 140,000 customers worldwide",
                     "Trusted by major brands like Microsoft, Shopify",
@@ -329,7 +332,7 @@ class DemoCampaignSeeder:
                 ]
             }),
             
-            processing_metadata=json.dumps({
+            processing_metadata=safe_json_dumps({
                 "demo_intelligence": True,
                 "amplification_applied": True,
                 "amplification_method": "demo_enhanced_analysis",

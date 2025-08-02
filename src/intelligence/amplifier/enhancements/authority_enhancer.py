@@ -19,6 +19,9 @@ from ...utils.product_name_fix import (
     validate_no_placeholders
 )
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import json_serial, safe_json_dumps
+
 logger = logging.getLogger(__name__)
 
 class ScientificAuthorityEnhancer:
@@ -200,7 +203,7 @@ class ScientificAuthorityEnhancer:
                 "thought_leadership_positioning": thought_leadership,
                 "scientific_credibility_framework": scientific_credibility,
                 "authority_strength_score": authority_strength,
-                "generated_at": datetime.now(timezone.utc),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "ai_provider": provider_name,
                 "enhancement_confidence": 0.89,
                 "product_name_fix_applied": True,  # 🔥 Track that fix was applied
@@ -272,7 +275,7 @@ class ScientificAuthorityEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Existing scientific context: {json.dumps(scientific_intel, indent=2)}
+        Existing scientific context: {safe_json_dumps(scientific_intel, indent=2)}
         
         Generate research validation framework including:
         1. Research methodology standards
@@ -323,7 +326,7 @@ class ScientificAuthorityEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Existing credibility context: {json.dumps(credibility_intel, indent=2)}
+        Existing credibility context: {safe_json_dumps(credibility_intel, indent=2)}
         
         Generate professional authority markers including:
         1. Professional credentials and qualifications
@@ -425,7 +428,7 @@ class ScientificAuthorityEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Market context: {json.dumps(market_intel, indent=2)}
+        Market context: {safe_json_dumps(market_intel, indent=2)}
         
         Generate thought leadership positioning including:
         1. Industry trend insights
@@ -550,7 +553,7 @@ class ScientificAuthorityEnhancer:
             "thought_leadership_positioning": self._fallback_thought_leadership_positioning(),
             "scientific_credibility_framework": self._fallback_scientific_credibility_framework(),
             "authority_strength_score": 0.78,
-            "generated_at": datetime.now(timezone.utc),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "ai_provider": "fallback",
             "enhancement_confidence": 0.78,
             "product_name_fix_applied": True,

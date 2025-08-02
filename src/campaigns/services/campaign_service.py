@@ -24,6 +24,15 @@ class CampaignService:
     Campaign business logic service
     🔧 FIXED: Proper async session management for background tasks
     """
+
+    def json_serial(obj):
+        """JSON serializer for objects not serializable by default json code"""
+        from datetime import datetime, date, timedelta
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        if isinstance(obj, timedelta):
+            return str(obj)
+        raise TypeError(f"Type {type(obj)} not serializable")
     
     def __init__(self, db: AsyncSession):
         self.db = db

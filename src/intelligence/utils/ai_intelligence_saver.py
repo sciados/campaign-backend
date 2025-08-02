@@ -12,6 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy import text
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import safe_json_dumps
+
+
 logger = logging.getLogger(__name__)
 
 async def save_ai_intelligence_data(
@@ -33,7 +37,7 @@ async def save_ai_intelligence_data(
         'emotional_transformation_intelligence',
         'scientific_authority_intelligence'
     ]
-    
+   
     logger.info(f"🔄 Starting AI intelligence save for {len(ai_data)} categories")
     
     # Method 1: Try ORM-based storage first
@@ -43,7 +47,7 @@ async def save_ai_intelligence_data(
         if category_data and isinstance(category_data, dict):
             try:
                 # Serialize and set on the intelligence object
-                json_data = json.dumps(category_data)
+                json_data = safe_json_dumps(category_data)
                 setattr(intelligence_obj, category, json_data)
                 flag_modified(intelligence_obj, category)
                 
@@ -112,7 +116,7 @@ async def _direct_sql_update(
     """Direct SQL update for a specific AI category"""
     
     try:
-        json_data = json.dumps(data)
+        json_data = safe_json_dumps(data)
         
         update_sql = text(f"""
             UPDATE campaign_intelligence 
@@ -163,7 +167,7 @@ async def _emergency_metadata_backup(
         metadata["emergency_backup_reason"] = "Primary AI storage methods failed"
         
         # Save metadata
-        intelligence_obj.processing_metadata = json.dumps(metadata)
+        intelligence_obj.processing_metadata = safe_json_dumps(metadata)
         flag_modified(intelligence_obj, 'processing_metadata')
         
         return True
@@ -277,7 +281,7 @@ async def test_ai_storage_methods(
     """Test different storage methods to diagnose issues"""
     
     test_data = {
-        "test_timestamp": datetime.now(timezone.utc),
+        "test_timestamp": datetime.now(timezone.utc).isoformat(),
         "test_items": ["item1", "item2", "item3"],
         "test_metadata": {
             "test_purpose": "Storage method diagnosis",
@@ -296,7 +300,7 @@ async def test_ai_storage_methods(
         """)
         
         await db_session.execute(test_sql, {
-            'test_data': json.dumps(test_data),
+            'test_data': safe_json_dumps(test_data),
             'intelligence_id': intelligence_id
         })
         await db_session.commit()

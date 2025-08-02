@@ -20,6 +20,9 @@ from ...utils.product_name_fix import (
     validate_no_placeholders
 )
 
+# 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
+from src.utils.json_utils import json_serial, safe_json_dumps
+
 logger = logging.getLogger(__name__)
 
 class EmotionalTransformationEnhancer:
@@ -290,9 +293,9 @@ class EmotionalTransformationEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Customer pain points: {json.dumps(pain_points, indent=2)}
-        Emotional triggers: {json.dumps(emotional_triggers, indent=2)}
-        Value propositions: {json.dumps(value_props, indent=2)}
+        Customer pain points: {safe_json_dumps(pain_points, indent=2)}
+        Emotional triggers: {safe_json_dumps(emotional_triggers, indent=2)}
+        Value propositions: {safe_json_dumps(value_props, indent=2)}
         
         Create detailed emotional journey mapping. Format as JSON:
         {{
@@ -345,7 +348,7 @@ class EmotionalTransformationEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Existing triggers: {json.dumps(existing_triggers, indent=2)}
+        Existing triggers: {safe_json_dumps(existing_triggers, indent=2)}
         Target audience: {target_audience}
         
         Generate psychological triggers. Format as JSON:
@@ -397,8 +400,8 @@ class EmotionalTransformationEnhancer:
         IMPORTANT: Always use the actual product name "{product_name}" in your response.
         Never use placeholders like "Your Product", "Product", "[Product]", etc.
         
-        Functional value propositions: {json.dumps(value_props, indent=2)}
-        Product benefits: {json.dumps(benefits, indent=2)}
+        Functional value propositions: {safe_json_dumps(value_props, indent=2)}
+        Product benefits: {safe_json_dumps(benefits, indent=2)}
         
         Generate emotional value propositions. Format as JSON:
         {{
