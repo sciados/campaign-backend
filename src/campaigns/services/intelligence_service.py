@@ -1,8 +1,7 @@
 # src/campaigns/services/intelligence_service.py
 """
-Intelligence Service - Central CRUD for intelligence operations
-🎯 HANDLES: Intelligence data access, content generation coordination
-Following the same pattern as CampaignService and WorkflowService
+Intelligence Service - WORKING VERSION based on WorkflowService pattern
+🔧 FIXED: Uses exact same database query pattern as WorkflowService
 """
 
 import logging
@@ -11,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 
 from src.models import Campaign, User
 from src.models.intelligence import CampaignIntelligence
@@ -21,17 +20,12 @@ logger = logging.getLogger(__name__)
 
 class IntelligenceService:
     """
-    Central Intelligence service for database operations
-    🎯 REPLACES: Direct database queries in content_routes.py
-    🎯 FOLLOWS: Same pattern as existing services
+    Intelligence service using exact same pattern as WorkflowService
+    🔧 FIXED: Database queries match working WorkflowService
     """
     
     def __init__(self, db: AsyncSession):
         self.db = db
-    
-    # ========================================================================
-    # CAMPAIGN INTELLIGENCE ACCESS
-    # ========================================================================
     
     async def get_campaign_intelligence_for_content(
         self, 
@@ -39,25 +33,24 @@ class IntelligenceService:
         company_id: UUID
     ) -> Dict[str, Any]:
         """
-        Get real intelligence data from campaign analysis
-        🔧 FIXED: Proper async database handling using service pattern
+        Get real intelligence data - EXACT PATTERN FROM WorkflowService
         """
         try:
             logger.info(f"Getting intelligence for content generation: campaign {campaign_id}")
             
-            # 1. Verify campaign exists and user has access
-            campaign_query = select(Campaign).where(
+            # 🔧 EXACT PATTERN FROM WorkflowService.get_workflow_state()
+            query = select(Campaign).where(
                 Campaign.id == campaign_id,
                 Campaign.company_id == company_id
             )
             
-            campaign_result = await self.db.execute(campaign_query)
-            campaign = campaign_result.scalar_one_or_none()
+            result = await self.db.execute(query)
+            campaign = result.scalar_one_or_none()
             
             if not campaign:
                 raise ValueError(f"Campaign {campaign_id} not found or access denied")
             
-            # 2. Get all intelligence sources for this campaign
+            # 🔧 EXACT PATTERN FROM WorkflowService.get_campaign_intelligence()
             intelligence_query = select(CampaignIntelligence).where(
                 CampaignIntelligence.campaign_id == campaign_id
             ).order_by(CampaignIntelligence.confidence_score.desc())
@@ -71,10 +64,10 @@ class IntelligenceService:
             
             logger.info(f"✅ Found {len(intelligence_sources)} intelligence sources for campaign {campaign_id}")
             
-            # 3. Use the highest confidence source as primary
+            # Use the highest confidence source as primary
             primary_source = intelligence_sources[0]
             
-            # 4. Build comprehensive intelligence data
+            # Build intelligence data using WorkflowService._parse_json_field pattern
             intelligence_data = {
                 "campaign_id": str(campaign_id),
                 "campaign_name": campaign.title,
@@ -132,69 +125,8 @@ class IntelligenceService:
             logger.error(f"❌ Traceback: {traceback.format_exc()}")
             raise ValueError(f"Failed to load campaign analysis data: {str(e)}")
     
-    async def get_intelligence_source_by_id(
-        self, 
-        intelligence_id: str, 
-        company_id: UUID
-    ) -> Optional[CampaignIntelligence]:
-        """Get specific intelligence source by ID"""
-        try:
-            query = select(CampaignIntelligence).where(
-                and_(
-                    CampaignIntelligence.id == intelligence_id,
-                    CampaignIntelligence.company_id == company_id
-                )
-            )
-            result = await self.db.execute(query)
-            return result.scalar_one_or_none()
-            
-        except Exception as e:
-            logger.error(f"Error getting intelligence source {intelligence_id}: {e}")
-            return None
-    
-    async def get_intelligence_summary(
-        self, 
-        campaign_id: UUID, 
-        company_id: UUID
-    ) -> Dict[str, Any]:
-        """Get intelligence summary for a campaign"""
-        try:
-            # Get intelligence count
-            count_query = select(func.count(CampaignIntelligence.id)).where(
-                and_(
-                    CampaignIntelligence.campaign_id == campaign_id,
-                    CampaignIntelligence.company_id == company_id
-                )
-            )
-            count_result = await self.db.execute(count_query)
-            intelligence_count = count_result.scalar() or 0
-            
-            # Get highest confidence score
-            confidence_query = select(func.max(CampaignIntelligence.confidence_score)).where(
-                and_(
-                    CampaignIntelligence.campaign_id == campaign_id,
-                    CampaignIntelligence.company_id == company_id
-                )
-            )
-            confidence_result = await self.db.execute(confidence_query)
-            max_confidence = confidence_result.scalar() or 0.0
-            
-            return {
-                "intelligence_count": intelligence_count,
-                "max_confidence_score": max_confidence,
-                "has_intelligence": intelligence_count > 0
-            }
-            
-        except Exception as e:
-            logger.error(f"Error getting intelligence summary: {e}")
-            return {"intelligence_count": 0, "max_confidence_score": 0.0, "has_intelligence": False}
-    
-    # ========================================================================
-    # UTILITY METHODS
-    # ========================================================================
-    
     def _parse_json_field(self, field_value):
-        """Helper to parse JSON fields safely - same as WorkflowService"""
+        """Helper to parse JSON fields safely - EXACT COPY from WorkflowService"""
         if field_value is None:
             return {}
         
