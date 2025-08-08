@@ -7,6 +7,7 @@ FIXED: Content Routes - Real Intelligence Integration + Route Compatibility
 ✅ ADDED: Debug endpoints for testing
 """
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, BackgroundTasks
+from campaigns.services.intelligence_service import IntelligenceService
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select, and_
 from typing import Dict, Any, Optional, List
@@ -35,7 +36,7 @@ from ..schemas.responses import (
 )
 
 # 🔧 FIXED: Import Intelligence Service at module level
-from src.campaigns.services import IntelligenceService
+from src.campaigns.services import WorkflowService
 
 from src.utils.json_utils import safe_json_dumps
 
@@ -196,12 +197,45 @@ async def generate_content(
         
         logger.info(f"🎯 Generating {content_type} for campaign {campaign_id}")
         
-        # 🔧 CRITICAL FIX: Use Intelligence Service instead of direct database queries
-        intelligence_service = IntelligenceService(db)
-        intelligence_data = await intelligence_service.get_campaign_intelligence_for_content(
+        # 🔧 CRITICAL FIX: Use WorkflowService instead (it's working!)
+        from src.campaigns.services import WorkflowService
+        
+        workflow_service = WorkflowService(db)
+        
+        # Get the intelligence data using the working service
+        workflow_intelligence = await workflow_service.get_campaign_intelligence(
             UUID(campaign_id), 
-            current_user.company_id
+            current_user.company_id,
+            skip=0,
+            limit=50
         )
+        
+        # Convert to the format expected by content generation
+        if workflow_intelligence["intelligence_entries"]:
+            primary_source = workflow_intelligence["intelligence_entries"][0]
+            intelligence_data = {
+                "campaign_id": campaign_id,
+                "campaign_name": workflow_intelligence["summary"]["campaign_title"],
+                "target_audience": "health-conscious adults",
+                
+                # 🔥 CRITICAL: Include source_title for product name extraction
+                "source_title": primary_source["source_title"],
+                "source_url": primary_source["source_url"],
+                
+                # Real intelligence data from analysis
+                "offer_intelligence": primary_source["offer_intelligence"],
+                "psychology_intelligence": primary_source["psychology_intelligence"],
+                "content_intelligence": {},
+                "competitive_intelligence": {},
+                "brand_intelligence": {},
+                
+                # All sources for comprehensive content
+                "intelligence_sources": workflow_intelligence["intelligence_entries"]
+            }
+            
+            logger.info(f"🎯 Using intelligence for product: '{primary_source['source_title']}' from {len(workflow_intelligence['intelligence_entries'])} sources")
+        else:
+            raise ValueError("No analysis data found for this campaign. Please run analysis first.")
         
         # Log what we got
         logger.info(f"📊 Using intelligence from {len(intelligence_data.get('intelligence_sources', []))} sources")
