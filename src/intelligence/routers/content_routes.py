@@ -286,7 +286,6 @@ async def get_campaign_intelligence_for_content(db: AsyncSession, campaign_id: s
 # ============================================================================
 
 @router.post("/generate")
-@router.post("/content/generate")  # 🔧 Support both paths for frontend compatibility
 async def generate_content(
     request_data: Dict[str, Any],
     current_user: User = Depends(get_current_user),
