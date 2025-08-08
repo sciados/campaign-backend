@@ -1,13 +1,14 @@
 """
 File: src/intelligence/routers/content_routes.py
-FIXED: Content Routes - Async Issue Resolution
-✅ FIXED: "object NoneType can't be used in 'await' expression" error
+FIXED: Content Routes - Real Intelligence Integration + Route Compatibility
+✅ FIXED: Uses real campaign intelligence instead of hardcoded data
+✅ FIXED: Route path compatibility for frontend
 ✅ FIXED: Proper async/await handling for content generation
-✅ FIXED: Direct factory usage instead of problematic enhanced_content_generation
+✅ ADDED: Debug endpoints for testing
 """
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, select
+from sqlalchemy import text, select, and_
 from typing import Dict, Any, Optional, List
 import logging
 from datetime import datetime, timezone
@@ -172,16 +173,126 @@ async def save_content_to_database(
         raise HTTPException(status_code=500, detail="Failed to save content")
 
 # ============================================================================
+# 🔧 NEW FUNCTION: Get Real Campaign Intelligence
+# ============================================================================
+
+async def get_campaign_intelligence_for_content(db: AsyncSession, campaign_id: str, current_user: User) -> Dict[str, Any]:
+    """Get real intelligence data from campaign analysis"""
+    try:
+        from src.models.intelligence import CampaignIntelligence
+        from src.models.campaign import Campaign
+        
+        # First, verify campaign exists and user has access
+        campaign_result = await db.execute(
+            select(Campaign).where(
+                and_(
+                    Campaign.id == campaign_id,
+                    Campaign.company_id == current_user.company_id
+                )
+            )
+        )
+        campaign = campaign_result.scalar_one_or_none()
+        
+        if not campaign:
+            raise ValueError(f"Campaign {campaign_id} not found or access denied")
+        
+        # Get all intelligence sources for this campaign
+        intelligence_result = await db.execute(
+            select(CampaignIntelligence).where(
+                and_(
+                    CampaignIntelligence.campaign_id == campaign_id,
+                    CampaignIntelligence.company_id == current_user.company_id
+                )
+            ).order_by(CampaignIntelligence.confidence_score.desc())
+        )
+        intelligence_sources = intelligence_result.scalars().all()
+        
+        if not intelligence_sources:
+            logger.warning(f"⚠️ No intelligence sources found for campaign {campaign_id}")
+            raise ValueError("No analysis data found for this campaign. Please run analysis first.")
+        
+        logger.info(f"✅ Found {len(intelligence_sources)} intelligence sources for campaign {campaign_id}")
+        
+        # Use the highest confidence source as primary
+        primary_source = intelligence_sources[0]
+        
+        # Helper function to safely serialize enum fields
+        def serialize_enum_field(field_value):
+            if field_value is None:
+                return {}
+            if isinstance(field_value, str):
+                try:
+                    return json.loads(field_value)
+                except:
+                    return {}
+            if isinstance(field_value, dict):
+                return field_value
+            return {}
+        
+        # Build comprehensive intelligence data
+        intelligence_data = {
+            "campaign_id": campaign_id,
+            "campaign_name": campaign.title,
+            "target_audience": campaign.target_audience or "health-conscious adults",
+            
+            # 🔥 CRITICAL: Include source_title for product name extraction
+            "source_title": primary_source.source_title,
+            "source_url": primary_source.source_url,
+            
+            # Real intelligence data from analysis
+            "offer_intelligence": serialize_enum_field(primary_source.offer_intelligence),
+            "psychology_intelligence": serialize_enum_field(primary_source.psychology_intelligence),
+            "content_intelligence": serialize_enum_field(primary_source.content_intelligence),
+            "competitive_intelligence": serialize_enum_field(primary_source.competitive_intelligence),
+            "brand_intelligence": serialize_enum_field(primary_source.brand_intelligence),
+            
+            # Additional intelligence if available
+            "scientific_intelligence": serialize_enum_field(primary_source.scientific_intelligence),
+            "credibility_intelligence": serialize_enum_field(primary_source.credibility_intelligence),
+            "market_intelligence": serialize_enum_field(primary_source.market_intelligence),
+            "emotional_transformation_intelligence": serialize_enum_field(primary_source.emotional_transformation_intelligence),
+            "scientific_authority_intelligence": serialize_enum_field(primary_source.scientific_authority_intelligence),
+            
+            # All sources for comprehensive content
+            "intelligence_sources": [
+                {
+                    "id": str(source.id),
+                    "source_title": source.source_title,
+                    "source_url": source.source_url,
+                    "source_type": source.source_type.value if source.source_type else "url",
+                    "confidence_score": source.confidence_score or 0.0,
+                    "offer_intelligence": serialize_enum_field(source.offer_intelligence),
+                    "psychology_intelligence": serialize_enum_field(source.psychology_intelligence),
+                    "content_intelligence": serialize_enum_field(source.content_intelligence),
+                    "competitive_intelligence": serialize_enum_field(source.competitive_intelligence),
+                    "brand_intelligence": serialize_enum_field(source.brand_intelligence)
+                }
+                for source in intelligence_sources
+            ]
+        }
+        
+        # Extract product name from source_title for logging
+        product_name = primary_source.source_title or "Unknown Product"
+        logger.info(f"🎯 Using intelligence for product: '{product_name}' from {len(intelligence_sources)} sources")
+        
+        return intelligence_data
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to get campaign intelligence: {e}")
+        raise ValueError(f"Failed to load campaign analysis data: {str(e)}")
+
+# ============================================================================
 # 🔧 FIXED CONTENT ENDPOINTS
 # ============================================================================
 
 @router.post("/generate")
+@router.post("/content/generate")  # 🔧 Support both paths for frontend compatibility
 async def generate_content(
     request_data: Dict[str, Any],
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """🔧 FIXED: Content generation with proper async handling"""
+    """🔧 FIXED: Content generation with REAL intelligence data"""
     
     try:
         # Extract data
@@ -192,17 +303,13 @@ async def generate_content(
         
         logger.info(f"🎯 Generating {content_type} for campaign {campaign_id}")
         
-        # Prepare intelligence data
-        intelligence_data = {
-            "campaign_id": campaign_id,
-            "offer_intelligence": {
-                "insights": ["Product called PRODUCT", "Health benefits", "Natural solution"],
-                "benefits": ["health optimization", "metabolic enhancement", "natural wellness"]
-            },
-            "target_audience": "health-conscious adults seeking natural solutions"
-        }
+        # 🔧 CRITICAL FIX: Get REAL intelligence data from database
+        intelligence_data = await get_campaign_intelligence_for_content(db, campaign_id, current_user)
         
-        # 🔧 FIXED: Use safe_content_generation instead of problematic function
+        # Log what we got
+        logger.info(f"📊 Using intelligence from {len(intelligence_data.get('intelligence_sources', []))} sources")
+        
+        # 🔧 FIXED: Use safe_content_generation with REAL data
         result = await safe_content_generation(
             content_type=content_type,
             intelligence_data=intelligence_data,
@@ -423,7 +530,8 @@ async def get_ultra_cheap_status(current_user: User = Depends(get_current_user))
                 "database": "operational",
                 "api": "operational",
                 "async_fix": "applied",
-                "none_type_error_fix": "applied"
+                "none_type_error_fix": "applied",
+                "real_intelligence_integration": "applied"
             },
             detailed_status={
                 "generators_operational": operational_count,
@@ -431,9 +539,12 @@ async def get_ultra_cheap_status(current_user: User = Depends(get_current_user))
                 "railway_compatible": True,
                 "async_await_fixed": True,
                 "factory_integration": "direct",
-                "error_handling": "enhanced"
+                "error_handling": "enhanced",
+                "real_data_integration": True
             },
             recommendations=[
+                "Real intelligence data integration complete",
+                "Route path compatibility added",
                 "Async/await issues resolved",
                 "Direct factory usage implemented",
                 "NoneType error prevention in place",
@@ -465,23 +576,89 @@ async def get_ultra_cheap_status(current_user: User = Depends(get_current_user))
         )
 
 # ============================================================================
+# 🔧 DEBUG AND TEST ENDPOINTS
+# ============================================================================
+
+@router.get("/test-route")
+async def test_route():
+    """Test endpoint to verify route mounting"""
+    return {
+        "message": "Content routes are working!",
+        "mounted_at": "/api/intelligence/",
+        "this_endpoint": "/api/intelligence/test-route",
+        "generate_endpoint_1": "/api/intelligence/generate",
+        "generate_endpoint_2": "/api/intelligence/content/generate",
+        "real_intelligence": "enabled",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+@router.post("/test-generate")
+async def test_generate(
+    request_data: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Test generation endpoint with real intelligence data"""
+    try:
+        campaign_id = request_data.get("campaign_id")
+        
+        if campaign_id:
+            # Test getting real intelligence data
+            intelligence_data = await get_campaign_intelligence_for_content(db, campaign_id, current_user)
+            
+            return {
+                "message": "Test generation endpoint working!",
+                "received_data": request_data,
+                "expected_fields": ["intelligence_id", "content_type", "campaign_id"],
+                "real_intelligence_loaded": True,
+                "intelligence_sources_count": len(intelligence_data.get("intelligence_sources", [])),
+                "product_name_from_source": intelligence_data.get("source_title"),
+                "offer_intelligence_keys": list(intelligence_data.get("offer_intelligence", {}).keys()),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        else:
+            return {
+                "message": "Test generation endpoint working!",
+                "received_data": request_data,
+                "expected_fields": ["intelligence_id", "content_type", "campaign_id"],
+                "note": "Provide campaign_id to test real intelligence loading",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            
+    except Exception as e:
+        return {
+            "message": "Test generation endpoint error",
+            "error": str(e),
+            "received_data": request_data,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+# ============================================================================
 # 🔧 ADDITIONAL FIXED ENDPOINTS
 # ============================================================================
 
-@router.post("/test-generation")
+@router.post("/test-content-generation")
 async def test_content_generation(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Test endpoint to verify content generation is working"""
+    """Test endpoint to verify content generation with real data"""
     
     try:
-        # Test with minimal data
+        # Test with minimal real intelligence data structure
         test_intelligence_data = {
+            "source_title": "TestProduct - Health Supplement",
             "offer_intelligence": {
-                "insights": ["Test product called TESTPROD", "Health benefits"],
+                "insights": ["Product called TestProduct", "Health benefits", "Natural solution"],
                 "benefits": ["test benefit 1", "test benefit 2"]
-            }
+            },
+            "intelligence_sources": [
+                {
+                    "id": "test-source-1",
+                    "source_title": "TestProduct - Health Supplement",
+                    "confidence_score": 0.95
+                }
+            ]
         }
         
         # Test email sequence generation
@@ -504,7 +681,9 @@ async def test_content_generation(
             "has_content": bool(result.get("content")),
             "has_metadata": bool(result.get("metadata")),
             "generator_used": result.get("metadata", {}).get("generated_by"),
-            "recommendation": "Content generation is working properly"
+            "real_intelligence_structure": "tested",
+            "product_name_available": bool(test_intelligence_data.get("source_title")),
+            "recommendation": "Content generation is working properly with real intelligence data"
         }
         
     except Exception as e:
