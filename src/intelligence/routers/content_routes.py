@@ -34,6 +34,9 @@ from ..schemas.responses import (
     UltraCheapMetadata
 )
 
+# 🔧 FIXED: Import Intelligence Service at module level
+from src.campaigns.services import IntelligenceService
+
 from src.utils.json_utils import safe_json_dumps
 
 router = APIRouter()
@@ -173,130 +176,6 @@ async def save_content_to_database(
         raise HTTPException(status_code=500, detail="Failed to save content")
 
 # ============================================================================
-# 🔧 NEW FUNCTION: Get Real Campaign Intelligence
-# ============================================================================
-
-async def get_campaign_intelligence_for_content(db: AsyncSession, campaign_id: str, current_user: User) -> Dict[str, Any]:
-    """Get real intelligence data from campaign analysis - ASYNC FIXED"""
-    try:
-        from src.models.intelligence import CampaignIntelligence
-        from src.models.campaign import Campaign
-        import uuid
-        
-        # Convert campaign_id to UUID if it's a string
-        try:
-            if isinstance(campaign_id, str):
-                campaign_uuid = uuid.UUID(campaign_id)
-            else:
-                campaign_uuid = campaign_id
-        except ValueError:
-            raise ValueError(f"Invalid campaign ID format: {campaign_id}")
-        
-        # 🔧 FIX: First, verify campaign exists and user has access
-        campaign_query = select(Campaign).where(
-            and_(
-                Campaign.id == campaign_uuid,
-                Campaign.company_id == current_user.company_id
-            )
-        )
-        campaign_result = await db.execute(campaign_query)
-        campaign = campaign_result.scalar_one_or_none()
-        
-        if not campaign:
-            raise ValueError(f"Campaign {campaign_id} not found or access denied")
-        
-        # 🔧 FIX: Get all intelligence sources for this campaign
-        intelligence_query = select(CampaignIntelligence).where(
-            and_(
-                CampaignIntelligence.campaign_id == campaign_uuid,
-                CampaignIntelligence.company_id == current_user.company_id
-            )
-        ).order_by(CampaignIntelligence.confidence_score.desc())
-        
-        intelligence_result = await db.execute(intelligence_query)
-        intelligence_sources = intelligence_result.scalars().all()
-        
-        if not intelligence_sources:
-            logger.warning(f"⚠️ No intelligence sources found for campaign {campaign_id}")
-            raise ValueError("No analysis data found for this campaign. Please run analysis first.")
-        
-        logger.info(f"✅ Found {len(intelligence_sources)} intelligence sources for campaign {campaign_id}")
-        
-        # Use the highest confidence source as primary
-        primary_source = intelligence_sources[0]
-        
-        # Helper function to safely serialize enum fields
-        def serialize_enum_field(field_value):
-            if field_value is None:
-                return {}
-            if isinstance(field_value, str):
-                try:
-                    return json.loads(field_value)
-                except:
-                    return {}
-            if isinstance(field_value, dict):
-                return field_value
-            return {}
-        
-        # Build comprehensive intelligence data
-        intelligence_data = {
-            "campaign_id": str(campaign_uuid),  # Convert back to string for consistency
-            "campaign_name": campaign.title,
-            "target_audience": campaign.target_audience or "health-conscious adults",
-            
-            # 🔥 CRITICAL: Include source_title for product name extraction
-            "source_title": primary_source.source_title,
-            "source_url": primary_source.source_url,
-            
-            # Real intelligence data from analysis
-            "offer_intelligence": serialize_enum_field(primary_source.offer_intelligence),
-            "psychology_intelligence": serialize_enum_field(primary_source.psychology_intelligence),
-            "content_intelligence": serialize_enum_field(primary_source.content_intelligence),
-            "competitive_intelligence": serialize_enum_field(primary_source.competitive_intelligence),
-            "brand_intelligence": serialize_enum_field(primary_source.brand_intelligence),
-            
-            # Additional intelligence if available
-            "scientific_intelligence": serialize_enum_field(getattr(primary_source, 'scientific_intelligence', None)),
-            "credibility_intelligence": serialize_enum_field(getattr(primary_source, 'credibility_intelligence', None)),
-            "market_intelligence": serialize_enum_field(getattr(primary_source, 'market_intelligence', None)),
-            "emotional_transformation_intelligence": serialize_enum_field(getattr(primary_source, 'emotional_transformation_intelligence', None)),
-            "scientific_authority_intelligence": serialize_enum_field(getattr(primary_source, 'scientific_authority_intelligence', None)),
-            
-            # All sources for comprehensive content
-            "intelligence_sources": [
-                {
-                    "id": str(source.id),
-                    "source_title": source.source_title,
-                    "source_url": source.source_url,
-                    "source_type": source.source_type.value if hasattr(source, 'source_type') and source.source_type else "url",
-                    "confidence_score": source.confidence_score or 0.0,
-                    "offer_intelligence": serialize_enum_field(source.offer_intelligence),
-                    "psychology_intelligence": serialize_enum_field(source.psychology_intelligence),
-                    "content_intelligence": serialize_enum_field(source.content_intelligence),
-                    "competitive_intelligence": serialize_enum_field(source.competitive_intelligence),
-                    "brand_intelligence": serialize_enum_field(source.brand_intelligence)
-                }
-                for source in intelligence_sources
-            ]
-        }
-        
-        # Extract product name from source_title for logging
-        product_name = primary_source.source_title or "Unknown Product"
-        logger.info(f"🎯 Using intelligence for product: '{product_name}' from {len(intelligence_sources)} sources")
-        
-        return intelligence_data
-        
-    except ValueError:
-        # Re-raise ValueError as-is (these are expected errors)
-        raise
-    except Exception as e:
-        logger.error(f"❌ Failed to get campaign intelligence: {e}")
-        logger.error(f"❌ Error type: {type(e)}")
-        import traceback
-        logger.error(f"❌ Traceback: {traceback.format_exc()}")
-        raise ValueError(f"Failed to load campaign analysis data: {str(e)}")
-
-# ============================================================================
 # 🔧 FIXED CONTENT ENDPOINTS
 # ============================================================================
 
@@ -317,8 +196,12 @@ async def generate_content(
         
         logger.info(f"🎯 Generating {content_type} for campaign {campaign_id}")
         
-        # 🔧 CRITICAL FIX: Get REAL intelligence data from database
-        intelligence_data = await get_campaign_intelligence_for_content(db, campaign_id, current_user)
+        # 🔧 CRITICAL FIX: Use Intelligence Service instead of direct database queries
+        intelligence_service = IntelligenceService(db)
+        intelligence_data = await intelligence_service.get_campaign_intelligence_for_content(
+            UUID(campaign_id), 
+            current_user.company_id
+        )
         
         # Log what we got
         logger.info(f"📊 Using intelligence from {len(intelligence_data.get('intelligence_sources', []))} sources")
@@ -617,8 +500,12 @@ async def test_generate(
         campaign_id = request_data.get("campaign_id")
         
         if campaign_id:
-            # Test getting real intelligence data
-            intelligence_data = await get_campaign_intelligence_for_content(db, campaign_id, current_user)
+            # Test getting real intelligence data using service
+            intelligence_service = IntelligenceService(db)
+            intelligence_data = await intelligence_service.get_campaign_intelligence_for_content(
+                UUID(campaign_id), 
+                current_user.company_id
+            )
             
             return {
                 "message": "Test generation endpoint working!",
