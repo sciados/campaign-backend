@@ -47,11 +47,10 @@ class IntelligenceService:
             
             # 1. Verify campaign exists and user has access
             campaign_query = select(Campaign).where(
-                and_(
-                    Campaign.id == campaign_id,
-                    Campaign.company_id == company_id
-                )
+                Campaign.id == campaign_id,
+                Campaign.company_id == company_id
             )
+            
             campaign_result = await self.db.execute(campaign_query)
             campaign = campaign_result.scalar_one_or_none()
             
@@ -60,10 +59,7 @@ class IntelligenceService:
             
             # 2. Get all intelligence sources for this campaign
             intelligence_query = select(CampaignIntelligence).where(
-                and_(
-                    CampaignIntelligence.campaign_id == campaign_id,
-                    CampaignIntelligence.company_id == company_id
-                )
+                CampaignIntelligence.campaign_id == campaign_id
             ).order_by(CampaignIntelligence.confidence_score.desc())
             
             intelligence_result = await self.db.execute(intelligence_query)
