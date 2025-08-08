@@ -177,34 +177,43 @@ async def save_content_to_database(
 # ============================================================================
 
 async def get_campaign_intelligence_for_content(db: AsyncSession, campaign_id: str, current_user: User) -> Dict[str, Any]:
-    """Get real intelligence data from campaign analysis"""
+    """Get real intelligence data from campaign analysis - ASYNC FIXED"""
     try:
         from src.models.intelligence import CampaignIntelligence
         from src.models.campaign import Campaign
+        import uuid
         
-        # First, verify campaign exists and user has access
-        campaign_result = await db.execute(
-            select(Campaign).where(
-                and_(
-                    Campaign.id == campaign_id,
-                    Campaign.company_id == current_user.company_id
-                )
+        # Convert campaign_id to UUID if it's a string
+        try:
+            if isinstance(campaign_id, str):
+                campaign_uuid = uuid.UUID(campaign_id)
+            else:
+                campaign_uuid = campaign_id
+        except ValueError:
+            raise ValueError(f"Invalid campaign ID format: {campaign_id}")
+        
+        # 🔧 FIX: First, verify campaign exists and user has access
+        campaign_query = select(Campaign).where(
+            and_(
+                Campaign.id == campaign_uuid,
+                Campaign.company_id == current_user.company_id
             )
         )
+        campaign_result = await db.execute(campaign_query)
         campaign = campaign_result.scalar_one_or_none()
         
         if not campaign:
             raise ValueError(f"Campaign {campaign_id} not found or access denied")
         
-        # Get all intelligence sources for this campaign
-        intelligence_result = await db.execute(
-            select(CampaignIntelligence).where(
-                and_(
-                    CampaignIntelligence.campaign_id == campaign_id,
-                    CampaignIntelligence.company_id == current_user.company_id
-                )
-            ).order_by(CampaignIntelligence.confidence_score.desc())
-        )
+        # 🔧 FIX: Get all intelligence sources for this campaign
+        intelligence_query = select(CampaignIntelligence).where(
+            and_(
+                CampaignIntelligence.campaign_id == campaign_uuid,
+                CampaignIntelligence.company_id == current_user.company_id
+            )
+        ).order_by(CampaignIntelligence.confidence_score.desc())
+        
+        intelligence_result = await db.execute(intelligence_query)
         intelligence_sources = intelligence_result.scalars().all()
         
         if not intelligence_sources:
@@ -231,7 +240,7 @@ async def get_campaign_intelligence_for_content(db: AsyncSession, campaign_id: s
         
         # Build comprehensive intelligence data
         intelligence_data = {
-            "campaign_id": campaign_id,
+            "campaign_id": str(campaign_uuid),  # Convert back to string for consistency
             "campaign_name": campaign.title,
             "target_audience": campaign.target_audience or "health-conscious adults",
             
@@ -247,11 +256,11 @@ async def get_campaign_intelligence_for_content(db: AsyncSession, campaign_id: s
             "brand_intelligence": serialize_enum_field(primary_source.brand_intelligence),
             
             # Additional intelligence if available
-            "scientific_intelligence": serialize_enum_field(primary_source.scientific_intelligence),
-            "credibility_intelligence": serialize_enum_field(primary_source.credibility_intelligence),
-            "market_intelligence": serialize_enum_field(primary_source.market_intelligence),
-            "emotional_transformation_intelligence": serialize_enum_field(primary_source.emotional_transformation_intelligence),
-            "scientific_authority_intelligence": serialize_enum_field(primary_source.scientific_authority_intelligence),
+            "scientific_intelligence": serialize_enum_field(getattr(primary_source, 'scientific_intelligence', None)),
+            "credibility_intelligence": serialize_enum_field(getattr(primary_source, 'credibility_intelligence', None)),
+            "market_intelligence": serialize_enum_field(getattr(primary_source, 'market_intelligence', None)),
+            "emotional_transformation_intelligence": serialize_enum_field(getattr(primary_source, 'emotional_transformation_intelligence', None)),
+            "scientific_authority_intelligence": serialize_enum_field(getattr(primary_source, 'scientific_authority_intelligence', None)),
             
             # All sources for comprehensive content
             "intelligence_sources": [
@@ -259,7 +268,7 @@ async def get_campaign_intelligence_for_content(db: AsyncSession, campaign_id: s
                     "id": str(source.id),
                     "source_title": source.source_title,
                     "source_url": source.source_url,
-                    "source_type": source.source_type.value if source.source_type else "url",
+                    "source_type": source.source_type.value if hasattr(source, 'source_type') and source.source_type else "url",
                     "confidence_score": source.confidence_score or 0.0,
                     "offer_intelligence": serialize_enum_field(source.offer_intelligence),
                     "psychology_intelligence": serialize_enum_field(source.psychology_intelligence),
@@ -277,15 +286,21 @@ async def get_campaign_intelligence_for_content(db: AsyncSession, campaign_id: s
         
         return intelligence_data
         
+    except ValueError:
+        # Re-raise ValueError as-is (these are expected errors)
+        raise
     except Exception as e:
         logger.error(f"❌ Failed to get campaign intelligence: {e}")
+        logger.error(f"❌ Error type: {type(e)}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
         raise ValueError(f"Failed to load campaign analysis data: {str(e)}")
 
 # ============================================================================
 # 🔧 FIXED CONTENT ENDPOINTS
 # ============================================================================
 
-@router.post("/generate")
+@router.post("/generate")  # This becomes /api/intelligence/content/generate
 async def generate_content(
     request_data: Dict[str, Any],
     current_user: User = Depends(get_current_user),
