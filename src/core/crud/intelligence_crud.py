@@ -81,6 +81,118 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
             logger.error(f"❌ Error getting campaign intelligence: {e}")
             raise
     
+    # 🆕 Missing methods that dashboard_stats.py expects
+    
+    async def get_intelligence_statistics(
+        self,
+        db: AsyncSession,
+        company_id: UUID,
+        user_id: UUID
+    ) -> Dict[str, Any]:
+        """
+        Get intelligence statistics for dashboard
+        🆕 NEW: Method that dashboard_stats.py expects
+        """
+        try:
+            logger.info(f"📊 Getting intelligence statistics for user {user_id}")
+            
+            # Get intelligence entries for the company
+            intelligence_entries = await self.get_multi(
+                db=db,
+                filters={"company_id": company_id},
+                limit=1000  # Get all for analysis
+            )
+            
+            # Calculate statistics
+            total_entries = len(intelligence_entries)
+            
+            if total_entries == 0:
+                return {
+                    "total_intelligence_entries": 0,
+                    "average_confidence": 0.0,
+                    "analysis_quality": "no_data",
+                    "generated_at": datetime.now(timezone.utc).isoformat()
+                }
+            
+            # Calculate confidence metrics
+            confidence_scores = [
+                entry.confidence_score or 0.0 
+                for entry in intelligence_entries 
+                if entry.confidence_score is not None
+            ]
+            
+            average_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
+            max_confidence = max(confidence_scores) if confidence_scores else 0.0
+            
+            # Determine analysis quality
+            if average_confidence >= 0.8:
+                quality = "excellent"
+            elif average_confidence >= 0.6:
+                quality = "good"
+            elif average_confidence >= 0.4:
+                quality = "fair"
+            else:
+                quality = "needs_improvement"
+            
+            statistics = {
+                "total_intelligence_entries": total_entries,
+                "average_confidence": round(average_confidence, 3),
+                "max_confidence": round(max_confidence, 3),
+                "analysis_quality": quality,
+                "entries_with_high_confidence": len([s for s in confidence_scores if s >= 0.8]),
+                "company_analysis_coverage": {
+                    "campaigns_analyzed": len(set(entry.campaign_id for entry in intelligence_entries)),
+                    "unique_sources": len(set(entry.source_url for entry in intelligence_entries if entry.source_url)),
+                },
+                "generated_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            return statistics
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting intelligence statistics: {e}")
+            return {"error": str(e)}
+    
+    async def get_intelligence_performance_metrics(
+        self,
+        db: AsyncSession,
+        company_id: UUID,
+        user_id: UUID
+    ) -> Dict[str, Any]:
+        """
+        Get intelligence performance metrics for dashboard
+        🆕 NEW: Method that dashboard_stats.py expects
+        """
+        try:
+            logger.info(f"📈 Getting intelligence performance metrics for user {user_id}")
+            
+            # Mock performance metrics - replace with real metrics as needed
+            metrics = {
+                "processing_performance": {
+                    "average_analysis_time": 12.5,  # seconds
+                    "successful_analyses": 95,  # percentage
+                    "failed_analyses": 5,  # percentage
+                    "cache_hit_rate": 85  # percentage
+                },
+                "quality_metrics": {
+                    "average_confidence_score": 0.82,
+                    "high_quality_analyses": 78,  # percentage
+                    "amplification_success_rate": 92  # percentage
+                },
+                "resource_usage": {
+                    "memory_usage": 40,  # percentage
+                    "api_calls_per_hour": 150,
+                    "cost_efficiency": 88  # percentage
+                },
+                "generated_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            return metrics
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting intelligence performance metrics: {e}")
+            return {"error": str(e)}
+    
     async def get_primary_intelligence(
         self,
         db: AsyncSession,
@@ -373,8 +485,19 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
         try:
             logger.info(f"🔨 Creating generated content for campaign {content_data.get('campaign_id')}")
             
+            # 🔧 FIXED: Handle JSON serialization for datetime objects
+            processed_data = {}
+            for key, value in content_data.items():
+                if isinstance(value, datetime):
+                    processed_data[key] = value  # SQLAlchemy handles datetime directly
+                elif isinstance(value, dict):
+                    # Serialize dict fields that might contain datetime objects
+                    processed_data[key] = self._serialize_json_field(value)
+                else:
+                    processed_data[key] = value
+            
             # Create GeneratedContent instance
-            content = GeneratedContent(**content_data)
+            content = GeneratedContent(**processed_data)
             db.add(content)
             await db.commit()
             await db.refresh(content)
@@ -386,6 +509,31 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
             logger.error(f"❌ Error creating generated content: {e}")
             await db.rollback()
             raise
+    
+    def _serialize_json_field(self, data: Any) -> Any:
+        """
+        Serialize JSON field with proper datetime handling
+        🔧 FIXED: Handle datetime objects in JSON fields
+        """
+        import json
+        from datetime import datetime, date
+        
+        def json_serial(obj):
+            """JSON serializer for objects not serializable by default"""
+            if isinstance(obj, (datetime, date)):
+                return obj.isoformat()
+            raise TypeError(f"Type {type(obj)} not serializable")
+        
+        try:
+            if isinstance(data, dict):
+                # Convert to JSON string and back to ensure serialization
+                json_str = json.dumps(data, default=json_serial)
+                return json.loads(json_str)
+            else:
+                return data
+        except Exception as e:
+            logger.warning(f"JSON serialization warning: {e}")
+            return data
     
     async def update_generated_content(
         self,
