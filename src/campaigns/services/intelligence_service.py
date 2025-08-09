@@ -2,6 +2,7 @@
 """
 Intelligence Service - WORKING VERSION based on WorkflowService pattern
 🔧 FIXED: Uses exact same database query pattern as WorkflowService
+🔧 FIXED: Database query await expression issue
 """
 
 import logging
@@ -22,6 +23,7 @@ class IntelligenceService:
     """
     Intelligence service using exact same pattern as WorkflowService
     🔧 FIXED: Database queries match working WorkflowService
+    🔧 FIXED: Await expression issue resolved
     """
     
     def __init__(self, db: AsyncSession):
@@ -34,29 +36,38 @@ class IntelligenceService:
     ) -> Dict[str, Any]:
         """
         Get real intelligence data - EXACT PATTERN FROM WorkflowService
+        🔧 FIXED: Database query execution
         """
         try:
             logger.info(f"Getting intelligence for content generation: campaign {campaign_id}")
             
             # 🔧 EXACT PATTERN FROM WorkflowService.get_workflow_state()
-            query = select(Campaign).where(
+            # Use the same query pattern that works in WorkflowService
+            campaign_query = select(Campaign).where(
                 Campaign.id == campaign_id,
                 Campaign.company_id == company_id
             )
             
-            result = await self.db.execute(query)
-            campaign = result.scalar_one_or_none()
+            # 🔧 FIXED: Proper async query execution
+            campaign_result = await self.db.execute(campaign_query)
+            campaign = campaign_result.scalar_one_or_none()
             
             if not campaign:
                 raise ValueError(f"Campaign {campaign_id} not found or access denied")
             
+            logger.info(f"✅ Found campaign: {campaign.title}")
+            
             # 🔧 EXACT PATTERN FROM WorkflowService.get_campaign_intelligence()
+            # Use the same intelligence query pattern
             intelligence_query = select(CampaignIntelligence).where(
                 CampaignIntelligence.campaign_id == campaign_id
             ).order_by(CampaignIntelligence.confidence_score.desc())
             
+            # 🔧 FIXED: Proper async query execution  
             intelligence_result = await self.db.execute(intelligence_query)
             intelligence_sources = intelligence_result.scalars().all()
+            
+            logger.info(f"📊 Found {len(intelligence_sources)} intelligence sources")
             
             if not intelligence_sources:
                 logger.warning(f"⚠️ No intelligence sources found for campaign {campaign_id}")
@@ -66,6 +77,7 @@ class IntelligenceService:
             
             # Use the highest confidence source as primary
             primary_source = intelligence_sources[0]
+            logger.info(f"🎯 Using primary source: {primary_source.source_title} (confidence: {primary_source.confidence_score})")
             
             # Build intelligence data using WorkflowService._parse_json_field pattern
             intelligence_data = {
@@ -92,8 +104,13 @@ class IntelligenceService:
                 "scientific_authority_intelligence": self._parse_json_field(getattr(primary_source, 'scientific_authority_intelligence', None)),
                 
                 # All sources for comprehensive content
-                "intelligence_sources": [
-                    {
+                "intelligence_sources": []
+            }
+            
+            # Process all sources
+            for source in intelligence_sources:
+                try:
+                    source_data = {
                         "id": str(source.id),
                         "source_title": source.source_title,
                         "source_url": source.source_url,
@@ -105,9 +122,10 @@ class IntelligenceService:
                         "competitive_intelligence": self._parse_json_field(getattr(source, 'competitive_intelligence', None)),
                         "brand_intelligence": self._parse_json_field(getattr(source, 'brand_intelligence', None))
                     }
-                    for source in intelligence_sources
-                ]
-            }
+                    intelligence_data["intelligence_sources"].append(source_data)
+                except Exception as source_error:
+                    logger.warning(f"⚠️ Error processing source {source.id}: {source_error}")
+                    continue
             
             # Extract product name from source_title for logging
             product_name = primary_source.source_title or "Unknown Product"
