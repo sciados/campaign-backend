@@ -1021,7 +1021,7 @@ async def bulk_delete_files(
 @router.get("/{user_id}/storage/export")
 async def export_user_storage_data(
     user_id: str,
-    format: str = Query("json", regex="^(json|csv)$", description="Export format"),
+    format: str = Query("json", pattern="^(json|csv)$", description="Export format"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db)
 ):
