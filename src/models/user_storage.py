@@ -11,6 +11,10 @@ from typing import Optional, TYPE_CHECKING
 
 from src.utils.json_utils import safe_json_dumps, serialize_metadata
 
+from pydantic import BaseModel, Field, validator
+from typing import Optional, Dict, Any
+from datetime import datetime
+
 # Only import for type hints to avoid circular imports
 if TYPE_CHECKING:
     from .campaign import Campaign
@@ -123,3 +127,94 @@ def set_file_metadata(self, metadata_dict: dict):
     
     def __repr__(self):
         return f"<UserStorageUsage(id={self.id}, user_id={self.user_id}, filename='{self.original_filename}', size={self.file_size_mb}MB)>"
+    
+# ============================================================================
+# Pydantic Schemas for CRUD Operations
+# ============================================================================
+
+class UserStorageBase(BaseModel):
+    """Base schema for user storage"""
+    original_filename: str = Field(..., min_length=1, max_length=255)
+    file_size: int = Field(..., gt=0, description="File size in bytes")
+    content_type: str = Field(..., min_length=1, max_length=100)
+    content_category: str = Field(..., regex="^(image|document|video)$")
+    campaign_id: Optional[str] = Field(None, description="Associated campaign ID")
+    file_metadata: Optional[str] = Field(None, description="JSON metadata string")
+    
+    @validator('file_size')
+    def validate_file_size(cls, v):
+        """Validate file size is reasonable"""
+        if v <= 0:
+            raise ValueError('File size must be positive')
+        if v > 500 * 1024 * 1024:  # 500MB max
+            raise ValueError('File size exceeds maximum allowed (500MB)')
+        return v
+    
+    @validator('content_category')
+    def validate_content_category(cls, v):
+        """Validate content category"""
+        allowed_categories = ['image', 'document', 'video']
+        if v not in allowed_categories:
+            raise ValueError(f'Content category must be one of: {allowed_categories}')
+        return v
+    
+    @validator('original_filename')
+    def validate_filename(cls, v):
+        """Validate filename"""
+        if not v or v.strip() == '':
+            raise ValueError('Filename cannot be empty')
+        
+        # Remove path traversal attempts
+        if '..' in v or '/' in v or '\\' in v:
+            raise ValueError('Filename contains invalid characters')
+        
+        return v.strip()
+
+class UserStorageCreate(UserStorageBase):
+    """Schema for creating storage records"""
+    user_id: str = Field(..., description="User ID who owns the file")
+    file_path: str = Field(..., min_length=1, max_length=500, description="Storage path")
+    upload_date: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    @validator('file_path')
+    def validate_file_path(cls, v):
+        """Validate file path"""
+        if not v or v.strip() == '':
+            raise ValueError('File path cannot be empty')
+        return v.strip()
+
+class UserStorageUpdate(BaseModel):
+    """Schema for updating storage records"""
+    original_filename: Optional[str] = Field(None, min_length=1, max_length=255)
+    last_accessed: Optional[datetime] = None
+    access_count: Optional[int] = Field(None, ge=0)
+    is_deleted: Optional[bool] = None
+    deleted_date: Optional[datetime] = None
+    file_metadata: Optional[str] = None
+    
+    @validator('original_filename')
+    def validate_filename(cls, v):
+        """Validate filename if provided"""
+        if v is not None:
+            if not v or v.strip() == '':
+                raise ValueError('Filename cannot be empty')
+            if '..' in v or '/' in v or '\\' in v:
+                raise ValueError('Filename contains invalid characters')
+            return v.strip()
+        return v
+
+class UserStorageResponse(UserStorageBase):
+    """Schema for storage record responses"""
+    id: str
+    user_id: str
+    file_path: str
+    upload_date: datetime
+    last_accessed: Optional[datetime] = None
+    deleted_date: Optional[datetime] = None
+    access_count: int
+    is_deleted: bool
+    file_size_mb: float
+    file_size_kb: float
+    
+class Config:
+    from_attributes = True  # For Pydantic v2 compatibility
