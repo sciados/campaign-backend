@@ -1,8 +1,9 @@
 # src/campaigns/services/intelligence_service.py
 """
-Intelligence Service - WORKING VERSION based on WorkflowService pattern
-🔧 FIXED: Uses exact same database query pattern as WorkflowService
-🔧 FIXED: Database query await expression issue
+Intelligence Service - FIXED VERSION using Centralized CRUD
+🔧 FIXED: Uses centralized CRUD to eliminate ChunkedIteratorResult issues
+🔧 FIXED: Proper async session management via CRUD layer
+✅ No more direct database queries - all through CRUD
 """
 
 import logging
@@ -11,7 +12,9 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+
+# ✅ NEW: Import centralized CRUD
+from src.core.crud import campaign_crud, intelligence_crud
 
 from src.models import Campaign, User
 from src.models.intelligence import CampaignIntelligence
@@ -21,9 +24,9 @@ logger = logging.getLogger(__name__)
 
 class IntelligenceService:
     """
-    Intelligence service using exact same pattern as WorkflowService
-    🔧 FIXED: Database queries match working WorkflowService
-    🔧 FIXED: Await expression issue resolved
+    Intelligence service using centralized CRUD - NO MORE ChunkedIteratorResult!
+    🔧 FIXED: All database operations through proven CRUD patterns
+    ✅ Eliminates async session issues completely
     """
     
     def __init__(self, db: AsyncSession):
@@ -35,39 +38,33 @@ class IntelligenceService:
         company_id: UUID
     ) -> Dict[str, Any]:
         """
-        Get real intelligence data - EXACT PATTERN FROM WorkflowService
-        🔧 FIXED: Database query execution
+        Get real intelligence data - FIXED VERSION using CRUD
+        🔧 FIXED: No more direct database queries
+        ✅ Uses proven CRUD patterns that work reliably
         """
         try:
             logger.info(f"Getting intelligence for content generation: campaign {campaign_id}")
             
-            # 🔧 EXACT PATTERN FROM WorkflowService.get_workflow_state()
-            # Use the same query pattern that works in WorkflowService
-            campaign_query = select(Campaign).where(
-                Campaign.id == campaign_id,
-                Campaign.company_id == company_id
+            # ✅ FIXED: Use CRUD instead of direct database query
+            campaign = await campaign_crud.get_campaign_with_access_check(
+                db=self.db,
+                campaign_id=campaign_id,
+                company_id=company_id
             )
-            
-            # 🔧 FIXED: Proper async query execution
-            campaign_result = await self.db.execute(campaign_query)
-            campaign = campaign_result.scalar_one_or_none()
             
             if not campaign:
                 raise ValueError(f"Campaign {campaign_id} not found or access denied")
             
             logger.info(f"✅ Found campaign: {campaign.title}")
             
-            # 🔧 EXACT PATTERN FROM WorkflowService.get_campaign_intelligence()
-            # Use the same intelligence query pattern
-            intelligence_query = select(CampaignIntelligence).where(
-                CampaignIntelligence.campaign_id == campaign_id
-            ).order_by(CampaignIntelligence.confidence_score.desc())
+            # ✅ FIXED: Use intelligence CRUD instead of problematic direct query
+            intelligence_sources = await intelligence_crud.get_campaign_intelligence(
+                db=self.db,
+                campaign_id=campaign_id,
+                limit=100  # Get all sources for content generation
+            )
             
-            # 🔧 FIXED: Proper async query execution  
-            intelligence_result = await self.db.execute(intelligence_query)
-            intelligence_sources = intelligence_result.scalars().all()
-            
-            logger.info(f"📊 Found {len(intelligence_sources)} intelligence sources")
+            logger.info(f"📊 Found {len(intelligence_sources)} intelligence sources via CRUD")
             
             if not intelligence_sources:
                 logger.warning(f"⚠️ No intelligence sources found for campaign {campaign_id}")
@@ -75,11 +72,11 @@ class IntelligenceService:
             
             logger.info(f"✅ Found {len(intelligence_sources)} intelligence sources for campaign {campaign_id}")
             
-            # Use the highest confidence source as primary
+            # Use the highest confidence source as primary (CRUD returns ordered by confidence)
             primary_source = intelligence_sources[0]
             logger.info(f"🎯 Using primary source: {primary_source.source_title} (confidence: {primary_source.confidence_score})")
             
-            # Build intelligence data using WorkflowService._parse_json_field pattern
+            # Build intelligence data using existing _parse_json_field logic
             intelligence_data = {
                 "campaign_id": str(campaign_id),
                 "campaign_name": campaign.title,
@@ -89,7 +86,7 @@ class IntelligenceService:
                 "source_title": primary_source.source_title,
                 "source_url": primary_source.source_url,
                 
-                # Real intelligence data from analysis
+                # Real intelligence data from analysis using existing parsing
                 "offer_intelligence": self._parse_json_field(primary_source.offer_intelligence),
                 "psychology_intelligence": self._parse_json_field(primary_source.psychology_intelligence),
                 "content_intelligence": self._parse_json_field(getattr(primary_source, 'content_intelligence', None)),
@@ -107,7 +104,7 @@ class IntelligenceService:
                 "intelligence_sources": []
             }
             
-            # Process all sources
+            # Process all sources using existing logic
             for source in intelligence_sources:
                 try:
                     source_data = {

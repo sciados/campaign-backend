@@ -1,6 +1,7 @@
 """
 File: src/intelligence/handlers/intelligence_handler.py
 Intelligence Handler - Intelligence data management operations
+✅ CRUD MIGRATION: Eliminates ChunkedIteratorResult errors
 """
 import logging
 import json
@@ -13,6 +14,10 @@ from src.models.base import EnumSerializerMixin
 from src.models.user import User
 from src.models.campaign import Campaign
 from src.models.intelligence import CampaignIntelligence, GeneratedContent
+
+# 🚀 CRUD MIGRATION: Import the centralized CRUD system
+from src.core.crud import intelligence_crud, campaign_crud
+
 from ..utils.campaign_helpers import (
     get_campaign_with_verification,
     calculate_campaign_statistics,
@@ -75,9 +80,11 @@ class IntelligenceHandler(EnumSerializerMixin):
         logger.info(f"🔍 Getting ENHANCED intelligence for campaign: {campaign_id}")
         
         try:
-            # Verify campaign access
-            campaign = await get_campaign_with_verification(
-                campaign_id, str(self.user.company_id), self.db
+            # ✅ CRUD MIGRATION: Use campaign_crud for access verification
+            campaign = await campaign_crud.get_campaign_with_access_check(
+                db=self.db,
+                campaign_id=campaign_id,
+                company_id=str(self.user.company_id)
             )
             
             if not campaign:
@@ -85,10 +92,10 @@ class IntelligenceHandler(EnumSerializerMixin):
             
             logger.info(f"✅ Campaign access verified: {campaign.title}")
             
-            # Get intelligence sources
+            # ✅ CRUD MIGRATION: Get intelligence sources using CRUD
             intelligence_sources = await self._get_intelligence_sources(campaign_id)
             
-            # Get generated content
+            # ✅ CRUD MIGRATION: Get generated content using CRUD
             generated_content = await self._get_generated_content(campaign_id)
             
             # Build enhanced response
@@ -103,33 +110,35 @@ class IntelligenceHandler(EnumSerializerMixin):
             return self._build_fallback_response(campaign_id)
     
     async def _get_intelligence_sources(self, campaign_id: str) -> list:
-        """Get all intelligence sources for a campaign"""
+        """Get all intelligence sources for a campaign - CRUD MIGRATION"""
         try:
-            intelligence_result = await self.db.execute(
-                select(CampaignIntelligence).where(
-                    and_(
-                        CampaignIntelligence.campaign_id == campaign_id,
-                        CampaignIntelligence.company_id == self.user.company_id
-                    )
-                ).order_by(CampaignIntelligence.created_at.desc())
+            # ✅ FIXED ChunkedIteratorResult: Use intelligence_crud instead of direct queries
+            intelligence_sources = await intelligence_crud.get_campaign_intelligence(
+                db=self.db,
+                campaign_id=campaign_id,
+                company_id=str(self.user.company_id)
             )
-            return intelligence_result.scalars().all()
+            
+            logger.info(f"📊 Retrieved {len(intelligence_sources)} intelligence sources via CRUD")
+            return intelligence_sources
+            
         except Exception as e:
             logger.error(f"Error getting intelligence sources: {str(e)}")
             return []
 
     async def _get_generated_content(self, campaign_id: str) -> list:
-        """Get all generated content for a campaign"""
+        """Get all generated content for a campaign - CRUD MIGRATION"""
         try:
-            content_result = await self.db.execute(
-                select(GeneratedContent).where(
-                    and_(
-                        GeneratedContent.campaign_id == campaign_id,
-                        GeneratedContent.company_id == self.user.company_id
-                    )
-                ).order_by(GeneratedContent.created_at.desc())
+            # ✅ FIXED ChunkedIteratorResult: Use intelligence_crud for content
+            generated_content = await intelligence_crud.get_generated_content(
+                db=self.db,
+                campaign_id=campaign_id,
+                company_id=str(self.user.company_id)
             )
-            return content_result.scalars().all()
+            
+            logger.info(f"📊 Retrieved {len(generated_content)} generated content items via CRUD")
+            return generated_content
+            
         except Exception as e:
             logger.error(f"Error getting generated content: {str(e)}")
             return []
@@ -247,33 +256,30 @@ class IntelligenceHandler(EnumSerializerMixin):
         }
     
     async def delete_intelligence_source(self, campaign_id: str, intelligence_id: str) -> Dict[str, Any]:
-        """Delete an intelligence source"""
+        """Delete an intelligence source - CRUD MIGRATION"""
         
-        # Verify campaign access
-        campaign = await get_campaign_with_verification(
-            campaign_id, str(self.user.company_id), self.db
+        # ✅ CRUD MIGRATION: Use campaign_crud for access verification
+        campaign = await campaign_crud.get_campaign_with_access_check(
+            db=self.db,
+            campaign_id=campaign_id,
+            company_id=str(self.user.company_id)
         )
         if not campaign:
             raise ValueError("Campaign not found or access denied")
         
-        # Get intelligence source
-        intelligence_result = await self.db.execute(
-            select(CampaignIntelligence).where(
-                and_(
-                    CampaignIntelligence.id == intelligence_id,
-                    CampaignIntelligence.campaign_id == campaign_id,
-                    CampaignIntelligence.company_id == self.user.company_id
-                )
-            )
+        # ✅ CRUD MIGRATION: Use intelligence_crud for intelligence operations
+        intelligence_source = await intelligence_crud.get_intelligence_by_id(
+            db=self.db,
+            intelligence_id=intelligence_id,
+            campaign_id=campaign_id,
+            company_id=str(self.user.company_id)
         )
-        intelligence_source = intelligence_result.scalar_one_or_none()
         
         if not intelligence_source:
             raise ValueError("Intelligence source not found")
         
-        # Delete the source
-        await self.db.delete(intelligence_source)
-        await self.db.commit()
+        # ✅ CRUD MIGRATION: Use CRUD delete method
+        await intelligence_crud.delete(db=self.db, id=intelligence_id)
         
         # Update campaign counters
         await update_campaign_counters(campaign_id, self.db)
@@ -288,24 +294,22 @@ class IntelligenceHandler(EnumSerializerMixin):
         if not self.enhancement_available:
             raise ValueError("Enhancement functions not available. Install amplifier dependencies.")
         
-        # Verify campaign access
-        campaign = await get_campaign_with_verification(
-            campaign_id, str(self.user.company_id), self.db
+        # ✅ CRUD MIGRATION: Use campaign_crud for access verification
+        campaign = await campaign_crud.get_campaign_with_access_check(
+            db=self.db,
+            campaign_id=campaign_id,
+            company_id=str(self.user.company_id)
         )
         if not campaign:
             raise ValueError("Campaign not found or access denied")
         
-        # Get intelligence source
-        intelligence_result = await self.db.execute(
-            select(CampaignIntelligence).where(
-                and_(
-                    CampaignIntelligence.id == intelligence_id,
-                    CampaignIntelligence.campaign_id == campaign_id,
-                    CampaignIntelligence.company_id == self.user.company_id
-                )
-            )
+        # ✅ CRUD MIGRATION: Use intelligence_crud for intelligence operations
+        intelligence_source = await intelligence_crud.get_intelligence_by_id(
+            db=self.db,
+            intelligence_id=intelligence_id,
+            campaign_id=campaign_id,
+            company_id=str(self.user.company_id)
         )
-        intelligence_source = intelligence_result.scalar_one_or_none()
         
         if not intelligence_source:
             raise ValueError("Intelligence source not found")
@@ -546,19 +550,35 @@ class IntelligenceHandler(EnumSerializerMixin):
                 **amplification_metadata
             })
             
-            # Commit changes
-            await self.db.commit()
-            await self.db.refresh(intelligence_source)
+            # ✅ CRUD MIGRATION: Use CRUD update method instead of direct db operations
+            updated_intelligence = await intelligence_crud.update(
+                db=self.db,
+                id=intelligence_source.id,
+                obj_in={
+                    "offer_intelligence": intelligence_source.offer_intelligence,
+                    "psychology_intelligence": intelligence_source.psychology_intelligence,
+                    "content_intelligence": intelligence_source.content_intelligence,
+                    "competitive_intelligence": intelligence_source.competitive_intelligence,
+                    "brand_intelligence": intelligence_source.brand_intelligence,
+                    "scientific_intelligence": intelligence_source.scientific_intelligence,
+                    "credibility_intelligence": intelligence_source.credibility_intelligence,
+                    "market_intelligence": intelligence_source.market_intelligence,
+                    "emotional_transformation_intelligence": intelligence_source.emotional_transformation_intelligence,
+                    "scientific_authority_intelligence": intelligence_source.scientific_authority_intelligence,
+                    "confidence_score": intelligence_source.confidence_score,
+                    "processing_metadata": intelligence_source.processing_metadata
+                }
+            )
             
-            # Verify storage after commit
-            verification_results = self._verify_ai_data_storage(intelligence_source)
+            # Verify storage after update
+            verification_results = self._verify_ai_data_storage(updated_intelligence)
             
             logger.info(f"✅ Intelligence source amplified successfully - Final confidence: {new_confidence:.2f}")
             logger.info(f"📊 AI Categories stored: {verification_results['stored_categories']}/5")
             logger.info(f"💾 Storage verification: {verification_results['all_stored']}")
             
             return {
-                "intelligence_id": str(intelligence_source.id),
+                "intelligence_id": str(updated_intelligence.id),
                 "amplification_applied": True,
                 "confidence_boost": confidence_boost,
                 "opportunities_identified": opportunities_count,
@@ -590,7 +610,12 @@ class IntelligenceHandler(EnumSerializerMixin):
                 **error_metadata
             })
             
-            await self.db.commit()
+            # ✅ CRUD MIGRATION: Use CRUD update for error metadata
+            await intelligence_crud.update(
+                db=self.db,
+                id=intelligence_source.id,
+                obj_in={"processing_metadata": intelligence_source.processing_metadata}
+            )
             
             return {
                 "intelligence_id": str(intelligence_source.id),

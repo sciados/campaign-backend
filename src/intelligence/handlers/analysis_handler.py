@@ -1,10 +1,10 @@
-# src/intelligence/handlers/analysis_handler.py - CLEAN DEDUPLICATED VERSION
+# src/intelligence/handlers/analysis_handler.py - COMPLETE CRUD MIGRATION
 """
-Analysis Handler - Clean version with centralized JSON utilities
-🔧 FIXED: All JSON serialization uses centralized json_utils.py
-🔧 FIXED: SQLAlchemy async/sync issues resolved
-🔧 FIXED: Proper error handling and workflow management
-🔧 FIXED: Always use campaign product name as primary source
+Analysis Handler - Complete CRUD integration with zero ChunkedIteratorResult risk
+✅ CRUD MIGRATION: All database operations now use centralized CRUD system
+✅ FIXED: Direct SQLAlchemy queries replaced with CRUD methods
+✅ FIXED: Manual session management replaced with CRUD patterns
+✅ FIXED: ChunkedIteratorResult elimination across all methods
 """
 import uuid
 import logging
@@ -12,8 +12,6 @@ import traceback
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, text
-from sqlalchemy.orm.attributes import flag_modified
 
 from src.models.user import User
 from src.models.campaign import Campaign, AutoAnalysisStatus, CampaignStatus, CampaignWorkflowState
@@ -23,6 +21,9 @@ from src.models.intelligence import (
     AnalysisStatus
 )
 from ..utils.analyzer_factory import get_analyzer
+
+# 🚀 CRUD MIGRATION: Import centralized CRUD system
+from src.core.crud import campaign_crud, intelligence_crud
 
 # 🔧 CRITICAL FIX: Use centralized JSON utilities
 from src.utils.json_utils import (
@@ -82,7 +83,7 @@ def diagnose_amplification_output(enhanced_analysis: Dict[str, Any]):
 
 
 class AnalysisHandler:
-    """Handle URL analysis operations for streamlined workflow"""
+    """Handle URL analysis operations for streamlined workflow - CRUD MIGRATED"""
     
     def __init__(self, db: AsyncSession, user: User):
         self.db = db
@@ -100,7 +101,7 @@ class AnalysisHandler:
         return {}
     
     async def analyze_url(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Main URL analysis with streamlined workflow integration"""
+        """Main URL analysis with streamlined workflow integration - CRUD MIGRATED"""
         logger.info(f"🎯 Starting STREAMLINED URL analysis for: {request_data.get('url')}")
         
         url = str(request_data.get('url'))
@@ -111,10 +112,10 @@ class AnalysisHandler:
         campaign = None
         
         try:
-            # Get campaign and update status
+            # Get campaign and update status - CRUD MIGRATED
             campaign = await self._get_and_update_campaign(campaign_id)
             
-            # Create intelligence record
+            # Create intelligence record - CRUD MIGRATED
             intelligence = await self._create_intelligence_record(url, campaign_id, analysis_type)
             
             # STEP 1: Base Analysis
@@ -123,11 +124,11 @@ class AnalysisHandler:
             # STEP 2: Amplification
             final_analysis_result = await self._perform_amplification(url, base_analysis_result)
             
-            # STEP 3: Store results
+            # STEP 3: Store results - CRUD MIGRATED
             logger.info("🔄 Storing analysis results for streamlined workflow...")
             await self._store_analysis_results(intelligence, final_analysis_result)
             
-            # STEP 4: Complete campaign
+            # STEP 4: Complete campaign - CRUD MIGRATED
             await self._complete_campaign_analysis(campaign, intelligence, final_analysis_result)
             
             logger.info("✅ Successfully stored analysis results and updated campaign")
@@ -160,19 +161,19 @@ class AnalysisHandler:
             else:
                 # Fallback response when no intelligence record was created
                 return {
-                    "intelligence_id": "00000000-0000-0000-0000-000000000000",  # Required field
+                    "intelligence_id": "00000000-0000-0000-0000-000000000000",
                     "campaign_id": campaign_id if 'campaign_id' in locals() else "unknown",
                     "analysis_status": "failed",
                     "campaign_analysis_status": "failed",
-                    "confidence_score": 0.0,  # Required field
+                    "confidence_score": 0.0,
                     "campaign_confidence_score": 0.0,
                     "workflow_type": "streamlined_2_step",
                     "workflow_state": "analysis_failed",
                     "can_proceed_to_content": False,
-                    "offer_intelligence": {"products": [], "pricing": [], "bonuses": [], "guarantees": [], "value_propositions": []},  # Required field
-                    "psychology_intelligence": {"emotional_triggers": [], "pain_points": [], "target_audience": "Unknown", "persuasion_techniques": []},  # Required field
-                    "competitive_opportunities": [{"description": f"Analysis failed before completion: {str(e)}", "priority": "high"}],  # Required field
-                    "campaign_suggestions": [  # Required field
+                    "offer_intelligence": {"products": [], "pricing": [], "bonuses": [], "guarantees": [], "value_propositions": []},
+                    "psychology_intelligence": {"emotional_triggers": [], "pain_points": [], "target_audience": "Unknown", "persuasion_techniques": []},
+                    "competitive_opportunities": [{"description": f"Analysis failed before completion: {str(e)}", "priority": "high"}],
+                    "campaign_suggestions": [
                         "❌ Analysis failed during initialization",
                         "🔄 Try retrying the analysis",
                         "🛠️ Check server logs for detailed error information",
@@ -189,25 +190,22 @@ class AnalysisHandler:
                     "next_step": "retry_analysis",
                     "error_message": str(e),
                     "step_progress": {
-                        "step_1": 0,  # No progress made
+                        "step_1": 0,
                         "step_2": 0
                     }
                 }
     
     async def _get_and_update_campaign(self, campaign_id: str) -> Campaign:
-        """Get campaign and update status to analyzing"""
+        """Get campaign and update status to analyzing - CRUD MIGRATED"""
         try:
             logger.info(f"🔍 Getting campaign and updating status: {campaign_id}")
         
-            campaign_query = select(Campaign).where(
-                and_(
-                    Campaign.id == uuid.UUID(campaign_id),
-                    Campaign.company_id == self.user.company_id
-                )
+            # ✅ CRUD MIGRATION: Replace direct SQLAlchemy query with CRUD method
+            campaign = await campaign_crud.get_campaign_with_access_check(
+                db=self.db,
+                campaign_id=campaign_id,
+                company_id=str(self.user.company_id)
             )
-        
-            result = await self.db.execute(campaign_query)
-            campaign = result.scalar_one_or_none()  # This is synchronous - no await
         
             if not campaign:
                 raise ValueError(f"Campaign {campaign_id} not found or access denied")
@@ -219,7 +217,6 @@ class AnalysisHandler:
             if hasattr(campaign, 'auto_analysis_status') and campaign.auto_analysis_status:
                 if campaign.auto_analysis_status.value in ['in_progress', 'completed']:
                     logger.warning(f"⚠️ Campaign {campaign_id} analysis already {campaign.auto_analysis_status.value}")
-                    # Don't start analysis again if it's already running or completed
                     if campaign.auto_analysis_status.value == 'completed':
                         raise ValueError(f"Campaign {campaign_id} analysis already completed")
                     elif campaign.auto_analysis_status.value == 'in_progress':
@@ -228,44 +225,51 @@ class AnalysisHandler:
             # Update campaign to analyzing status
             campaign.start_auto_analysis()  # This is synchronous - no await
             
-            # Only the database commit needs await
-            await self.db.commit()
+            # ✅ CRUD MIGRATION: Use CRUD update method instead of direct db.commit()
+            updated_campaign = await campaign_crud.update(
+                db=self.db,
+                id=campaign.id,
+                obj_in={
+                    "auto_analysis_status": campaign.auto_analysis_status,
+                    "auto_analysis_started_at": campaign.auto_analysis_started_at,
+                    "workflow_state": campaign.workflow_state
+                }
+            )
         
-            logger.info(f"✅ Campaign {campaign_id} updated to analyzing status")
-            return campaign
+            logger.info(f"✅ Campaign {campaign_id} updated to analyzing status via CRUD")
+            return updated_campaign
         
         except Exception as e:
             logger.error(f"❌ Failed to get/update campaign: {str(e)}")
-            # Add more specific error logging
             logger.error(f"❌ Exception type: {type(e).__name__}")
             logger.error(f"❌ Exception args: {e.args}")
-            await self.db.rollback()
             raise ValueError(f"Campaign update failed: {str(e)}")
     
     async def _create_intelligence_record(self, url: str, campaign_id: str, analysis_type: str) -> CampaignIntelligence:
-        """Create initial intelligence record"""
+        """Create initial intelligence record - CRUD MIGRATED"""
         try:
             logger.info(f"📝 Creating intelligence record for: {url}")
             
-            intelligence = CampaignIntelligence(
-                source_url=url,
-                source_type=IntelligenceSourceType.SALES_PAGE,
-                campaign_id=uuid.UUID(campaign_id),
-                user_id=self.user.id,
-                company_id=self.user.company_id,
-                analysis_status=AnalysisStatus.PROCESSING
+            # ✅ CRUD MIGRATION: Use intelligence_crud.create instead of direct model creation
+            intelligence_data = {
+                "source_url": url,
+                "source_type": IntelligenceSourceType.SALES_PAGE,
+                "campaign_id": uuid.UUID(campaign_id),
+                "user_id": self.user.id,
+                "company_id": self.user.company_id,
+                "analysis_status": AnalysisStatus.PROCESSING
+            }
+            
+            intelligence = await intelligence_crud.create(
+                db=self.db,
+                obj_in=intelligence_data
             )
             
-            self.db.add(intelligence)
-            await self.db.commit()
-            await self.db.refresh(intelligence)
-            
-            logger.info(f"✅ Created intelligence record: {intelligence.id}")
+            logger.info(f"✅ Created intelligence record via CRUD: {intelligence.id}")
             return intelligence
             
         except Exception as e:
             logger.error(f"❌ Error creating intelligence record: {str(e)}")
-            await self.db.rollback()
             raise
     
     async def _perform_base_analysis(self, url: str, analysis_type: str) -> Dict[str, Any]:
@@ -479,7 +483,7 @@ class AnalysisHandler:
         return providers
     
     async def _store_analysis_results(self, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]):
-        """Store analysis results using centralized JSON utilities - FIXED to use campaign product name"""
+        """Store analysis results using centralized JSON utilities - CRUD MIGRATED"""
         try:
             enhanced_analysis = analysis_result
             
@@ -489,50 +493,22 @@ class AnalysisHandler:
             content_intel = self._validate_intelligence_section(enhanced_analysis.get("content_intelligence", {}))
             competitive_intel = self._validate_intelligence_section(enhanced_analysis.get("competitive_intelligence", {}))
             brand_intel = self._validate_intelligence_section(enhanced_analysis.get("brand_intelligence", {}))
-
-            intelligence.offer_intelligence = safe_json_dumps(offer_intel)
-            intelligence.psychology_intelligence = safe_json_dumps(psychology_intel)
-            intelligence.content_intelligence = safe_json_dumps(content_intel)
-            intelligence.competitive_intelligence = safe_json_dumps(competitive_intel)
-            intelligence.brand_intelligence = safe_json_dumps(brand_intel)
             
             logger.info(f"✅ Base intelligence prepared for streamlined storage")
             
             # Store AI data using fallback method
-            await self._store_ai_data_fallback(intelligence, enhanced_analysis)
+            ai_intelligence_data = await self._prepare_ai_intelligence_data(enhanced_analysis)
             
             # Store metadata and finalize
-            intelligence.confidence_score = enhanced_analysis.get("confidence_score", 0.0)
+            confidence_score = enhanced_analysis.get("confidence_score", 0.0)
             
             # 🔧 CRITICAL FIX: Always use campaign product name as primary source
-            try:
-                # Get the campaign to access the user-provided product name
-                campaign_query = select(Campaign).where(Campaign.id == intelligence.campaign_id)
-                result = await self.db.execute(campaign_query)
-                campaign = result.scalar_one_or_none()
-                
-                if campaign and hasattr(campaign, 'product_name') and campaign.product_name:
-                    # ✅ PRIORITY 1: Use the user-provided product name from campaign setup
-                    intelligence.source_title = campaign.product_name.strip()
-                    logger.info(f"✅ Using campaign product name: '{campaign.product_name}'")
-                    
-                    # 🔧 NEW: Also update the analysis results to use correct product name
-                    enhanced_analysis = self._fix_product_names_in_analysis(enhanced_analysis, campaign.product_name)
-                    
-                elif campaign and hasattr(campaign, 'title') and campaign.title:
-                    # ✅ PRIORITY 2: Use campaign title as fallback
-                    intelligence.source_title = campaign.title.strip()
-                    logger.info(f"✅ Using campaign title as product name: '{campaign.title}'")
-                else:
-                    # ❌ PRIORITY 3: Extraction fallback (should rarely be needed now)
-                    logger.warning("⚠️ No campaign product name found, using extraction fallback")
-                    intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
-                    
-            except Exception as name_error:
-                logger.error(f"❌ Failed to get campaign product name: {str(name_error)}")
-                intelligence.source_title = enhanced_analysis.get("page_title", "Unknown Product")
+            source_title = await self._get_campaign_product_name(intelligence.campaign_id, enhanced_analysis)
             
-            intelligence.raw_content = enhanced_analysis.get("raw_content", "")[:10000]
+            # 🔧 NEW: Also update the analysis results to use correct product name
+            enhanced_analysis = self._fix_product_names_in_analysis(enhanced_analysis, source_title)
+            
+            raw_content = enhanced_analysis.get("raw_content", "")[:10000]
             
             processing_metadata = enhanced_analysis.get("amplification_metadata", {})
             processing_metadata.update({
@@ -541,20 +517,36 @@ class AnalysisHandler:
                 "commit_applied": True,
                 "workflow_type": "streamlined_2_step",
                 "storage_version": "streamlined_2024",
-                "product_name_source": "campaign_user_input"  # 🔧 NEW: Track source
+                "product_name_source": "campaign_user_input"
             })
             
-            intelligence.processing_metadata = serialize_metadata(processing_metadata)
-            intelligence.analysis_status = AnalysisStatus.COMPLETED
+            # ✅ CRUD MIGRATION: Use intelligence_crud.update instead of direct db operations
+            update_data = {
+                "offer_intelligence": safe_json_dumps(offer_intel),
+                "psychology_intelligence": safe_json_dumps(psychology_intel),
+                "content_intelligence": safe_json_dumps(content_intel),
+                "competitive_intelligence": safe_json_dumps(competitive_intel),
+                "brand_intelligence": safe_json_dumps(brand_intel),
+                "confidence_score": confidence_score,
+                "source_title": source_title,
+                "raw_content": raw_content,
+                "processing_metadata": serialize_metadata(processing_metadata),
+                "analysis_status": AnalysisStatus.COMPLETED
+            }
             
-            # Final commit
-            logger.info("🔧 Final commit for streamlined workflow...")
-            await self.db.commit()
-            logger.info("✅ All streamlined analysis results stored successfully")
+            # Add AI intelligence data
+            update_data.update(ai_intelligence_data)
+            
+            updated_intelligence = await intelligence_crud.update(
+                db=self.db,
+                id=intelligence.id,
+                obj_in=update_data
+            )
+            
+            logger.info("✅ All streamlined analysis results stored successfully via CRUD")
             
         except Exception as storage_error:
             logger.error(f"❌ Streamlined storage error: {str(storage_error)}")
-            intelligence.analysis_status = AnalysisStatus.FAILED
             
             error_metadata = {
                 "storage_error": str(storage_error),
@@ -563,15 +555,75 @@ class AnalysisHandler:
                 "storage_fix_attempted": True,
                 "failure_timestamp": datetime.now(timezone.utc)
             }
-            intelligence.processing_metadata = serialize_metadata(error_metadata)
             
+            # ✅ CRUD MIGRATION: Use CRUD update for error handling
             try:
-                await self.db.commit()
-            except Exception as commit_error:
-                logger.error(f"❌ Failed to commit error metadata: {str(commit_error)}")
-                await self.db.rollback()
+                await intelligence_crud.update(
+                    db=self.db,
+                    id=intelligence.id,
+                    obj_in={
+                        "analysis_status": AnalysisStatus.FAILED,
+                        "processing_metadata": serialize_metadata(error_metadata)
+                    }
+                )
+            except Exception as update_error:
+                logger.error(f"❌ Failed to update error metadata via CRUD: {str(update_error)}")
                 
             raise storage_error
+
+    async def _get_campaign_product_name(self, campaign_id: uuid.UUID, enhanced_analysis: Dict[str, Any]) -> str:
+        """Get campaign product name using CRUD - FIXED"""
+        try:
+            # ✅ CRUD MIGRATION: Use campaign_crud instead of direct query
+            campaign = await campaign_crud.get(db=self.db, id=campaign_id)
+            
+            if campaign and hasattr(campaign, 'product_name') and campaign.product_name:
+                # ✅ PRIORITY 1: Use the user-provided product name from campaign setup
+                logger.info(f"✅ Using campaign product name: '{campaign.product_name}'")
+                return campaign.product_name.strip()
+                
+            elif campaign and hasattr(campaign, 'title') and campaign.title:
+                # ✅ PRIORITY 2: Use campaign title as fallback
+                logger.info(f"✅ Using campaign title as product name: '{campaign.title}'")
+                return campaign.title.strip()
+            else:
+                # ❌ PRIORITY 3: Extraction fallback (should rarely be needed now)
+                logger.warning("⚠️ No campaign product name found, using extraction fallback")
+                return enhanced_analysis.get("page_title", "Unknown Product")
+                
+        except Exception as name_error:
+            logger.error(f"❌ Failed to get campaign product name via CRUD: {str(name_error)}")
+            return enhanced_analysis.get("page_title", "Unknown Product")
+
+    async def _prepare_ai_intelligence_data(self, enhanced_analysis: Dict[str, Any]) -> Dict[str, str]:
+        """Prepare AI intelligence data for CRUD update"""
+        ai_intelligence_data = {}
+        
+        ai_keys = [
+            'scientific_intelligence', 'credibility_intelligence', 'market_intelligence', 
+            'emotional_transformation_intelligence', 'scientific_authority_intelligence'
+        ]
+        
+        for key in ai_keys:
+            source_data = enhanced_analysis.get(key, {})
+            validated_data = self._validate_intelligence_section(source_data)
+            
+            if validated_data and validated_data != {}:
+                try:
+                    ai_intelligence_data[key] = safe_json_dumps(validated_data)
+                    item_count = len(validated_data) if isinstance(validated_data, dict) else 1
+                    logger.info(f"✅ Prepared {key} for CRUD storage ({item_count} items)")
+                except Exception as e:
+                    logger.error(f"❌ Failed to prepare {key} for CRUD storage: {str(e)}")
+                    # Create fallback data
+                    fallback_data = {
+                        "fallback_data": True,
+                        "original_error": str(e),
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    }
+                    ai_intelligence_data[key] = safe_json_dumps(fallback_data)
+        
+        return ai_intelligence_data
 
     def _fix_product_names_in_analysis(self, analysis_result: Dict[str, Any], correct_product_name: str) -> Dict[str, Any]:
         """🔧 NEW: Fix product names throughout analysis results"""
@@ -643,92 +695,6 @@ class AnalysisHandler:
         
         return fixed_analysis
     
-    async def _store_ai_data_fallback(self, intelligence: CampaignIntelligence, enhanced_analysis: Dict[str, Any]):
-        """Fallback AI data storage using centralized JSON utilities"""
-        ai_keys = ['scientific_intelligence', 'credibility_intelligence', 'market_intelligence', 
-                  'emotional_transformation_intelligence', 'scientific_authority_intelligence']
-        
-        logger.info("🔧 Using streamlined ORM fallback for AI data storage")
-        
-        successful_saves = 0
-        total_items_saved = 0
-        
-        for key in ai_keys:
-            source_data = enhanced_analysis.get(key, {})
-            validated_data = self._validate_intelligence_section(source_data)
-            
-            if validated_data and validated_data != {}:
-                try:
-                    json_string = safe_json_dumps(validated_data)
-                    setattr(intelligence, key, json_string)
-                    flag_modified(intelligence, key)
-                    
-                    item_count = len(validated_data) if isinstance(validated_data, dict) else 1
-                    total_items_saved += item_count
-                    successful_saves += 1
-                    
-                    logger.info(f"✅ Streamlined storage: {key} set ({item_count} items)")
-                    
-                except Exception as e:
-                    logger.error(f"❌ Streamlined storage failed for {key}: {str(e)}")
-                    
-                    # Store in metadata as backup
-                    try:
-                        current_metadata = deserialize_metadata(intelligence.processing_metadata or "{}")
-                        
-                        if "ai_backup_storage" not in current_metadata:
-                            current_metadata["ai_backup_storage"] = {}
-                        
-                        current_metadata["ai_backup_storage"][key] = validated_data
-                        current_metadata["backup_storage_applied"] = True
-                        current_metadata["backup_storage_timestamp"] = datetime.now(timezone.utc)
-                        current_metadata["workflow_type"] = "streamlined_2_step"
-                        
-                        intelligence.processing_metadata = serialize_metadata(current_metadata)
-                        flag_modified(intelligence, 'processing_metadata')
-                        
-                        logger.info(f"🔄 Stored {key} in streamlined metadata backup ({len(validated_data)} items)")
-                        successful_saves += 1
-                        total_items_saved += len(validated_data) if isinstance(validated_data, dict) else 1
-                        
-                    except Exception as backup_error:
-                        logger.error(f"❌ Streamlined backup storage also failed for {key}: {str(backup_error)}")
-            else:
-                logger.warning(f"⚠️ No valid data to store for {key} in streamlined workflow")
-        
-        # Commit the changes
-        try:
-            logger.info("🔧 Committing streamlined fallback storage changes...")
-            await self.db.commit()
-            logger.info(f"✅ STREAMLINED COMMIT SUCCESS: {successful_saves}/{len(ai_keys)} categories, {total_items_saved} total items")
-            
-            # Simple verification
-            await self._verify_streamlined_storage(intelligence.id)
-        except Exception as commit_error:
-            logger.error(f"❌ CRITICAL: Streamlined commit failed: {str(commit_error)}")
-            await self.db.rollback()
-            raise commit_error
-    
-    async def _verify_streamlined_storage(self, intelligence_id: uuid.UUID):
-        """Simplified verification for streamlined workflow"""
-        try:
-            logger.info("📊 Streamlined storage verification...")
-            
-            count_query = text("SELECT COUNT(*) FROM campaign_intelligence WHERE id = :intelligence_id")
-            count_result = await self.db.execute(count_query, {'intelligence_id': intelligence_id})
-            count = count_result.scalar()
-            
-            if count > 0:
-                logger.info(f"✅ STREAMLINED VERIFICATION: Record exists in database")
-                logger.info(f"   📊 Intelligence ID: {intelligence_id}")
-                logger.info(f"   📊 Workflow: Streamlined 2-step")
-            else:
-                logger.error("❌ STREAMLINED VERIFICATION FAILED: No record found!")
-                
-        except Exception as e:
-            logger.warning(f"⚠️ Streamlined verification skipped: {str(e)}")
-            logger.info("✅ Non-critical - streamlined analysis data was stored successfully")
-    
     def _validate_intelligence_section(self, data: Any) -> Dict[str, Any]:
         """Validate and clean intelligence data section"""
         if isinstance(data, dict):
@@ -741,7 +707,7 @@ class AnalysisHandler:
             return {"value": str(data) if data is not None else ""}
     
     async def _complete_campaign_analysis(self, campaign: Campaign, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]):
-        """Complete campaign analysis and prepare for content generation"""
+        """Complete campaign analysis and prepare for content generation - CRUD MIGRATED"""
         try:
             logger.info(f"🎯 Completing campaign analysis for {campaign.id}")
             
@@ -761,8 +727,22 @@ class AnalysisHandler:
                 campaign.start_content_generation()
                 logger.info("📝 Content generation would be triggered here")
             
-            await self.db.commit()
-            logger.info(f"✅ Campaign analysis completed - Status: {campaign.status}")
+            # ✅ CRUD MIGRATION: Use campaign_crud.update instead of direct db.commit()
+            updated_campaign = await campaign_crud.update(
+                db=self.db,
+                id=campaign.id,
+                obj_in={
+                    "auto_analysis_status": campaign.auto_analysis_status,
+                    "auto_analysis_completed_at": campaign.auto_analysis_completed_at,
+                    "analysis_intelligence_id": campaign.analysis_intelligence_id,
+                    "analysis_confidence_score": campaign.analysis_confidence_score,
+                    "analysis_summary": campaign.analysis_summary,
+                    "workflow_state": campaign.workflow_state,
+                    "status": campaign.status
+                }
+            )
+            
+            logger.info(f"✅ Campaign analysis completed via CRUD - Status: {updated_campaign.status}")
             
         except Exception as e:
             logger.error(f"❌ Failed to complete campaign analysis: {str(e)}")
@@ -823,23 +803,27 @@ class AnalysisHandler:
         return summary
     
     async def _fail_campaign_analysis(self, campaign: Campaign, error: Exception):
-        """Handle campaign analysis failure"""
+        """Handle campaign analysis failure - CRUD MIGRATED"""
         try:
             logger.info(f"❌ Failing campaign analysis for {campaign.id}")
             
             # This method call is synchronous - no await needed
             campaign.fail_auto_analysis(str(error))
             
-            # Only database operations need await
-            await self.db.commit()
+            # ✅ CRUD MIGRATION: Use campaign_crud.update instead of direct db operations
+            await campaign_crud.update(
+                db=self.db,
+                id=campaign.id,
+                obj_in={
+                    "auto_analysis_status": campaign.auto_analysis_status,
+                    "workflow_state": campaign.workflow_state,
+                    "status": campaign.status
+                }
+            )
             
-            logger.info(f"✅ Campaign analysis failed - Status updated")
+            logger.info(f"✅ Campaign analysis failure status updated via CRUD")
         except Exception as update_error:
-            logger.error(f"❌ Failed to update campaign failure status: {str(update_error)}")
-            try:
-                await self.db.rollback()
-            except Exception as rollback_error:
-                logger.error(f"❌ Failed to rollback: {str(rollback_error)}")
+            logger.error(f"❌ Failed to update campaign failure status via CRUD: {str(update_error)}")
     
     async def _update_campaign_counters(self, campaign_id: str):
         """Update campaign counters for streamlined workflow"""
@@ -854,20 +838,26 @@ class AnalysisHandler:
             logger.warning(f"⚠️ Streamlined counter update failed (non-critical): {str(counter_error)}")
     
     async def _handle_analysis_failure(self, intelligence: CampaignIntelligence, error: Exception):
-        """Handle analysis failure in streamlined workflow"""
+        """Handle analysis failure in streamlined workflow - CRUD MIGRATED"""
         try:
-            intelligence.analysis_status = AnalysisStatus.FAILED
             error_metadata = {
                 "error": str(error),
                 "traceback": traceback.format_exc(),
                 "workflow_type": "streamlined_2_step",
                 "failure_timestamp": datetime.now(timezone.utc)
             }
-            intelligence.processing_metadata = serialize_metadata(error_metadata)
-            await self.db.commit()
-        except Exception as commit_error:
-            logger.error(f"❌ Failed to commit failure metadata: {str(commit_error)}")
-            await self.db.rollback()
+            
+            # ✅ CRUD MIGRATION: Use intelligence_crud.update instead of direct db operations
+            await intelligence_crud.update(
+                db=self.db,
+                id=intelligence.id,
+                obj_in={
+                    "analysis_status": AnalysisStatus.FAILED,
+                    "processing_metadata": serialize_metadata(error_metadata)
+                }
+            )
+        except Exception as update_error:
+            logger.error(f"❌ Failed to update failure metadata via CRUD: {str(update_error)}")
     
     def _prepare_streamlined_response(self, campaign: Campaign, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]) -> Dict[str, Any]:
         """Prepare successful streamlined analysis response"""
@@ -970,141 +960,139 @@ class AnalysisHandler:
 
 
 class StreamlinedWorkflowManager:
-    """Manager for streamlined 2-step workflow operations"""
+    """Manager for streamlined 2-step workflow operations - CRUD MIGRATED"""
     
     def __init__(self, db: AsyncSession):
         self.db = db
     
     async def get_campaigns_ready_for_content(self, company_id: uuid.UUID) -> List[Campaign]:
-        """Get campaigns that have completed analysis and are ready for content generation"""
+        """Get campaigns that have completed analysis and are ready for content generation - CRUD MIGRATED"""
         try:
-            query = select(Campaign).where(
-                and_(
-                    Campaign.company_id == company_id,
-                    Campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED,
-                    Campaign.content_generated == 0
-                )
-            ).order_by(Campaign.auto_analysis_completed_at.desc())
+            # ✅ CRUD MIGRATION: Use campaign_crud instead of direct queries
+            filters = {
+                "company_id": company_id,
+                "auto_analysis_status": AutoAnalysisStatus.COMPLETED,
+                "content_generated": 0
+            }
             
-            result = await self.db.execute(query)
-            campaigns = result.scalars().all()
+            campaigns = await campaign_crud.get_multi(
+                db=self.db,
+                filters=filters,
+                order_by="auto_analysis_completed_at DESC"
+            )
             
-            logger.info(f"📊 Found {len(campaigns)} campaigns ready for content generation")
+            logger.info(f"📊 Found {len(campaigns)} campaigns ready for content generation via CRUD")
             return campaigns
             
         except Exception as e:
-            logger.error(f"❌ Error getting campaigns ready for content: {str(e)}")
+            logger.error(f"❌ Error getting campaigns ready for content via CRUD: {str(e)}")
             return []
     
     async def get_campaigns_in_analysis(self, company_id: uuid.UUID) -> List[Campaign]:
-        """Get campaigns currently being analyzed"""
+        """Get campaigns currently being analyzed - CRUD MIGRATED"""
         try:
-            query = select(Campaign).where(
-                and_(
-                    Campaign.company_id == company_id,
-                    Campaign.auto_analysis_status == AutoAnalysisStatus.IN_PROGRESS
-                )
-            ).order_by(Campaign.auto_analysis_started_at.desc())
+            # ✅ CRUD MIGRATION: Use campaign_crud instead of direct queries
+            filters = {
+                "company_id": company_id,
+                "auto_analysis_status": AutoAnalysisStatus.IN_PROGRESS
+            }
             
-            result = await self.db.execute(query)
-            campaigns = result.scalars().all()
+            campaigns = await campaign_crud.get_multi(
+                db=self.db,
+                filters=filters,
+                order_by="auto_analysis_started_at DESC"
+            )
             
-            logger.info(f"📊 Found {len(campaigns)} campaigns currently in analysis")
+            logger.info(f"📊 Found {len(campaigns)} campaigns currently in analysis via CRUD")
             return campaigns
             
         except Exception as e:
-            logger.error(f"❌ Error getting campaigns in analysis: {str(e)}")
+            logger.error(f"❌ Error getting campaigns in analysis via CRUD: {str(e)}")
             return []
     
     async def get_failed_analyses(self, company_id: uuid.UUID) -> List[Campaign]:
-        """Get campaigns with failed analyses that need retry"""
+        """Get campaigns with failed analyses that need retry - CRUD MIGRATED"""
         try:
-            query = select(Campaign).where(
-                and_(
-                    Campaign.company_id == company_id,
-                    Campaign.auto_analysis_status == AutoAnalysisStatus.FAILED
-                )
-            ).order_by(Campaign.updated_at.desc())
+            # ✅ CRUD MIGRATION: Use campaign_crud instead of direct queries
+            filters = {
+                "company_id": company_id,
+                "auto_analysis_status": AutoAnalysisStatus.FAILED
+            }
             
-            result = await self.db.execute(query)
-            campaigns = result.scalars().all()
+            campaigns = await campaign_crud.get_multi(
+                db=self.db,
+                filters=filters,
+                order_by="updated_at DESC"
+            )
             
-            logger.info(f"📊 Found {len(campaigns)} campaigns with failed analyses")
+            logger.info(f"📊 Found {len(campaigns)} campaigns with failed analyses via CRUD")
             return campaigns
             
         except Exception as e:
-            logger.error(f"❌ Error getting failed analyses: {str(e)}")
+            logger.error(f"❌ Error getting failed analyses via CRUD: {str(e)}")
             return []
     
     async def get_workflow_summary(self, company_id: uuid.UUID) -> Dict[str, Any]:
-        """Get comprehensive workflow summary for dashboard"""
+        """Get comprehensive workflow summary for dashboard - CRUD MIGRATED"""
         try:
+            # ✅ CRUD MIGRATION: Use campaign_crud for aggregation instead of direct queries
+            
             # Get counts for different analysis states
-            pending_query = select(func.count(Campaign.id)).where(
-                and_(
-                    Campaign.company_id == company_id,
-                    Campaign.auto_analysis_status == AutoAnalysisStatus.PENDING
-                )
+            pending_count = await campaign_crud.count_by_filters(
+                db=self.db,
+                filters={
+                    "company_id": company_id,
+                    "auto_analysis_status": AutoAnalysisStatus.PENDING
+                }
             )
             
-            analyzing_query = select(func.count(Campaign.id)).where(
-                and_(
-                    Campaign.company_id == company_id,
-                    Campaign.auto_analysis_status == AutoAnalysisStatus.IN_PROGRESS
-                )
+            analyzing_count = await campaign_crud.count_by_filters(
+                db=self.db,
+                filters={
+                    "company_id": company_id,
+                    "auto_analysis_status": AutoAnalysisStatus.IN_PROGRESS
+                }
             )
             
-            completed_query = select(func.count(Campaign.id)).where(
-                and_(
-                    Campaign.company_id == company_id,
-                    Campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED
-                )
+            completed_count = await campaign_crud.count_by_filters(
+                db=self.db,
+                filters={
+                    "company_id": company_id,
+                    "auto_analysis_status": AutoAnalysisStatus.COMPLETED
+                }
             )
             
-            failed_query = select(func.count(Campaign.id)).where(
-                and_(
-                    Campaign.company_id == company_id,
-                    Campaign.auto_analysis_status == AutoAnalysisStatus.FAILED
-                )
+            failed_count = await campaign_crud.count_by_filters(
+                db=self.db,
+                filters={
+                    "company_id": company_id,
+                    "auto_analysis_status": AutoAnalysisStatus.FAILED
+                }
             )
             
-            content_ready_query = select(func.count(Campaign.id)).where(
-                and_(
-                    Campaign.company_id == company_id,
-                    Campaign.auto_analysis_status == AutoAnalysisStatus.COMPLETED,
-                    Campaign.content_generated == 0
-                )
+            content_ready_count = await campaign_crud.count_by_filters(
+                db=self.db,
+                filters={
+                    "company_id": company_id,
+                    "auto_analysis_status": AutoAnalysisStatus.COMPLETED,
+                    "content_generated": 0
+                }
             )
-            
-            # Execute all queries
-            pending_result = await self.db.execute(pending_query)
-            analyzing_result = await self.db.execute(analyzing_query)
-            completed_result = await self.db.execute(completed_query)
-            failed_result = await self.db.execute(failed_query)
-            content_ready_result = await self.db.execute(content_ready_query)
             
             return {
                 "workflow_type": "streamlined_2_step",
-                "analysis_pending": pending_result.scalar() or 0,
-                "analysis_in_progress": analyzing_result.scalar() or 0,
-                "analysis_completed": completed_result.scalar() or 0,
-                "analysis_failed": failed_result.scalar() or 0,
-                "ready_for_content": content_ready_result.scalar() or 0,
-                "total_campaigns": (
-                    (pending_result.scalar() or 0) +
-                    (analyzing_result.scalar() or 0) +
-                    (completed_result.scalar() or 0) +
-                    (failed_result.scalar() or 0)
-                ),
-                "analysis_success_rate": self._calculate_success_rate(
-                    completed_result.scalar() or 0,
-                    failed_result.scalar() or 0
-                ),
+                "analysis_pending": pending_count,
+                "analysis_in_progress": analyzing_count,
+                "analysis_completed": completed_count,
+                "analysis_failed": failed_count,
+                "ready_for_content": content_ready_count,
+                "total_campaigns": pending_count + analyzing_count + completed_count + failed_count,
+                "analysis_success_rate": self._calculate_success_rate(completed_count, failed_count),
                 "generated_at": datetime.now(timezone.utc)
             }
             
         except Exception as e:
-            logger.error(f"❌ Error getting workflow summary: {str(e)}")
+            logger.error(f"❌ Error getting workflow summary via CRUD: {str(e)}")
             return {
                 "workflow_type": "streamlined_2_step",
                 "error": str(e),

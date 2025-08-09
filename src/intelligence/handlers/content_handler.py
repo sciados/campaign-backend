@@ -1,21 +1,24 @@
 """
 File: src/intelligence/handlers/content_handler.py
-🔧 FIXED: Content Handler - Async Issue Resolution
-✅ FIXED: "object NoneType can't be used in 'await' expression" error
-✅ FIXED:  content generation function properly async
-✅ FIXED: Direct factory usage with proper error handling
+✅ CRUD MIGRATION: Complete database operation migration to CRUD system
+✅ FIXED: ChunkedIteratorResult elimination across all database queries
+✅ FIXED: Direct SQLAlchemy queries replaced with CRUD methods
+✅ FIXED: Async issue resolution with proper CRUD patterns
 """
 import json
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
 from fastapi import HTTPException
 
 from src.models.user import User
 from src.models.campaign import Campaign
 from src.models.intelligence import CampaignIntelligence, GeneratedContent
+
+# 🚀 CRUD MIGRATION: Import centralized CRUD system
+from src.core.crud import campaign_crud, intelligence_crud
+
 from ..utils.campaign_helpers import update_campaign_counters
 from ..utils.enum_serializer import EnumSerializerMixin
 
@@ -24,21 +27,21 @@ from src.utils.json_utils import json_serial
 
 logger = logging.getLogger(__name__)
 
-# 🔧 FIXED:  content generation with proper async handling
+# 🔧 FIXED: content generation with proper async handling
 async def content_generation(
     content_type: str, 
     intelligence_data: Dict[str, Any], 
     preferences: Dict[str, Any] = None
 ) -> Dict[str, Any]:
     """
-    🔧 FIXED:  content generation with ultra-cheap AI and proper async handling
+    🔧 FIXED: content generation with ultra-cheap AI and proper async handling
     This function now properly handles async operations and prevents NoneType errors
     """
     
     if preferences is None:
         preferences = {}
     
-    logger.info(f"🎯  content generation: {content_type}")
+    logger.info(f"🎯 content generation: {content_type}")
     
     try:
         # Import and use factory directly for reliable generation
@@ -57,11 +60,11 @@ async def content_generation(
         if not isinstance(result, dict):
             raise ValueError(f"Factory returned invalid result type: {type(result)}")
         
-        logger.info(f"✅  generation successful: {content_type}")
+        logger.info(f"✅ generation successful: {content_type}")
         return result
         
     except Exception as e:
-        logger.error(f"❌  generation failed for {content_type}: {str(e)}")
+        logger.error(f"❌ generation failed for {content_type}: {str(e)}")
         
         # 🔧 FIXED: Return proper fallback instead of raising
         return await _generate_fallback_content(content_type, intelligence_data, str(e))
@@ -150,7 +153,7 @@ async def _generate_fallback_content(
     }
 
 class ContentHandler(EnumSerializerMixin):
-    """🔧 FIXED: Content Handler with proper async handling and error prevention"""
+    """✅ CRUD MIGRATED: Content Handler with complete CRUD integration"""
     
     def __init__(self, db: AsyncSession, user: User):
         self.db = db
@@ -188,7 +191,7 @@ class ContentHandler(EnumSerializerMixin):
         return {}
     
     async def generate_content(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
-        """🔧 FIXED: Generate content with proper error handling and async operations"""
+        """✅ CRUD MIGRATED: Generate content with complete CRUD integration"""
         logger.info(f"🎯 Content generation request received")
         
         content_type = request_data.get("content_type", "email_sequence")
@@ -201,10 +204,10 @@ class ContentHandler(EnumSerializerMixin):
         self.generation_stats["total_generations"] += 1
         
         try:
-            # Verify campaign access
+            # Verify campaign access - CRUD MIGRATED
             campaign = await self._verify_campaign_access(campaign_id)
             
-            # Get intelligence data
+            # Get intelligence data - CRUD MIGRATED
             intelligence_data = await self._prepare_intelligence_data(campaign_id, campaign)
             
             # 🔧 FIXED: Use enhanced content generation with proper error handling
@@ -226,7 +229,7 @@ class ContentHandler(EnumSerializerMixin):
                 self.generation_stats["fallback_generations"] += 1
                 logger.warning(f"⚠️ Fallback generation used for {content_type}")
             
-            # Save generated content
+            # Save generated content - CRUD MIGRATED
             content_id = await self._save_generated_content(
                 campaign_id, content_type, result, preferences, intelligence_data
             )
@@ -287,23 +290,25 @@ class ContentHandler(EnumSerializerMixin):
     async def get_content_list(
         self, campaign_id: str, include_body: bool = False, content_type: Optional[str] = None
     ) -> Dict[str, Any]:
-        """🔐 SECURE: Get list of generated content with proper user filtering"""
-        # Verify campaign access first
+        """✅ CRUD MIGRATED: Get list of generated content with CRUD patterns"""
+        # Verify campaign access first - CRUD MIGRATED
         await self._verify_campaign_access(campaign_id)
         
-        # Build query with security filters
-        query = select(GeneratedContent).where(
-            and_(
-                GeneratedContent.campaign_id == campaign_id,
-                GeneratedContent.company_id == self.user.company_id,
-            )
-        ).order_by(GeneratedContent.created_at.desc())
+        # ✅ CRUD MIGRATION: Use intelligence_crud for content queries
+        filters = {
+            "campaign_id": campaign_id,
+            "company_id": str(self.user.company_id)
+        }
         
         if content_type:
-            query = query.where(GeneratedContent.content_type == content_type)
+            filters["content_type"] = content_type
         
-        result = await self.db.execute(query)
-        content_items = result.scalars().all()
+        content_items = await intelligence_crud.get_generated_content(
+            db=self.db,
+            campaign_id=campaign_id,
+            company_id=str(self.user.company_id),
+            content_type=content_type
+        )
         
         # Format response
         content_list = []
@@ -360,14 +365,14 @@ class ContentHandler(EnumSerializerMixin):
         }
     
     async def get_content_detail(self, campaign_id: str, content_id: str) -> Dict[str, Any]:
-        """Get detailed content including full body"""
-        # Get content with verification
+        """✅ CRUD MIGRATED: Get detailed content including full body"""
+        # Get content with verification - CRUD MIGRATED
         content_item = await self._get_content_with_verification(campaign_id, content_id)
         
         # Parse content body
         parsed_content = self._parse_content_body(content_item.content_body)
         
-        # Get intelligence source info
+        # Get intelligence source info - CRUD MIGRATED
         intelligence_info = await self._get_intelligence_source_info(content_item.intelligence_id)
         
         # Extract ultra-cheap AI info
@@ -403,8 +408,8 @@ class ContentHandler(EnumSerializerMixin):
     async def update_content(
         self, campaign_id: str, content_id: str, update_data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Update generated content"""
-        # Get content with verification
+        """✅ CRUD MIGRATED: Update generated content using CRUD patterns"""
+        # Get content with verification - CRUD MIGRATED
         content_item = await self._get_content_with_verification(campaign_id, content_id)
         
         # Update allowed fields
@@ -413,49 +418,53 @@ class ContentHandler(EnumSerializerMixin):
             'user_rating', 'is_published', 'published_at', 'performance_data'
         ]
         
+        update_obj = {}
         for field, value in update_data.items():
-            if field in allowed_fields and hasattr(content_item, field):
-                setattr(content_item, field, value)
+            if field in allowed_fields:
+                update_obj[field] = value
         
-        # Update timestamp
-        content_item.updated_at = datetime.now(timezone.utc)
+        # Add timestamp
+        update_obj['updated_at'] = datetime.now(timezone.utc)
         
-        await self.db.commit()
-        await self.db.refresh(content_item)
+        # ✅ CRUD MIGRATION: Use intelligence_crud for content updates
+        updated_content = await intelligence_crud.update_generated_content(
+            db=self.db,
+            content_id=content_id,
+            update_data=update_obj
+        )
         
         return {
-            "id": str(content_item.id),
+            "id": str(updated_content.id),
             "message": "Content updated successfully",
-            "updated_at": content_item.updated_at.isoformat()
+            "updated_at": updated_content.updated_at.isoformat()
         }
     
     async def delete_content(self, campaign_id: str, content_id: str) -> Dict[str, Any]:
-        """Delete generated content"""
-        # Get content with verification
+        """✅ CRUD MIGRATED: Delete generated content using CRUD patterns"""
+        # Get content with verification - CRUD MIGRATED
         content_item = await self._get_content_with_verification(campaign_id, content_id)
         
-        # Delete the content
-        await self.db.delete(content_item)
-        await self.db.commit()
+        # ✅ CRUD MIGRATION: Use intelligence_crud for content deletion
+        await intelligence_crud.delete_generated_content(
+            db=self.db,
+            content_id=content_id
+        )
         
         # Update campaign counters
         await self._update_campaign_counters(campaign_id)
         
         return {"message": "Content deleted successfully"}
     
-    # Private helper methods
+    # Private helper methods - CRUD MIGRATED
     
     async def _verify_campaign_access(self, campaign_id: str) -> Campaign:
-        """🔐 SECURE: Verify user has access to the campaign"""
-        campaign_result = await self.db.execute(
-            select(Campaign).where(
-                and_(
-                    Campaign.id == campaign_id,
-                    Campaign.company_id == self.user.company_id
-                )
-            )
+        """✅ CRUD MIGRATED: Verify user has access to the campaign"""
+        campaign = await campaign_crud.get_campaign_with_access_check(
+            db=self.db,
+            campaign_id=campaign_id,
+            company_id=str(self.user.company_id)
         )
-        campaign = campaign_result.scalar_one_or_none()
+        
         if not campaign:
             raise HTTPException(
                 status_code=403, 
@@ -464,14 +473,13 @@ class ContentHandler(EnumSerializerMixin):
         return campaign
     
     async def _prepare_intelligence_data(self, campaign_id: str, campaign: Campaign) -> Dict[str, Any]:
-        """Prepare intelligence data for content generation with enum serialization"""
-        # Get intelligence sources
-        intelligence_result = await self.db.execute(
-            select(CampaignIntelligence).where(
-                CampaignIntelligence.campaign_id == campaign_id
-            )
+        """✅ CRUD MIGRATED: Prepare intelligence data for content generation"""
+        # ✅ CRUD MIGRATION: Get intelligence sources using CRUD
+        intelligence_sources = await intelligence_crud.get_campaign_intelligence(
+            db=self.db,
+            campaign_id=campaign_id,
+            company_id=str(self.user.company_id)
         )
-        intelligence_sources = intelligence_result.scalars().all()
         
         # Prepare intelligence data structure
         intelligence_data = {
@@ -543,7 +551,7 @@ class ContentHandler(EnumSerializerMixin):
         self, campaign_id: str, content_type: str, result: Dict[str, Any], 
         preferences: Dict[str, Any], intelligence_data: Dict[str, Any]
     ) -> str:
-        """🔐 SECURE: Save generated content with ultra-cheap AI tracking"""
+        """✅ CRUD MIGRATED: Save generated content using CRUD patterns"""
         intelligence_sources = intelligence_data.get("intelligence_sources", [])
         
         # Check for amplification data
@@ -560,16 +568,17 @@ class ContentHandler(EnumSerializerMixin):
         provider_used = metadata.get("provider_used", "unknown")
         generation_cost = metadata.get("generation_cost", 0.0)
         
-        generated_content = GeneratedContent(
-            campaign_id=campaign_id,
-            company_id=self.user.company_id,
-            user_id=self.user.id,
-            content_type=content_type,
-            content_title=result.get("title", f"Generated {content_type.title()}"),
-            content_body=json.dumps(result.get("content", {}), default=json_serial),
-            content_metadata=result.get("metadata", {}),
-            generation_settings=preferences,
-            intelligence_used={
+        # ✅ CRUD MIGRATION: Use intelligence_crud to create content
+        content_data = {
+            "campaign_id": campaign_id,
+            "company_id": self.user.company_id,
+            "user_id": self.user.id,
+            "content_type": content_type,
+            "content_title": result.get("title", f"Generated {content_type.title()}"),
+            "content_body": json.dumps(result.get("content", {}), default=json_serial),
+            "content_metadata": result.get("metadata", {}),
+            "generation_settings": preferences,
+            "intelligence_used": {
                 "sources_count": len(intelligence_sources),
                 "primary_source_id": str(intelligence_sources[0]["id"]) if intelligence_sources else None,
                 "generation_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -588,7 +597,7 @@ class ContentHandler(EnumSerializerMixin):
                 "user_tier": getattr(self.user, 'tier', 'standard')
             },
             # 🔧 CRITICAL FIX: Populate performance_data to prevent infinite loop
-            performance_data={
+            "performance_data": {
                 "generation_time": metadata.get("generation_time", 0.0),
                 "total_tokens": metadata.get("total_tokens", 0),
                 "quality_score": metadata.get("quality_score", 80),
@@ -601,14 +610,15 @@ class ContentHandler(EnumSerializerMixin):
                 "generated_by": self.user.email,
                 "user_tier": getattr(self.user, 'tier', 'standard')
             },
-            is_published=False
+            "is_published": False
+        }
+        
+        generated_content = await intelligence_crud.create_generated_content(
+            db=self.db,
+            content_data=content_data
         )
         
-        self.db.add(generated_content)
-        await self.db.commit()
-        await self.db.refresh(generated_content)
-        
-        logger.info(f"✅ Content saved for user {self.user.email} with {len(amplified_sources)} amplified sources")
+        logger.info(f"✅ Content saved via CRUD for user {self.user.email} with {len(amplified_sources)} amplified sources")
         return str(generated_content.id)
     
     def _count_ai_categories(self, intelligence_sources: List[Dict[str, Any]]) -> Dict[str, int]:
@@ -633,17 +643,14 @@ class ContentHandler(EnumSerializerMixin):
         return category_counts
     
     async def _get_content_with_verification(self, campaign_id: str, content_id: str) -> GeneratedContent:
-        """🔐 SECURE: Get content with full security verification"""
-        content_result = await self.db.execute(
-            select(GeneratedContent).where(
-                and_(
-                    GeneratedContent.id == content_id,
-                    GeneratedContent.campaign_id == campaign_id,
-                    GeneratedContent.company_id == self.user.company_id
-                )
-            )
+        """✅ CRUD MIGRATED: Get content with full security verification"""
+        content_item = await intelligence_crud.get_generated_content_by_id(
+            db=self.db,
+            content_id=content_id,
+            campaign_id=campaign_id,
+            company_id=str(self.user.company_id)
         )
-        content_item = content_result.scalar_one_or_none()
+        
         if not content_item:
             raise HTTPException(
                 status_code=403,
@@ -688,16 +695,16 @@ class ContentHandler(EnumSerializerMixin):
             return "Content available"
     
     async def _get_intelligence_source_info(self, intelligence_id: Optional[str]) -> Optional[Dict[str, Any]]:
-        """Get intelligence source information if available"""
+        """✅ CRUD MIGRATED: Get intelligence source information if available"""
         if not intelligence_id:
             return None
         
-        intel_result = await self.db.execute(
-            select(CampaignIntelligence).where(
-                CampaignIntelligence.id == intelligence_id
-            )
+        # ✅ CRUD MIGRATION: Use intelligence_crud instead of direct query
+        intelligence_source = await intelligence_crud.get_intelligence_by_id(
+            db=self.db,
+            intelligence_id=intelligence_id,
+            company_id=str(self.user.company_id)
         )
-        intelligence_source = intel_result.scalar_one_or_none()
         
         if not intelligence_source:
             return None
@@ -725,7 +732,6 @@ class ContentHandler(EnumSerializerMixin):
         """Update campaign counters (non-critical)"""
         try:
             await update_campaign_counters(campaign_id, self.db)
-            await self.db.commit()
         except Exception as counter_error:
             logger.warning(f"⚠️ Campaign counter update failed (non-critical): {str(counter_error)}")
     

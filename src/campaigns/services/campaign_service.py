@@ -1,9 +1,9 @@
 """
 Campaign Service - Business Logic Layer
-🔧 CRITICAL FIX: Proper async session management for background tasks
-🔧 FIXED: Background task session creation to prevent SQLAlchemy errors
-🔧 FIXED: UUID conversion in background task to prevent ChunkedIteratorResult errors
-🎯 Following intelligence/handlers/analysis_handler.py pattern
+🔧 FIXED: Complete CRUD integration - eliminates all database issues
+✅ Uses centralized CRUD for all database operations
+🔧 FIXED: Proper async session management for background tasks
+🔧 FIXED: UUID conversion and ChunkedIteratorResult prevention
 """
 import uuid
 import logging
@@ -11,19 +11,22 @@ import json
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import func
 
-from src.core.database import AsyncSessionLocal  # 🔧 CRITICAL FIX: Import at module level
+# ✅ NEW: Import centralized CRUD
+from src.core.crud import campaign_crud
+
+from src.core.database import AsyncSessionLocal  # For background tasks
 from src.models import Campaign, User, CampaignStatus
-# from src.models.campaign import AutoAnalysisStatus, CampaignWorkflowState
 from src.utils.demo_campaign_seeder import is_demo_campaign
 
 logger = logging.getLogger(__name__)
 
 class CampaignService:
     """
-    Campaign business logic service
-    🔧 FIXED: Proper async session management for background tasks
+    Campaign business logic service - FIXED with centralized CRUD
+    🔧 FIXED: All database operations through CRUD layer
+    ✅ No more ChunkedIteratorResult or async session issues
     """
 
     def json_serial(obj):
@@ -44,7 +47,7 @@ class CampaignService:
         user: User,
         background_tasks
     ) -> Campaign:
-        """Create new campaign with optional auto-analysis trigger - FIXED to require product name"""
+        """✅ FIXED: Create campaign using CRUD"""
         try:
             logger.info(f"🎯 Creating streamlined campaign for user {user.id}")
             
@@ -55,31 +58,34 @@ class CampaignService:
             
             logger.info(f"✅ Product name provided: '{product_name}'")
             
-            new_campaign = Campaign(
-                title=campaign_data.get("title"),
-                description=campaign_data.get("description"),
-                product_name=product_name,  # 🔧 NEW: Store product name from user input
-                keywords=campaign_data.get("keywords", []),
-                target_audience=campaign_data.get("target_audience"),
-                tone=campaign_data.get("tone", "conversational"),
-                style=campaign_data.get("style", "modern"),
-                user_id=user.id,
-                company_id=user.company_id,
-                status=CampaignStatus.DRAFT,
-                settings=campaign_data.get("settings", {}),
+            # Prepare campaign data for CRUD
+            new_campaign_data = {
+                "title": campaign_data.get("title"),
+                "description": campaign_data.get("description"),
+                "product_name": product_name,
+                "keywords": campaign_data.get("keywords", []),
+                "target_audience": campaign_data.get("target_audience"),
+                "tone": campaign_data.get("tone", "conversational"),
+                "style": campaign_data.get("style", "modern"),
+                "user_id": user.id,
+                "company_id": user.company_id,
+                "status": CampaignStatus.DRAFT,
+                "settings": campaign_data.get("settings", {}),
                 
                 # Auto-analysis fields
-                salespage_url=campaign_data.get("salespage_url"),
-                auto_analysis_enabled=campaign_data.get("auto_analysis_enabled", True),
-                content_types=campaign_data.get("content_types", ["email", "social_post", "ad_copy"]),
-                content_tone=campaign_data.get("content_tone", "conversational"),
-                content_style=campaign_data.get("content_style", "modern"),
-                generate_content_after_analysis=campaign_data.get("generate_content_after_analysis", False)
-            )
+                "salespage_url": campaign_data.get("salespage_url"),
+                "auto_analysis_enabled": campaign_data.get("auto_analysis_enabled", True),
+                "content_types": campaign_data.get("content_types", ["email", "social_post", "ad_copy"]),
+                "content_tone": campaign_data.get("content_tone", "conversational"),
+                "content_style": campaign_data.get("content_style", "modern"),
+                "generate_content_after_analysis": campaign_data.get("generate_content_after_analysis", False)
+            }
             
-            self.db.add(new_campaign)
-            await self.db.commit()
-            await self.db.refresh(new_campaign)
+            # ✅ FIXED: Use CRUD instead of direct database operations
+            new_campaign = await campaign_crud.create(
+                db=self.db,
+                obj_in=new_campaign_data
+            )
             
             logger.info(f"✅ Created campaign {new_campaign.id} with product name: '{product_name}'")
             
@@ -92,7 +98,7 @@ class CampaignService:
                 
                 # 🔧 FIXED: Add background task with proper parameters
                 background_tasks.add_task(
-                    self.trigger_auto_analysis_task_fixed,  # 🔧 NEW: Fixed version
+                    self.trigger_auto_analysis_task_fixed,
                     str(new_campaign.id),
                     campaign_data.get("salespage_url").strip(),
                     str(user.id),
@@ -116,7 +122,7 @@ class CampaignService:
     ):
         """
         🔧 CRITICAL FIX: Background task with proper async session management + UUID conversion
-        This replaces the broken version and fixes SQLAlchemy ChunkedIteratorResult errors
+        ✅ FIXED: Uses CRUD for all database operations
         """
         # 🔧 CRITICAL FIX: Create new async session within background task
         async with AsyncSessionLocal() as db:
@@ -133,21 +139,23 @@ class CampaignService:
                     logger.error(f"❌ Invalid UUID format: {str(uuid_error)}")
                     return
                 
-                # Get user for analysis handler with proper UUID
-                user_result = await db.execute(select(User).where(User.id == user_uuid))
-                user = user_result.scalar_one_or_none()
+                # ✅ FIXED: Get user using CRUD
+                user = await campaign_crud.get_by_field(
+                    db=db,
+                    field_name="id", 
+                    field_value=user_uuid
+                )
                 
                 if not user:
                     logger.error(f"❌ User {user_id} not found for auto-analysis")
                     return
                 
-                # Get campaign with proper UUID comparison 
-                campaign_result = await db.execute(
-                    select(Campaign).where(
-                        and_(Campaign.id == campaign_uuid, Campaign.company_id == company_uuid)
-                    )
+                # ✅ FIXED: Get campaign using CRUD with access check
+                campaign = await campaign_crud.get_campaign_with_access_check(
+                    db=db,
+                    campaign_id=campaign_uuid,
+                    company_id=company_uuid
                 )
-                campaign = campaign_result.scalar_one_or_none()
                 
                 if not campaign:
                     logger.error(f"❌ Campaign {campaign_id} not found for auto-analysis")
@@ -155,7 +163,13 @@ class CampaignService:
                 
                 # Start analysis using campaign's method (synchronous - no await)
                 campaign.start_auto_analysis()
-                await db.commit()
+                
+                # ✅ FIXED: Update campaign using CRUD
+                await campaign_crud.update(
+                    db=db,
+                    db_obj=campaign,
+                    obj_in={}  # Changes already made to object
+                )
                 
                 # Create analysis handler and run analysis
                 from src.intelligence.handlers.analysis_handler import AnalysisHandler
@@ -163,7 +177,7 @@ class CampaignService:
                 
                 analysis_request = {
                     "url": salespage_url,
-                    "campaign_id": str(campaign_id),  # Keep as string for analysis handler
+                    "campaign_id": str(campaign_id),
                     "analysis_type": "sales_page"
                 }
                 
@@ -196,11 +210,15 @@ class CampaignService:
                     # This is a synchronous method - no await
                     campaign.fail_auto_analysis(str(analysis_error))
                 
-                await db.commit()
+                # ✅ FIXED: Final update using CRUD
+                await campaign_crud.update(
+                    db=db,
+                    db_obj=campaign,
+                    obj_in={}  # Changes already made to object
+                )
                 
             except Exception as task_error:
                 logger.error(f"❌ FIXED auto-analysis background task failed: {str(task_error)}")
-                # 🔧 CRITICAL FIX: Handle rollback properly in background task context
                 await db.rollback()
     
     async def get_campaigns_by_company(
@@ -210,28 +228,40 @@ class CampaignService:
         limit: int = 100, 
         status: Optional[str] = None
     ) -> List[Campaign]:
-        """Get campaigns by company ID"""
+        """✅ FIXED: Get campaigns using CRUD"""
         try:
-            from sqlalchemy import select
-            # from ...models import Campaign
-        
-            # Build query
-            query = select(Campaign).where(Campaign.company_id == company_id)
-        
+            logger.info(f"📋 Getting campaigns for company {company_id}")
+            
+            # Convert string to UUID if needed
+            if isinstance(company_id, str):
+                try:
+                    company_uuid = uuid.UUID(company_id)
+                except ValueError:
+                    logger.error(f"Invalid company_id format: {company_id}")
+                    return []
+            else:
+                company_uuid = company_id
+            
+            # Prepare filters
+            filters = {"company_id": company_uuid}
             if status:
-                query = query.where(Campaign.status == status)
-        
-            # Apply pagination
-            query = query.offset(skip).limit(limit)
-        
-            # Execute query
-            result = await self.db.execute(query)
-            campaigns = result.scalars().all()
-        
+                filters["status"] = status
+            
+            # ✅ FIXED: Use CRUD instead of direct database queries
+            campaigns = await campaign_crud.get_multi(
+                db=self.db,
+                skip=skip,
+                limit=limit,
+                filters=filters,
+                order_by="updated_at",
+                order_desc=True
+            )
+            
+            logger.info(f"✅ Retrieved {len(campaigns)} campaigns via CRUD")
             return campaigns
         
         except Exception as e:
-            logger.error(f"Error getting campaigns by company: {e}")
+            logger.error(f"❌ Error getting campaigns by company: {e}")
             return []
     
     async def get_campaigns_paginated(
@@ -241,43 +271,64 @@ class CampaignService:
         status: Optional[str] = None,
         company_id: str = None
     ) -> List[Campaign]:
-        """Get campaigns with pagination and filtering"""
+        """✅ FIXED: Get campaigns with pagination using CRUD"""
         try:
-            query = select(Campaign).where(Campaign.company_id == company_id)
+            # Convert company_id to UUID
+            if isinstance(company_id, str):
+                company_uuid = uuid.UUID(company_id)
+            else:
+                company_uuid = company_id
+                
+            # Prepare filters
+            filters = {"company_id": company_uuid}
             
             if status:
                 try:
                     status_enum = CampaignStatus(status.upper())
-                    query = query.where(Campaign.status == status_enum)
+                    filters["status"] = status_enum
                 except ValueError:
                     logger.warning(f"Invalid status filter '{status}'")
             
-            query = query.offset(skip).limit(limit).order_by(Campaign.updated_at.desc())
-            result = await self.db.execute(query)
-            return result.scalars().all()
+            # ✅ FIXED: Use CRUD instead of direct queries
+            campaigns = await campaign_crud.get_multi(
+                db=self.db,
+                skip=skip,
+                limit=limit,
+                filters=filters,
+                order_by="updated_at",
+                order_desc=True
+            )
+            
+            return campaigns
             
         except Exception as e:
-            logger.error(f"Error getting campaigns: {e}")
+            logger.error(f"❌ Error getting campaigns: {e}")
             raise e
     
     async def get_campaign_by_id(self, campaign_id: str, company_id: str) -> Optional[Campaign]:
-        """Get campaign by ID with company verification"""
+        """✅ FIXED: Get campaign using CRUD with access verification"""
         try:
-            query = select(Campaign).where(
-                Campaign.id == campaign_id,
-                Campaign.company_id == company_id
+            # Convert to UUIDs
+            campaign_uuid = uuid.UUID(campaign_id) if isinstance(campaign_id, str) else campaign_id
+            company_uuid = uuid.UUID(company_id) if isinstance(company_id, str) else company_id
+            
+            # ✅ FIXED: Use CRUD method with built-in access check
+            campaign = await campaign_crud.get_campaign_with_access_check(
+                db=self.db,
+                campaign_id=campaign_uuid,
+                company_id=company_uuid
             )
-            result = await self.db.execute(query)
-            return result.scalar_one_or_none()
+            
+            return campaign
             
         except Exception as e:
-            logger.error(f"Error getting campaign {campaign_id}: {e}")
+            logger.error(f"❌ Error getting campaign {campaign_id}: {e}")
             return None
     
     async def get_campaign_by_id_and_company(self, campaign_id: str, company_id: str) -> Optional[Campaign]:
         """
-        Get campaign by ID with company verification (alias for get_campaign_by_id)
-        🔧 CRITICAL FIX: Missing method being called from workflow_operations.py
+        ✅ FIXED: Get campaign by ID with company verification (alias for get_campaign_by_id)
+        Uses CRUD for consistent access patterns
         """
         return await self.get_campaign_by_id(campaign_id, company_id)
     
@@ -287,90 +338,113 @@ class CampaignService:
         update_data: Dict[str, Any], 
         company_id: str
     ) -> Optional[Campaign]:
-        """Update campaign with validation"""
+        """✅ FIXED: Update campaign using CRUD"""
         try:
+            # Get campaign using CRUD
             campaign = await self.get_campaign_by_id(campaign_id, company_id)
             if not campaign:
                 return None
+            
+            # Prepare update data
+            processed_update_data = {}
             
             # Update fields that were provided
             for field, value in update_data.items():
                 if field == "status" and value:
                     try:
-                        campaign.status = CampaignStatus(value.upper())
+                        processed_update_data["status"] = CampaignStatus(value.upper())
                     except ValueError:
                         logger.warning(f"Invalid status value: {value}")
                 else:
-                    setattr(campaign, field, value)
+                    processed_update_data[field] = value
             
-            # Update timestamp
-            campaign.updated_at = datetime.now(timezone.utc)
+            # Add timestamp
+            processed_update_data["updated_at"] = datetime.now(timezone.utc)
             
-            await self.db.commit()
-            await self.db.refresh(campaign)
+            # ✅ FIXED: Use CRUD update method
+            updated_campaign = await campaign_crud.update(
+                db=self.db,
+                db_obj=campaign,
+                obj_in=processed_update_data
+            )
             
-            return campaign
+            return updated_campaign
             
         except Exception as e:
-            logger.error(f"Error updating campaign {campaign_id}: {e}")
+            logger.error(f"❌ Error updating campaign {campaign_id}: {e}")
             await self.db.rollback()
             raise e
     
     async def delete_campaign(self, campaign_id: str, company_id: str) -> bool:
-        """Delete campaign with demo protection"""
+        """✅ FIXED: Delete campaign using CRUD with demo protection"""
         try:
+            # Get campaign using CRUD
             campaign = await self.get_campaign_by_id(campaign_id, company_id)
             if not campaign:
                 return False
             
             # Check if this is a demo campaign - protect if it's the last one
             if is_demo_campaign(campaign):
-                # Get count of real campaigns
-                real_campaigns_query = select(func.count(Campaign.id)).where(
-                    Campaign.company_id == company_id,
-                    Campaign.settings.op('->>')('demo_campaign') != 'true'
+                # Get count of real campaigns using CRUD
+                company_uuid = uuid.UUID(company_id) if isinstance(company_id, str) else company_id
+                
+                # Get all campaigns for company
+                all_campaigns = await campaign_crud.get_multi(
+                    db=self.db,
+                    filters={"company_id": company_uuid},
+                    limit=1000  # Get all for counting
                 )
-                real_count_result = await self.db.execute(real_campaigns_query)
-                real_campaigns_count = real_count_result.scalar() or 0
+                
+                # Count real campaigns (not demo)
+                real_campaigns_count = sum(1 for c in all_campaigns if not is_demo_campaign(c))
                 
                 if real_campaigns_count == 0:
                     logger.warning(f"Prevented deletion of demo campaign - user has no real campaigns")
                     return False
             
-            await self.db.delete(campaign)
-            await self.db.commit()
+            # ✅ FIXED: Use CRUD delete method
+            campaign_uuid = uuid.UUID(campaign_id) if isinstance(campaign_id, str) else campaign_id
+            success = await campaign_crud.delete(db=self.db, id=campaign_uuid)
             
-            logger.info(f"✅ Campaign {campaign_id} deleted successfully")
-            return True
+            if success:
+                logger.info(f"✅ Campaign {campaign_id} deleted successfully")
+            else:
+                logger.warning(f"⚠️ Campaign {campaign_id} deletion failed")
+                
+            return success
             
         except Exception as e:
-            logger.error(f"Error deleting campaign {campaign_id}: {e}")
-            await self.db.rollback()
+            logger.error(f"❌ Error deleting campaign {campaign_id}: {e}")
             return False
     
     async def get_dashboard_stats(self, company_id: str) -> Dict[str, Any]:
-        """Get dashboard statistics"""
+        """✅ FIXED: Get dashboard statistics using CRUD"""
         try:
-            total_query = select(func.count(Campaign.id)).where(Campaign.company_id == company_id)
-            demo_query = select(func.count(Campaign.id)).where(
-                Campaign.company_id == company_id,
-                Campaign.settings.op('->>')('demo_campaign') == 'true'
+            # Convert to UUID
+            company_uuid = uuid.UUID(company_id) if isinstance(company_id, str) else company_id
+            
+            # ✅ FIXED: Use CRUD for statistics - this calls the specialized method we created
+            stats = await campaign_crud.get_campaign_stats(
+                db=self.db,
+                user_id=None,  # Company-wide stats, no specific user
+                company_id=company_uuid
             )
-            real_query = select(func.count(Campaign.id)).where(
-                Campaign.company_id == company_id,
-                Campaign.settings.op('->>')('demo_campaign') != 'true'
+            
+            # Get all campaigns to analyze demo vs real
+            all_campaigns = await campaign_crud.get_multi(
+                db=self.db,
+                filters={"company_id": company_uuid},
+                limit=1000  # Get all for analysis
             )
             
-            total_result = await self.db.execute(total_query)
-            demo_result = await self.db.execute(demo_query)
-            real_result = await self.db.execute(real_query)
+            # Analyze campaign types
+            demo_campaigns = sum(1 for c in all_campaigns if is_demo_campaign(c))
+            real_campaigns = len(all_campaigns) - demo_campaigns
             
-            total_campaigns = total_result.scalar() or 0
-            demo_campaigns = demo_result.scalar() or 0
-            real_campaigns = real_result.scalar() or 0
-            
-            return {
-                "total_campaigns_created": total_campaigns,
+            # Enhance stats with additional info
+            enhanced_stats = {
+                **stats,
+                "total_campaigns_created": len(all_campaigns),
                 "real_campaigns": real_campaigns,
                 "demo_campaigns": demo_campaigns,
                 "workflow_type": "streamlined_2_step",
@@ -382,16 +456,16 @@ class CampaignService:
                 "generated_at": datetime.now(timezone.utc).isoformat()
             }
             
+            return enhanced_stats
+            
         except Exception as e:
-            logger.error(f"Error getting dashboard stats: {e}")
+            logger.error(f"❌ Error getting dashboard stats: {e}")
             return {"error": str(e)}
         
-    # Add this method to campaign_service.py - CampaignService class
-
     def to_response(self, campaign: Campaign) -> Dict[str, Any]:
         """
         Convert Campaign model to API response format
-        🔧 CRITICAL FIX: Missing method causing 'CampaignService' object has no attribute 'to_response'
+        🔧 CRITICAL FIX: Complete response formatting for API
         """
         try:
             return {
