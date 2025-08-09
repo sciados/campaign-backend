@@ -7,7 +7,6 @@ FIXED: Content Routes - Real Intelligence Integration + Route Compatibility
 ✅ ADDED: Debug endpoints for testing
 """
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, BackgroundTasks
-from campaigns.services.intelligence_service import IntelligenceService
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select, and_
 from typing import Dict, Any, Optional, List
@@ -22,6 +21,9 @@ from src.core.database import get_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
 
+# 🔧 FIXED: Import IntelligenceService for real intelligence data
+from src.campaigns.services.intelligence_service import IntelligenceService
+
 # Import factory directly to avoid the problematic enhanced_content_generation
 from ..generators.factory import ContentGeneratorFactory
 from ..handlers.content_handler import ContentHandler
@@ -34,9 +36,6 @@ from ..schemas.responses import (
     GenerationMetadata,
     UltraCheapMetadata
 )
-
-# 🔧 FIXED: Import Intelligence Service at module level
-from src.campaigns.services import WorkflowService
 
 from src.utils.json_utils import safe_json_dumps
 
@@ -186,7 +185,7 @@ async def generate_content(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """🔧 FIXED: Content generation with REAL intelligence data"""
+    """🔧 FIXED: Content generation with REAL intelligence data using IntelligenceService"""
     
     try:
         # Extract data
@@ -195,68 +194,43 @@ async def generate_content(
         campaign_id = request_data.get("campaign_id")
         preferences = request_data.get("preferences", {})
         
+        if not campaign_id:
+            raise HTTPException(
+                status_code=400,
+                detail="campaign_id is required for content generation"
+            )
+        
         logger.info(f"🎯 Generating {content_type} for campaign {campaign_id}")
         
-        # 🔧 TEMPORARY WORKAROUND: Bypass the database issue using ContentHandler
+        # 🔧 FIXED: Use IntelligenceService to get REAL campaign intelligence
         try:
-            # Try using ContentHandler which might have different database handling
-            content_handler = ContentHandler(db, current_user)
+            intelligence_service = IntelligenceService(db)
             
-            # Create mock intelligence data using campaign info and known product name
-            intelligence_data = {
-                "campaign_id": campaign_id,
-                "campaign_name": "Hepatoburn Campaign",  # We know this from the logs
-                "target_audience": "health-conscious adults seeking natural solutions",
-                
-                # 🔥 CRITICAL: Use the known product name from the campaign
-                "source_title": "Hepatoburn",  # This is the actual product we've been testing
-                "source_url": "https://example.com",
-                
-                # Use some basic intelligence data structure
-                "offer_intelligence": {
-                    "insights": ["Product called Hepatoburn", "Natural health supplement", "Weight management solution"],
-                    "benefits": ["accelerated fat burning", "increased metabolism", "natural energy boost"],
-                    "target_market": "adults seeking natural weight management",
-                    "product_type": "dietary supplement"
-                },
-                "psychology_intelligence": {
-                    "motivations": ["desire for natural health solutions", "weight loss goals", "increased energy"],
-                    "pain_points": ["slow metabolism", "stubborn fat", "low energy"],
-                    "aspirations": ["healthy weight", "increased confidence", "better health"]
-                },
-                "content_intelligence": {},
-                "competitive_intelligence": {},
-                "brand_intelligence": {},
-                
-                # Mock intelligence sources
-                "intelligence_sources": [
-                    {
-                        "id": "temp-source-1",
-                        "source_title": "Hepatoburn",
-                        "source_url": "https://example.com",
-                        "source_type": "url",
-                        "confidence_score": 0.95,
-                        "offer_intelligence": {
-                            "insights": ["Product called Hepatoburn", "Natural health supplement"],
-                            "benefits": ["accelerated fat burning", "increased metabolism"]
-                        },
-                        "psychology_intelligence": {
-                            "motivations": ["weight loss goals", "natural solutions"]
-                        }
-                    }
-                ]
-            }
+            # Get real intelligence data for the campaign
+            intelligence_data = await intelligence_service.get_campaign_intelligence_for_content(
+                campaign_id=UUID(campaign_id),
+                company_id=current_user.company_id
+            )
             
-            logger.info(f"🎯 Using temporary intelligence data for product: 'Hepatoburn'")
+            logger.info(f"✅ Loaded real intelligence from {len(intelligence_data.get('intelligence_sources', []))} sources")
+            logger.info(f"🎯 Product from source_title: '{intelligence_data.get('source_title', 'Unknown')}'")
             
-        except Exception as fallback_error:
-            logger.error(f"❌ Even fallback failed: {fallback_error}")
-            raise ValueError("Unable to load intelligence data for content generation")
+        except ValueError as intel_error:
+            # Intelligence service raised a ValueError (campaign not found, no analysis, etc.)
+            logger.error(f"❌ Intelligence loading failed: {intel_error}")
+            raise HTTPException(
+                status_code=404,
+                detail=str(intel_error)
+            )
+        except Exception as intel_error:
+            # Other errors from intelligence service
+            logger.error(f"❌ Intelligence service error: {intel_error}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to load campaign analysis: {str(intel_error)}"
+            )
         
-        # Log what we got
-        logger.info(f"📊 Using intelligence from {len(intelligence_data.get('intelligence_sources', []))} sources")
-        
-        # 🔧 FIXED: Use safe_content_generation with REAL data
+        # 🔧 FIXED: Use safe_content_generation with REAL intelligence data
         result = await safe_content_generation(
             content_type=content_type,
             intelligence_data=intelligence_data,
@@ -267,7 +241,7 @@ async def generate_content(
         if result is None:
             raise ValueError("Content generation returned None")
         
-        # Save content
+        # Save content to database
         content_id = await save_content_to_database(
             db=db,
             current_user=current_user,
@@ -282,10 +256,15 @@ async def generate_content(
         metadata = result.get("metadata", {})
         cost_optimization = metadata.get("cost_optimization", {})
         
+        # 🔧 FIXED: Return response matching frontend expectations
         return {
             "content_id": content_id,
             "content_type": content_type,
-            "generated_content": result.get("content", result),
+            "generated_content": {
+                "title": result.get("title", f"Generated {content_type.title()}"),
+                "content": result.get("content", result),
+                "metadata": metadata
+            },
             "success": True,
             "metadata": {
                 "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -293,7 +272,9 @@ async def generate_content(
                 "provider_used": metadata.get("provider_used", "ultra_cheap"),
                 "generation_cost": cost_optimization.get("total_cost", 0.001),
                 "cost_savings": cost_optimization.get("savings_vs_openai", 0.029),
-                "quality_score": metadata.get("quality_score", 80)
+                "quality_score": metadata.get("quality_score", 80),
+                "product_name": intelligence_data.get("source_title", "Unknown"),
+                "intelligence_sources_used": len(intelligence_data.get("intelligence_sources", []))
             },
             "cost_analysis": {
                 "generation_cost": f"${cost_optimization.get('total_cost', 0.001):.4f}",
@@ -302,6 +283,9 @@ async def generate_content(
             }
         }
         
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
         logger.error(f"❌ Generation endpoint failed: {e}")
         # Return error response instead of raising exception
@@ -560,7 +544,7 @@ async def test_generate(
             return {
                 "message": "Test generation endpoint working!",
                 "received_data": request_data,
-                "expected_fields": ["intelligence_id", "content_type", "campaign_id"],
+                "expected_fields": ["content_type", "campaign_id"],
                 "real_intelligence_loaded": True,
                 "intelligence_sources_count": len(intelligence_data.get("intelligence_sources", [])),
                 "product_name_from_source": intelligence_data.get("source_title"),
@@ -571,7 +555,7 @@ async def test_generate(
             return {
                 "message": "Test generation endpoint working!",
                 "received_data": request_data,
-                "expected_fields": ["intelligence_id", "content_type", "campaign_id"],
+                "expected_fields": ["content_type", "campaign_id"],
                 "note": "Provide campaign_id to test real intelligence loading",
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
