@@ -4,6 +4,7 @@ Intelligence-specific CRUD operations
 🧠 Handles all CampaignIntelligence database operations
 ✅ Uses proven async patterns from base CRUD
 🔧 Designed to fix the ChunkedIteratorResult issue
+🔒 Enhanced with company_id security for multi-tenant isolation
 """
 
 from typing import List, Optional, Dict, Any
@@ -12,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc
 import logging
 
-from src.models.intelligence import CampaignIntelligence
+from src.models.intelligence import CampaignIntelligence, GeneratedContent
 from .base_crud import BaseCRUD
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     """
     Intelligence CRUD with specialized methods
     🔧 This replaces the problematic database queries in IntelligenceService
+    🔒 Enhanced with company_id security for proper multi-tenant isolation
     """
     
     def __init__(self):
@@ -30,18 +32,26 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
         self,
         db: AsyncSession,
         campaign_id: UUID,
+        company_id: Optional[UUID] = None,
         skip: int = 0,
         limit: int = 50,
         intelligence_type: Optional[str] = None
     ) -> List[CampaignIntelligence]:
         """
-        Get all intelligence for a campaign
+        Get all intelligence for a campaign with company_id security
         🔧 This replaces the failing query in IntelligenceService
+        🔒 Enhanced with company_id filtering for multi-tenant security
         """
         try:
-            logger.info(f"🧠 Getting intelligence for campaign {campaign_id}")
+            logger.info(f"🧠 Getting intelligence for campaign {campaign_id} (company: {company_id})")
             
+            # Build filters with campaign_id
             filters = {"campaign_id": campaign_id}
+            
+            # Add company_id for security isolation if provided
+            if company_id:
+                filters["company_id"] = company_id
+                logger.info(f"🔒 Company security filter applied: {company_id}")
             
             # Add intelligence type filter if specified
             if intelligence_type:
@@ -74,18 +84,21 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     async def get_primary_intelligence(
         self,
         db: AsyncSession,
-        campaign_id: UUID
+        campaign_id: UUID,
+        company_id: Optional[UUID] = None
     ) -> Optional[CampaignIntelligence]:
         """
-        Get highest confidence intelligence for a campaign
+        Get highest confidence intelligence for a campaign with company security
         🎯 Returns the best intelligence source for content generation
+        🔒 Enhanced with company_id filtering for security
         """
         try:
-            logger.info(f"🎯 Getting primary intelligence for campaign {campaign_id}")
+            logger.info(f"🎯 Getting primary intelligence for campaign {campaign_id} (company: {company_id})")
             
             intelligence_list = await self.get_campaign_intelligence(
                 db=db,
                 campaign_id=campaign_id,
+                company_id=company_id,
                 limit=1  # Just get the top one
             )
             
@@ -106,17 +119,26 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
         self,
         db: AsyncSession,
         campaign_id: UUID,
-        source_type: str
+        source_type: str,
+        company_id: Optional[UUID] = None
     ) -> List[CampaignIntelligence]:
-        """Get intelligence by source type (url, document, etc.)"""
+        """
+        Get intelligence by source type (url, document, etc.) with company security
+        🔒 Enhanced with company_id filtering for security
+        """
         try:
-            # Note: We need to handle the enum properly
+            # Build base filters
+            filters = {
+                "campaign_id": campaign_id
+            }
+            
+            # Add company_id for security if provided
+            if company_id:
+                filters["company_id"] = company_id
+            
             intelligence_list = await self.get_multi(
                 db=db,
-                filters={
-                    "campaign_id": campaign_id,
-                    # "source_type": source_type  # Commented out due to enum handling
-                },
+                filters=filters,
                 order_by="confidence_score",
                 order_desc=True
             )
@@ -149,25 +171,29 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     async def get_intelligence_summary(
         self,
         db: AsyncSession,
-        campaign_id: UUID
+        campaign_id: UUID,
+        company_id: Optional[UUID] = None
     ) -> Dict[str, Any]:
         """
-        Get intelligence summary for a campaign
+        Get intelligence summary for a campaign with company security
         📊 Provides overview stats about intelligence sources
+        🔒 Enhanced with company_id filtering for security
         """
         try:
-            logger.info(f"📊 Getting intelligence summary for campaign {campaign_id}")
+            logger.info(f"📊 Getting intelligence summary for campaign {campaign_id} (company: {company_id})")
             
-            # Get all intelligence for campaign
+            # Get all intelligence for campaign with company security
             all_intelligence = await self.get_campaign_intelligence(
                 db=db,
                 campaign_id=campaign_id,
+                company_id=company_id,
                 limit=1000  # Get all
             )
             
             if not all_intelligence:
                 return {
                     "campaign_id": str(campaign_id),
+                    "company_id": str(company_id) if company_id else None,
                     "total_intelligence_entries": 0,
                     "available_types": [],
                     "average_confidence": 0.0,
@@ -207,6 +233,7 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
             
             summary = {
                 "campaign_id": str(campaign_id),
+                "company_id": str(company_id) if company_id else None,
                 "total_intelligence_entries": total_entries,
                 "available_types": available_types,
                 "average_confidence": round(average_confidence, 3),
@@ -231,11 +258,11 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
         company_id: UUID,
         source_data: Dict[str, Any]
     ) -> CampaignIntelligence:
-        """Create new intelligence entry"""
+        """Create new intelligence entry with proper company association"""
         try:
-            logger.info(f"🔨 Creating intelligence for campaign {campaign_id}")
+            logger.info(f"🔨 Creating intelligence for campaign {campaign_id} (company: {company_id})")
             
-            # Prepare intelligence data
+            # Prepare intelligence data with company_id
             intelligence_data = {
                 "campaign_id": campaign_id,
                 "user_id": user_id,
@@ -246,9 +273,205 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
             # Use base CRUD create method
             intelligence = await self.create(db=db, obj_in=intelligence_data)
             
-            logger.info(f"✅ Created intelligence: {intelligence.id}")
+            logger.info(f"✅ Created intelligence: {intelligence.id} for company {company_id}")
             return intelligence
             
         except Exception as e:
             logger.error(f"❌ Error creating intelligence: {e}")
+            raise
+    
+    # 🆕 Generated Content Methods with company_id support
+    
+    async def get_generated_content(
+        self,
+        db: AsyncSession,
+        campaign_id: UUID,
+        company_id: UUID,
+        content_type: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50
+    ) -> List[GeneratedContent]:
+        """
+        Get generated content for a campaign with company security
+        🔒 Company-aware content retrieval
+        """
+        try:
+            logger.info(f"📄 Getting generated content for campaign {campaign_id} (company: {company_id})")
+            
+            # Build filters with security
+            filters = {
+                "campaign_id": campaign_id,
+                "company_id": company_id
+            }
+            
+            if content_type:
+                filters["content_type"] = content_type
+            
+            # Use direct query for GeneratedContent model
+            stmt = select(GeneratedContent).where(
+                and_(
+                    GeneratedContent.campaign_id == campaign_id,
+                    GeneratedContent.company_id == company_id
+                )
+            )
+            
+            if content_type:
+                stmt = stmt.where(GeneratedContent.content_type == content_type)
+            
+            stmt = stmt.order_by(desc(GeneratedContent.created_at)).offset(skip).limit(limit)
+            
+            result = await db.execute(stmt)
+            content_items = result.scalars().all()
+            
+            logger.info(f"✅ Found {len(content_items)} content items")
+            return list(content_items)
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting generated content: {e}")
+            raise
+    
+    async def get_generated_content_by_id(
+        self,
+        db: AsyncSession,
+        content_id: UUID,
+        campaign_id: UUID,
+        company_id: UUID
+    ) -> Optional[GeneratedContent]:
+        """
+        Get specific generated content with security verification
+        🔒 Triple security check: content_id, campaign_id, company_id
+        """
+        try:
+            stmt = select(GeneratedContent).where(
+                and_(
+                    GeneratedContent.id == content_id,
+                    GeneratedContent.campaign_id == campaign_id,
+                    GeneratedContent.company_id == company_id
+                )
+            )
+            
+            result = await db.execute(stmt)
+            content_item = result.scalar_one_or_none()
+            
+            if content_item:
+                logger.info(f"✅ Found content {content_id} with security verification")
+            else:
+                logger.warning(f"⚠️ Content {content_id} not found or access denied")
+            
+            return content_item
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting content by ID: {e}")
+            raise
+    
+    async def create_generated_content(
+        self,
+        db: AsyncSession,
+        content_data: Dict[str, Any]
+    ) -> GeneratedContent:
+        """Create new generated content with proper company association"""
+        try:
+            logger.info(f"🔨 Creating generated content for campaign {content_data.get('campaign_id')}")
+            
+            # Create GeneratedContent instance
+            content = GeneratedContent(**content_data)
+            db.add(content)
+            await db.commit()
+            await db.refresh(content)
+            
+            logger.info(f"✅ Created generated content: {content.id}")
+            return content
+            
+        except Exception as e:
+            logger.error(f"❌ Error creating generated content: {e}")
+            await db.rollback()
+            raise
+    
+    async def update_generated_content(
+        self,
+        db: AsyncSession,
+        content_id: UUID,
+        update_data: Dict[str, Any]
+    ) -> GeneratedContent:
+        """Update generated content"""
+        try:
+            # Get existing content
+            stmt = select(GeneratedContent).where(GeneratedContent.id == content_id)
+            result = await db.execute(stmt)
+            content = result.scalar_one_or_none()
+            
+            if not content:
+                raise ValueError(f"Content {content_id} not found")
+            
+            # Update fields
+            for field, value in update_data.items():
+                if hasattr(content, field):
+                    setattr(content, field, value)
+            
+            await db.commit()
+            await db.refresh(content)
+            
+            logger.info(f"✅ Updated generated content: {content_id}")
+            return content
+            
+        except Exception as e:
+            logger.error(f"❌ Error updating generated content: {e}")
+            await db.rollback()
+            raise
+    
+    async def delete_generated_content(
+        self,
+        db: AsyncSession,
+        content_id: UUID
+    ) -> bool:
+        """Delete generated content"""
+        try:
+            stmt = select(GeneratedContent).where(GeneratedContent.id == content_id)
+            result = await db.execute(stmt)
+            content = result.scalar_one_or_none()
+            
+            if not content:
+                return False
+            
+            await db.delete(content)
+            await db.commit()
+            
+            logger.info(f"✅ Deleted generated content: {content_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error deleting generated content: {e}")
+            await db.rollback()
+            raise
+    
+    async def get_intelligence_by_id(
+        self,
+        db: AsyncSession,
+        intelligence_id: UUID,
+        company_id: UUID
+    ) -> Optional[CampaignIntelligence]:
+        """
+        Get intelligence by ID with company security
+        🔒 Company-aware intelligence retrieval
+        """
+        try:
+            stmt = select(CampaignIntelligence).where(
+                and_(
+                    CampaignIntelligence.id == intelligence_id,
+                    CampaignIntelligence.company_id == company_id
+                )
+            )
+            
+            result = await db.execute(stmt)
+            intelligence = result.scalar_one_or_none()
+            
+            if intelligence:
+                logger.info(f"✅ Found intelligence {intelligence_id} with company verification")
+            else:
+                logger.warning(f"⚠️ Intelligence {intelligence_id} not found or access denied")
+            
+            return intelligence
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting intelligence by ID: {e}")
             raise
