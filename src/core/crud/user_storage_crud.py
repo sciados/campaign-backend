@@ -1,9 +1,10 @@
-# src/core/crud/user_storage_crud.py
+# src/core/crud/user_storage_crud.py - FIXED: Generic Type Parameters
 """
-User Storage CRUD Operations
+User Storage CRUD Operations - FIXED Generic Type Definition
 🎯 Complete CRUD implementation for UserStorageUsage model
 📊 Storage analytics and quota management
 🔧 File management and tier operations
+🔧 FIXED: BaseCRUD generic type parameters
 """
 
 from typing import List, Optional, Dict, Any, Union
@@ -14,8 +15,9 @@ from sqlalchemy import select, func, and_, or_, desc, asc, update, delete
 from sqlalchemy.orm import selectinload, joinedload
 from src.utils.json_utils import safe_json_dumps, safe_json_loads
 
+# ✅ FIXED: Import only what we need for CRUD
 from .base_crud import BaseCRUD
-from src.models.user_storage import UserStorageUsage, UserStorageCreate, UserStorageUpdate
+from src.models.user_storage import UserStorageUsage  # Only the model class
 from src.models.user import User
 from src.models.campaign import Campaign
 
@@ -23,8 +25,12 @@ import structlog
 
 logger = structlog.get_logger()
 
-class UserStorageCRUD(BaseCRUD[UserStorageUsage, UserStorageCreate, UserStorageUpdate]):
+# ✅ FIXED: Use only the model type parameter, not the Pydantic schemas
+class UserStorageCRUD(BaseCRUD[UserStorageUsage]):
     """Enhanced CRUD operations for user storage management"""
+    
+    def __init__(self):
+        super().__init__(UserStorageUsage)
     
     # ============================================================================
     # FILE MANAGEMENT OPERATIONS
@@ -45,17 +51,17 @@ class UserStorageCRUD(BaseCRUD[UserStorageUsage, UserStorageCreate, UserStorageU
     ) -> UserStorageUsage:
         """Create a new storage usage record"""
         
-        storage_data = UserStorageCreate(
-            user_id=str(user_id),
-            file_path=file_path,
-            original_filename=original_filename,
-            file_size=file_size,
-            content_type=content_type,
-            content_category=content_category,
-            campaign_id=str(campaign_id) if campaign_id else None,
-            file_metadata=safe_json_dumps(metadata) if metadata else None,
-            upload_date=datetime.now(timezone.utc)
-        )
+        storage_data = {
+            "user_id": str(user_id),
+            "file_path": file_path,
+            "original_filename": original_filename,
+            "file_size": file_size,
+            "content_type": content_type,
+            "content_category": content_category,
+            "campaign_id": str(campaign_id) if campaign_id else None,
+            "file_metadata": safe_json_dumps(metadata) if metadata else None,
+            "upload_date": datetime.now(timezone.utc)
+        }
         
         storage_record = await self.create(db=db, obj_in=storage_data)
         
@@ -190,11 +196,11 @@ class UserStorageCRUD(BaseCRUD[UserStorageUsage, UserStorageCreate, UserStorageU
         if file_record.is_deleted:
             raise ValueError(f"File {file_id} is already deleted")
         
-        # Mark as deleted
-        update_data = UserStorageUpdate(
-            is_deleted=True,
-            deleted_date=datetime.now(timezone.utc)
-        )
+        # Mark as deleted using CRUD update
+        update_data = {
+            "is_deleted": True,
+            "deleted_date": datetime.now(timezone.utc)
+        }
         
         updated_file = await self.update(db=db, db_obj=file_record, obj_in=update_data)
         
@@ -635,5 +641,5 @@ class UserStorageCRUD(BaseCRUD[UserStorageUsage, UserStorageCreate, UserStorageU
             }
         }
 
-# Create singleton instance
-user_storage_crud = UserStorageCRUD(UserStorageUsage)
+# ✅ FIXED: Create singleton instance with correct typing
+user_storage_crud = UserStorageCRUD()
