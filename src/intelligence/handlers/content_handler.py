@@ -205,17 +205,28 @@ class ContentHandler(EnumSerializerMixin):
         
         try:
             # Verify campaign access - CRUD MIGRATED
+            logger.info(f"🔍 Verifying campaign access for {campaign_id}")
             campaign = await self._verify_campaign_access(campaign_id)
+            logger.info(f"✅ Campaign access verified")
             
             # Get intelligence data - CRUD MIGRATED
+            logger.info(f"📊 Preparing intelligence data")
             intelligence_data = await self._prepare_intelligence_data(campaign_id, campaign)
+            logger.info(f"✅ Intelligence data prepared: {len(intelligence_data.get('intelligence_sources', []))} sources")
             
             # 🔧 FIXED: Use enhanced content generation with proper error handling
+            logger.info(f"🤖 Starting content generation for {content_type}")
             result = await content_generation(content_type, intelligence_data, preferences)
+            logger.info(f"✅ Content generation completed")
             
-            # 🔧 CRITICAL FIX: Ensure result is not None
+            # 🔧 CRITICAL FIX: Ensure result is valid
             if result is None:
+                logger.error("❌ Content generation returned None")
                 raise ValueError("Content generation returned None")
+            
+            if not isinstance(result, dict):
+                logger.error(f"❌ Content generation returned invalid type: {type(result)}")
+                raise ValueError(f"Content generation returned invalid type: {type(result)}")
             
             # Track usage
             metadata = result.get("metadata", {})
@@ -230,12 +241,25 @@ class ContentHandler(EnumSerializerMixin):
                 logger.warning(f"⚠️ Fallback generation used for {content_type}")
             
             # Save generated content - CRUD MIGRATED
-            content_id = await self._save_generated_content(
-                campaign_id, content_type, result, preferences, intelligence_data
-            )
+            logger.info(f"💾 Saving generated content to database")
+            try:
+                content_id = await self._save_generated_content(
+                    campaign_id, content_type, result, preferences, intelligence_data
+                )
+                logger.info(f"✅ Content saved with ID: {content_id}")
+            except Exception as save_error:
+                logger.error(f"❌ Failed to save content: {str(save_error)}")
+                # Continue with response even if saving fails
+                content_id = None
+                logger.warning("⚠️ Continuing with response despite save failure")
             
             # Update campaign counters
-            await self._update_campaign_counters(campaign_id)
+            logger.info(f"📊 Updating campaign counters")
+            try:
+                await self._update_campaign_counters(campaign_id)
+                logger.info(f"✅ Campaign counters updated")
+            except Exception as counter_error:
+                logger.warning(f"⚠️ Campaign counter update failed: {str(counter_error)}")
             
             # Return response
             response = {
@@ -252,7 +276,8 @@ class ContentHandler(EnumSerializerMixin):
                     "ultra_cheap_ai_enabled": self.ultra_cheap_ai_enabled,
                     "ultra_cheap_ai_used": metadata.get("ultra_cheap_ai_used", False),
                     "cost_savings": metadata.get("cost_savings", 0.0),
-                    "success": True
+                    "success": True,
+                    "content_saved": content_id is not None
                 },
                 "ultra_cheap_stats": {
                     "total_generations": self.generation_stats["total_generations"],
@@ -262,14 +287,18 @@ class ContentHandler(EnumSerializerMixin):
                 }
             }
             
+            logger.info(f"✅ Content generation response prepared successfully")
             return response
-            
+        
         except Exception as e:
             logger.error(f"❌ Content generation failed: {str(e)}")
+            import traceback
+            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+            
             self.generation_stats["fallback_generations"] += 1
             
             # Return error response instead of raising
-            return {
+            error_response = {
                 "content_id": None,
                 "content_type": content_type,
                 "generated_content": None,
@@ -286,6 +315,9 @@ class ContentHandler(EnumSerializerMixin):
                     "error_message": str(e)
                 }
             }
+            
+            logger.info(f"❌ Returning error response: {error_response}")
+            return error_response
     
     async def get_content_list(
         self, campaign_id: str, include_body: bool = False, content_type: Optional[str] = None
@@ -551,75 +583,109 @@ class ContentHandler(EnumSerializerMixin):
         self, campaign_id: str, content_type: str, result: Dict[str, Any], 
         preferences: Dict[str, Any], intelligence_data: Dict[str, Any]
     ) -> str:
-        """✅ CRUD MIGRATED: Save generated content using CRUD patterns"""
-        intelligence_sources = intelligence_data.get("intelligence_sources", [])
+        """✅ CRUD MIGRATED: Save generated content using CRUD patterns with enhanced error handling"""
         
-        # Check for amplification data
-        amplified_sources = []
-        for source in intelligence_sources:
-            processing_metadata = self._serialize_enum_field(source.get("processing_metadata", {}))
-            if processing_metadata.get("amplification_applied", False):
-                amplified_sources.append(source["id"])
-        
-        # Extract ultra-cheap AI metadata
-        metadata = result.get("metadata", {})
-        ultra_cheap_ai_used = metadata.get("ultra_cheap_ai_used", False)
-        cost_savings = metadata.get("cost_savings", 0.0)
-        provider_used = metadata.get("provider_used", "unknown")
-        generation_cost = metadata.get("generation_cost", 0.0)
-        
-        # ✅ CRUD MIGRATION: Use intelligence_crud to create content
-        content_data = {
-            "campaign_id": campaign_id,
-            "company_id": self.user.company_id,
-            "user_id": self.user.id,
-            "content_type": content_type,
-            "content_title": result.get("title", f"Generated {content_type.title()}"),
-            "content_body": json.dumps(result.get("content", {}), default=json_serial),
-            "content_metadata": result.get("metadata", {}),
-            "generation_settings": preferences,
-            "intelligence_used": {
-                "sources_count": len(intelligence_sources),
-                "primary_source_id": str(intelligence_sources[0]["id"]) if intelligence_sources else None,
-                "generation_timestamp": datetime.now(timezone.utc).isoformat(),
-                "amplified": bool(amplified_sources),
-                "amplified_sources": amplified_sources,
-                "ai_categories_available": self._count_ai_categories(intelligence_sources),
-                "enum_serialization_applied": True,
-                "ultra_cheap_ai_used": ultra_cheap_ai_used,
-                "cost_savings": cost_savings,
-                "provider_used": provider_used,
-                "generation_cost": generation_cost,
-                "railway_compatible": True,
-                "user_session": str(self.user.id),
-                "company_session": str(self.user.company_id) if hasattr(self.user, 'company_id') else None,
-                "user_email": self.user.email,
-                "user_tier": getattr(self.user, 'tier', 'standard')
-            },
-            # 🔧 CRITICAL FIX: Populate performance_data to prevent infinite loop
-            "performance_data": {
-                "generation_time": metadata.get("generation_time", 0.0),
-                "total_tokens": metadata.get("total_tokens", 0),
-                "quality_score": metadata.get("quality_score", 80),
-                "ultra_cheap_ai_used": ultra_cheap_ai_used,
-                "cost_efficiency": cost_savings,
-                "provider_performance": provider_used,
-                "railway_compatible": True,
+        try:
+            logger.info(f"💾 Starting content save process")
+            
+            intelligence_sources = intelligence_data.get("intelligence_sources", [])
+            logger.info(f"📊 Processing {len(intelligence_sources)} intelligence sources")
+            
+            # Check for amplification data
+            amplified_sources = []
+            for source in intelligence_sources:
+                try:
+                    processing_metadata = self._serialize_enum_field(source.get("processing_metadata", {}))
+                    if processing_metadata.get("amplification_applied", False):
+                        amplified_sources.append(source["id"])
+                except Exception as source_error:
+                    logger.warning(f"⚠️ Error processing source amplification: {str(source_error)}")
+                    continue
+            
+            logger.info(f"🔄 Found {len(amplified_sources)} amplified sources")
+            
+            # Extract ultra-cheap AI metadata safely
+            metadata = result.get("metadata", {})
+            ultra_cheap_ai_used = metadata.get("ultra_cheap_ai_used", False)
+            cost_savings = metadata.get("cost_savings", 0.0)
+            provider_used = metadata.get("provider_used", "unknown")
+            generation_cost = metadata.get("generation_cost", 0.0)
+            
+            logger.info(f"💰 Ultra-cheap AI: {ultra_cheap_ai_used}, Cost: ${generation_cost:.4f}, Savings: ${cost_savings:.4f}")
+            
+            # Safely serialize content body
+            try:
+                content_body = json.dumps(result.get("content", {}), default=json_serial)
+                logger.info(f"✅ Content body serialized successfully")
+            except Exception as json_error:
+                logger.error(f"❌ JSON serialization failed: {str(json_error)}")
+                # Fallback to string representation
+                content_body = str(result.get("content", {}))
+                logger.warning("⚠️ Using string fallback for content body")
+            
+            # Prepare content data with safe field handling
+            content_data = {
+                "campaign_id": campaign_id,
+                "company_id": str(self.user.company_id) if hasattr(self.user, 'company_id') and self.user.company_id else None,
                 "user_id": str(self.user.id),
-                "company_id": str(self.user.company_id) if hasattr(self.user, 'company_id') else None,
-                "generated_by": self.user.email,
-                "user_tier": getattr(self.user, 'tier', 'standard')
-            },
-            "is_published": False
-        }
-        
-        generated_content = await intelligence_crud.create_generated_content(
-            db=self.db,
-            content_data=content_data
-        )
-        
-        logger.info(f"✅ Content saved via CRUD for user {self.user.email} with {len(amplified_sources)} amplified sources")
-        return str(generated_content.id)
+                "content_type": content_type,
+                "content_title": result.get("title", f"Generated {content_type.title()}"),
+                "content_body": content_body,
+                "content_metadata": metadata,
+                "generation_settings": preferences or {},
+                "intelligence_used": {
+                    "sources_count": len(intelligence_sources),
+                    "primary_source_id": str(intelligence_sources[0]["id"]) if intelligence_sources else None,
+                    "generation_timestamp": datetime.now(timezone.utc).isoformat(),
+                    "amplified": bool(amplified_sources),
+                    "amplified_sources": amplified_sources,
+                    "ai_categories_available": self._count_ai_categories(intelligence_sources),
+                    "enum_serialization_applied": True,
+                    "ultra_cheap_ai_used": ultra_cheap_ai_used,
+                    "cost_savings": cost_savings,
+                    "provider_used": provider_used,
+                    "generation_cost": generation_cost,
+                    "railway_compatible": True,
+                    "user_session": str(self.user.id),
+                    "company_session": str(self.user.company_id) if hasattr(self.user, 'company_id') and self.user.company_id else None,
+                    "user_email": self.user.email,
+                    "user_tier": getattr(self.user, 'tier', 'standard')
+                },
+                "performance_data": {
+                    "generation_time": metadata.get("generation_time", 0.0),
+                    "total_tokens": metadata.get("total_tokens", 0),
+                    "quality_score": metadata.get("quality_score", 80),
+                    "ultra_cheap_ai_used": ultra_cheap_ai_used,
+                    "cost_efficiency": cost_savings,
+                    "provider_performance": provider_used,
+                    "railway_compatible": True,
+                    "user_id": str(self.user.id),
+                    "company_id": str(self.user.company_id) if hasattr(self.user, 'company_id') and self.user.company_id else None,
+                    "generated_by": self.user.email,
+                    "user_tier": getattr(self.user, 'tier', 'standard')
+                },
+                "is_published": False
+            }
+            
+            logger.info(f"📝 Content data prepared, calling CRUD create method")
+            
+            # ✅ CRUD MIGRATION: Use intelligence_crud to create content
+            generated_content = await intelligence_crud.create_generated_content(
+                db=self.db,
+                content_data=content_data
+            )
+            
+            content_id = str(generated_content.id)
+            logger.info(f"✅ Content saved via CRUD with ID: {content_id}")
+            logger.info(f"✅ Content saved for user {self.user.email} with {len(amplified_sources)} amplified sources")
+            
+            return content_id
+            
+        except Exception as save_error:
+            logger.error(f"❌ Content save failed: {str(save_error)}")
+            import traceback
+            logger.error(f"❌ Save error traceback: {traceback.format_exc()}")
+            raise save_error
     
     def _count_ai_categories(self, intelligence_sources: List[Dict[str, Any]]) -> Dict[str, int]:
         """Count available AI intelligence categories across all sources"""
