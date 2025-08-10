@@ -1,8 +1,9 @@
-# src/models/intelligence.py - UPDATED VERSION - Ultra-Cheap AI Ready
+# src/models/intelligence.py - UPDATED VERSION with intelligence_id backlink
 """
-Intelligence models - UPDATED VERSION with schema-aligned GeneratedContent model
+Intelligence models - UPDATED VERSION with intelligence_id backlink support
 ✅ PERFECTLY ALIGNED: GeneratedContent model matches database schema exactly
 ✅ ULTRA-CHEAP AI READY: Full cost tracking and analytics support
+✅ NEW: Intelligence backlink for content provenance and analytics
 """
 import json
 from uuid import uuid4
@@ -34,7 +35,7 @@ class AnalysisStatus(str, enum.Enum):
     CANCELLED = "CANCELLED"
 
 class CampaignIntelligence(BaseModel, EnumSerializerMixin):
-    """Store extracted intelligence for campaigns - FIXED VERSION"""
+    """Store extracted intelligence for campaigns - UPDATED with content backlink"""
     __tablename__ = "campaign_intelligence"
     
     # Basic Information
@@ -71,10 +72,13 @@ class CampaignIntelligence(BaseModel, EnumSerializerMixin):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
-    # Clean relationships
+    # Relationships
     campaign = relationship("Campaign", back_populates="intelligence_sources")
     user = relationship("User", back_populates="intelligence_sources")
     company = relationship("Company", back_populates="intelligence_sources")
+    
+    # ✅ NEW: Reverse relationship to generated content
+    generated_content = relationship("GeneratedContent", back_populates="intelligence_source")
     
     def get_core_intelligence(self) -> Dict[str, Any]:
         """Get all core intelligence data with proper enum serialization"""
@@ -134,12 +138,94 @@ class CampaignIntelligence(BaseModel, EnumSerializerMixin):
         """Count how many AI intelligence categories have data"""
         ai_data = self.get_ai_intelligence()
         return sum(1 for category_data in ai_data.values() if category_data and len(category_data) > 0)
+    
+    # ✅ NEW: Content generation analytics
+    def get_content_generation_stats(self) -> Dict[str, Any]:
+        """Get statistics about content generated from this intelligence source"""
+        if not hasattr(self, 'generated_content') or not self.generated_content:
+            return {
+                "total_content_generated": 0,
+                "content_types": [],
+                "average_user_rating": 0.0,
+                "published_content_count": 0,
+                "total_views": 0
+            }
+        
+        content_items = self.generated_content
+        total_content = len(content_items)
+        content_types = list(set(item.content_type for item in content_items))
+        
+        # Calculate ratings
+        ratings = [item.user_rating for item in content_items if item.user_rating is not None]
+        avg_rating = sum(ratings) / len(ratings) if ratings else 0.0
+        
+        # Count published content
+        published_count = sum(1 for item in content_items if item.is_published)
+        
+        # Sum total views
+        total_views = sum(item.view_count or 0 for item in content_items)
+        
+        return {
+            "total_content_generated": total_content,
+            "content_types": content_types,
+            "average_user_rating": round(avg_rating, 2),
+            "published_content_count": published_count,
+            "total_views": total_views,
+            "content_success_rate": round((published_count / total_content * 100), 1) if total_content > 0 else 0.0
+        }
+    
+    def get_roi_analysis(self) -> Dict[str, Any]:
+        """Analyze ROI of this intelligence source based on generated content"""
+        content_stats = self.get_content_generation_stats()
+        
+        # Calculate value metrics
+        total_content = content_stats["total_content_generated"]
+        avg_rating = content_stats["average_user_rating"]
+        published_rate = content_stats["content_success_rate"]
+        
+        # ROI score calculation (0-100)
+        roi_score = 0
+        if total_content > 0:
+            # Content volume (0-30 points)
+            roi_score += min(30, total_content * 3)
+            
+            # Quality score (0-40 points)  
+            roi_score += avg_rating * 8  # 5-star rating * 8 = 40 max
+            
+            # Success rate (0-30 points)
+            roi_score += published_rate * 0.3  # 100% published * 0.3 = 30 max
+        
+        # Intelligence quality factor
+        intelligence_quality = self.confidence_score or 0.0
+        roi_score = roi_score * intelligence_quality  # Scale by confidence
+        
+        return {
+            "roi_score": min(100, round(roi_score, 1)),
+            "intelligence_quality": round(intelligence_quality * 100, 1),
+            "content_productivity": total_content,
+            "content_success_rate": published_rate,
+            "recommendation": self._get_roi_recommendation(roi_score, total_content, avg_rating)
+        }
+    
+    def _get_roi_recommendation(self, roi_score: float, total_content: int, avg_rating: float) -> str:
+        """Generate ROI-based recommendations"""
+        if roi_score >= 80:
+            return "Excellent intelligence source - prioritize for future content generation"
+        elif roi_score >= 60:
+            return "Good intelligence source - reliable for content generation"
+        elif roi_score >= 40:
+            return "Average intelligence source - consider amplification or supplementing"
+        elif total_content == 0:
+            return "Unused intelligence source - try generating content to evaluate performance"
+        else:
+            return "Low-performing intelligence source - consider analysis refresh or alternative sources"
 
 class GeneratedContent(BaseModel, EnumSerializerMixin):
     """
-    Track content generated from intelligence - FULLY UUID CONSISTENT
+    Track content generated from intelligence - UPDATED with intelligence backlink
     ✅ PERFECTLY ALIGNED: All IDs are UUID for consistency
     ✅ ULTRA-CHEAP AI READY: Full cost tracking and analytics support
+    ✅ NEW: Intelligence source backlink for provenance and analytics
     """
     __tablename__ = "generated_content"
     
@@ -155,7 +241,7 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
     # ✅ GENERATION TRACKING (match database exactly)
     generation_settings = Column(JSONB, default={})
     intelligence_used = Column(JSONB, default={})
-    performance_data = Column(JSONB, default={})  # Added back for compatibility
+    performance_data = Column(JSONB, default={})
     
     # ✅ USER INTERACTION (match database exactly)
     user_rating = Column(Integer)  # 1-5 rating from users
@@ -165,18 +251,24 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
     published_at = Column(DateTime(timezone=True), nullable=True)
     
     # ✅ PERFORMANCE METRICS (match database exactly)
-    performance_score = Column(Float)  # Added - exists in database
-    view_count = Column(Integer, default=0)  # Added - exists in database
+    performance_score = Column(Float)
+    view_count = Column(Integer, default=0)
     
     # ✅ FOREIGN KEYS (UUID consistency across all tables)
-    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"))  # UUID to match campaigns table
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)  # UUID to match users table
-    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"))  # UUID to match companies table
+    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"))
     
-    # ✅ RELATIONSHIPS (updated for UUID consistency)
+    # ✅ NEW: Intelligence source backlink
+    intelligence_id = Column(UUID(as_uuid=True), ForeignKey("campaign_intelligence.id"), nullable=True)
+    
+    # ✅ RELATIONSHIPS (updated for UUID consistency + intelligence backlink)
     campaign = relationship("Campaign", back_populates="generated_content")
     user = relationship("User", back_populates="generated_content")
     company = relationship("Company", back_populates="generated_content")
+    
+    # ✅ NEW: Intelligence source relationship
+    intelligence_source = relationship("CampaignIntelligence", back_populates="generated_content")
     
     def get_generation_metadata(self) -> Dict[str, Any]:
         """Get generation metadata with proper serialization"""
@@ -294,6 +386,45 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
             "next_actions": self._suggest_next_actions()
         }
     
+    # ✅ NEW: Intelligence source insights
+    def get_intelligence_source_summary(self) -> Optional[Dict[str, Any]]:
+        """Get summary of the intelligence source that generated this content"""
+        if not self.intelligence_source:
+            return None
+        
+        source = self.intelligence_source
+        return {
+            "source_id": str(source.id),
+            "source_title": source.source_title,
+            "source_url": source.source_url,
+            "source_type": source.source_type.value if source.source_type else None,
+            "confidence_score": source.confidence_score,
+            "is_amplified": source.is_amplified(),
+            "analysis_status": source.analysis_status.value if source.analysis_status else None,
+            "amplification_summary": source.get_amplification_summary() if source.is_amplified() else None
+        }
+    
+    def get_source_attribution(self) -> str:
+        """Get user-friendly source attribution text"""
+        if not self.intelligence_source:
+            return "Generated from campaign intelligence"
+        
+        source = self.intelligence_source
+        attribution = f"Generated from: {source.source_title}"
+        
+        if source.confidence_score:
+            attribution += f" ({int(source.confidence_score * 100)}% confidence)"
+        
+        if source.is_amplified():
+            attribution += " • Enhanced with AI amplification"
+        
+        return attribution
+    
+    def can_regenerate_with_same_source(self) -> bool:
+        """Check if content can be regenerated using the same intelligence source"""
+        return (self.intelligence_source is not None and 
+                self.intelligence_source.analysis_status == AnalysisStatus.COMPLETED)
+    
     def _generate_recommendations(self) -> List[str]:
         """Generate AI-powered recommendations for improving this content"""
         recommendations = []
@@ -306,6 +437,8 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
         # Quality improvement recommendations
         if self.user_rating and self.user_rating < 3:
             recommendations.append("Try different AI provider or generation settings")
+            if self.intelligence_source and self.intelligence_source.confidence_score < 0.7:
+                recommendations.append("Consider using a higher-confidence intelligence source")
         
         # Publishing recommendations
         if not self.is_published and self.user_rating and self.user_rating >= 3:
@@ -314,6 +447,16 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
         # Performance optimization
         if self.performance_score and self.performance_score < 70:
             recommendations.append("Optimize content for better performance metrics")
+        
+        # Source-based recommendations
+        if self.intelligence_source:
+            if not self.intelligence_source.is_amplified():
+                recommendations.append("Try amplifying the source intelligence for enhanced content")
+            
+            # Get source performance stats
+            source_stats = self.intelligence_source.get_content_generation_stats()
+            if source_stats["average_user_rating"] >= 4.0:
+                recommendations.append("This source has high success rate - consider generating more content types")
         
         return recommendations
     
@@ -329,6 +472,14 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
         
         if self.user_rating and self.user_rating <= 2:
             actions.append("Regenerate with different settings or provider")
+        
+        # Intelligence source actions
+        if self.intelligence_source:
+            if self.can_regenerate_with_same_source():
+                actions.append("Regenerate using the same high-quality source")
+            
+            if not self.intelligence_source.is_amplified():
+                actions.append("Amplify the intelligence source for enhanced content")
         
         return actions
     
@@ -382,7 +533,8 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
         return min(100, score)
     
     def __repr__(self):
-        return f"<GeneratedContent(id={self.id}, type='{self.content_type}', ultra_cheap={self.is_ultra_cheap_ai_content})>"
+        source_info = f", source={self.intelligence_source.source_title[:30]}..." if self.intelligence_source else ""
+        return f"<GeneratedContent(id={self.id}, type='{self.content_type}', ultra_cheap={self.is_ultra_cheap_ai_content}{source_info})>"
 
 class SmartURL(BaseModel, EnumSerializerMixin):
     """Smart URL tracking for attribution - Clean permanent version"""
@@ -453,35 +605,37 @@ class AnalysisRequest(PydanticBaseModel):
     )
 
 
-# ✅ ULTRA-CHEAP AI INTEGRATION SUMMARY:
+# ✅ INTELLIGENCE BACKLINK INTEGRATION SUMMARY:
 """
-UPDATED GeneratedContent Model Features:
+UPDATED Models with Intelligence Backlink Features:
 
 ✅ DATABASE SCHEMA ALIGNMENT:
-- Matches actual database columns exactly
-- Removed non-existent columns (generation_prompt, performance_data, etc.)
-- Added existing columns (performance_score, view_count)
-- Fixed data types (user_id as INTEGER, campaign_id as VARCHAR)
+- Added intelligence_id foreign key to GeneratedContent
+- Added intelligence_source relationship to GeneratedContent  
+- Added generated_content reverse relationship to CampaignIntelligence
+- Maintains all existing schema compatibility
 
-✅ ULTRA-CHEAP AI TRACKING:
-- get_ultra_cheap_ai_info(): Complete ultra-cheap AI metadata extraction
-- calculate_roi_metrics(): Cost savings and ROI calculations
-- get_generator_analytics(): Generator-specific performance tracking
-- get_content_insights(): AI-powered content performance insights
+✅ INTELLIGENCE SOURCE ANALYTICS:
+- get_content_generation_stats(): Track content generated from each source
+- get_roi_analysis(): Calculate ROI of intelligence sources
+- Content provenance and attribution tracking
+- Source performance metrics and recommendations
 
-✅ FUTURE-PROOF GENERATOR SUPPORT:
-- Automatically tracks any content_type (email_sequence, ad_copy, social_media_posts, etc.)
-- Provider performance monitoring for all generator types
-- Cost efficiency tracking across all generators
-- Quality and user satisfaction metrics
+✅ ENHANCED CONTENT INSIGHTS:
+- get_intelligence_source_summary(): Full source context for content
+- get_source_attribution(): User-friendly attribution text
+- can_regenerate_with_same_source(): Smart regeneration capabilities
+- Source-aware recommendations and next actions
 
-✅ ANALYTICS READY:
-- Compatible with comprehensive analytics system
-- Supports admin and user dashboard requirements
-- Provides data for predictive analytics and recommendations
-- Scales automatically with new generator types
+✅ ADVANCED ANALYTICS READY:
+- Content-to-source relationships for comprehensive analytics
+- Intelligence source performance tracking
+- Content success correlation with source quality
+- ROI analysis for intelligence investments
 
 🎯 DEPLOYMENT READY:
-This model eliminates all database schema mismatches and provides
-comprehensive ultra-cheap AI tracking for current and future generators.
+This model adds powerful intelligence backlink capabilities while
+maintaining full backward compatibility with existing content.
+New content will have intelligence attribution, existing content
+will continue to work with nullable intelligence_id.
 """
