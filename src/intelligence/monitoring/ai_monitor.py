@@ -147,7 +147,7 @@ class AIMonitorService:
                 
                 async with AsyncSession(self._db_engine) as session:
                     result = await session.execute(text("SELECT 1"))
-                    await result.fetchone()
+                    row = result.fetchone()
                     logger.info("✅ Async database connection tested successfully")
                     
             except ImportError as e:
