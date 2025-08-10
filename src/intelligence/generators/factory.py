@@ -11,6 +11,7 @@ ENHANCED CONTENT GENERATOR FACTORY - ULTRA-CHEAP AI INTEGRATION
 ✅ Configuration management system
 """
 
+import importlib
 import logging
 import asyncio
 from typing import Dict, List, Any, Optional, Union, Callable
@@ -171,21 +172,34 @@ class ContentGeneratorFactory:
         
         logger.info(f"🔗 Mapped {len(self._content_type_mapping)} content types to generators")
     
-    async def _lazy_load_generator(self, generator_type: str):
-        """Lazy load generator on first use"""
-        
-        if generator_type in self._generators:
-            return self._generators[generator_type]
-        
-        config = self._generator_configs.get(generator_type)
-        if not config or not config.enabled:
-            raise ValueError(f"Generator '{generator_type}' not configured or disabled")
-        
+    import asyncio
+import time
+import importlib
+from datetime import datetime, timezone
+import logging
+
+logger = logging.getLogger(__name__)
+
+async def _lazy_load_generator(self, generator_type: str, retries: int = 3, delay: float = 1.0):
+    """Lazy load generator on first use, with retries on failure"""
+    
+    if generator_type in self._generators:
+        return self._generators[generator_type]
+    
+    config = self._generator_configs.get(generator_type)
+    if not config or not config.enabled:
+        raise ValueError(f"Generator '{generator_type}' not configured or disabled")
+    
+    last_exception = None
+    
+    for attempt in range(1, retries + 1):
         start_time = time.time()
-        
         try:
             # Dynamic import
-            module = __import__(f".{config.module_path}", package="src.intelligence.generators", fromlist=[config.class_name])
+            module = importlib.import_module(
+                f".{config.module_path}",
+                package="src.intelligence.generators"
+            )
             generator_class = getattr(module, config.class_name)
             
             # Instantiate generator
@@ -206,23 +220,30 @@ class ContentGeneratorFactory:
                 error_count=0
             )
             
-            logger.info(f"✅ Lazy loaded {generator_type} in {load_time:.1f}ms")
+            logger.info(f"✅ Lazy loaded {generator_type} in {load_time:.1f}ms (attempt {attempt}/{retries})")
             return generator_instance
-            
+        
         except Exception as e:
-            # Track failed loading
-            self._generator_health[generator_type] = GeneratorHealth(
-                generator_type=generator_type,
-                status="down",
-                last_check=datetime.now(timezone.utc),
-                response_time_ms=0,
-                success_rate=0.0,
-                error_count=1,
-                last_error=str(e)
-            )
+            last_exception = e
+            logger.warning(f"⚠️ Attempt {attempt}/{retries} failed to load {generator_type}: {str(e)}")
             
-            logger.error(f"❌ Failed to lazy load {generator_type}: {str(e)}")
-            raise
+            if attempt < retries:
+                await asyncio.sleep(delay)
+    
+    # Track final failure
+    self._generator_health[generator_type] = GeneratorHealth(
+        generator_type=generator_type,
+        status="down",
+        last_check=datetime.now(timezone.utc),
+        response_time_ms=0,
+        success_rate=0.0,
+        error_count=retries,
+        last_error=str(last_exception)
+    )
+    
+    logger.error(f"❌ Failed to lazy load {generator_type} after {retries} attempts: {last_exception}")
+    raise last_exception
+
     
     async def get_generator(self, content_type: str):
         """Get generator instance for specified content type with lazy loading"""
