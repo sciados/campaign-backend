@@ -9,7 +9,8 @@ ENHANCED EMAIL SEQUENCE GENERATOR WITH ULTRA-CHEAP AI INTEGRATION
 ✅ Railway deployment compatible
 🔥 FIXED: Product name from source_title (authoritative source)
 🔥 FIXED: Product name placeholder elimination
-🔥 FIXED: Missing method issues
+🔥 FIXED: Universal product support for any sales page
+🔥 FIXED: Generic fallbacks for thousands of products
 """
 
 import os
@@ -20,10 +21,21 @@ import logging
 import uuid
 import re
 from datetime import datetime
+from uuid import UUID
 
 # Import enhanced base generator with ultra-cheap AI
 from .base_generator import BaseContentGenerator
 from src.models.base import EnumSerializerMixin
+
+# ✅ CRUD INTEGRATION: Import centralized CRUD
+from src.core.crud import intelligence_crud
+
+# 🔥 NEW: Import centralized product name extraction
+from src.intelligence.utils.product_name_extractor import (
+    extract_product_name_from_intelligence,
+    get_product_details_summary,
+    validate_product_name
+)
 
 from src.intelligence.utils.product_name_fix import (
     substitute_product_placeholders,
@@ -33,50 +45,12 @@ from src.intelligence.utils.product_name_fix import (
 
 logger = logging.getLogger(__name__)
 
-def get_product_name_from_intelligence(intelligence_data: Dict[str, Any]) -> str:
-    """
-    🔥 NEW: Get product name from source_title (authoritative source)
-    This is the single source of truth for product names
-    """
-    # Method 1: Direct from source_title (most reliable)
-    source_title = intelligence_data.get("source_title")
-    if source_title and isinstance(source_title, str) and len(source_title.strip()) > 2:
-        source_title = source_title.strip()
-        
-        # Remove common suffixes if they exist
-        suffixes_to_remove = [
-            " - Sales Page Analysis",
-            " - Analysis", 
-            " - Page Analysis",
-            " Sales Page",
-            " Analysis"
-        ]
-        
-        for suffix in suffixes_to_remove:
-            if source_title.endswith(suffix):
-                source_title = source_title[:-len(suffix)].strip()
-        
-        # Validate it's a real product name
-        if (source_title and 
-            len(source_title) > 2 and 
-            source_title not in ["Unknown Product", "Analyzed Page", "Stock Up - Exclusive Offer"]):
-            logger.info(f"✅ Product name from source_title: '{source_title}'")
-            return source_title
-    
-    # Method 2: Fallback to extraction if source_title is not reliable
-    logger.warning("⚠️ source_title not reliable, falling back to extraction")
-    
-    from src.intelligence.utils.product_name_fix import extract_product_name_from_intelligence
-    fallback_name = extract_product_name_from_intelligence(intelligence_data)
-    
-    logger.info(f"🔄 Fallback product name: '{fallback_name}'")
-    return fallback_name
-
 def fix_email_sequence_placeholders(emails: List[Dict], intelligence_data: Dict[str, Any]) -> List[Dict]:
     """
-    🔥 FIXED: Apply product name fixes to entire email sequence using source_title
+    🔥 FIXED: Apply product name fixes to entire email sequence using centralized extractor
+    Universal support for any product type
     """
-    product_name = get_product_name_from_intelligence(intelligence_data)
+    product_name = extract_product_name_from_intelligence(intelligence_data)
     company_name = product_name  # Often same for direct-to-consumer
     
     logger.info(f"🔧 Applying product name fixes: '{product_name}' to {len(emails)} emails")
@@ -89,7 +63,7 @@ def fix_email_sequence_placeholders(emails: List[Dict], intelligence_data: Dict[
     return fixed_emails
 
 class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
-    """Enhanced email sequence generator with ultra-cheap AI integration and source_title product names"""
+    """Enhanced email sequence generator with ultra-cheap AI integration and universal product support"""
     
     def __init__(self):
         # Initialize with ultra-cheap AI system
@@ -142,17 +116,17 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
         intelligence_data: Dict[str, Any],
         preferences: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """Generate campaign-centric email sequence with ultra-cheap AI and source_title product names"""
+        """Generate campaign-centric email sequence with ultra-cheap AI and universal product support"""
         
         if preferences is None:
             preferences = {}
         
-        # 🔥 CRITICAL FIX: Get product name from source_title (authoritative source)
-        actual_product_name = get_product_name_from_intelligence(intelligence_data)
-        logger.info(f"🎯 Email Generator: Using product name '{actual_product_name}' from source_title")
+        # 🔥 CRITICAL FIX: Get product name using centralized extractor
+        actual_product_name = extract_product_name_from_intelligence(intelligence_data)
+        logger.info(f"🎯 Email Generator: Using product name '{actual_product_name}' from centralized extractor")
         
-        # Extract intelligence for email generation
-        product_details = self._extract_product_details(intelligence_data)
+        # Extract intelligence for email generation using centralized utility
+        product_details = get_product_details_summary(intelligence_data)
         product_details["name"] = actual_product_name
         
         sequence_length = self._safe_int_conversion(preferences.get("length", "5"), 5, 3, 10)
@@ -399,7 +373,7 @@ Generate the complete {sequence_length}-email sequence now.
             email_data["subject"] = f"{product_name} - Important Update #{email_num}"
         
         if not email_data["body"]:
-            email_data["body"] = f"Discover the comprehensive benefits of {product_name} through our scientifically-backed approach to health optimization."
+            email_data["body"] = f"Discover the comprehensive benefits of {product_name} through our scientifically-backed approach to optimization."
         
         # Apply product name fixes using substitute_product_placeholders
         for field in ["subject", "body", "campaign_focus"]:
@@ -420,7 +394,7 @@ Generate the complete {sequence_length}-email sequence now.
             email_data = {
                 "email_number": i + 1,
                 "subject": f"{product_name} - {angle['name']}",
-                "body": f"Discover {product_name} through our {angle['focus'].lower()} approach. Experience the benefits of {product_name} for your health optimization journey.",
+                "body": f"Discover {product_name} through our {angle['focus'].lower()} approach. Experience the benefits of {product_name} for your optimization journey.",
                 "send_delay": f"Day {i * 2 + 1}",
                 "campaign_focus": f"{angle['name']} campaign email for {product_name}",
                 "uniqueness_id": uniqueness_id,
@@ -473,7 +447,7 @@ Generate the complete {sequence_length}-email sequence now.
         return diversified_emails
     
     def _guaranteed_campaign_email_fallback(self, product_details: Dict[str, str], sequence_length: int, uniqueness_id: str) -> Dict[str, Any]:
-        """Guaranteed campaign email generation with source_title product names"""
+        """Guaranteed campaign email generation with universal product support"""
         
         actual_product_name = product_details["name"]
         logger.info(f"🔄 Generating guaranteed campaign email sequence for '{actual_product_name}' from source_title")
@@ -492,7 +466,7 @@ Generate the complete {sequence_length}-email sequence now.
 
 Our {angle['approach'].lower()} focuses on delivering real results through proven methods that work with your body's natural processes.
 
-Experience the difference {actual_product_name} can make in your health journey.
+Experience the difference {actual_product_name} can make in your journey.
 
 Key benefits of this approach:
 • {angle['focus']} for maximum impact
@@ -555,25 +529,9 @@ Your {actual_product_name} Team""",
         )
     
     def _extract_product_details(self, intelligence_data: Dict[str, Any]) -> Dict[str, str]:
-        """Extract product details from intelligence data using source_title for product name"""
-        
-        # 🔥 CRITICAL FIX: Use source_title as authoritative product name source
-        actual_product_name = get_product_name_from_intelligence(intelligence_data)
-        
-        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
-        
-        benefits = offer_intel.get("benefits", ["health optimization", "metabolic enhancement", "natural wellness"])
-        if isinstance(benefits, list):
-            benefits_str = ", ".join(benefits[:3])
-        else:
-            benefits_str = "health optimization, metabolic enhancement, natural wellness"
-        
-        return {
-            "name": actual_product_name,
-            "benefits": benefits_str,
-            "audience": "health-conscious adults seeking natural solutions",
-            "transformation": "natural health improvement and lifestyle enhancement"
-        }
+        """Extract product details - DEPRECATED: Use get_product_details_summary instead"""
+        logger.warning("⚠️ _extract_product_details is deprecated, use get_product_details_summary")
+        return get_product_details_summary(intelligence_data)
     
     def _safe_int_conversion(self, value: str, default: int, min_val: int, max_val: int) -> int:
         """Safe integer conversion with bounds checking"""
@@ -582,6 +540,94 @@ Your {actual_product_name} Team""",
             return max(min_val, min(max_val, result))
         except:
             return default
+
+    # 🔧 FIXED: Update intelligence data preparation with CRUD integration
+    async def _prepare_intelligence_data(self, campaign_id: str, campaign, user) -> Dict[str, Any]:
+        """✅ CRUD MIGRATED: Prepare intelligence data for content generation with universal product support"""
+        from src.core.crud import intelligence_crud
+        
+        # Get intelligence sources using CRUD (now with company_id support)
+        intelligence_sources = await intelligence_crud.get_campaign_intelligence(
+            db=self.db if hasattr(self, 'db') else None,
+            campaign_id=UUID(campaign_id),
+            company_id=UUID(user.company_id) if hasattr(user, 'company_id') else None
+        )
+        
+        # 🔧 CRITICAL FIX: Extract product name from FIRST source's direct source_title
+        actual_product_name = "this product"  # 🔧 FIXED: Generic fallback for any product
+        
+        if intelligence_sources and len(intelligence_sources) > 0:
+            first_source = intelligence_sources[0]
+            if hasattr(first_source, 'source_title') and first_source.source_title:
+                actual_product_name = first_source.source_title.strip()
+                logger.info(f"🎯 Using DIRECT source_title: '{actual_product_name}'")
+        
+        # Prepare intelligence data structure with CORRECT product name
+        intelligence_data = {
+            "campaign_id": campaign_id,
+            "campaign_name": campaign.title if hasattr(campaign, 'title') else "Campaign",
+            "source_title": actual_product_name,  # 🔧 ADD: Direct source title
+            "target_audience": getattr(campaign, 'target_audience', None) or "individuals seeking solutions",
+            "offer_intelligence": {},
+            "psychology_intelligence": {},
+            "content_intelligence": {},
+            "competitive_intelligence": {},
+            "brand_intelligence": {},
+            "intelligence_sources": []
+        }
+        
+        # Aggregate intelligence data from all sources
+        for source in intelligence_sources:
+            try:
+                source_data = {
+                    "id": str(source.id),
+                    "source_type": source.source_type.value if source.source_type else "unknown",
+                    "source_url": source.source_url,
+                    "confidence_score": source.confidence_score or 0.0,
+                    "offer_intelligence": self._serialize_enum_field(source.offer_intelligence),
+                    "psychology_intelligence": self._serialize_enum_field(source.psychology_intelligence),
+                    "content_intelligence": self._serialize_enum_field(source.content_intelligence),
+                    "competitive_intelligence": self._serialize_enum_field(source.competitive_intelligence),
+                    "brand_intelligence": self._serialize_enum_field(source.brand_intelligence),
+                    "scientific_intelligence": self._serialize_enum_field(source.scientific_intelligence),
+                    "credibility_intelligence": self._serialize_enum_field(source.credibility_intelligence),
+                    "market_intelligence": self._serialize_enum_field(source.market_intelligence),
+                    "emotional_transformation_intelligence": self._serialize_enum_field(source.emotional_transformation_intelligence),
+                    "scientific_authority_intelligence": self._serialize_enum_field(source.scientific_authority_intelligence),
+                    "processing_metadata": self._serialize_enum_field(source.processing_metadata),
+                }
+                intelligence_data["intelligence_sources"].append(source_data)
+                
+                # Merge into aggregate intelligence
+                for intel_type in ["offer_intelligence", "psychology_intelligence", "content_intelligence", "competitive_intelligence", "brand_intelligence"]:
+                    self._merge_intelligence_category(intelligence_data, source_data, intel_type)
+                    
+            except Exception as source_error:
+                logger.warning(f"⚠️ Error processing source {source.id}: {str(source_error)}")
+                continue
+        
+        logger.info(f"✅ Content Handler prepared intelligence data: {len(intelligence_data['intelligence_sources'])} sources")
+        return intelligence_data
+    
+    def _merge_intelligence_category(self, target: Dict, source: Dict, category: str):
+        """Merge intelligence category from source into target"""
+        source_intel = source.get(category, {})
+        if not source_intel:
+            return
+        
+        current_intel = target.get(category, {})
+        
+        for key, value in source_intel.items():
+            if key in current_intel:
+                if isinstance(value, list) and isinstance(current_intel[key], list):
+                    current_intel[key].extend(value)
+                elif isinstance(value, str) and isinstance(current_intel[key], str):
+                    if value not in current_intel[key]:
+                        current_intel[key] += f" {value}"
+            else:
+                current_intel[key] = value
+        
+        target[category] = current_intel
 
 
 # Alias classes for backward compatibility
@@ -595,7 +641,7 @@ async def generate_email_sequence_with_ultra_cheap_ai(
     sequence_length: int = 5,
     preferences: Dict[str, Any] = None
 ) -> Dict[str, Any]:
-    """Generate email sequence using ultra-cheap AI system with source_title product names"""
+    """Generate email sequence using ultra-cheap AI system with universal product support"""
     
     generator = EmailSequenceGenerator()
     if preferences is None:
@@ -612,7 +658,7 @@ def get_email_generator_cost_summary() -> Dict[str, Any]:
 
 def get_product_name_for_emails(intelligence_data: Dict[str, Any]) -> str:
     """
-    🔥 NEW: Public function to get product name for email generation
-    Uses source_title as the authoritative source
+    🔥 FIXED: Public function to get product name for email generation
+    Uses centralized product name extractor for universal product support
     """
-    return get_product_name_from_intelligence(intelligence_data)
+    return extract_product_name_from_intelligence(intelligence_data)

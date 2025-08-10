@@ -1,4 +1,4 @@
-# src/core/database.py - FIXED VERSION for AsyncEngine and table conflicts
+# src/core/database.py - FIXED VERSION for AsyncEngine with proper driver
 import os
 import logging
 from sqlalchemy import create_engine, MetaData
@@ -11,7 +11,7 @@ import asyncio
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# ✅ FIXED: Database Configuration with both Sync and Async engines
+# ✅ FIXED: Database Configuration with proper async driver
 # ============================================================================
 
 # Get database URL
@@ -23,16 +23,21 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Create async version of the URL
+# 🔧 CRITICAL FIX: Create proper async URL with asyncpg driver
 ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
-logger.info(f"🔗 Database URL configured: {DATABASE_URL[:50]}...")
+# 🔧 ADDITIONAL FIX: Ensure we're not mixing drivers
+if "psycopg2" in ASYNC_DATABASE_URL:
+    ASYNC_DATABASE_URL = ASYNC_DATABASE_URL.replace("psycopg2", "asyncpg")
+
+logger.info(f"🔗 Sync Database URL: {DATABASE_URL[:50]}...")
+logger.info(f"🔗 Async Database URL: {ASYNC_DATABASE_URL[:50]}...")
 
 # ============================================================================
-# ✅ FIXED: Create both sync and async engines
+# ✅ FIXED: Create both sync and async engines with proper drivers
 # ============================================================================
 
-# Synchronous engine for table creation and simple operations
+# Synchronous engine for table creation and simple operations (uses psycopg2)
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
@@ -44,17 +49,20 @@ engine = create_engine(
     } if "postgresql" in DATABASE_URL else {}
 )
 
-# Asynchronous engine for async operations
+# 🔧 CRITICAL FIX: Asynchronous engine with asyncpg driver
 async_engine = create_async_engine(
     ASYNC_DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300,
     echo=False,
-    # Add connection args for better compatibility
+    # 🔧 FIXED: Proper asyncpg connection args
     connect_args={
         "server_settings": {
             "application_name": "CampaignForge_Backend",
-        }
+            "timezone": "UTC"
+        },
+        # 🔧 CRITICAL: Ensure asyncpg-specific settings
+        "command_timeout": 60,
     }
 )
 
@@ -107,17 +115,17 @@ Base = declarative_base(
 )
 
 # ============================================================================
-# 🔧 CRITICAL FIX: Session configuration
+# 🔧 CRITICAL FIX: Session configuration with proper async support
 # ============================================================================
 
-# Synchronous session for regular operations
+# Synchronous session for regular operations (uses psycopg2)
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine
 )
 
-# 🔧 CRITICAL FIX: Asynchronous session for async operations
+# 🔧 CRITICAL FIX: Asynchronous session with asyncpg support
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,
     class_=AsyncSession,
@@ -177,15 +185,15 @@ def create_tables_sync():
 
 async def create_tables_async():
     """
-    Create tables using asynchronous engine
+    Create tables using asynchronous engine with asyncpg
     """
     try:
-        logger.info("🏗️ Creating database tables (asynchronous)...")
+        logger.info("🏗️ Creating database tables (asynchronous with asyncpg)...")
         
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         
-        logger.info("✅ Database tables created successfully (async)")
+        logger.info("✅ Database tables created successfully (async with asyncpg)")
         return True
         
     except Exception as e:
@@ -198,7 +206,7 @@ async def create_tables_async():
 
 def get_db() -> Session:
     """
-    Synchronous database dependency for FastAPI
+    Synchronous database dependency for FastAPI (uses psycopg2)
     """
     db = SessionLocal()
     try:
@@ -208,7 +216,7 @@ def get_db() -> Session:
 
 async def get_async_db() -> AsyncSession:
     """
-    Asynchronous database dependency for FastAPI
+    Asynchronous database dependency for FastAPI (uses asyncpg)
     """
     async with AsyncSessionLocal() as session:
         try:
@@ -222,25 +230,25 @@ async def get_async_db() -> AsyncSession:
 
 def test_connection():
     """
-    Test database connection
+    Test database connection (sync with psycopg2)
     """
     try:
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
-        logger.info("✅ Database connection test successful")
-        return True
+            result = conn.execute("SELECT 1")
+            logger.info("✅ Sync database connection test successful (psycopg2)")
+            return True
     except Exception as e:
-        logger.error(f"❌ Database connection test failed: {e}")
+        logger.error(f"❌ Sync database connection test failed: {e}")
         return False
 
 async def test_async_connection():
     """
-    Test async database connection
+    Test async database connection (asyncpg)
     """
     try:
         async with async_engine.connect() as conn:
             await conn.execute("SELECT 1")
-        logger.info("✅ Async database connection test successful")
+        logger.info("✅ Async database connection test successful (asyncpg)")
         return True
     except Exception as e:
         logger.error(f"❌ Async database connection test failed: {e}")
@@ -272,10 +280,17 @@ def initialize_database():
     try:
         logger.info("🚀 Initializing database...")
         
-        # Test connection first
+        # Test both connections
         if not test_connection():
-            logger.error("❌ Database connection failed")
+            logger.error("❌ Sync database connection failed")
             return False
+        
+        # Test async connection
+        try:
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(test_async_connection())
+        except Exception as async_test_error:
+            logger.warning(f"⚠️ Async connection test failed: {async_test_error}")
         
         # Get existing table info
         existing_tables = get_table_info()
@@ -303,9 +318,9 @@ def cleanup_database():
     """
     try:
         engine.dispose()
-        logger.info("✅ Database connections cleaned up")
+        logger.info("✅ Sync database connections cleaned up")
     except Exception as e:
-        logger.error(f"❌ Database cleanup error: {e}")
+        logger.error(f"❌ Sync database cleanup error: {e}")
 
 async def cleanup_async_database():
     """
@@ -316,6 +331,35 @@ async def cleanup_async_database():
         logger.info("✅ Async database connections cleaned up")
     except Exception as e:
         logger.error(f"❌ Async database cleanup error: {e}")
+
+# ============================================================================
+# 🆕 NEW: Driver verification function
+# ============================================================================
+
+def verify_database_drivers():
+    """
+    Verify that proper database drivers are being used
+    """
+    try:
+        # Check sync driver
+        sync_driver = engine.dialect.driver
+        logger.info(f"🔍 Sync driver: {sync_driver}")
+        
+        # Check async driver  
+        async_driver = async_engine.dialect.driver
+        logger.info(f"🔍 Async driver: {async_driver}")
+        
+        # Verify correct drivers
+        if sync_driver == "psycopg2" and async_driver == "asyncpg":
+            logger.info("✅ Database drivers correctly configured")
+            return True
+        else:
+            logger.warning(f"⚠️ Driver mismatch - Sync: {sync_driver}, Async: {async_driver}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ Driver verification failed: {e}")
+        return False
 
 # ============================================================================
 # ✅ EXPORTS
@@ -337,5 +381,6 @@ __all__ = [
     'initialize_database',
     'cleanup_database',
     'cleanup_async_database',
-    'get_table_info'
+    'get_table_info',
+    'verify_database_drivers'  # New function
 ]
