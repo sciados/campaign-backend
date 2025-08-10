@@ -147,8 +147,11 @@ class AIMonitorService:
                 
                 async with AsyncSession(self._db_engine) as session:
                     result = await session.execute(text("SELECT 1"))
-                    row = result.fetchone()
-                    logger.info("✅ Async database connection tested successfully")
+                    row = result.fetchone()  # Don't await this - fetchone() is sync
+                    if row:
+                        logger.info("✅ Async database connection tested successfully")
+                    else:
+                        logger.warning("⚠️ Database connection test returned no results")
                     
             except ImportError as e:
                 logger.warning(f"⚠️ SQLAlchemy async extensions not available: {e}")
@@ -419,9 +422,12 @@ class AIMonitorService:
                 from sqlalchemy import text
                 
                 async with AsyncSession(db_engine) as session:
+                    # First try to get the routing decision with provider details
                     query = text("""
-                        SELECT rd.selected_provider, rd.alternative_providers, rd.decision_factors
+                        SELECT rd.selected_provider_id, ap.provider_name, ap.model_name,
+                               rd.alternative_providers, rd.decision_factors
                         FROM routing_decisions rd
+                        LEFT JOIN ai_providers ap ON rd.selected_provider_id = ap.id
                         WHERE rd.content_type = :content_type
                         AND rd.effective_from <= NOW()
                         AND (rd.expires_at IS NULL OR rd.expires_at > NOW())
@@ -432,15 +438,16 @@ class AIMonitorService:
                     result = await session.execute(query, {"content_type": content_type})
                     row = result.fetchone()
                     
-                    if row:
+                    if row and row.provider_name:
                         return {
-                            "provider_name": row.selected_provider,
-                            "model_name": self._get_default_model(row.selected_provider, content_type),
+                            "provider_name": row.provider_name,
+                            "model_name": row.model_name or self._get_default_model(row.provider_name, content_type),
                             "backup_providers": row.alternative_providers if isinstance(row.alternative_providers, list) else [],
                             "decision_factors": row.decision_factors if isinstance(row.decision_factors, dict) else {},
-                            "api_key_env": f"{row.selected_provider.upper()}_API_KEY",
+                            "api_key_env": f"{row.provider_name.upper()}_API_KEY",
                             "source": "database"
                         }
+                    
             except Exception as e:
                 logger.warning(f"⚠️ Database query failed, using cache: {e}")
         
@@ -1013,7 +1020,7 @@ class AIMonitorService:
             logger.debug("🎯 Optimization recommendations saved to cache only (no database)")
     
     async def _update_active_routing(self, routing_updates: List[Dict]):
-        """Update active routing decisions in database (Fixed Async Implementation)"""
+        """Update active routing decisions in database (Fixed Schema Implementation)"""
         db_engine = await self._get_db_engine()
         if db_engine:
             try:
@@ -1022,6 +1029,22 @@ class AIMonitorService:
                 
                 async with AsyncSession(db_engine) as session:
                     for routing in routing_updates:
+                        # First, try to find or create the provider in ai_providers table
+                        provider_query = text("""
+                            INSERT INTO ai_providers (provider_name, model_name, api_endpoint, created_at)
+                            VALUES (:provider_name, :model_name, '', NOW())
+                            ON CONFLICT (provider_name) DO UPDATE SET 
+                                model_name = EXCLUDED.model_name,
+                                updated_at = NOW()
+                            RETURNING id
+                        """)
+                        
+                        provider_result = await session.execute(provider_query, {
+                            "provider_name": routing["selected_provider"],
+                            "model_name": self._get_default_model(routing["selected_provider"], routing["content_type"])
+                        })
+                        provider_id = provider_result.fetchone().id
+                        
                         # Deactivate old routing decisions for this content type
                         deactivate_query = text("""
                             UPDATE routing_decisions 
@@ -1033,13 +1056,13 @@ class AIMonitorService:
                         # Insert new routing decision
                         insert_query = text("""
                             INSERT INTO routing_decisions 
-                            (content_type, selected_provider, alternative_providers, decision_factors, effective_from)
-                            VALUES (:content_type, :selected_provider, :alternative_providers, :decision_factors, NOW())
+                            (content_type, selected_provider_id, alternative_providers, decision_factors, effective_from)
+                            VALUES (:content_type, :selected_provider_id, :alternative_providers, :decision_factors, NOW())
                         """)
                         
                         await session.execute(insert_query, {
                             "content_type": routing["content_type"],
-                            "selected_provider": routing["selected_provider"],
+                            "selected_provider_id": provider_id,
                             "alternative_providers": safe_json_dumps(routing["backup_providers"]),
                             "decision_factors": safe_json_dumps(routing["decision_factors"])
                         })
@@ -1075,24 +1098,37 @@ class AIMonitorService:
             if len(metrics["recent_successes"]) > 100:
                 metrics["recent_successes"] = metrics["recent_successes"][-100:]
             
-            # Optionally save to database
+            # Try to save to database (skip if table doesn't exist)
             db_engine = await self._get_db_engine()
             if db_engine:
-                from sqlalchemy.ext.asyncio import AsyncSession
-                from sqlalchemy import text
-                
-                async with AsyncSession(db_engine) as session:
-                    query = text("""
-                        INSERT INTO usage_logs (provider, content_type, success, timestamp)
-                        VALUES (:provider, :content_type, true, :timestamp)
-                    """)
+                try:
+                    from sqlalchemy.ext.asyncio import AsyncSession
+                    from sqlalchemy import text
                     
-                    await session.execute(query, {
-                        "provider": provider_name,
-                        "content_type": content_type,
-                        "timestamp": timestamp
-                    })
-                    await session.commit()
+                    async with AsyncSession(db_engine) as session:
+                        # Check if usage_logs table exists
+                        check_table = text("""
+                            SELECT EXISTS (
+                                SELECT 1 FROM information_schema.tables 
+                                WHERE table_name = 'usage_logs'
+                            )
+                        """)
+                        table_exists = await session.execute(check_table)
+                        if table_exists.scalar():
+                            query = text("""
+                                INSERT INTO usage_logs (provider, content_type, success, timestamp)
+                                VALUES (:provider, :content_type, true, :timestamp)
+                            """)
+                            
+                            await session.execute(query, {
+                                "provider": provider_name,
+                                "content_type": content_type,
+                                "timestamp": timestamp
+                            })
+                            await session.commit()
+                except Exception:
+                    # Silently skip if table doesn't exist or has different schema
+                    pass
             
             logger.debug(f"✅ Logged success for {provider_name} - {content_type}")
         except Exception as e:
@@ -1124,25 +1160,38 @@ class AIMonitorService:
             if len(metrics["recent_fallbacks"]) > 50:
                 metrics["recent_fallbacks"] = metrics["recent_fallbacks"][-50:]
             
-            # Optionally save to database
+            # Try to save to database (skip if table doesn't exist)
             db_engine = await self._get_db_engine()
             if db_engine:
-                from sqlalchemy.ext.asyncio import AsyncSession
-                from sqlalchemy import text
-                
-                async with AsyncSession(db_engine) as session:
-                    query = text("""
-                        INSERT INTO fallback_logs (fallback_provider, content_type, failed_providers, timestamp)
-                        VALUES (:fallback_provider, :content_type, :failed_providers, :timestamp)
-                    """)
+                try:
+                    from sqlalchemy.ext.asyncio import AsyncSession
+                    from sqlalchemy import text
                     
-                    await session.execute(query, {
-                        "fallback_provider": provider_name,
-                        "content_type": content_type,
-                        "failed_providers": safe_json_dumps(failed_providers),
-                        "timestamp": timestamp
-                    })
-                    await session.commit()
+                    async with AsyncSession(db_engine) as session:
+                        # Check if fallback_logs table exists
+                        check_table = text("""
+                            SELECT EXISTS (
+                                SELECT 1 FROM information_schema.tables 
+                                WHERE table_name = 'fallback_logs'
+                            )
+                        """)
+                        table_exists = await session.execute(check_table)
+                        if table_exists.scalar():
+                            query = text("""
+                                INSERT INTO fallback_logs (fallback_provider, content_type, failed_providers, timestamp)
+                                VALUES (:fallback_provider, :content_type, :failed_providers, :timestamp)
+                            """)
+                            
+                            await session.execute(query, {
+                                "fallback_provider": provider_name,
+                                "content_type": content_type,
+                                "failed_providers": safe_json_dumps(failed_providers),
+                                "timestamp": timestamp
+                            })
+                            await session.commit()
+                except Exception:
+                    # Silently skip if table doesn't exist or has different schema
+                    pass
             
             logger.debug(f"⚠️ Logged fallback for {provider_name} - {content_type}")
         except Exception as e:
