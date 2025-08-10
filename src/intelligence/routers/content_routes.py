@@ -27,6 +27,7 @@ from src.core.crud import campaign_crud, intelligence_crud
 # ✅ CRUD-ENABLED: Import CRUD-migrated handler and service
 from ..handlers.content_handler import ContentHandler
 from src.campaigns.services.intelligence_service import IntelligenceService
+from src.core.responses import ResponseBuilder
 
 from ..schemas.requests import GenerateContentRequest
 from ..schemas.responses import (
@@ -130,13 +131,15 @@ async def save_content_via_crud(
 # ✅ CRUD-ENABLED CONTENT ENDPOINTS
 # ============================================================================
 
-@router.post("/generate")  # This becomes /api/intelligence/content/generate
+@router.post("/generate")
 async def generate_content(
     request_data: Dict[str, Any],
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)  # ✅ CRUD MIGRATION: Use async database session
+    db: AsyncSession = Depends(get_async_db)
 ):
-    """✅ CRUD MIGRATION: Content generation with CRUD-enabled handler"""
+    """🎯 FIXED: Content generation with standardized response format"""
+    
+    request_id = str(uuid.uuid4())
     
     try:
         # Extract data
@@ -146,17 +149,23 @@ async def generate_content(
         preferences = request_data.get("preferences", {})
         
         if not campaign_id:
-            raise HTTPException(
+            return ResponseBuilder.error(
+                error="campaign_id is required for content generation",
+                error_code="MISSING_CAMPAIGN_ID",
                 status_code=400,
-                detail="campaign_id is required for content generation"
+                suggestions=[
+                    "Include campaign_id in request body",
+                    "Verify campaign exists and is accessible"
+                ],
+                request_id=request_id
             )
         
-        logger.info(f"🎯 CRUD-enabled generation: {content_type} for campaign {campaign_id}")
+        logger.info(f"🎯 STANDARDIZED generation: {content_type} for campaign {campaign_id}")
         
-        # ✅ CRUD MIGRATION: Use CRUD-enabled ContentHandler (already migrated)
+        # Use CRUD-enabled ContentHandler
         handler = ContentHandler(db, current_user)
         
-        # ✅ CRUD MIGRATION: Handler already uses CRUD internally
+        # Generate content
         result = await handler.generate_content({
             "content_type": content_type,
             "prompt": prompt,
@@ -164,36 +173,58 @@ async def generate_content(
             "preferences": preferences
         })
         
-        # ✅ CRUD VERIFICATION: Add metadata about CRUD usage
-        if isinstance(result, dict) and result.get("success", True):
-            result["crud_integration"] = {
-                "handler_crud_enabled": True,
-                "database_operations": "all_via_crud",
-                "chunked_iterator_risk": "eliminated",
-                "content_storage": "crud_managed",
-                "intelligence_access": "crud_enabled"
-            }
+        # 🎯 CRITICAL FIX: Check if handler returned error format
+        if isinstance(result, dict) and result.get("success") is False:
+            return ResponseBuilder.error(
+                error=result.get("error", "Content generation failed"),
+                error_code="CONTENT_GENERATION_FAILED",
+                status_code=500,
+                suggestions=[
+                    "Check campaign intelligence sources",
+                    "Verify content type is supported",
+                    "Try with different preferences"
+                ],
+                request_id=request_id
+            )
         
-        logger.info(f"✅ CRUD generation completed for campaign {campaign_id}")
-        return result
-        
-    except HTTPException:
-        # Re-raise HTTP exceptions as-is
-        raise
-    except Exception as e:
-        logger.error(f"❌ CRUD generation endpoint failed: {e}")
-        # Return error response instead of raising exception
-        return {
-            "content_id": None,
+        # 🎯 FIXED: Transform handler result to standardized format
+        content_data = {
+            "content_id": result.get("content_id", str(uuid.uuid4())),
             "content_type": content_type,
-            "generated_content": None,
-            "success": False,
-            "error": str(e),
-            "crud_integration": {
-                "status": "unknown",
-                "error": "Health check failed before CRUD verification"
-            }
+            "generated_content": result.get("generated_content", {}),
+            "smart_url": result.get("smart_url"),
+            "performance_predictions": result.get("performance_predictions", {}),
+            "intelligence_sources_used": result.get("intelligence_sources_used", 0),
+            "generation_metadata": result.get("generation_metadata", {}),
+            "ultra_cheap_stats": result.get("ultra_cheap_stats", {})
         }
+        
+        return ResponseBuilder.success(
+            data=content_data,
+            message=f"Successfully generated {content_type}",
+            request_id=request_id
+        )
+        
+    except HTTPException as e:
+        return ResponseBuilder.error(
+            error=e.detail,
+            error_code=f"HTTP_{e.status_code}",
+            status_code=e.status_code,
+            request_id=request_id
+        )
+    except Exception as e:
+        logger.error(f"❌ STANDARDIZED generation endpoint failed: {e}")
+        return ResponseBuilder.error(
+            error=f"Content generation failed: {str(e)}",
+            error_code="GENERATION_SYSTEM_ERROR",
+            status_code=500,
+            suggestions=[
+                "Check system logs for detailed error information",
+                "Verify database connectivity",
+                "Contact support if error persists"
+            ],
+            request_id=request_id
+        )
 
 # ============================================================================
 # ✅ DEBUG AND TEST ENDPOINTS (CRUD-ENABLED)
