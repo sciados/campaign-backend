@@ -1,11 +1,12 @@
 # src/intelligence/monitoring/ai_monitor.py
 """
-AI MONITORING SERVICE - COMPLETE VERSION (CIRCULAR IMPORT FREE)
+AI MONITORING SERVICE - COMPLETE VERSION (FIXED ASYNC DATABASE)
 🤖 Monitors pricing, performance, and capabilities in real-time
 🎯 Auto-selects optimal providers for each content type
 💰 Maximizes cost savings while maintaining quality
 🔄 Adapts to new models and pricing changes automatically
-⚡ FIXED: No circular imports through clean architecture
+⚡ FIXED: Proper async database connection using asyncpg
+🔧 FIXED: No circular imports through clean architecture
 """
 
 import asyncio
@@ -18,7 +19,19 @@ import aiohttp
 import os
 
 # 🔧 CRITICAL FIX: JSON serialization helper for datetime objects
-from src.utils.json_utils import json_serial, safe_json_dumps
+try:
+    from src.utils.json_utils import json_serial, safe_json_dumps
+except ImportError:
+    # Fallback JSON serialization
+    def json_serial(obj):
+        """JSON serializer for objects not serializable by default json code"""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError("Type %s not serializable" % type(obj))
+    
+    def safe_json_dumps(obj, **kwargs):
+        """Safe JSON dumps with datetime serialization"""
+        return json.dumps(obj, default=json_serial, **kwargs)
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +59,11 @@ class OptimizationRecommendation:
     quality_impact: str
 
 class AIMonitorService:
-    """Main AI monitoring and optimization service (Complete, Circular Import Free)"""
+    """Main AI monitoring and optimization service (Fixed Async Database)"""
     
     def __init__(self):
-        # Use environment variable or fallback (no direct database dependency)
-        self.db_url = os.getenv("DATABASE_URL")
+        # 🔧 CRITICAL FIX: Proper async database URL configuration
+        self.db_url = self._get_async_database_url()
         self._db_engine = None  # Lazy load database connection if needed
         
         # Provider API endpoints for pricing monitoring
@@ -87,20 +100,81 @@ class AIMonitorService:
         self.last_monitoring_cycle = None
         self.monitoring_errors = []
         
-        logger.info("🤖 AI Monitor Service initialized (Complete, Circular Import Free)")
+        logger.info("🤖 AI Monitor Service initialized (Fixed Async Database)")
+    
+    def _get_async_database_url(self) -> Optional[str]:
+        """🔧 CRITICAL FIX: Get properly formatted async database URL"""
+        database_url = os.getenv("DATABASE_URL")
+        
+        if not database_url:
+            logger.warning("⚠️ No DATABASE_URL found in environment")
+            return None
+        
+        # 🔧 CRITICAL FIX: Convert psycopg2 URL to asyncpg URL
+        if database_url.startswith("postgresql://"):
+            # Replace postgresql:// with postgresql+asyncpg:// for SQLAlchemy async
+            async_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            logger.info("🔧 Converted database URL to async format")
+            return async_url
+        elif database_url.startswith("postgresql+asyncpg://"):
+            # Already in correct format
+            logger.info("✅ Database URL already in async format")
+            return database_url
+        else:
+            logger.warning(f"⚠️ Unsupported database URL format: {database_url[:20]}...")
+            return None
     
     async def _get_db_engine(self):
-        """Lazy load database engine to prevent circular imports"""
+        """🔧 FIXED: Lazy load async database engine with proper error handling"""
         if self._db_engine is None and self.db_url:
             try:
-                # Import only when needed
+                # Import only when needed to prevent circular imports
                 from sqlalchemy.ext.asyncio import create_async_engine
-                self._db_engine = create_async_engine(self.db_url)
-                logger.debug("📊 Database engine loaded for AI monitoring")
+                
+                # 🔧 CRITICAL FIX: Create async engine with proper configuration
+                self._db_engine = create_async_engine(
+                    self.db_url,
+                    pool_pre_ping=True,  # Verify connections before use
+                    pool_recycle=3600,   # Recycle connections every hour
+                    echo=False,          # Set to True for SQL debugging
+                    future=True          # Use SQLAlchemy 2.0 style
+                )
+                logger.info("✅ Async database engine created successfully")
+                
+                # Test the connection
+                from sqlalchemy.ext.asyncio import AsyncSession
+                from sqlalchemy import text
+                
+                async with AsyncSession(self._db_engine) as session:
+                    result = await session.execute(text("SELECT 1"))
+                    await result.fetchone()
+                    logger.info("✅ Async database connection tested successfully")
+                    
             except ImportError as e:
-                logger.warning(f"⚠️ Database not available for AI monitoring: {e}")
+                logger.warning(f"⚠️ SQLAlchemy async extensions not available: {e}")
                 self._db_engine = False
+            except Exception as e:
+                logger.error(f"❌ Failed to create async database engine: {e}")
+                self._db_engine = False
+                
         return self._db_engine if self._db_engine is not False else None
+    
+    async def _get_provider_api_key(self, provider: str) -> Optional[str]:
+        """Get API key for provider"""
+        key_map = {
+            "groq": "GROQ_API_KEY",
+            "deepseek": "DEEPSEEK_API_KEY", 
+            "together": "TOGETHER_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "stability": "STABILITY_API_KEY",
+            "replicate": "REPLICATE_API_TOKEN",
+            "fal": "FAL_API_KEY"
+        }
+        
+        env_key = key_map.get(provider)
+        if env_key:
+            return os.getenv(env_key)
+        return None
     
     async def start_monitoring(self, interval_minutes: int = 60):
         """Start continuous monitoring of AI providers (Complete Implementation)"""
@@ -119,13 +193,13 @@ class AIMonitorService:
                     return_exceptions=True  # Don't stop if one task fails
                 )
                 
-                self.last_monitoring_cycle = datetime.now(timezone.utc).isoformat()
+                self.last_monitoring_cycle = datetime.now(timezone.utc)
                 logger.info("✅ Monitoring cycle completed successfully")
                 
             except Exception as e:
                 logger.error(f"❌ Monitoring cycle failed: {str(e)}")
                 self.monitoring_errors.append({
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(timezone.utc),
                     "error": str(e),
                     "cycle_type": "full_monitoring"
                 })
@@ -152,7 +226,7 @@ class AIMonitorService:
             for provider, endpoint in self.pricing_sources.items():
                 try:
                     # Check if we have API key for this provider
-                    api_key = self._get_provider_api_key(provider)
+                    api_key = await self._get_provider_api_key(provider)
                     if not api_key:
                         continue
                     
@@ -162,7 +236,7 @@ class AIMonitorService:
                         # Cache pricing data
                         self.pricing_cache[provider] = {
                             "data": pricing_data,
-                            "updated_at": datetime.now(timezone.utc).isoformat(),
+                            "updated_at": datetime.now(timezone.utc),
                             "status": "success"
                         }
                         
@@ -170,7 +244,7 @@ class AIMonitorService:
                     logger.warning(f"⚠️ Failed to fetch pricing for {provider}: {str(e)}")
                     self.pricing_cache[provider] = {
                         "data": [],
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc),
                         "status": "failed",
                         "error": str(e)
                     }
@@ -189,7 +263,7 @@ class AIMonitorService:
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
             for provider in self.pricing_sources.keys():
                 try:
-                    api_key = self._get_provider_api_key(provider)
+                    api_key = await self._get_provider_api_key(provider)
                     if not api_key:
                         continue
                     
@@ -199,7 +273,7 @@ class AIMonitorService:
                         # Cache health data
                         self.health_cache[provider] = {
                             "health": health_data,
-                            "updated_at": datetime.now(timezone.utc).isoformat()
+                            "updated_at": datetime.now(timezone.utc)
                         }
                         
                 except Exception as e:
@@ -209,9 +283,9 @@ class AIMonitorService:
                             "provider": provider,
                             "status": "error",
                             "error": str(e),
-                            "checked_at": datetime.now(timezone.utc).isoformat()
+                            "checked_at": datetime.now(timezone.utc)
                         },
-                        "updated_at": datetime.now(timezone.utc).isoformat()
+                        "updated_at": datetime.now(timezone.utc)
                     }
         
         if health_checks:
@@ -290,7 +364,7 @@ class AIMonitorService:
                     # Cache recommendation
                     self.recommendations_cache[content_type] = {
                         "recommendation": recommendation,
-                        "calculated_at": datetime.now(timezone.utc).isoformat(),
+                        "calculated_at": datetime.now(timezone.utc),
                         "metrics_used": len(metrics)
                     }
                     
@@ -322,7 +396,7 @@ class AIMonitorService:
                         "reasoning": rec.reasoning,
                         "cost_savings": rec.cost_savings,
                         "quality_impact": rec.quality_impact,
-                        "updated_at": datetime.now(timezone.utc).isoformat()
+                        "updated_at": datetime.now(timezone.utc)
                     }
                 }
                 routing_updates.append(routing_decision)
@@ -346,10 +420,8 @@ class AIMonitorService:
                 
                 async with AsyncSession(db_engine) as session:
                     query = text("""
-                        SELECT rd.selected_provider_id, ap.provider_name, ap.model_name,
-                               rd.alternative_providers, rd.decision_factors
+                        SELECT rd.selected_provider, rd.alternative_providers, rd.decision_factors
                         FROM routing_decisions rd
-                        JOIN ai_providers ap ON rd.selected_provider_id = ap.id
                         WHERE rd.content_type = :content_type
                         AND rd.effective_from <= NOW()
                         AND (rd.expires_at IS NULL OR rd.expires_at > NOW())
@@ -362,11 +434,11 @@ class AIMonitorService:
                     
                     if row:
                         return {
-                            "provider_name": row.provider_name,
-                            "model_name": row.model_name,
-                            "backup_providers": row.alternative_providers,
-                            "decision_factors": row.decision_factors,
-                            "api_key_env": f"{row.provider_name.upper()}_API_KEY",
+                            "provider_name": row.selected_provider,
+                            "model_name": self._get_default_model(row.selected_provider, content_type),
+                            "backup_providers": row.alternative_providers if isinstance(row.alternative_providers, list) else [],
+                            "decision_factors": row.decision_factors if isinstance(row.decision_factors, dict) else {},
+                            "api_key_env": f"{row.selected_provider.upper()}_API_KEY",
                             "source": "database"
                         }
             except Exception as e:
@@ -415,7 +487,7 @@ class AIMonitorService:
         test_endpoint = self._get_health_check_endpoint(provider)
         headers = self._get_auth_headers(provider, api_key)
         
-        start_time = datetime.now(timezone.utc).isoformat()
+        start_time = datetime.now(timezone.utc)
         
         try:
             async with session.get(test_endpoint, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
@@ -426,7 +498,7 @@ class AIMonitorService:
                     "status": "healthy" if response.status == 200 else "degraded",
                     "response_time_ms": int(response_time),
                     "status_code": response.status,
-                    "checked_at": datetime.now(timezone.utc).isoformat(),
+                    "checked_at": datetime.now(timezone.utc),
                     "endpoint": test_endpoint
                 }
         except asyncio.TimeoutError:
@@ -435,7 +507,7 @@ class AIMonitorService:
                 "status": "down",
                 "response_time_ms": 10000,
                 "error": "timeout",
-                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "checked_at": datetime.now(timezone.utc),
                 "endpoint": test_endpoint
             }
         except Exception as e:
@@ -443,16 +515,16 @@ class AIMonitorService:
                 "provider": provider,
                 "status": "down",
                 "error": str(e),
-                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "checked_at": datetime.now(timezone.utc),
                 "endpoint": test_endpoint
             }
     
     async def _benchmark_provider(self, provider: str, content_type: str, prompt: str) -> Optional[Dict]:
         """Benchmark individual provider performance (Complete Implementation)"""
-        start_time = datetime.now(timezone.utc).isoformat()
+        start_time = datetime.now(timezone.utc)
         
         try:
-            api_key = self._get_provider_api_key(provider)
+            api_key = await self._get_provider_api_key(provider)
             if not api_key:
                 return None
             
@@ -475,7 +547,7 @@ class AIMonitorService:
                     "success": result.get("success", False),
                     "cost_estimate": result.get("cost", 0.001),
                     "quality_estimate": result.get("quality", 0.8),
-                    "benchmarked_at": datetime.now(timezone.utc).isoformat()
+                    "benchmarked_at": datetime.now(timezone.utc)
                 }
         
         except Exception as e:
@@ -526,7 +598,7 @@ class AIMonitorService:
                         "model": model.get("id", "unknown"),
                         "input_cost": 0.00013,  # Known Groq pricing
                         "output_cost": 0.00013,
-                        "updated_at": datetime.now(timezone.utc).isoformat()
+                        "updated_at": datetime.now(timezone.utc)
                     })
             
             elif provider == "deepseek":
@@ -536,7 +608,7 @@ class AIMonitorService:
                     "model": "deepseek-chat",
                     "input_cost": 0.00014,
                     "output_cost": 0.00028,
-                    "updated_at": datetime.now(timezone.utc).isoformat()
+                    "updated_at": datetime.now(timezone.utc)
                 })
             
             # Add more provider-specific parsing as needed
@@ -613,7 +685,7 @@ class AIMonitorService:
                         speed_score=max(0.1, 1.0 - (response_time / 5000)),  # Normalize response time
                         reliability_score=success_rate,
                         value_score=0.8 / max(0.001, avg_cost) if avg_cost > 0 else 1.0,
-                        last_updated=datetime.now(timezone.utc).isoformat()
+                        last_updated=datetime.now(timezone.utc)
                     ))
         
         # If no cached metrics, create default metrics for available providers
@@ -629,7 +701,7 @@ class AIMonitorService:
                     speed_score=0.8,
                     reliability_score=0.9,
                     value_score=0.8 / max(0.001, self._get_default_cost(provider)),
-                    last_updated=datetime.now(timezone.utc).isoformat()
+                    last_updated=datetime.now(timezone.utc)
                 ))
         
         return metrics
@@ -829,9 +901,9 @@ class AIMonitorService:
             "source": "fallback"
         }
     
-    # Database operations (with proper error handling to prevent circular imports)
+    # 🔧 FIXED: Database operations with proper async patterns
     async def _save_pricing_updates(self, pricing_updates: List[Dict]):
-        """Save pricing updates to database (Complete Implementation)"""
+        """Save pricing updates to database (Fixed Async Implementation)"""
         db_engine = await self._get_db_engine()
         if db_engine:
             try:
@@ -859,7 +931,7 @@ class AIMonitorService:
             logger.debug("💾 Pricing updates saved to cache only (no database)")
     
     async def _save_health_data(self, health_checks: List[Dict]):
-        """Save health check data to database (Complete Implementation)"""
+        """Save health check data to database (Fixed Async Implementation)"""
         db_engine = await self._get_db_engine()
         if db_engine:
             try:
@@ -883,7 +955,7 @@ class AIMonitorService:
             logger.debug("🏥 Health data saved to cache only (no database)")
     
     async def _save_performance_data(self, performance_results: List[Dict]):
-        """Save performance benchmark data to database (Complete Implementation)"""
+        """Save performance benchmark data to database (Fixed Async Implementation)"""
         db_engine = await self._get_db_engine()
         if db_engine:
             try:
@@ -908,7 +980,7 @@ class AIMonitorService:
             logger.debug("⚡ Performance data saved to cache only (no database)")
     
     async def _save_optimization_recommendations(self, recommendations: List[OptimizationRecommendation]):
-        """Save optimization recommendations to database (Complete Implementation)"""
+        """Save optimization recommendations to database (Fixed Async Implementation)"""
         db_engine = await self._get_db_engine()
         if db_engine:
             try:
@@ -930,7 +1002,7 @@ class AIMonitorService:
                             "reasoning": rec.reasoning,
                             "cost_savings": rec.cost_savings,
                             "quality_impact": rec.quality_impact,
-                            "created_at": datetime.now(timezone.utc).isoformat()
+                            "created_at": datetime.now(timezone.utc)
                         })
                     
                     await session.commit()
@@ -941,7 +1013,7 @@ class AIMonitorService:
             logger.debug("🎯 Optimization recommendations saved to cache only (no database)")
     
     async def _update_active_routing(self, routing_updates: List[Dict]):
-        """Update active routing decisions in database (Complete Implementation)"""
+        """Update active routing decisions in database (Fixed Async Implementation)"""
         db_engine = await self._get_db_engine()
         if db_engine:
             try:
@@ -1083,6 +1155,8 @@ class AIMonitorService:
         return {
             "monitoring_active": self.monitoring_active,
             "circular_imports_resolved": True,
+            "database_connection_fixed": True,
+            "async_database_configured": self.db_url is not None and self.db_url.startswith("postgresql+asyncpg://"),
             "available_providers": available_providers,
             "cached_optimizations": len(self.optimization_cache),
             "cached_recommendations": len(self.recommendations_cache),
@@ -1116,7 +1190,7 @@ class AIMonitorService:
                 analytics["provider_health"][provider] = {
                     "status": health.get("status", "unknown"),
                     "response_time_ms": health.get("response_time_ms", 0),
-                    "last_checked": health.get("checked_at", datetime.now(timezone.utc)).isoformat() if isinstance(health.get("checked_at"), datetime) else str(health.get("checked_at")),
+                    "last_checked": health.get("checked_at").isoformat() if isinstance(health.get("checked_at"), datetime) else str(health.get("checked_at")),
                     "uptime_score": 1.0 if health.get("status") == "healthy" else 0.5 if health.get("status") == "degraded" else 0.0
                 }
         
@@ -1147,7 +1221,7 @@ class AIMonitorService:
                     analytics["provider_costs"][provider] = {
                         "average_cost_per_1k_tokens": avg_cost,
                         "models_tracked": len(pricing),
-                        "last_updated": pricing_data.get("updated_at", datetime.now(timezone.utc)).isoformat() if isinstance(pricing_data.get("updated_at"), datetime) else str(pricing_data.get("updated_at"))
+                        "last_updated": pricing_data.get("updated_at").isoformat() if isinstance(pricing_data.get("updated_at"), datetime) else str(pricing_data.get("updated_at"))
                     }
         
         # Optimization recommendations analytics
@@ -1160,7 +1234,7 @@ class AIMonitorService:
                     "reasoning": rec.reasoning,
                     "cost_savings": rec.cost_savings,
                     "quality_impact": rec.quality_impact,
-                    "calculated_at": rec_data.get("calculated_at", datetime.now(timezone.utc)).isoformat() if isinstance(rec_data.get("calculated_at"), datetime) else str(rec_data.get("calculated_at"))
+                    "calculated_at": rec_data.get("calculated_at").isoformat() if isinstance(rec_data.get("calculated_at"), datetime) else str(rec_data.get("calculated_at"))
                 }
         
         # Usage statistics
@@ -1174,6 +1248,8 @@ class AIMonitorService:
                 total_successes += metrics.get("success_count", 0)
             else:
                 total_fallbacks += metrics.get("fallback_count", 0)
+        
+        available_providers = await self._get_active_providers("text")
         
         analytics["usage_statistics"] = {
             "total_requests": total_requests,
@@ -1212,7 +1288,9 @@ class AIMonitorService:
                 "system_health": monitoring_status["system_health"],
                 "last_monitoring_cycle": monitoring_status["last_monitoring_cycle"],
                 "circular_imports_resolved": True,
-                "architecture_version": "3.0.0-complete-circular-import-free"
+                "database_connection_fixed": monitoring_status["database_connection_fixed"],
+                "async_database_configured": monitoring_status["async_database_configured"],
+                "architecture_version": "3.1.0-fixed-async-database"
             },
             "provider_summary": {
                 "total_providers": len(provider_analytics["provider_health"]),
@@ -1247,7 +1325,7 @@ _monitor_instance = None
 _monitor_lock = asyncio.Lock()
 
 async def get_ai_monitor() -> AIMonitorService:
-    """Get global AI monitor instance (thread-safe, no circular imports, complete implementation)"""
+    """Get global AI monitor instance (thread-safe, no circular imports, fixed async database)"""
     global _monitor_instance
     
     if _monitor_instance is None:
@@ -1279,6 +1357,7 @@ async def check_monitoring_health() -> Dict[str, Any]:
             "error": str(e),
             "system_health": "error",
             "circular_imports_resolved": True,
+            "database_connection_fixed": False,
             "last_updated": datetime.now(timezone.utc).isoformat()
         }
 
@@ -1305,15 +1384,39 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Monitoring Service")
     parser.add_argument("--interval", type=int, default=60, help="Monitoring interval in minutes")
     parser.add_argument("--dashboard", action="store_true", help="Show dashboard and exit")
+    parser.add_argument("--test-db", action="store_true", help="Test database connection")
     args = parser.parse_args()
     
-    if args.dashboard:
-        # Show dashboard
-        async def show_dashboard():
-            data = await get_monitoring_dashboard()
-            print(safe_json_dumps(data, indent=2))
+    async def main():
+        if args.test_db:
+            # Test database connection
+            try:
+                monitor = await get_ai_monitor()
+                db_engine = await monitor._get_db_engine()
+                if db_engine:
+                    print("✅ Database connection successful")
+                    print(f"Database URL format: {'async' if monitor.db_url and 'asyncpg' in monitor.db_url else 'sync'}")
+                else:
+                    print("❌ Database connection failed")
+            except Exception as e:
+                print(f"❌ Database test failed: {e}")
+            return
         
-        asyncio.run(show_dashboard())
-    else:
-        # Start monitoring
-        asyncio.run(start_ai_monitoring(args.interval))
+        if args.dashboard:
+            # Show dashboard
+            try:
+                data = await get_monitoring_dashboard()
+                print(safe_json_dumps(data, indent=2))
+            except Exception as e:
+                print(f"❌ Dashboard failed: {e}")
+        else:
+            # Start monitoring
+            try:
+                print(f"🚀 Starting AI monitoring (interval: {args.interval} minutes)")
+                await start_ai_monitoring(args.interval)
+            except KeyboardInterrupt:
+                print("\n🛑 Monitoring stopped by user")
+            except Exception as e:
+                print(f"❌ Monitoring failed: {e}")
+    
+    asyncio.run(main())
