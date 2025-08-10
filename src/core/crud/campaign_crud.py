@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, func
 import logging
 
-from src.models.campaign import Campaign, CampaignStatus, WorkflowState, AutoAnalysisStatus
+from src.models.campaign import Campaign, CampaignStatus, CampaignWorkflowState, AutoAnalysisStatus
 from .base_crud import BaseCRUD
 
 logger = logging.getLogger(__name__)
@@ -376,7 +376,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
         self,
         db: AsyncSession,
         campaign_id: UUID,
-        new_state: Union[str, WorkflowState],
+        new_state: Union[str, CampaignWorkflowState],
         completion_percentage: Optional[int] = None
     ) -> Optional[Campaign]:
         """
@@ -392,7 +392,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
             # 🔧 FIXED: Convert string to enum if needed
             if isinstance(new_state, str):
                 try:
-                    state_enum = WorkflowState(new_state.upper())
+                    state_enum = CampaignWorkflowState(new_state.upper())
                 except ValueError:
                     logger.error(f"Invalid workflow state: {new_state}")
                     return None
