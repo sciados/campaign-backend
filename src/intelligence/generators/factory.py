@@ -14,6 +14,7 @@ ENHANCED CONTENT GENERATOR FACTORY - ULTRA-CHEAP AI INTEGRATION
 import importlib
 import logging
 import asyncio
+import random
 from typing import Dict, List, Any, Optional, Union, Callable
 from datetime import datetime, timezone
 from dataclasses import dataclass, asdict
@@ -171,78 +172,57 @@ class ContentGeneratorFactory:
                         self._content_type_mapping[content_type] = gen_type
         
         logger.info(f"🔗 Mapped {len(self._content_type_mapping)} content types to generators")
-    
-    import asyncio
-import time
-import importlib
-from datetime import datetime, timezone
-import logging
 
-logger = logging.getLogger(__name__)
 
-async def _lazy_load_generator(self, generator_type: str, retries: int = 3, delay: float = 1.0):
-    """Lazy load generator on first use, with retries on failure"""
-    
-    if generator_type in self._generators:
-        return self._generators[generator_type]
-    
-    config = self._generator_configs.get(generator_type)
-    if not config or not config.enabled:
-        raise ValueError(f"Generator '{generator_type}' not configured or disabled")
-    
-    last_exception = None
-    
-    for attempt in range(1, retries + 1):
-        start_time = time.time()
-        try:
-            # Dynamic import
-            module = importlib.import_module(
-                f".{config.module_path}",
-                package="src.intelligence.generators"
-            )
-            generator_class = getattr(module, config.class_name)
-            
-            # Instantiate generator
-            generator_instance = generator_class()
-            
-            # Store in cache
-            self._generators[generator_type] = generator_instance
-            
-            load_time = (time.time() - start_time) * 1000
-            
-            # Update health tracking
-            self._generator_health[generator_type] = GeneratorHealth(
-                generator_type=generator_type,
-                status="healthy",
-                last_check=datetime.now(timezone.utc),
-                response_time_ms=load_time,
-                success_rate=1.0,
-                error_count=0
-            )
-            
-            logger.info(f"✅ Lazy loaded {generator_type} in {load_time:.1f}ms (attempt {attempt}/{retries})")
-            return generator_instance
-        
-        except Exception as e:
-            last_exception = e
-            logger.warning(f"⚠️ Attempt {attempt}/{retries} failed to load {generator_type}: {str(e)}")
-            
-            if attempt < retries:
-                await asyncio.sleep(delay)
-    
-    # Track final failure
-    self._generator_health[generator_type] = GeneratorHealth(
-        generator_type=generator_type,
-        status="down",
-        last_check=datetime.now(timezone.utc),
-        response_time_ms=0,
-        success_rate=0.0,
-        error_count=retries,
-        last_error=str(last_exception)
-    )
-    
-    logger.error(f"❌ Failed to lazy load {generator_type} after {retries} attempts: {last_exception}")
-    raise last_exception
+    async def _lazy_load_generator(self, generator_type: str, retries: int = 3, delay: float = 1.0):
+        if generator_type in self._generators:
+            return self._generators[generator_type]
+
+        config = self._generator_configs.get(generator_type)
+        if not config or not config.enabled:
+            raise ValueError(f"Generator '{generator_type}' not configured or disabled")
+
+        last_exception = None
+        for attempt in range(1, retries + 1):
+            start_time = time.time()
+            try:
+                module = importlib.import_module(
+                    f".{config.module_path}",
+                    package="src.intelligence.generators"
+                )
+                generator_class = getattr(module, config.class_name)
+                generator_instance = generator_class()
+
+                self._generators[generator_type] = generator_instance
+
+                load_time = (time.time() - start_time) * 1000
+                self._generator_health[generator_type] = GeneratorHealth(
+                    generator_type=generator_type,
+                    status="healthy",
+                    last_check=datetime.now(timezone.utc),
+                    response_time_ms=load_time,
+                    success_rate=1.0,
+                    error_count=0
+                )
+                logger.info(f"✅ Lazy loaded {generator_type} in {load_time:.1f}ms (attempt {attempt}/{retries})")
+                return generator_instance
+            except Exception as e:
+                last_exception = e
+                logger.warning(f"⚠️ Attempt {attempt}/{retries} failed to load {generator_type}: {str(e)}")
+                if attempt < retries:
+                    await asyncio.sleep(delay)
+
+        self._generator_health[generator_type] = GeneratorHealth(
+            generator_type=generator_type,
+            status="down",
+            last_check=datetime.now(timezone.utc),
+            response_time_ms=0,
+            success_rate=0.0,
+            error_count=retries,
+            last_error=str(last_exception)
+        )
+        logger.error(f"❌ Failed to lazy load {generator_type} after {retries} attempts: {last_exception}")
+        raise last_exception
 
     
     async def get_generator(self, content_type: str):
@@ -1022,7 +1002,155 @@ async def _lazy_load_generator(self, generator_type: str, retries: int = 3, dela
         logger.info(f"Monthly savings projection (1K users): ${projections['monthly_savings_1000_users']:,.2f}")
         logger.info(f"Annual savings projection (1K users): ${projections['annual_savings_1000_users']:,.2f}")
 
+        async def batch_generate_content(self, requests: List[Dict[str, Any]], max_concurrent: int = 5) -> List[Dict[str, Any]]:
+            """
+            Generate multiple content pieces concurrently using the enhanced factory.
+            Each request should be a dict with keys: content_type, intelligence_data, preferences (optional).
+            """
+            semaphore = asyncio.Semaphore(max_concurrent)
+            results = []
 
+            async def generate_single(req):
+                async with semaphore:
+                    try:
+                        return await self.generate_content(
+                            req["content_type"],
+                            req["intelligence_data"],
+                            req.get("preferences", None)
+                        )
+                    except Exception as e:
+                        return {
+                            "status": "failed",
+                            "error": str(e),
+                            "content_type": req.get("content_type")
+                        }
+
+            tasks = [generate_single(req) for req in requests]
+            results = await asyncio.gather(*tasks)
+            return results
+
+        async def benchmark_generator(self, generator_type: str, test_config: Dict[str, Any]) -> Dict[str, Any]:
+            """
+            Benchmark a single generator with provided test config.
+            """
+            start = time.time()
+            try:
+                result = await self.generate_content(
+                    generator_type,
+                    test_config.get("intelligence_data", {}),
+                    test_config.get("preferences", {})
+                )
+                duration = time.time() - start
+                return {
+                    "status": "success",
+                    "generator_type": generator_type,
+                    "duration_seconds": duration,
+                    "result": result
+                }
+            except Exception as e:
+                duration = time.time() - start
+                return {
+                    "status": "failed",
+                    "generator_type": generator_type,
+                    "duration_seconds": duration,
+                    "error": str(e)
+                }
+
+        async def stress_test_factory(self, duration_minutes: int = 5, requests_per_minute: int = 10) -> Dict[str, Any]:
+            """
+            Perform a stress test on the factory by generating content at a specified rate.
+            """
+
+            available_types = self.get_available_generators()
+            if not available_types:
+                return {"status": "failed", "error": "No generators available"}
+
+            total_requests = duration_minutes * requests_per_minute
+            requests = []
+            for _ in range(total_requests):
+                content_type = random.choice(available_types)
+                requests.append({
+                    "content_type": content_type,
+                    "intelligence_data": {
+                        "source_title": "Stress Test Product",
+                        "offer_intelligence": {"products": ["StressTest"], "benefits": ["speed"]},
+                        "psychology_intelligence": {"target_audience": "testers"}
+                    },
+                    "preferences": {"stress_test": True}
+                })
+
+            results = []
+            start_time = time.time()
+            for i in range(0, total_requests, requests_per_minute):
+                batch = requests[i:i+requests_per_minute]
+                batch_results = await self.batch_generate_content(batch, max_concurrent=requests_per_minute)
+                results.extend(batch_results)
+                elapsed = time.time() - start_time
+                expected = ((i // requests_per_minute) + 1) * 60
+                if elapsed < expected:
+                    await asyncio.sleep(expected - elapsed)
+
+            success_count = len([r for r in results if r.get("status") != "failed"])
+            return {
+                "status": "completed",
+                "total_requests": total_requests,
+                "successful": success_count,
+                "failed": total_requests - success_count,
+                "duration_minutes": duration_minutes,
+                "results_sample": results[:5]
+            }
+
+        async def get_generator_analytics(self, generator_type: str = None) -> Dict[str, Any]:
+            """
+            Get analytics for a specific generator or all generators.
+            """
+            if generator_type:
+                perf = self.cost_tracker["generator_performance"].get(generator_type, {})
+                health = self._generator_health.get(generator_type)
+                return {
+                    "performance": perf,
+                    "health": asdict(health) if health else None
+                }
+            else:
+                analytics = {}
+                for gen_type in self.get_available_generators():
+                    perf = self.cost_tracker["generator_performance"].get(gen_type, {})
+                    health = self._generator_health.get(gen_type)
+                    analytics[gen_type] = {
+                        "performance": perf,
+                        "health": asdict(health) if health else None
+                    }
+                return analytics
+
+        def export_metrics(self, file_path: str, format: str = "json"):
+            """
+            Export factory metrics to a file in JSON format.
+            """
+            data = self.get_factory_status()
+            try:
+                if format == "json":
+                    with open(file_path, "w") as f:
+                        json.dump(data, f, indent=2, default=str)
+                else:
+                    raise ValueError("Only JSON format is supported")
+                logger.info(f"📊 Metrics exported to {file_path}")
+            except Exception as e:
+                logger.error(f"❌ Failed to export metrics: {e}")
+
+        async def migrate_to_new_version(self, migration_config: Dict[str, Any]) -> Dict[str, Any]:
+            """
+            Migrate factory to a new version using the provided migration config.
+            """
+            # This is a stub for migration logic.
+            # In a real implementation, migration_config would be used to update configs, reload modules, etc.
+            try:
+                # Example: reload generator configs if provided
+                if "config_path" in migration_config:
+                    self._load_generator_configs(migration_config["config_path"])
+                    self._initialize_lazy_registry()
+                return {"status": "migrated", "details": migration_config}
+            except Exception as e:
+                return {"status": "failed", "error": str(e)}
 # Enhanced convenience functions with additional capabilities
 def create_enhanced_content_generator_factory(config_path: Optional[str] = None) -> ContentGeneratorFactory:
     """Create and return an enhanced content generator factory instance"""
