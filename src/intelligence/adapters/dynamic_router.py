@@ -8,6 +8,7 @@ DYNAMIC AI ROUTER - CIRCULAR IMPORT FREE VERSION
 """
 
 import asyncio
+import asyncpg
 import logging
 import json
 from datetime import datetime, timedelta, timezone
