@@ -1,26 +1,38 @@
 # src/intelligence/utils/product_name_extractor.py
 """
-Universal Product Name Extractor
+Universal Product Name Extractor - CACHED VERSION
 🎯 Centralized product name extraction for all content generators
 ✅ Direct source_title extraction with AI corruption prevention
 ✅ Universal fallbacks for thousands of product types
-✅ Consistent product name handling across entire platform
+✅ REQUEST-LEVEL CACHING to prevent multiple extractions
 """
 
 import json
 import logging
 from typing import Dict, Any, Optional
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
+# Request-level cache to prevent multiple extractions per request
+_extraction_cache = {}
+
+def _get_cache_key(intelligence_data: Dict[str, Any]) -> str:
+    """Generate cache key for intelligence data"""
+    # Use source_title + offer_intelligence hash for caching
+    source_title = intelligence_data.get("source_title", "")
+    offer_intel = intelligence_data.get("offer_intelligence", "")
+    return f"{hash(str(source_title))}{hash(str(offer_intel))}"
+
 def extract_product_name_from_intelligence(intelligence_data: Dict[str, Any]) -> str:
     """
-    🔥 UNIVERSAL: Extract product name from intelligence data with corruption prevention
+    🔥 UNIVERSAL: Extract product name from intelligence data with corruption prevention + caching
     
     Priority order:
-    1. Direct source_title (database field - most reliable)
-    2. Offer intelligence products array
-    3. Generic fallback for universal support
+    1. Check request cache first
+    2. Direct source_title (database field - most reliable)
+    3. Offer intelligence products array
+    4. Generic fallback for universal support
     
     Args:
         intelligence_data: Intelligence data dictionary containing source_title and other fields
@@ -28,6 +40,13 @@ def extract_product_name_from_intelligence(intelligence_data: Dict[str, Any]) ->
     Returns:
         str: The extracted product name or generic fallback
     """
+    
+    # 🚀 OPTIMIZATION: Check cache first to prevent multiple extractions
+    cache_key = _get_cache_key(intelligence_data)
+    if cache_key in _extraction_cache:
+        cached_name = _extraction_cache[cache_key]
+        logger.debug(f"🔄 Using cached product name: '{cached_name}'")
+        return cached_name
     
     # 🔧 PRIORITY 1: Use direct source_title field (most reliable)
     # This comes directly from the database, not from AI-processed content
@@ -71,6 +90,7 @@ def extract_product_name_from_intelligence(intelligence_data: Dict[str, Any]) ->
         
         if product_name and len(product_name) > 2 and product_name not in invalid_names:
             logger.info(f"✅ Extracted product name from source_title: '{product_name}'")
+            _extraction_cache[cache_key] = product_name  # Cache result
             return product_name
     
     # 🔧 PRIORITY 2: Try to extract from offer_intelligence if direct source fails
@@ -87,6 +107,7 @@ def extract_product_name_from_intelligence(intelligence_data: Dict[str, Any]) ->
             first_product = products[0]
             if first_product and first_product not in ["BURNING", "Burning", "PRODUCT", "COMPANY"]:
                 logger.info(f"✅ Extracted product name from offer_intelligence: '{first_product}'")
+                _extraction_cache[cache_key] = first_product  # Cache result
                 return first_product
                 
     except Exception as e:
@@ -108,6 +129,7 @@ def extract_product_name_from_intelligence(intelligence_data: Dict[str, Any]) ->
                         potential_name = parts[1].strip()
                         if potential_name and potential_name not in ["BURNING", "Burning", "PRODUCT"]:
                             logger.info(f"✅ Extracted product name from value_propositions: '{potential_name}'")
+                            _extraction_cache[cache_key] = potential_name  # Cache result
                             return potential_name
                             
     except Exception as e:
@@ -115,7 +137,14 @@ def extract_product_name_from_intelligence(intelligence_data: Dict[str, Any]) ->
     
     # 🔧 PRIORITY 4: Generic fallback for universal product support
     logger.info("🔄 Using generic product fallback for universal support")
-    return "this product"  # Universal fallback for any product type
+    fallback_name = "this product"
+    _extraction_cache[cache_key] = fallback_name  # Cache result
+    return fallback_name
+
+def clear_extraction_cache():
+    """Clear the extraction cache (call at end of request)"""
+    global _extraction_cache
+    _extraction_cache.clear()
 
 def extract_company_name_from_intelligence(intelligence_data: Dict[str, Any]) -> str:
     """
