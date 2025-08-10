@@ -15,6 +15,7 @@ import logging
 
 from src.models.intelligence import CampaignIntelligence, GeneratedContent
 from .base_crud import BaseCRUD
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
