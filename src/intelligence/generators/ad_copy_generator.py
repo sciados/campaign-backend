@@ -522,7 +522,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
         return ads
     
     def _parse_flexible_ad_format(self, ai_response: str, platform: str, product_name: str, objective: str) -> List[Dict]:
-        """Parse flexible ad format without strict markers"""
+        """Parse flexible ad format with enhanced validation to prevent undefined values"""
         ads = []
         
         # Look for headline/description patterns
@@ -536,7 +536,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
                 continue
                 
             if line.upper().startswith('HEADLINE:'):
-                # Start new ad
+                # Start new ad - save previous if complete
                 if current_ad.get("headline") and current_ad.get("description"):
                     ad_count += 1
                     current_ad["ad_number"] = ad_count
@@ -544,18 +544,32 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
                     current_ad["objective"] = objective
                     current_ad["product_name"] = product_name
                     current_ad["product_name_source"] = "unified_extractor"
-                    ads.append(current_ad.copy())
+                    
+                    # Validate before adding
+                    if (current_ad["headline"] not in ["", "undefined", "null"] and 
+                        current_ad["description"] not in ["", "undefined", "null"]):
+                        ads.append(current_ad.copy())
+                        logger.info(f"✅ Flexible parsed ad {ad_count}: '{current_ad['headline']}'")
+                    else:
+                        logger.warning(f"⚠️ Skipped ad {ad_count} due to undefined values")
                 
-                current_ad = {"headline": line[9:].strip()}
+                headline_text = line[9:].strip()
+                current_ad = {"headline": headline_text if headline_text not in ["", "undefined", "null"] else ""}
                 
             elif line.upper().startswith('DESCRIPTION:'):
-                current_ad["description"] = line[12:].strip()
+                desc_text = line[12:].strip()
+                if desc_text not in ["", "undefined", "null"]:
+                    current_ad["description"] = desc_text
             elif line.upper().startswith('CTA:'):
-                current_ad["cta"] = line[4:].strip()
+                cta_text = line[4:].strip()
+                if cta_text not in ["", "undefined", "null"]:
+                    current_ad["cta"] = cta_text
             elif line.upper().startswith('ANGLE:'):
-                current_ad["angle"] = line[6:].strip()
+                angle_text = line[6:].strip()
+                if angle_text not in ["", "undefined", "null"]:
+                    current_ad["angle"] = angle_text
         
-        # Add final ad
+        # Add final ad if valid
         if current_ad.get("headline") and current_ad.get("description"):
             ad_count += 1
             current_ad["ad_number"] = ad_count
@@ -563,44 +577,104 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
             current_ad["objective"] = objective 
             current_ad["product_name"] = product_name
             current_ad["product_name_source"] = "unified_extractor"
-            ads.append(current_ad)
+            
+            if (current_ad["headline"] not in ["", "undefined", "null"] and 
+                current_ad["description"] not in ["", "undefined", "null"]):
+                ads.append(current_ad)
+                logger.info(f"✅ Final flexible parsed ad {ad_count}: '{current_ad['headline']}'")
+        
+        # If we got any ads, validate and fill missing fields
+        for ad in ads:
+            # Fill missing fields with smart defaults
+            if not ad.get("cta") or ad["cta"] in ["", "undefined", "null"]:
+                ad["cta"] = f"Get {product_name} Now"
+            if not ad.get("angle") or ad["angle"] in ["", "undefined", "null"]:
+                ad["angle"] = f"campaign_ad_{ad['ad_number']}"
+            if not ad.get("target_audience") or ad["target_audience"] in ["", "undefined", "null"]:
+                ad["target_audience"] = "health-conscious adults"
         
         return ads
     
     def _emergency_ad_extraction(self, ai_response: str, platform: str, product_name: str, objective: str) -> List[Dict]:
-        """Emergency ad extraction when structured parsing fails"""
+        """Emergency ad extraction with guaranteed no 'undefined' values"""
         ads = []
         
-        # Split by paragraphs and look for ad-like content
-        paragraphs = [p.strip() for p in ai_response.split('\n\n') if p.strip()]
+        logger.warning("🚨 Using emergency ad extraction with enhanced validation")
         
-        for i, paragraph in enumerate(paragraphs[:5]):  # Max 5 ads
-            if len(paragraph) > 50:  # Likely contains ad content
-                lines = [line.strip() for line in paragraph.split('\n') if line.strip()]
-                
-                headline = lines[0] if lines else f"{product_name} Benefits"
-                description = lines[1] if len(lines) > 1 else f"Discover {product_name} today"
-                cta = lines[2] if len(lines) > 2 else "Learn More"
-                
-                ad = {
-                    "ad_number": i + 1,
-                    "platform": platform,
-                    "objective": objective,
-                    "headline": headline[:40] if platform == "facebook" else headline[:30],
-                    "description": description[:125] if platform == "facebook" else description[:90],
-                    "cta": cta,
-                    "angle": f"emergency_extraction_{i+1}",
-                    "target_audience": "general audience",
-                    "product_name": product_name,
-                    "product_name_source": "unified_extractor",
-                    "emergency_extraction": True
-                }
-                ads.append(ad)
+        # Create 5 guaranteed ads with different angles
+        ad_templates = [
+            {
+                "angle": "scientific_authority",
+                "headline": f"Science-Backed {product_name} Results",
+                "description": f"Clinical research validates {product_name} for health optimization. Experience proven results.",
+                "cta": f"Get {product_name} Now"
+            },
+            {
+                "angle": "emotional_transformation", 
+                "headline": f"Transform with {product_name}",
+                "description": f"Real people achieving real results with {product_name}. Your transformation starts here.",
+                "cta": f"Start {product_name} Journey"
+            },
+            {
+                "angle": "social_proof",
+                "headline": f"Thousands Trust {product_name}",
+                "description": f"Join the community of satisfied {product_name} users experiencing natural health benefits.",
+                "cta": f"Join {product_name} Community"
+            },
+            {
+                "angle": "urgency_scarcity",
+                "headline": f"Limited {product_name} Offer",
+                "description": f"Don't miss this exclusive {product_name} opportunity. Limited time for health transformation.",
+                "cta": f"Claim {product_name} Now"
+            },
+            {
+                "angle": "lifestyle_confidence",
+                "headline": f"Feel Amazing with {product_name}",
+                "description": f"Boost your energy and confidence naturally with {product_name}. Live your best life.",
+                "cta": f"Experience {product_name}"
+            }
+        ]
+        
+        for i in range(5):  # Always generate 5 ads
+            template = ad_templates[i]
+            
+            ad = {
+                "ad_number": i + 1,
+                "platform": platform,
+                "objective": objective,
+                "headline": template["headline"],
+                "description": template["description"],
+                "cta": template["cta"],
+                "angle": template["angle"],
+                "target_audience": "health-conscious adults",
+                "product_name": product_name,
+                "product_name_source": "unified_extractor",
+                "emergency_extraction": True,
+                "ultra_cheap_generated": True
+            }
+            
+            # Apply character limits
+            platform_spec = self.ad_platforms.get(platform, self.ad_platforms["facebook"])
+            
+            if len(ad["headline"]) > platform_spec["headline_length"]:
+                ad["headline"] = ad["headline"][:platform_spec["headline_length"]-3] + "..."
+            
+            if len(ad["description"]) > platform_spec["description_length"]:
+                ad["description"] = ad["description"][:platform_spec["description_length"]-3] + "..."
+            
+            # Final validation - absolutely ensure no undefined values
+            for field in ["headline", "description", "cta", "angle", "target_audience"]:
+                if not ad[field] or ad[field] in ["", "undefined", "null", None]:
+                    logger.error(f"❌ Emergency: Field '{field}' is undefined in ad {i+1}")
+                    ad[field] = f"Emergency_{field}_{i+1}"
+            
+            ads.append(ad)
+            logger.info(f"✅ Emergency ad {i+1} created: '{ad['headline']}'")
         
         return ads
     
     def _extract_ad_components(self, ad_content: str, ad_num: int, platform: str, product_name: str, objective: str) -> Dict[str, Any]:
-        """Extract individual ad components from content with unified product name fixes"""
+        """Extract individual ad components from content with enhanced validation to prevent 'undefined' values"""
         
         ad_data = {
             "ad_number": ad_num,
@@ -623,64 +697,105 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
             if not line:
                 continue
             
-            # Parse structured fields
+            # Parse structured fields with enhanced validation
             if line.upper().startswith('HEADLINE:'):
                 headline_text = line[9:].strip()
-                if headline_text:
+                if headline_text and headline_text != "undefined" and headline_text != "":
                     ad_data["headline"] = headline_text
+                    logger.info(f"✅ Parsed headline: '{headline_text}'")
             elif line.upper().startswith('DESCRIPTION:'):
                 desc_text = line[12:].strip()
-                if desc_text:
+                if desc_text and desc_text != "undefined" and desc_text != "":
                     ad_data["description"] = desc_text
+                    logger.info(f"✅ Parsed description: '{desc_text}'")
             elif line.upper().startswith('CTA:'):
                 cta_text = line[4:].strip()
-                if cta_text:
+                if cta_text and cta_text != "undefined" and cta_text != "":
                     ad_data["cta"] = cta_text
+                    logger.info(f"✅ Parsed CTA: '{cta_text}'")
             elif line.upper().startswith('ANGLE:'):
                 angle_text = line[6:].strip()
-                if angle_text:
+                if angle_text and angle_text != "undefined" and angle_text != "":
                     ad_data["angle"] = angle_text.lower().replace(" ", "_").replace("&", "")
+                    logger.info(f"✅ Parsed angle: '{angle_text}'")
             elif line.upper().startswith('TARGET:'):
                 target_text = line[7:].strip()
-                if target_text:
+                if target_text and target_text != "undefined" and target_text != "":
                     ad_data["target_audience"] = target_text
+                    logger.info(f"✅ Parsed target: '{target_text}'")
         
-        # Validate and enhance ad data
+        # Validate and enhance ad data with smart fallbacks
         platform_spec = self.ad_platforms.get(platform, self.ad_platforms["facebook"])
         
-        # Ensure headline meets character limits
-        if len(ad_data["headline"]) > platform_spec["headline_length"]:
-            ad_data["headline"] = ad_data["headline"][:platform_spec["headline_length"]-3] + "..."
-        
-        # Ensure description meets character limits
-        if len(ad_data["description"]) > platform_spec["description_length"]:
-            ad_data["description"] = ad_data["description"][:platform_spec["description_length"]-3] + "..."
-        
-        # Ensure minimum content quality with actual product name
-        if not ad_data["headline"]:
+        # 🔥 CRITICAL FIX: Ensure headline is never empty or undefined
+        if not ad_data["headline"] or ad_data["headline"] in ["", "undefined", "null"]:
             ad_data["headline"] = f"Discover {product_name} Benefits"
+            logger.warning(f"⚠️ Using fallback headline for ad {ad_num}")
         
-        if not ad_data["description"]:
-            ad_data["description"] = f"Transform your health naturally with {product_name}. Science-backed results you can trust."
+        # 🔥 CRITICAL FIX: Ensure description is never empty or undefined
+        if not ad_data["description"] or ad_data["description"] in ["", "undefined", "null"]:
+            # Create intelligent fallback descriptions based on ad angle
+            angle_descriptions = {
+                "scientific_authority": f"Clinical research validates {product_name} for health optimization. Experience proven results.",
+                "emotional_transformation": f"Transform your health naturally with {product_name}. Real people, real results.",
+                "social_proof": f"Thousands trust {product_name} for natural health support. Join the community.",
+                "urgency_scarcity": f"Limited time offer on {product_name}. Don't miss your chance for better health.",
+                "lifestyle_confidence": f"Boost your energy and confidence with {product_name}. Live your best life."
+            }
+            
+            angle_key = ad_data.get("angle", "").lower()
+            fallback_description = angle_descriptions.get(angle_key, f"Experience the natural benefits of {product_name} for your wellness journey.")
+            
+            ad_data["description"] = fallback_description
+            logger.warning(f"⚠️ Using fallback description for ad {ad_num}: '{fallback_description}'")
         
-        if not ad_data["cta"]:
+        # 🔥 CRITICAL FIX: Ensure CTA is never empty or undefined
+        if not ad_data["cta"] or ad_data["cta"] in ["", "undefined", "null"]:
             objective_ctas = {
-                "conversions": "Get Started Now",
+                "conversions": f"Get {product_name} Now",
                 "traffic": "Learn More",
                 "awareness": "Discover More",
                 "engagement": "Join the Community"
             }
-            ad_data["cta"] = objective_ctas.get(objective, "Learn More")
+            ad_data["cta"] = objective_ctas.get(objective, f"Try {product_name}")
+            logger.warning(f"⚠️ Using fallback CTA for ad {ad_num}")
         
-        if not ad_data["angle"]:
+        # 🔥 CRITICAL FIX: Ensure angle is never empty or undefined
+        if not ad_data["angle"] or ad_data["angle"] in ["", "undefined", "null"]:
             ad_data["angle"] = f"campaign_ad_{ad_num}"
+            logger.warning(f"⚠️ Using fallback angle for ad {ad_num}")
+        
+        # 🔥 CRITICAL FIX: Ensure target_audience is never empty or undefined
+        if not ad_data["target_audience"] or ad_data["target_audience"] in ["", "undefined", "null"]:
+            ad_data["target_audience"] = "health-conscious adults"
+            logger.warning(f"⚠️ Using fallback target audience for ad {ad_num}")
+        
+        # Apply character limits
+        if len(ad_data["headline"]) > platform_spec["headline_length"]:
+            ad_data["headline"] = ad_data["headline"][:platform_spec["headline_length"]-3] + "..."
+            logger.info(f"✂️ Trimmed headline to {platform_spec['headline_length']} chars")
+        
+        if len(ad_data["description"]) > platform_spec["description_length"]:
+            ad_data["description"] = ad_data["description"][:platform_spec["description_length"]-3] + "..."
+            logger.info(f"✂️ Trimmed description to {platform_spec['description_length']} chars")
         
         # 🔥 UNIFIED: Apply product name fixes using centralized approach
         for field in ["headline", "description", "cta", "target_audience"]:
-            if ad_data[field]:
-                # Replace common placeholders
-                ad_data[field] = substitute_product_placeholders(ad_data[field], product_name)
+            if ad_data[field] and ad_data[field] not in ["", "undefined", "null"]:
+                original_text = ad_data[field]
+                fixed_text = substitute_product_placeholders(ad_data[field], product_name)
+                if original_text != fixed_text:
+                    logger.info(f"🔧 Fixed {field}: '{original_text}' → '{fixed_text}'")
+                    ad_data[field] = fixed_text
         
+        # Final validation - ensure no field contains 'undefined'
+        for field in ["headline", "description", "cta", "target_audience", "angle"]:
+            if not ad_data[field] or ad_data[field] in ["", "undefined", "null", None]:
+                logger.error(f"❌ Field '{field}' is still undefined in ad {ad_num}")
+                # Emergency fallback
+                ad_data[field] = f"{field}_fallback_{ad_num}"
+        
+        logger.info(f"✅ Ad {ad_num} components extracted and validated successfully")
         return ad_data
     
     def _optimize_ads_for_platform(self, ads: List[Dict], platform_spec: Dict[str, Any], objective_spec: Dict[str, Any]) -> List[Dict]:
