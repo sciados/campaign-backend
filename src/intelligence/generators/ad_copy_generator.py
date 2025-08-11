@@ -6,7 +6,7 @@ ENHANCED AD COPY GENERATOR WITH ULTRA-CHEAP AI INTEGRATION
 ✅ Multiple ad variations with different angles for A/B testing
 ✅ Conversion-focused copy with automatic failover
 ✅ Real-time cost tracking and optimization
-🔥 FIXED: Product name from source_title (authoritative source)
+🔥 FIXED: Unified product name extraction (same as email generator)
 🔥 FIXED: Product name placeholder elimination
 🔥 FIXED: Ultra-cheap provider missing attribute error
 """
@@ -23,71 +23,52 @@ from datetime import datetime, timezone
 from .base_generator import BaseContentGenerator
 from src.models.base import EnumSerializerMixin
 
+# 🔥 UNIFIED: Use the same product name extraction as email generator
+from src.intelligence.utils.product_name_extractor import (
+    extract_product_name_from_intelligence,
+    get_product_details_summary,
+    validate_product_name
+)
+
 from src.intelligence.utils.product_name_fix import (
-       substitute_product_placeholders,
-       substitute_placeholders_in_data,
-       validate_no_placeholders
-   )
+    substitute_product_placeholders,
+    substitute_placeholders_in_data,
+    validate_no_placeholders
+)
 
 logger = logging.getLogger(__name__)
 
 def get_product_name_from_intelligence(intelligence_data: Dict[str, Any]) -> str:
     """
-    🔥 NEW: Get product name from source_title (authoritative source)
-    This is the single source of truth for product names
+    🔥 UNIFIED: Use the same extraction logic as email generator
+    This ensures consistency across all content generators
     """
-    # Method 1: Direct from source_title (most reliable)
-    source_title = intelligence_data.get("source_title")
-    if source_title and isinstance(source_title, str) and len(source_title.strip()) > 2:
-        source_title = source_title.strip()
-        
-        # Remove common suffixes if they exist
-        suffixes_to_remove = [
-            " - Sales Page Analysis",
-            " - Analysis", 
-            " - Page Analysis",
-            " Sales Page",
-            " Analysis"
-        ]
-        
-        for suffix in suffixes_to_remove:
-            if source_title.endswith(suffix):
-                source_title = source_title[:-len(suffix)].strip()
-        
-        # Validate it's a real product name
-        if (source_title and 
-            len(source_title) > 2 and 
-            source_title not in ["Unknown Product", "Analyzed Page", "Stock Up - Exclusive Offer"]):
-            logger.info(f"✅ Product name from source_title: '{source_title}'")
-            return source_title
+    # Use the centralized extractor that works in email generator
+    actual_product_name = extract_product_name_from_intelligence(intelligence_data)
     
-    # Method 2: Fallback to extraction if source_title is not reliable
-    logger.warning("⚠️ source_title not reliable, falling back to extraction")
-    
-    from src.intelligence.utils.product_name_fix import extract_product_name_from_intelligence
-    fallback_name = extract_product_name_from_intelligence(intelligence_data)
-    
-    logger.info(f"🔄 Fallback product name: '{fallback_name}'")
-    return fallback_name
+    logger.info(f"🎯 Ad Copy Generator: Using unified product name '{actual_product_name}' from centralized extractor")
+    return actual_product_name
 
 def fix_ad_copy_placeholders(ads: List[Dict], intelligence_data: Dict[str, Any]) -> List[Dict]:
     """
-    🔥 FIXED: Apply product name fixes to ad copy using source_title
+    🔥 UNIFIED: Apply product name fixes using centralized extraction
     """
-    product_name = get_product_name_from_intelligence(intelligence_data)
+    # Use the same extraction method as email generator
+    product_name = extract_product_name_from_intelligence(intelligence_data)
     company_name = product_name  # Often same for direct-to-consumer
     
-    logger.info(f"🔧 Applying product name fixes: '{product_name}' to {len(ads)} ads")
+    logger.info(f"🔧 Applying unified product name fixes: '{product_name}' to {len(ads)} ads")
     
     fixed_ads = []
     for ad in ads:
+        # Use the centralized placeholder substitution
         fixed_ad = substitute_placeholders_in_data(ad, product_name, company_name)
         fixed_ads.append(fixed_ad)
     
     return fixed_ads
 
 class AdCopyGenerator(BaseContentGenerator, EnumSerializerMixin):
-    """Enhanced ad copy generator with ultra-cheap AI integration and source_title product names"""
+    """Enhanced ad copy generator with ultra-cheap AI integration and unified product name extraction"""
     
     def __init__(self):
         # Initialize with ultra-cheap AI system
@@ -304,23 +285,23 @@ class AdCopyGenerator(BaseContentGenerator, EnumSerializerMixin):
         intelligence_data: Dict[str, Any], 
         preferences: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """Generate platform-specific ad copy with ultra-cheap AI and source_title product names"""
+        """Generate platform-specific ad copy with ultra-cheap AI and unified product name extraction"""
         
         if preferences is None:
             preferences = {}
         
-        # 🔥 CRITICAL FIX: Get product name from source_title (authoritative source)
-        actual_product_name = get_product_name_from_intelligence(intelligence_data)
-        logger.info(f"🎯 Ad Copy Generator: Using product name '{actual_product_name}' from source_title")
+        # 🔥 UNIFIED: Get product name using centralized extractor (same as email generator)
+        actual_product_name = extract_product_name_from_intelligence(intelligence_data)
+        logger.info(f"🎯 Ad Copy Generator: Using unified product name '{actual_product_name}' from centralized extractor")
         
         # Extract ad generation parameters
         platform = preferences.get("platform", "facebook")
         objective = preferences.get("objective", "conversions")
         ad_count = self._safe_int_conversion(preferences.get("count", "5"), 5, 1, 15)
         
-        # Extract intelligence for ad generation
-        product_details = self._extract_product_details(intelligence_data)
-        # Override with actual product name from source_title
+        # 🔥 UNIFIED: Extract product details using centralized utilities
+        product_details = get_product_details_summary(intelligence_data)
+        # Override with actual product name from centralized extractor
         product_details["name"] = actual_product_name
         
         platform_spec = self.ad_platforms.get(platform, self.ad_platforms["facebook"])
@@ -328,7 +309,7 @@ class AdCopyGenerator(BaseContentGenerator, EnumSerializerMixin):
         
         logger.info(f"🎯 Generating {ad_count} {platform} ads for {product_details['name']} (Objective: {objective})")
         
-        # Create comprehensive ad generation prompt with actual product name from source_title
+        # Create comprehensive ad generation prompt with actual product name from centralized extractor
         ad_prompt = self._create_ad_generation_prompt(
             product_details, intelligence_data, platform, objective, ad_count, platform_spec, objective_spec
         )
@@ -348,7 +329,7 @@ class AdCopyGenerator(BaseContentGenerator, EnumSerializerMixin):
                 ads = self._parse_ad_copy(ai_result["content"], platform, actual_product_name, objective)
                 
                 if ads and len(ads) >= ad_count:
-                    # 🔥 APPLY PRODUCT NAME FIXES using source_title
+                    # 🔥 UNIFIED: Apply product name fixes using centralized approach
                     fixed_ads = fix_ad_copy_placeholders(ads, intelligence_data)
                     
                     # Apply platform and objective optimization
@@ -361,7 +342,7 @@ class AdCopyGenerator(BaseContentGenerator, EnumSerializerMixin):
                         if not headline_clean or not desc_clean:
                             logger.warning(f"⚠️ Placeholders found in ad {ad.get('ad_number', 'unknown')}")
                     
-                    logger.info(f"✅ SUCCESS: Generated {len(optimized_ads)} conversion-optimized ads with product name '{actual_product_name}' from source_title")
+                    logger.info(f"✅ SUCCESS: Generated {len(optimized_ads)} conversion-optimized ads with unified product name '{actual_product_name}'")
                     
                     return self._create_standardized_response(
                         content={
@@ -371,7 +352,7 @@ class AdCopyGenerator(BaseContentGenerator, EnumSerializerMixin):
                             "objective": objective,
                             "campaign_focus": "High-converting affiliate ad copy with A/B testing variations",
                             "product_name_used": actual_product_name,
-                            "product_name_source": "source_title",
+                            "product_name_source": "unified_extractor",
                             "placeholders_fixed": True
                         },
                         title=f"{actual_product_name} Ad Copy - {platform.title()} {objective.title()}",
@@ -383,8 +364,8 @@ class AdCopyGenerator(BaseContentGenerator, EnumSerializerMixin):
         except Exception as e:
             logger.error(f"❌ Ultra-cheap AI ad generation failed: {str(e)}")
         
-        # Enhanced fallback with platform optimization and product name fixes
-        logger.warning("🔄 Using enhanced ad copy fallback with platform optimization")
+        # Enhanced fallback with platform optimization and unified product name
+        logger.warning("🔄 Using enhanced ad copy fallback with unified product name")
         return self._guaranteed_ad_copy_fallback(product_details, platform, objective, ad_count)
     
     async def generate_content(self, intelligence_data: Dict[str, Any], preferences: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -401,14 +382,14 @@ class AdCopyGenerator(BaseContentGenerator, EnumSerializerMixin):
         platform_spec: Dict[str, Any],
         objective_spec: Dict[str, Any]
     ) -> str:
-        """Create comprehensive ad generation prompt with source_title product name enforcement"""
+        """Create comprehensive ad generation prompt with unified product name enforcement"""
         
         actual_product_name = product_details['name']
         
         # Extract angle-specific intelligence
         angles_intel = self._extract_ad_angles_intelligence(intelligence_data)
         
-        # Build platform-optimized ad prompt with product name enforcement from source_title
+        # Build platform-optimized ad prompt with unified product name enforcement
         prompt = f"""
 CONVERSION-OPTIMIZED AD COPY GENERATION
 Platform: {platform.upper()}
@@ -416,7 +397,7 @@ Objective: {objective.upper()}
 
 CRITICAL: Use ONLY the actual product name "{actual_product_name}" throughout all ads.
 NEVER use placeholders like "Your", "PRODUCT", "[Product]", "Your Company", etc.
-This product name comes from the authoritative source_title field.
+This product name comes from the unified extraction system.
 
 PRODUCT CAMPAIGN: {actual_product_name}
 TARGET AUDIENCE: {product_details['audience']}
@@ -491,7 +472,7 @@ CRITICAL REQUIREMENTS:
 6. Use '{actual_product_name}' consistently in all ads - NEVER use placeholders
 7. Create clear A/B testing variations for affiliate campaigns
 8. ABSOLUTELY FORBIDDEN: "Your", "PRODUCT", "[Product]", "Your Company"
-9. The product name '{actual_product_name}' is from the authoritative source_title
+9. The product name '{actual_product_name}' is from the unified extraction system
 
 Generate the complete {ad_count}-ad campaign sequence now using only "{actual_product_name}".
 """
@@ -499,7 +480,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
         return prompt
     
     def _parse_ad_copy(self, ai_response: str, platform: str, product_name: str, objective: str) -> List[Dict]:
-        """Parse ad copy from AI response with enhanced validation and product name fixes"""
+        """Parse ad copy from AI response with enhanced validation and unified product name fixes"""
         
         ads = []
         
@@ -562,7 +543,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
                     current_ad["platform"] = platform
                     current_ad["objective"] = objective
                     current_ad["product_name"] = product_name
-                    current_ad["product_name_source"] = "source_title"
+                    current_ad["product_name_source"] = "unified_extractor"
                     ads.append(current_ad.copy())
                 
                 current_ad = {"headline": line[9:].strip()}
@@ -581,7 +562,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
             current_ad["platform"] = platform
             current_ad["objective"] = objective 
             current_ad["product_name"] = product_name
-            current_ad["product_name_source"] = "source_title"
+            current_ad["product_name_source"] = "unified_extractor"
             ads.append(current_ad)
         
         return ads
@@ -611,7 +592,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
                     "angle": f"emergency_extraction_{i+1}",
                     "target_audience": "general audience",
                     "product_name": product_name,
-                    "product_name_source": "source_title",
+                    "product_name_source": "unified_extractor",
                     "emergency_extraction": True
                 }
                 ads.append(ad)
@@ -619,7 +600,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
         return ads
     
     def _extract_ad_components(self, ad_content: str, ad_num: int, platform: str, product_name: str, objective: str) -> Dict[str, Any]:
-        """Extract individual ad components from content with product name fixes"""
+        """Extract individual ad components from content with unified product name fixes"""
         
         ad_data = {
             "ad_number": ad_num,
@@ -631,7 +612,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
             "angle": "",
             "target_audience": "",
             "product_name": product_name,
-            "product_name_source": "source_title",
+            "product_name_source": "unified_extractor",
             "ultra_cheap_generated": True
         }
         
@@ -694,7 +675,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
         if not ad_data["angle"]:
             ad_data["angle"] = f"campaign_ad_{ad_num}"
         
-        # 🔥 APPLY PRODUCT NAME FIXES TO ALL FIELDS using substitute_product_placeholders
+        # 🔥 UNIFIED: Apply product name fixes using centralized approach
         for field in ["headline", "description", "cta", "target_audience"]:
             if ad_data[field]:
                 # Replace common placeholders
@@ -724,23 +705,23 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
                 "social_proof": objective_spec["social_proof"]
             }
             
-            # Add source_title tracking
-            optimized_ad["product_name_source"] = "source_title"
+            # Add unified extraction tracking
+            optimized_ad["product_name_source"] = "unified_extractor"
             
             optimized_ads.append(optimized_ad)
         
         return optimized_ads
     
     def _guaranteed_ad_copy_fallback(self, product_details: Dict[str, str], platform: str, objective: str, ad_count: int) -> Dict[str, Any]:
-        """Guaranteed ad copy generation with source_title product names"""
+        """Guaranteed ad copy generation with unified product names"""
         
         actual_product_name = product_details["name"]
-        logger.info(f"🔄 Generating guaranteed ad copy for '{actual_product_name}' from source_title with platform optimization")
+        logger.info(f"🔄 Generating guaranteed ad copy for '{actual_product_name}' with unified extraction and platform optimization")
         
         platform_spec = self.ad_platforms.get(platform, self.ad_platforms["facebook"])
         objective_spec = self.ad_objectives.get(objective, self.ad_objectives["conversions"])
         
-        # Platform-specific ad templates with actual product name from source_title
+        # Platform-specific ad templates with actual product name from unified extractor
         ad_templates = [
             {
                 "angle": "scientific_authority",
@@ -806,7 +787,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
                 "angle": template["angle"],
                 "target_audience": product_details["audience"],
                 "product_name": actual_product_name,
-                "product_name_source": "source_title",
+                "product_name_source": "unified_extractor",
                 "ultra_cheap_generated": False,
                 "guaranteed_generation": True,
                 "platform_optimization": {
@@ -821,7 +802,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
             }
             ads.append(ad)
         
-        # 🔥 APPLY FINAL PRODUCT NAME FIXES using substitute_product_placeholders
+        # 🔥 UNIFIED: Apply final product name fixes using centralized approach
         fixed_ads = []
         for ad in ads:
             fixed_ad = ad.copy()
@@ -856,7 +837,7 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
                 "reliability": "guaranteed",
                 "generation_method": "fallback_with_optimization",
                 "product_name_used": actual_product_name,
-                "product_name_source": "source_title",
+                "product_name_source": "unified_extractor",
                 "placeholders_fixed": True
             },
             title=f"Guaranteed {ad_count}-Ad Campaign for {actual_product_name} - {platform.title()} {objective.title()}",
@@ -866,27 +847,17 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
         )
     
     def _extract_product_details(self, intelligence_data: Dict[str, Any]) -> Dict[str, str]:
-        """Extract product details from intelligence data using source_title for product name"""
+        """Extract product details from intelligence data using unified extraction"""
         
-        # 🔥 CRITICAL FIX: Use source_title as authoritative product name source
-        actual_product_name = get_product_name_from_intelligence(intelligence_data)
+        # 🔥 UNIFIED: Use centralized product name extraction
+        actual_product_name = extract_product_name_from_intelligence(intelligence_data)
         
-        # Use enum serialization for offer intelligence
-        offer_intel = self._serialize_enum_field(intelligence_data.get("offer_intelligence", {}))
+        # Use centralized product details summary
+        product_details = get_product_details_summary(intelligence_data)
+        # Override with actual product name from centralized extractor
+        product_details["name"] = actual_product_name
         
-        # Extract additional details
-        benefits = offer_intel.get("benefits", ["health optimization", "metabolic enhancement", "natural wellness"])
-        if isinstance(benefits, list):
-            benefits_str = ", ".join(benefits[:3])
-        else:
-            benefits_str = "health optimization, metabolic enhancement, natural wellness"
-        
-        return {
-            "name": actual_product_name,  # Use source_title product name
-            "benefits": benefits_str,
-            "audience": "health-conscious adults seeking natural solutions",
-            "transformation": "natural health improvement and lifestyle enhancement"
-        }
+        return product_details
     
     def _extract_ad_angles_intelligence(self, intelligence_data: Dict) -> Dict[str, Dict]:
         """Extract angle-specific intelligence for ad generation"""
@@ -962,12 +933,12 @@ Generate the complete {ad_count}-ad campaign sequence now using only "{actual_pr
                     "optimization_metadata": ai_result.get("optimization_metadata", {}),
                     "fallback_used": ai_result.get("optimization_metadata", {}).get("fallback_used", False)
                 },
-                "generator_version": "3.0.0-ultra-cheap-source-title-fixed"
+                "generator_version": "3.0.0-ultra-cheap-unified-extraction"
             }
         }
 
 
-# Convenience functions for ad copy generation with source_title product names
+# Convenience functions for ad copy generation with unified product names
 async def generate_ad_copy_with_ultra_cheap_ai(
     intelligence_data: Dict[str, Any],
     platform: str = "facebook",
@@ -975,7 +946,7 @@ async def generate_ad_copy_with_ultra_cheap_ai(
     ad_count: int = 5,
     preferences: Dict[str, Any] = None
 ) -> Dict[str, Any]:
-    """Generate ad copy using ultra-cheap AI system with source_title product names"""
+    """Generate ad copy using ultra-cheap AI system with unified product names"""
     
     generator = AdCopyGenerator()
     if preferences is None:
@@ -1010,10 +981,10 @@ def get_available_ad_objectives() -> List[str]:
 
 def get_product_name_for_ads(intelligence_data: Dict[str, Any]) -> str:
     """
-    🔥 NEW: Public function to get product name for ad generation
-    Uses source_title as the authoritative source
+    🔥 UNIFIED: Public function to get product name for ad generation
+    Uses centralized extractor (same as email generator)
     """
-    return get_product_name_from_intelligence(intelligence_data)
+    return extract_product_name_from_intelligence(intelligence_data)
 
 # A/B Testing helper functions
 def generate_ad_copy_ab_test_plan(
