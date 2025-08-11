@@ -9,24 +9,47 @@ MODERNIZED VIDEO SCRIPT GENERATOR
 🔥 FIXED: Product name from source_title (authoritative source)
 🔥 MODERNIZED: Ultra-cheap AI integration with smart failover
 🔥 FIXED: Product name placeholder substitution
+✅ CRUD MIGRATION: Database integration for script storage
+✅ STORAGE INTEGRATION: Quota-aware script saving
 """
 
 import os
 import logging
 import uuid
 import json
+import base64
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
 
+# ✅ CRUD MIGRATION IMPORTS
+from src.core.crud.intelligence_crud import IntelligenceCRUD
+from src.core.crud.campaign_crud import CampaignCRUD
+from src.models.intelligence import CampaignIntelligence, GeneratedContent
+
+# ✅ STORAGE SYSTEM INTEGRATION
+from src.storage.universal_dual_storage import UniversalDualStorage
+from src.storage.storage_tiers import StorageTier
+
+# ✅ DATABASE SESSION
+from src.core.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.models.base import EnumSerializerMixin
-from ..utils.ultra_cheap_ai_provider import UltraCheapAIProvider
+
+logger = logging.getLogger(__name__)
+
+# AI Provider with fallback handling
+try:
+    from ..utils.ultra_cheap_ai_provider import UltraCheapAIProvider
+except ImportError:
+    logger.warning("⚠️ UltraCheapAIProvider not available")
+    UltraCheapAIProvider = None
+
 from ..utils.product_name_fix import (
     substitute_product_placeholders,
     substitute_placeholders_in_data,
     validate_no_placeholders
 )
-
-logger = logging.getLogger(__name__)
 
 def get_product_name_from_intelligence(intelligence_data: Dict[str, Any]) -> str:
     """
@@ -85,21 +108,81 @@ class VideoScriptGenerator(EnumSerializerMixin):
     """Generate video scripts with 90% cost savings using ultra-cheap AI and source_title product names"""
     
     def __init__(self):
+        # ✅ INITIALIZE CRUD INSTANCES
+        self.intelligence_crud = IntelligenceCRUD()
+        self.campaign_crud = CampaignCRUD()
+        
+        # ✅ INITIALIZE STORAGE SYSTEM
+        self.storage = UniversalDualStorage()
+        
         # 🚀 MODERNIZED: Use ultra-cheap AI provider (90% savings)
-        try:
-            self.ultra_cheap_provider = UltraCheapAIProvider()
-        except ImportError:
-            logger.warning("⚠️ UltraCheapAIProvider not available, using fallback")
-            self.ultra_cheap_provider = None
-            
+        self.ultra_cheap_provider = None
+        if UltraCheapAIProvider:
+            try:
+                self.ultra_cheap_provider = UltraCheapAIProvider()
+            except Exception as e:
+                logger.warning(f"⚠️ UltraCheapAIProvider initialization failed: {e}")
+                
         self.video_types = ["social_media", "advertisement", "educational", "testimonial", "product_demo"]
         self.platforms = ["youtube", "tiktok", "instagram", "facebook", "linkedin"]
-        logger.info("🚀 Video Script Generator initialized with ultra-cheap AI (90% cost savings)")
+        logger.info("🚀 Video Script Generator initialized with ultra-cheap AI (90% cost savings) and CRUD/Storage integration")
+    
+    # ✅ STORAGE QUOTA CHECKING
+    async def _check_storage_quota(self, user_id: str, estimated_file_size: int) -> bool:
+        """Check if user has sufficient storage quota"""
+        try:
+            return await self.storage.check_quota(user_id, estimated_file_size)
+        except Exception as e:
+            logger.error(f"Storage quota check failed: {e}")
+            return False
+    
+    # ✅ SAVE GENERATED SCRIPT TO STORAGE
+    async def _save_script_to_storage(
+        self, 
+        user_id: str, 
+        script_data: Dict[str, Any], 
+        metadata: Dict[str, Any]
+    ) -> Optional[str]:
+        """Save generated script to storage system"""
+        try:
+            # Convert script to JSON for storage
+            script_json = json.dumps(script_data, indent=2)
+            script_bytes = script_json.encode('utf-8')
+            file_size = len(script_bytes)
+            
+            # Check quota before saving
+            if not await self._check_storage_quota(user_id, file_size):
+                raise Exception("Storage quota exceeded")
+            
+            # Generate filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"video_script_{timestamp}.json"
+            
+            # Save to storage
+            file_url = await self.storage.upload(
+                user_id=user_id,
+                file_data=script_bytes,
+                file_type="script",
+                filename=filename,
+                metadata=metadata
+            )
+            
+            # Update storage usage
+            await self.storage.update_usage(user_id, file_size)
+            
+            return file_url
+            
+        except Exception as e:
+            logger.error(f"Failed to save script to storage: {e}")
+            return None
         
     async def generate_video_script(
         self, 
         intelligence_data: Dict[str, Any], 
-        preferences: Dict[str, Any] = None
+        preferences: Dict[str, Any] = None,
+        user_id: Optional[str] = None,
+        campaign_id: Optional[int] = None,
+        db: Optional[AsyncSession] = None
     ) -> Dict[str, Any]:
         """Generate video script with ultra-cheap AI and source_title product names"""
         
@@ -114,6 +197,13 @@ class VideoScriptGenerator(EnumSerializerMixin):
         # 🔥 CRITICAL FIX: Get product name from source_title (authoritative source)
         product_name = get_product_name_from_intelligence(intelligence_data)
         logger.info(f"🎯 Video Script Generator: Using product name '{product_name}' from source_title")
+        
+        # Estimate script file size (typically 5-10KB for JSON)
+        estimated_size = 10240  # 10KB
+        
+        # Check storage quota if user_id provided
+        if user_id and not await self._check_storage_quota(user_id, estimated_size):
+            raise Exception("Storage quota exceeded. Please upgrade your plan.")
         
         script_data = None
         generation_cost = None
@@ -138,6 +228,61 @@ class VideoScriptGenerator(EnumSerializerMixin):
         else:
             logger.info(f"✅ Video script validation passed for '{product_name}' from source_title")
         
+        # ✅ SAVE TO STORAGE IF USER PROVIDED
+        file_url = None
+        if user_id:
+            metadata = {
+                "content_type": "video_script",
+                "video_type": video_type,
+                "platform": platform,
+                "duration": duration,
+                "product_name": product_name,
+                "campaign_id": campaign_id,
+                "generation_timestamp": datetime.now().isoformat()
+            }
+            
+            file_url = await self._save_script_to_storage(
+                user_id, 
+                fixed_script_data, 
+                metadata
+            )
+        
+        # ✅ SAVE TO DATABASE IF DB SESSION PROVIDED
+        if db and campaign_id:
+            try:
+                content_data = {
+                    "campaign_id": campaign_id,
+                    "content_type": "video_script",
+                    "content_format": "json",
+                    "content_data": {
+                        "script_data": fixed_script_data,
+                        "video_type": video_type,
+                        "platform": platform,
+                        "duration": duration,
+                        "style": style,
+                        "file_url": file_url
+                    },
+                    "generation_metadata": {
+                        "provider_used": generation_cost.get("provider", "fallback"),
+                        "generation_cost": generation_cost.get("cost", 0),
+                        "product_name": product_name,
+                        "product_name_source": "source_title",
+                        "platform_optimized": True,
+                        "placeholders_fixed": True,
+                        "generation_timestamp": datetime.now().isoformat()
+                    }
+                }
+                
+                # Use CRUD to save generated content
+                await self.intelligence_crud.create_generated_content(
+                    db=db,
+                    content_data=content_data
+                )
+                
+            except Exception as e:
+                logger.error(f"Failed to save generated script to database: {e}")
+                # Don't fail the entire generation if DB save fails
+
         return {
             "content_type": "video_script",
             "title": f"{product_name} Video Script - {video_type.title()}",
@@ -148,6 +293,7 @@ class VideoScriptGenerator(EnumSerializerMixin):
                 "duration": duration,
                 "style": style
             },
+            "file_url": file_url,
             "metadata": {
                 "generated_by": "ultra_cheap_video_ai",
                 "product_name": product_name,
@@ -155,6 +301,7 @@ class VideoScriptGenerator(EnumSerializerMixin):
                 "content_type": "video_script",
                 "platform_optimized": True,
                 "placeholders_fixed": True,
+                "storage_saved": file_url is not None,
                 "cost_optimization": {
                     "generation_cost": generation_cost.get("cost", 0),
                     "provider_used": generation_cost.get("provider", "fallback"),
@@ -417,6 +564,48 @@ Try {product_name} today and experience the difference!
             "fallback_used": True
         }
 
+    # ✅ ENHANCED TESTING WITH STORAGE INTEGRATION
+    async def test_script_generation(self, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """Test video script generation capabilities"""
+        
+        test_intelligence = {
+            "source_title": "Test Health Product",
+            "offer_intelligence": {
+                "benefits": ["Improved Energy", "Better Sleep", "Natural Wellness"]
+            },
+            "emotional_transformation_intelligence": {
+                "target_audience": "health-conscious individuals"
+            }
+        }
+        
+        test_preferences = {
+            "video_type": "social_media",
+            "platform": "youtube",
+            "duration": 60,
+            "style": "engaging"
+        }
+        
+        try:
+            result = await self.generate_video_script(
+                intelligence_data=test_intelligence,
+                preferences=test_preferences,
+                user_id=user_id
+            )
+            
+            return {
+                "test_successful": result.get("content") is not None,
+                "provider_used": result.get("metadata", {}).get("cost_optimization", {}).get("provider_used"),
+                "generation_cost": result.get("metadata", {}).get("cost_optimization", {}).get("generation_cost", 0),
+                "placeholders_fixed": result.get("metadata", {}).get("placeholders_fixed", False),
+                "storage_integration": result.get("metadata", {}).get("storage_saved", False),
+                "script_length": len(result.get("content", {}).get("script", {}).get("full_script", ""))
+            }
+        except Exception as e:
+            return {
+                "test_successful": False,
+                "error": str(e)
+            }
+
 def get_product_name_for_video(intelligence_data: Dict[str, Any]) -> str:
     """
     🔥 NEW: Public function to get product name for video generation
@@ -431,9 +620,12 @@ async def generate_video_script_with_source_title(
     platform: str = "youtube",
     duration: int = 60,
     style: str = "engaging",
-    preferences: Dict[str, Any] = None
+    preferences: Dict[str, Any] = None,
+    user_id: Optional[str] = None,
+    campaign_id: Optional[int] = None,
+    db: Optional[AsyncSession] = None
 ) -> Dict[str, Any]:
-    """Generate video script using source_title product names"""
+    """Generate video script using source_title product names with CRUD/Storage integration"""
     
     generator = VideoScriptGenerator()
     if preferences is None:
@@ -451,7 +643,13 @@ async def generate_video_script_with_source_title(
             "style": style
         })
     
-    return await generator.generate_video_script(intelligence_data, preferences)
+    return await generator.generate_video_script(
+        intelligence_data, 
+        preferences,
+        user_id=user_id,
+        campaign_id=campaign_id,
+        db=db
+    )
 
 def get_available_video_types() -> List[str]:
     """Get list of available video types"""
@@ -549,4 +747,56 @@ def estimate_video_production_requirements(script_data: Dict[str, Any]) -> Dict[
             "Customer testimonials",
             "Call-to-action graphics"
         ]
+    }
+
+# ✅ BATCH GENERATION WITH CRUD/STORAGE INTEGRATION
+async def generate_batch_video_scripts(
+    campaigns_data: List[Dict[str, Any]],
+    preferences: Dict[str, Any] = None,
+    db: Optional[AsyncSession] = None
+) -> Dict[str, Any]:
+    """Generate video scripts for multiple campaigns efficiently"""
+    
+    generator = VideoScriptGenerator()
+    results = []
+    total_cost = 0
+    
+    for i, campaign_data in enumerate(campaigns_data):
+        try:
+            result = await generator.generate_video_script(
+                intelligence_data=campaign_data["intelligence_data"],
+                preferences=preferences,
+                user_id=campaign_data.get("user_id"),
+                campaign_id=campaign_data.get("campaign_id"),
+                db=db
+            )
+            
+            results.append(result)
+            
+            if result.get("metadata", {}).get("cost_optimization"):
+                total_cost += result["metadata"]["cost_optimization"].get("generation_cost", 0)
+            
+            # Small delay to avoid overwhelming the system
+            await asyncio.sleep(0.5)
+            
+            logger.info(f"Generated video script {i+1}/{len(campaigns_data)}")
+            
+        except Exception as e:
+            logger.error(f"Batch script generation failed for campaign {i+1}: {str(e)}")
+            results.append({
+                "success": False,
+                "error": str(e),
+                "campaign_id": campaign_data.get("campaign_id")
+            })
+    
+    successful_generations = len([r for r in results if r.get("content")])
+    failed_generations = len(campaigns_data) - successful_generations
+    
+    return {
+        "total_scripts": len(campaigns_data),
+        "successful_generations": successful_generations,
+        "failed_generations": failed_generations,
+        "total_cost": total_cost,
+        "cost_per_script": total_cost / len(campaigns_data) if campaigns_data else 0,
+        "results": results
     }
