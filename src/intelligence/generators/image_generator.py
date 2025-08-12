@@ -90,7 +90,7 @@ class UltraCheapImageGenerator(EnumSerializerMixin):
         self.campaign_crud = CampaignCRUD()
         
         # ✅ INITIALIZE STORAGE SYSTEM
-        self.storage = UniversalDualStorage()
+        self.storage = UniversalDualStorageManager()
         
         self.platform_optimizations = {
             "instagram": {

@@ -81,7 +81,7 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
         self.campaign_crud = CampaignCRUD()
         
         # ✅ INITIALIZE STORAGE SYSTEM
-        self.storage = UniversalDualStorage()
+        self.storage = UniversalDualStorageManager()
         
         self.video_providers = self._initialize_video_providers()
         self.default_settings = {

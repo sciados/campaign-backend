@@ -2,7 +2,7 @@
 """
 PHASE 2 COMPLETE: FACTORY WITH FULL CRUD INTEGRATION & STORAGE SYSTEM
 ✅ Applied Phase 1 CRUD patterns to factory orchestration
-✅ Integrated UniversalDualStorage with quota management
+✅ Integrated UniversalDualStorageManager with quota management
 ✅ Enhanced database tracking of generated content
 ✅ Cross-generator coordination with storage compliance
 ✅ Phase 1 product name fixing patterns applied
@@ -43,7 +43,7 @@ try:
     STORAGE_AVAILABLE = True
 except ImportError as e:
     print(f"⚠️ Storage imports not available: {e}")
-    UniversalDualStorage = None
+    UniversalDualStorageManager = None
     STORAGE_AVAILABLE = False
 
 # ✅ PHASE 2: Import product name utilities from Phase 1
@@ -122,7 +122,7 @@ class ContentGeneratorFactory:
         # ✅ PHASE 2: Initialize CRUD systems with fallbacks
         self.intelligence_crud = IntelligenceCRUD() if CRUD_AVAILABLE and IntelligenceCRUD else None
         self.campaign_crud = CampaignCRUD() if CRUD_AVAILABLE and CampaignCRUD else None
-        self.storage = UniversalDualStorage() if STORAGE_AVAILABLE and UniversalDualStorage else None
+        self.storage = UniversalDualStorageManager() if STORAGE_AVAILABLE and UniversalDualStorageManager else None
         self.db = db_session
         
         # Enhanced cost tracking with provider-specific metrics
@@ -1773,7 +1773,7 @@ __all__ = [
    - Campaign-specific content tracking with proper error handling
 
 ✅ STORAGE MANAGEMENT:
-   - UniversalDualStorage integration with comprehensive quota checking
+   - UniversalDualStorageManager integration with comprehensive quota checking
    - File storage for content requiring storage (images, videos, HTML)
    - Pre-generation quota validation with batch support
    - Storage metrics tracking and analytics

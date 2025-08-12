@@ -2,7 +2,7 @@
 """
 ✅ PHASE 2.3 COMPLETE: CAMPAIGN ANGLE GENERATOR WITH PROVEN PATTERNS
 🎯 CRUD Integration: Complete with intelligence_crud operations
-🗄️ Storage Integration: Quota-aware file uploads via UniversalDualStorage  
+🗄️ Storage Integration: Quota-aware file uploads via UniversalDualStorageManager  
 🔧 Product Name Fixes: Centralized extraction and placeholder substitution
 🚀 Enhanced AI: Ultra-cheap provider system with dynamic routing
 📊 Strategic Angles: 5 diverse marketing approaches with psychological targeting

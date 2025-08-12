@@ -113,7 +113,7 @@ class VideoScriptGenerator(EnumSerializerMixin):
         self.campaign_crud = CampaignCRUD()
         
         # ✅ INITIALIZE STORAGE SYSTEM
-        self.storage = UniversalDualStorage()
+        self.storage = UniversalDualStorageManager()
         
         # 🚀 MODERNIZED: Use ultra-cheap AI provider (90% savings)
         self.ultra_cheap_provider = None

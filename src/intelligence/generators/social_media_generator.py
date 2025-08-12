@@ -2,7 +2,7 @@
 """
 ✅ PHASE 2.2 COMPLETE: SOCIAL MEDIA GENERATOR WITH PROVEN PATTERNS
 🎯 CRUD Integration: Complete with intelligence_crud operations
-🗄️ Storage Integration: Quota-aware file uploads via UniversalDualStorage  
+🗄️ Storage Integration: Quota-aware file uploads via UniversalDualStorageManager  
 🔧 Product Name Fixes: Centralized extraction and placeholder substitution
 🚀 Enhanced AI: Ultra-cheap provider system with smart routing
 📊 Cost Optimization: 90% savings vs OpenAI/DALL-E
