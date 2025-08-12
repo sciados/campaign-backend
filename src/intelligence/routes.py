@@ -3,6 +3,7 @@ File: src/intelligence/routes.py
 Main Intelligence Routes - Updated with Ultra-Cheap AI and Storage Integration
 """
 from fastapi import APIRouter
+from .routers.enhanced_email_routes import router as enhanced_email_router
 
 # Import all existing routers
 from .routers import (
@@ -45,6 +46,13 @@ router.include_router(
     debug_routes.router,
     prefix="/debug",
     tags=["intelligence-debug"]
+)
+
+# ✅ ADD THE NEW ENHANCED EMAIL ROUTES
+router.include_router(
+    enhanced_email_router, 
+    prefix="/emails",  # This makes endpoints like /emails/enhanced-emails/generate
+    tags=["Enhanced Email Generation"]
 )
 
 # ✅ EXISTING: Include Stability AI routes if available
