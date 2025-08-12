@@ -39,7 +39,7 @@ except ImportError as e:
 
 # ✅ PHASE 2: Import storage system with quota management
 try:
-    from src.storage.universal_dual_storage import UniversalDualStorage
+    from src.storage.universal_dual_storage import UniversalDualStorageManager
     STORAGE_AVAILABLE = True
 except ImportError as e:
     print(f"⚠️ Storage imports not available: {e}")

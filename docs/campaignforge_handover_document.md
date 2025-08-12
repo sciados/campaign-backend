@@ -60,7 +60,7 @@
 3. **Storage Integration**
    ```python
    # Integrate with quota-aware storage
-   from src.storage.universal_dual_storage import UniversalDualStorage
+   from src.storage.universal_dual_storage import UniversalDualStorageManager
    
    async def save_generated_image(user_id: str, image_data: bytes):
        storage = UniversalDualStorage()
@@ -174,7 +174,7 @@ intelligence = await intelligence_crud.create(
 
 ### **Storage Integration Pattern**
 ```python
-from src.storage.universal_dual_storage import UniversalDualStorage
+from src.storage.universal_dual_storage import UniversalDualStorageManager
 
 async def save_generated_media(user_id: str, file_data: bytes, file_type: str):
     storage = UniversalDualStorage()

@@ -24,7 +24,7 @@ from src.core.crud.intelligence_crud import IntelligenceCRUD
 from src.core.crud.campaign_crud import CampaignCRUD
 
 # ✅ PHASE 2: Import storage system with quota management
-from src.storage.universal_dual_storage import UniversalDualStorage
+from src.storage.universal_dual_storage import UniversalDualStorageManager
 
 # ✅ PHASE 2: Import product name utilities from Phase 1
 from src.intelligence.utils.product_name_extractor import (

@@ -17,7 +17,7 @@ from src.core.crud.campaign_crud import CampaignCRUD
 from src.models.intelligence import CampaignIntelligence, GeneratedContent
 
 # ✅ STORAGE SYSTEM INTEGRATION
-from src.storage.universal_dual_storage import UniversalDualStorage
+from src.storage.universal_dual_storage import UniversalDualStorageManager
 from src.storage.storage_tiers import StorageTier
 
 # ✅ DATABASE SESSION
