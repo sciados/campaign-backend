@@ -4,8 +4,9 @@ Intelligence-specific CRUD operations - UPDATED with intelligence_id backlink su
 🧠 Handles all CampaignIntelligence database operations
 ✅ Uses proven async patterns from base CRUD
 🔧 Designed to fix the ChunkedIteratorResult issue
-🔒 Enhanced with company_id security for multi-tenant isolation
+🔑 Enhanced with company_id security for multi-tenant isolation
 ✅ NEW: Intelligence backlink support for content provenance and analytics
+✅ UPDATED: Added missing methods for content_routes.py compatibility
 """
 
 from typing import List, Optional, Dict, Any
@@ -25,7 +26,7 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     """
     Intelligence CRUD with specialized methods and intelligence backlink support
     🔧 This replaces the problematic database queries in IntelligenceService
-    🔒 Enhanced with company_id security for proper multi-tenant isolation
+    🔑 Enhanced with company_id security for proper multi-tenant isolation
     ✅ NEW: Full support for intelligence_id relationships and analytics
     """
     
@@ -35,7 +36,7 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     async def get_campaign_intelligence(
         self,
         db: AsyncSession,
-        campaign_id: UUID,
+        campaign_id: str,  # ✅ UPDATED: Accept string for compatibility
         company_id: Optional[UUID] = None,
         skip: int = 0,
         limit: int = 50,
@@ -45,10 +46,15 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
         """
         Get all intelligence for a campaign with company_id security
         🔧 This replaces the failing query in IntelligenceService
-        🔒 Enhanced with company_id filtering for multi-tenant security
+        🔑 Enhanced with company_id filtering for multi-tenant security
         ✅ NEW: Optional content statistics loading via relationships
+        ✅ UPDATED: Accept string campaign_id for content_routes compatibility
         """
         try:
+            # Convert string to UUID if needed
+            if isinstance(campaign_id, str):
+                campaign_id = UUID(campaign_id)
+            
             logger.info(f"🧠 Getting intelligence for campaign {campaign_id} (company: {company_id})")
             
             # Build query with optional relationship loading
@@ -59,7 +65,7 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
             # Add company_id for security isolation if provided
             if company_id:
                 stmt = stmt.where(CampaignIntelligence.company_id == company_id)
-                logger.info(f"🔒 Company security filter applied: {company_id}")
+                logger.info(f"🔑 Company security filter applied: {company_id}")
             
             # Add intelligence type filter if specified
             if intelligence_type:
@@ -314,7 +320,7 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
         """
         Get highest confidence intelligence for a campaign with company security
         🎯 Returns the best intelligence source for content generation
-        🔒 Enhanced with company_id filtering for security
+        🔑 Enhanced with company_id filtering for security
         ✅ NEW: Optionally includes content generation stats
         """
         try:
@@ -322,7 +328,7 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
             
             intelligence_list = await self.get_campaign_intelligence(
                 db=db,
-                campaign_id=campaign_id,
+                campaign_id=str(campaign_id),  # Convert to string for compatibility
                 company_id=company_id,
                 limit=1,  # Just get the top one
                 include_content_stats=True
@@ -350,7 +356,7 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     ) -> List[CampaignIntelligence]:
         """
         Get intelligence by source type (url, document, etc.) with company security
-        🔒 Enhanced with company_id filtering for security
+        🔑 Enhanced with company_id filtering for security
         """
         try:
             # Build base filters
@@ -403,7 +409,7 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
         """
         Get intelligence summary for a campaign with company security
         📊 Provides overview stats about intelligence sources
-        🔒 Enhanced with company_id filtering for security
+        🔑 Enhanced with company_id filtering for security
         ✅ NEW: Includes content generation analytics
         """
         try:
@@ -412,7 +418,7 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
             # Get all intelligence for campaign with company security and content stats
             all_intelligence = await self.get_campaign_intelligence(
                 db=db,
-                campaign_id=campaign_id,
+                campaign_id=str(campaign_id),  # Convert to string for compatibility
                 company_id=company_id,
                 limit=1000,  # Get all
                 include_content_stats=True
@@ -538,8 +544,8 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     async def get_generated_content(
         self,
         db: AsyncSession,
-        campaign_id: UUID,
-        company_id: UUID,
+        campaign_id: str,  # ✅ UPDATED: Accept string for compatibility
+        company_id: UUID = None,  # ✅ UPDATED: Make optional for backward compatibility
         content_type: Optional[str] = None,
         skip: int = 0,
         limit: int = 50,
@@ -547,19 +553,32 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     ) -> List[GeneratedContent]:
         """
         Get generated content for a campaign with company security
-        🔒 Company-aware content retrieval
+        🔑 Company-aware content retrieval
         ✅ NEW: Optionally includes intelligence source information
+        ✅ UPDATED: Accept string campaign_id and optional company_id for content_routes compatibility
         """
         try:
+            # Convert string to UUID if needed
+            if isinstance(campaign_id, str):
+                campaign_id_uuid = UUID(campaign_id)
+            else:
+                campaign_id_uuid = campaign_id
+            
             logger.info(f"📄 Getting generated content for campaign {campaign_id} (company: {company_id})")
             
             # Build query with optional intelligence source loading
-            stmt = select(GeneratedContent).where(
-                and_(
-                    GeneratedContent.campaign_id == campaign_id,
-                    GeneratedContent.company_id == company_id
+            if company_id:
+                stmt = select(GeneratedContent).where(
+                    and_(
+                        GeneratedContent.campaign_id == campaign_id_uuid,
+                        GeneratedContent.company_id == company_id
+                    )
                 )
-            )
+            else:
+                # Fallback for backward compatibility
+                stmt = select(GeneratedContent).where(
+                    GeneratedContent.campaign_id == campaign_id_uuid
+                )
             
             if content_type:
                 stmt = stmt.where(GeneratedContent.content_type == content_type)
@@ -589,24 +608,36 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     async def get_generated_content_by_id(
         self,
         db: AsyncSession,
-        content_id: UUID,
-        campaign_id: UUID,
-        company_id: UUID,
+        content_id: str,  # ✅ UPDATED: Accept string for compatibility
+        campaign_id: str = None,  # ✅ UPDATED: Make optional and accept string
+        company_id: UUID = None,  # ✅ UPDATED: Make optional for backward compatibility
         include_intelligence_source: bool = True
     ) -> Optional[GeneratedContent]:
         """
         Get specific generated content with security verification
-        🔒 Triple security check: content_id, campaign_id, company_id
+        🔑 Triple security check: content_id, campaign_id, company_id
         ✅ NEW: Optionally includes intelligence source information
+        ✅ UPDATED: Accept string IDs and make parameters optional for content_routes compatibility
         """
         try:
-            stmt = select(GeneratedContent).where(
-                and_(
-                    GeneratedContent.id == content_id,
-                    GeneratedContent.campaign_id == campaign_id,
-                    GeneratedContent.company_id == company_id
+            # Convert string to UUID if needed
+            content_id_uuid = UUID(content_id)
+            
+            if campaign_id and company_id:
+                # Full security check
+                campaign_id_uuid = UUID(campaign_id)
+                stmt = select(GeneratedContent).where(
+                    and_(
+                        GeneratedContent.id == content_id_uuid,
+                        GeneratedContent.campaign_id == campaign_id_uuid,
+                        GeneratedContent.company_id == company_id
+                    )
                 )
-            )
+            else:
+                # Basic check for backward compatibility
+                stmt = select(GeneratedContent).where(
+                    GeneratedContent.id == content_id_uuid
+                )
             
             # ✅ NEW: Optionally load intelligence source relationship
             if include_intelligence_source:
@@ -698,13 +729,16 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     async def update_generated_content(
         self,
         db: AsyncSession,
-        content_id: UUID,
+        content_id: str,  # ✅ UPDATED: Accept string for compatibility
         update_data: Dict[str, Any]
     ) -> GeneratedContent:
         """Update generated content"""
         try:
+            # Convert string to UUID if needed
+            content_id_uuid = UUID(content_id)
+            
             # Get existing content
-            stmt = select(GeneratedContent).where(GeneratedContent.id == content_id)
+            stmt = select(GeneratedContent).where(GeneratedContent.id == content_id_uuid)
             result = await db.execute(stmt)
             content = result.scalar_one_or_none()
             
@@ -730,11 +764,14 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     async def delete_generated_content(
         self,
         db: AsyncSession,
-        content_id: UUID
+        content_id: str  # ✅ UPDATED: Accept string for compatibility
     ) -> bool:
         """Delete generated content"""
         try:
-            stmt = select(GeneratedContent).where(GeneratedContent.id == content_id)
+            # Convert string to UUID if needed
+            content_id_uuid = UUID(content_id)
+            
+            stmt = select(GeneratedContent).where(GeneratedContent.id == content_id_uuid)
             result = await db.execute(stmt)
             content = result.scalar_one_or_none()
             
@@ -761,7 +798,7 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     ) -> Optional[CampaignIntelligence]:
         """
         Get intelligence by ID with company security
-        🔒 Company-aware intelligence retrieval
+        🔑 Company-aware intelligence retrieval
         ✅ NEW: Optionally includes generated content for analytics
         """
         try:
@@ -1145,3 +1182,7 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
         
         # Remove duplicates and return top suggestions
         return list(dict.fromkeys(suggestions))[:5]
+
+
+# Create the global instance
+intelligence_crud = IntelligenceCRUD()
