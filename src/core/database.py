@@ -143,7 +143,7 @@ def create_tables_sync():
     Create tables using synchronous engine with conflict resolution
     """
     try:
-        logger.info("🏗️ Creating database tables (synchronous)...")
+        logger.info("🗂️ Creating database tables (synchronous)...")
         
         # Use synchronous engine for table creation
         Base.metadata.create_all(bind=engine)
@@ -188,7 +188,7 @@ async def create_tables_async():
     Create tables using asynchronous engine with asyncpg
     """
     try:
-        logger.info("🏗️ Creating database tables (asynchronous with asyncpg)...")
+        logger.info("🗂️ Creating database tables (asynchronous with asyncpg)...")
         
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -223,6 +223,9 @@ async def get_async_db() -> AsyncSession:
             yield session
         finally:
             await session.close()
+
+# 🔧 CRITICAL FIX: Add alias for backward compatibility
+get_async_session = get_async_db
 
 # ============================================================================
 # ✅ FIXED: Database utility functions
@@ -374,6 +377,7 @@ __all__ = [
     'AsyncSessionLocal',
     'get_db',
     'get_async_db',
+    'get_async_session',  # 🔧 CRITICAL FIX: Export the alias
     'create_tables_sync',
     'create_tables_async',
     'test_connection',
@@ -382,5 +386,5 @@ __all__ = [
     'cleanup_database',
     'cleanup_async_database',
     'get_table_info',
-    'verify_database_drivers'  # New function
+    'verify_database_drivers'
 ]
