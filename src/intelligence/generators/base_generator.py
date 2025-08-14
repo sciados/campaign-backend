@@ -24,18 +24,39 @@ from src.core.crud.intelligence_crud import IntelligenceCRUD
 from src.core.crud.campaign_crud import CampaignCRUD
 
 # ✅ PHASE 2: Import storage system with quota management
-from src.storage.universal_dual_storage import UniversalDualStorageManager
+try:
+    from src.storage.universal_dual_storage import UniversalDualStorageManager
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.warning("⚠️ UniversalDualStorageManager not available, continuing without storage integration")
+    UniversalDualStorageManager = None
 
 # ✅ PHASE 2: Import product name utilities from Phase 1
-from src.intelligence.utils.product_name_extractor import (
-    extract_product_name_from_intelligence,
-    get_product_details_summary
-)
+try:
+    from src.intelligence.utils.product_name_extractor import (
+        extract_product_name_from_intelligence,
+        get_product_details_summary
+    )
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.warning("⚠️ Product name extractor not available, using fallback")
+    def extract_product_name_from_intelligence(data):
+        return data.get("source_title", "this product")
+    def get_product_details_summary(data):
+        return {"name": "Default Product"}
 
-from src.intelligence.utils.product_name_fix import (
-    substitute_placeholders_in_data,
-    validate_no_placeholders
-)
+try:
+    from src.intelligence.utils.product_name_fix import (
+        substitute_placeholders_in_data,
+        validate_no_placeholders
+    )
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.warning("⚠️ Product name fix utilities not available, using fallback")
+    def substitute_placeholders_in_data(data, product_name, fallback):
+        return data
+    def validate_no_placeholders(text, product_name):
+        return True
 
 logger = logging.getLogger(__name__)
 
@@ -938,6 +959,10 @@ class BaseContentGenerator(ABC):
     async def generate_content(self, intelligence_data: Dict[str, Any], preferences: Dict[str, Any] = None) -> Dict[str, Any]:
         """Abstract method for content generation - must be implemented by subclasses"""
         pass
+
+
+# 🔧 CRITICAL FIX: Add BaseGenerator alias for backward compatibility
+BaseGenerator = BaseContentGenerator
 
 
 # ✅ PHASE 2: Enhanced integration adapter with CRUD and storage

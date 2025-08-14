@@ -1,4 +1,4 @@
-# src/main.py - COMPLETE FIXED VERSION with Content Router Fix + Ultra-Cheap AI + Dual Storage + AI Monitoring + Enhanced Email Generation
+# src/main.py - FIXED VERSION: Async Generator Context Manager Issue
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -262,6 +262,32 @@ STORAGE_SYSTEM_AVAILABLE = any([
 EMAIL_SYSTEM_AVAILABLE = ENHANCED_EMAIL_ROUTER_AVAILABLE and EMAIL_MODELS_AVAILABLE
 
 # ============================================================================
+# 🔧 CRITICAL FIX: ASYNC SESSION MANAGER FOR CONTEXT MANAGER PROTOCOL
+# ============================================================================
+
+class AsyncSessionManager:
+    """Async session manager that supports context manager protocol"""
+    
+    def __init__(self):
+        self.session = None
+    
+    async def __aenter__(self):
+        """Enter async context manager"""
+        # Create session using the dependency
+        from src.core.database import AsyncSessionLocal
+        self.session = AsyncSessionLocal()
+        return self.session
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit async context manager"""
+        if self.session:
+            await self.session.close()
+
+def get_async_session_manager():
+    """Get async session manager for context manager usage"""
+    return AsyncSessionManager()
+
+# ============================================================================
 # ✅ APPLICATION LIFESPAN
 # ============================================================================
 
@@ -280,15 +306,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.error(f"❌ Database connection failed: {e}")
 
-    # ✅ NEW: Test enhanced email system health
+    # 🔧 CRITICAL FIX: Enhanced email system health check with proper session management
     if EMAIL_SYSTEM_AVAILABLE:
         try:
             from src.intelligence.generators.database_seeder import seed_subject_line_templates
             from sqlalchemy import select, func
             from src.models.email_subject_templates import EmailSubjectTemplate
-            from src.core.database import get_async_session
             
-            async with get_async_session() as db:
+            # 🔧 FIX: Use proper async context manager
+            async with get_async_session_manager() as db:
                 # Check if templates exist
                 result = await db.execute(select(func.count(EmailSubjectTemplate.id)))
                 template_count = result.scalar()
