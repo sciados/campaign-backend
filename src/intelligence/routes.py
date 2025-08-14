@@ -1,39 +1,51 @@
 """
 File: src/intelligence/routes.py
-Main Intelligence Routes - FIXED conditional imports to match routers/__init__.py
+DEBUG VERSION - Intelligence Routes with detailed logging
 """
 from fastapi import APIRouter
 
-# Import routers conditionally to match the routers/__init__.py pattern
+print("🔧 DEBUG: Starting intelligence routes import...")
+
+# Import routers conditionally with detailed logging
 try:
     from .routers import analysis_routes
     ANALYSIS_ROUTES_AVAILABLE = True
+    print("✅ DEBUG: Analysis routes imported successfully")
 except ImportError as e:
-    print(f"⚠️ Analysis routes not available: {e}")
+    print(f"❌ DEBUG: Analysis routes import failed: {e}")
     ANALYSIS_ROUTES_AVAILABLE = False
     analysis_routes = None
 
 try:
     from .routers import content_routes
     CONTENT_ROUTES_AVAILABLE = True
+    print(f"✅ DEBUG: Content routes imported successfully")
+    print(f"🔧 DEBUG: content_routes object: {content_routes}")
+    print(f"🔧 DEBUG: content_routes.router exists: {hasattr(content_routes, 'router')}")
+    if hasattr(content_routes, 'router'):
+        print(f"🔧 DEBUG: content_routes.router routes: {len(content_routes.router.routes)}")
+        for route in content_routes.router.routes:
+            print(f"🔧 DEBUG: Content route found: {route.methods} {route.path}")
 except ImportError as e:
-    print(f"⚠️ Content routes not available: {e}")
+    print(f"❌ DEBUG: Content routes import failed: {e}")
     CONTENT_ROUTES_AVAILABLE = False
     content_routes = None
 
 try:
     from .routers import management_routes
     MANAGEMENT_ROUTES_AVAILABLE = True
+    print("✅ DEBUG: Management routes imported successfully")
 except ImportError as e:
-    print(f"⚠️ Management routes not available: {e}")
+    print(f"❌ DEBUG: Management routes import failed: {e}")
     MANAGEMENT_ROUTES_AVAILABLE = False
     management_routes = None
 
 try:
     from .routers import debug_routes
     DEBUG_ROUTES_AVAILABLE = True
+    print("✅ DEBUG: Debug routes imported successfully")
 except ImportError as e:
-    print(f"⚠️ Debug routes not available: {e}")
+    print(f"❌ DEBUG: Debug routes import failed: {e}")
     DEBUG_ROUTES_AVAILABLE = False
     debug_routes = None
 
@@ -41,8 +53,9 @@ except ImportError as e:
 try:
     from .routers.enhanced_email_routes import router as enhanced_email_router
     ENHANCED_EMAIL_ROUTES_AVAILABLE = True
+    print("✅ DEBUG: Enhanced email routes imported successfully")
 except ImportError as e:
-    print(f"⚠️ Enhanced email routes not available: {e}")
+    print(f"❌ DEBUG: Enhanced email routes import failed: {e}")
     ENHANCED_EMAIL_ROUTES_AVAILABLE = False
     enhanced_email_router = None
 
@@ -50,13 +63,15 @@ except ImportError as e:
 try:
     from .routers import stability_routes
     STABILITY_ROUTES_AVAILABLE = True
+    print("✅ DEBUG: Stability routes imported successfully")
 except ImportError as e:
-    print(f"⚠️ Stability routes not available: {e}")
+    print(f"❌ DEBUG: Stability routes import failed: {e}")
     STABILITY_ROUTES_AVAILABLE = False
     stability_routes = None
 
 # Create main router
 router = APIRouter(tags=["intelligence"])
+print("🔧 DEBUG: Created main intelligence router")
 
 # Include sub-routers only if they're available
 if ANALYSIS_ROUTES_AVAILABLE and analysis_routes:
@@ -65,15 +80,32 @@ if ANALYSIS_ROUTES_AVAILABLE and analysis_routes:
         prefix="/analysis",
         tags=["intelligence-analysis"]
     )
-    print("✅ Analysis routes included")
+    print("✅ DEBUG: Analysis routes included in main router")
+else:
+    print("❌ DEBUG: Analysis routes NOT included - not available or None")
 
 if CONTENT_ROUTES_AVAILABLE and content_routes:
-    router.include_router(
-        content_routes.router,
-        prefix="/content", 
-        tags=["intelligence-content"]
-    )
-    print("✅ Content routes included")
+    print(f"🔧 DEBUG: About to include content routes...")
+    print(f"🔧 DEBUG: CONTENT_ROUTES_AVAILABLE = {CONTENT_ROUTES_AVAILABLE}")
+    print(f"🔧 DEBUG: content_routes = {content_routes}")
+    print(f"🔧 DEBUG: content_routes is not None = {content_routes is not None}")
+    
+    if hasattr(content_routes, 'router'):
+        print(f"🔧 DEBUG: content_routes.router = {content_routes.router}")
+        print(f"🔧 DEBUG: content_routes.router routes count = {len(content_routes.router.routes)}")
+        
+        router.include_router(
+            content_routes.router,
+            prefix="/content", 
+            tags=["intelligence-content"]
+        )
+        print("✅ DEBUG: Content routes included in main router")
+    else:
+        print("❌ DEBUG: content_routes has no 'router' attribute")
+else:
+    print(f"❌ DEBUG: Content routes NOT included")
+    print(f"🔧 DEBUG: CONTENT_ROUTES_AVAILABLE = {CONTENT_ROUTES_AVAILABLE}")
+    print(f"🔧 DEBUG: content_routes = {content_routes}")
 
 if MANAGEMENT_ROUTES_AVAILABLE and management_routes:
     router.include_router(
@@ -81,7 +113,9 @@ if MANAGEMENT_ROUTES_AVAILABLE and management_routes:
         prefix="/management",
         tags=["intelligence-management"]
     )
-    print("✅ Management routes included")
+    print("✅ DEBUG: Management routes included in main router")
+else:
+    print("❌ DEBUG: Management routes NOT included - not available or None")
 
 if DEBUG_ROUTES_AVAILABLE and debug_routes:
     router.include_router(
@@ -89,7 +123,9 @@ if DEBUG_ROUTES_AVAILABLE and debug_routes:
         prefix="/debug",
         tags=["intelligence-debug"]
     )
-    print("✅ Debug routes included")
+    print("✅ DEBUG: Debug routes included in main router")
+else:
+    print("❌ DEBUG: Debug routes NOT included - not available or None")
 
 if ENHANCED_EMAIL_ROUTES_AVAILABLE and enhanced_email_router:
     router.include_router(
@@ -97,7 +133,9 @@ if ENHANCED_EMAIL_ROUTES_AVAILABLE and enhanced_email_router:
         prefix="/emails",
         tags=["Enhanced Email Generation"]
     )
-    print("✅ Enhanced email routes included")
+    print("✅ DEBUG: Enhanced email routes included in main router")
+else:
+    print("❌ DEBUG: Enhanced email routes NOT included - not available or None")
 
 if STABILITY_ROUTES_AVAILABLE and stability_routes:
     router.include_router(
@@ -105,6 +143,11 @@ if STABILITY_ROUTES_AVAILABLE and stability_routes:
         prefix="/stability",
         tags=["stability-ai-images"]
     )
-    print("✅ Stability routes included")
+    print("✅ DEBUG: Stability routes included in main router")
+else:
+    print("❌ DEBUG: Stability routes NOT included - not available or None")
 
-print(f"🎯 Intelligence main router created with {len(router.routes)} total routes")
+print(f"🎯 DEBUG: Final intelligence router created with {len(router.routes)} total routes")
+for route in router.routes:
+    print(f"🎯 DEBUG: Final route: {route.methods} {route.path}")
+print("🔧 DEBUG: Intelligence routes module completed")
