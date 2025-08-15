@@ -10,6 +10,7 @@ from sqlalchemy import text
 import logging
 import sys
 import os
+from src.routes import admin_ai_optimization
 
 # ============================================================================
 # ✅ PYTHON PATH SETUP
@@ -534,6 +535,19 @@ if ADMIN_ROUTER_AVAILABLE and admin_router:
     for route in admin_router.routes:
         if hasattr(route, 'path') and hasattr(route, 'methods'):
             print(f"  {list(route.methods)} /api/admin{route.path}")
+
+# ✅ NEW: Register admin AI optimization router
+try:
+    app.include_router(admin_ai_optimization.router, prefix="/api/admin/ai-optimization", tags=["admin", "ai-optimization"])
+    logging.info("📡 Admin AI optimization router registered at /api/admin/ai-optimization")
+    
+    # Debug: Show AI optimization routes
+    print(f"🔍 Admin AI optimization router has {len(admin_ai_optimization.router.routes)} routes:")
+    for route in admin_ai_optimization.router.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            print(f"  {list(route.methods)} /api/admin/ai-optimization{route.path}")
+except Exception as e:
+    logging.error(f"❌ Failed to register admin AI optimization router: {e}")
 
 # Register waitlist router
 if WAITLIST_ROUTER_AVAILABLE and waitlist_router:
