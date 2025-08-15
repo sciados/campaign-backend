@@ -12,7 +12,7 @@ class AiDiscoveryPlugin:
     
     def __init__(self, discovery_service_url: str = None):
         self.base_url = (discovery_service_url or 
-                        os.getenv("AI_DISCOVERY_SERVICE_URL", "http://localhost:8001")).rstrip('/')
+                        os.getenv("AI_DISCOVERY_SERVICE_URL", "")).rstrip('/')
         self.client = httpx.AsyncClient(timeout=10)
         
     async def __aenter__(self):
@@ -23,6 +23,15 @@ class AiDiscoveryPlugin:
     
     async def _make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Make HTTP request with error handling"""
+        
+        # Check if service is configured
+        if not self.base_url:
+            return {
+                "error": "AI Discovery Service not configured",
+                "details": "AI_DISCOVERY_SERVICE_URL environment variable not set",
+                "service_status": "not_configured"
+            }
+        
         url = f"{self.base_url}{endpoint}"
         
         try:
@@ -34,7 +43,8 @@ class AiDiscoveryPlugin:
             return {
                 "error": "AI Discovery Service unavailable",
                 "details": str(e),
-                "service_status": "disconnected"
+                "service_status": "disconnected",
+                "service_url": self.base_url
             }
     
     async def get_discoveries_widget_data(self, days: int = 7) -> Dict[str, Any]:
@@ -52,6 +62,17 @@ class AiDiscoveryPlugin:
     async def get_aggregated_dashboard_data(self) -> Dict[str, Any]:
         """Get all data needed for admin dashboard in single call"""
         
+        # Check configuration first
+        if not self.base_url:
+            return {
+                "discoveries": {"discoveries": [], "summary": {"total_found": 0}},
+                "recommendations": {},
+                "service_health": {"status": "not_configured"},
+                "last_updated": datetime.utcnow().isoformat(),
+                "is_connected": False,
+                "configuration_error": "AI_DISCOVERY_SERVICE_URL not set"
+            }
+        
         # Fetch all data concurrently
         results = await asyncio.gather(
             self.get_discoveries_widget_data(),
@@ -66,10 +87,19 @@ class AiDiscoveryPlugin:
         def safe_result(result, default=None):
             return result if not isinstance(result, Exception) else (default or {"error": str(result)})
         
+        # Check if service is actually connected
+        health_result = safe_result(health, {"status": "unknown"})
+        is_connected = (
+            not isinstance(health, Exception) and 
+            health_result.get("status") not in ["unknown", "not_configured", "disconnected"] and
+            "error" not in health_result
+        )
+        
         return {
             "discoveries": safe_result(discoveries, {"discoveries": [], "summary": {"total_found": 0}}),
             "recommendations": safe_result(recommendations, {}),
-            "service_health": safe_result(health, {"status": "unknown"}),
+            "service_health": health_result,
             "last_updated": datetime.utcnow().isoformat(),
-            "is_connected": not isinstance(health, Exception)
+            "is_connected": is_connected,
+            "service_url": self.base_url
         }
