@@ -102,46 +102,130 @@ def scan_environment_for_ai_providers() -> Dict[str, Dict[str, Any]]:
     Returns: {env_var_name: {provider_info}}
     """
     ai_providers = {}
+    processed_providers = set()  # ✅ NEW: Track processed providers to avoid duplicates
     
     # Get all environment variables
     env_vars = dict(os.environ)
     
-    # Common AI provider patterns
+    # ✅ FIXED: More specific AI provider patterns - prioritize _API_KEY
     ai_patterns = [
-        r'^(.+)_API_KEY$',
-        r'^(.+)_API_TOKEN$', 
-        r'^(.+)_KEY$',
-        r'^(.+)_TOKEN$'
+        r'^(.+)_API_KEY$',    # Highest priority
+        r'^(.+)_API_TOKEN$',  
+        r'^(.+)_KEY$',        # Lower priority to avoid conflicts
+        r'^(.+)_TOKEN$'       # Lowest priority
     ]
     
-    # ✅ ENHANCED: Known AI provider mappings
+    # ✅ ENHANCED: Known AI provider mappings with preferred env var names
     provider_mappings = {
-        'OPENAI': {'name': 'OpenAI GPT-4', 'category': 'premium_generation', 'cost': 0.03, 'model': 'gpt-4'},
-        'ANTHROPIC': {'name': 'Claude Sonnet', 'category': 'premium_analysis', 'cost': 0.015, 'model': 'claude-3-sonnet'},
-        'CLAUDE': {'name': 'Claude Haiku', 'category': 'premium_analysis', 'cost': 0.015, 'model': 'claude-3-haiku'},
-        'GROQ': {'name': 'Groq Llama', 'category': 'ultra_fast_generation', 'cost': 0.0002, 'model': 'llama-3.1-70b'},
-        'TOGETHER': {'name': 'Together AI', 'category': 'ultra_cheap_generation', 'cost': 0.0003, 'model': 'meta-llama/Llama-3-70b'},
-        'DEEPSEEK': {'name': 'DeepSeek V3', 'category': 'ultra_cheap_analysis', 'cost': 0.0002, 'model': 'deepseek-chat'},
-        'AIMLAPI': {'name': 'AIML API', 'category': 'cheap_generation', 'cost': 0.0004, 'model': 'gpt-4o-mini'},
-        'MINIMAX': {'name': 'MiniMax', 'category': 'content_generation', 'cost': 0.0005, 'model': 'abab6.5'},
-        'COHERE': {'name': 'Cohere Command', 'category': 'analysis', 'cost': 0.002, 'model': 'command-r-plus'},
-        'STABILITY': {'name': 'Stability AI', 'category': 'image_generation', 'cost': 0.002, 'model': 'stable-diffusion-3'},
-        'REPLICATE': {'name': 'Replicate', 'category': 'image_generation', 'cost': 0.025, 'model': 'flux-pro'},
-        'FAL': {'name': 'FAL AI', 'category': 'image_generation', 'cost': 0.015, 'model': 'flux-dev'},
-        'FIREWORKS': {'name': 'Fireworks AI', 'category': 'ultra_cheap_generation', 'cost': 0.0001, 'model': 'llama-v3p1-70b'},
-        'PERPLEXITY': {'name': 'Perplexity API', 'category': 'search_analysis', 'cost': 0.0001, 'model': 'llama-3.1-sonar'},
-        'GEMINI': {'name': 'Google Gemini', 'category': 'multimodal_generation', 'cost': 0.001, 'model': 'gemini-1.5-pro'},
+        'OPENAI': {
+            'name': 'OpenAI GPT-4', 
+            'category': 'premium_generation', 
+            'cost': 0.03, 
+            'model': 'gpt-4',
+            'preferred_env': 'OPENAI_API_KEY'
+        },
+        'ANTHROPIC': {
+            'name': 'Claude Sonnet', 
+            'category': 'premium_analysis', 
+            'cost': 0.015, 
+            'model': 'claude-3-sonnet',
+            'preferred_env': 'ANTHROPIC_API_KEY'
+        },
+        'CLAUDE': {
+            'name': 'Claude Haiku', 
+            'category': 'premium_analysis', 
+            'cost': 0.015, 
+            'model': 'claude-3-haiku',
+            'preferred_env': 'CLAUDE_API_KEY'
+        },
+        'GROQ': {
+            'name': 'Groq Llama', 
+            'category': 'ultra_fast_generation', 
+            'cost': 0.0002, 
+            'model': 'llama-3.1-70b',
+            'preferred_env': 'GROQ_API_KEY'
+        },
+        'TOGETHER': {
+            'name': 'Together AI', 
+            'category': 'ultra_cheap_generation', 
+            'cost': 0.0003, 
+            'model': 'meta-llama/Llama-3-70b',
+            'preferred_env': 'TOGETHER_API_KEY'
+        },
+        'DEEPSEEK': {
+            'name': 'DeepSeek V3', 
+            'category': 'ultra_cheap_analysis', 
+            'cost': 0.0002, 
+            'model': 'deepseek-chat',
+            'preferred_env': 'DEEPSEEK_API_KEY'
+        },
+        'AIMLAPI': {
+            'name': 'AIML API', 
+            'category': 'cheap_generation', 
+            'cost': 0.0004, 
+            'model': 'gpt-4o-mini',
+            'preferred_env': 'AIMLAPI_API_KEY'
+        },
+        'MINIMAX': {
+            'name': 'MiniMax', 
+            'category': 'content_generation', 
+            'cost': 0.0005, 
+            'model': 'abab6.5',
+            'preferred_env': 'MINIMAX_API_KEY'
+        },
+        'COHERE': {
+            'name': 'Cohere Command', 
+            'category': 'analysis', 
+            'cost': 0.002, 
+            'model': 'command-r-plus',
+            'preferred_env': 'COHERE_API_KEY'
+        },
+        'STABILITY': {
+            'name': 'Stability AI', 
+            'category': 'image_generation', 
+            'cost': 0.002, 
+            'model': 'stable-diffusion-3',
+            'preferred_env': 'STABILITY_API_KEY'
+        },
+        'REPLICATE': {
+            'name': 'Replicate', 
+            'category': 'image_generation', 
+            'cost': 0.025, 
+            'model': 'flux-pro',
+            'preferred_env': 'REPLICATE_API_TOKEN'
+        },
+        'FAL': {
+            'name': 'FAL AI', 
+            'category': 'image_generation', 
+            'cost': 0.015, 
+            'model': 'flux-dev',
+            'preferred_env': 'FAL_API_KEY'
+        },
+        'FIREWORKS': {
+            'name': 'Fireworks AI', 
+            'category': 'ultra_cheap_generation', 
+            'cost': 0.0001, 
+            'model': 'llama-v3p1-70b',
+            'preferred_env': 'FIREWORKS_API_KEY'
+        },
+        'PERPLEXITY': {
+            'name': 'Perplexity API', 
+            'category': 'search_analysis', 
+            'cost': 0.0001, 
+            'model': 'llama-3.1-sonar',
+            'preferred_env': 'PERPLEXITY_API_KEY'
+        },
+        'GEMINI': {
+            'name': 'Google Gemini', 
+            'category': 'multimodal_generation', 
+            'cost': 0.001, 
+            'model': 'gemini-1.5-pro',
+            'preferred_env': 'GEMINI_API_KEY'
+        },
     }
     
-    # ✅ ENHANCED: Scan both actual environment and known providers
-    all_possible_vars = set(env_vars.keys())
-    
-    # Add known providers even if not in environment (for discovery)
-    for provider_key in provider_mappings.keys():
-        for suffix in ['_API_KEY', '_API_TOKEN', '_KEY', '_TOKEN']:
-            all_possible_vars.add(f"{provider_key}{suffix}")
-    
-    for env_var in all_possible_vars:
+    # ✅ FIXED: Only scan actual environment variables, prioritize preferred ones
+    for env_var, value in env_vars.items():
         for pattern in ai_patterns:
             match = re.match(pattern, env_var)
             if match:
@@ -152,12 +236,24 @@ def scan_environment_for_ai_providers() -> Dict[str, Dict[str, Any]]:
                 if any(skip in provider_key for skip in skip_patterns):
                     continue
                 
+                # ✅ NEW: Check if we already processed this provider
+                if provider_key in processed_providers:
+                    # Only override if this is the preferred environment variable
+                    provider_info = provider_mappings.get(provider_key)
+                    if provider_info and env_var == provider_info.get('preferred_env'):
+                        # Replace with preferred env var
+                        pass
+                    else:
+                        # Skip duplicate
+                        continue
+                
                 # Get provider info
                 provider_info = provider_mappings.get(provider_key, {
                     'name': provider_key.replace('_', ' ').title(),
                     'category': 'unknown',
                     'cost': 0.001,
-                    'model': 'unknown'
+                    'model': 'unknown',
+                    'preferred_env': env_var
                 })
                 
                 ai_providers[env_var] = {
@@ -168,6 +264,9 @@ def scan_environment_for_ai_providers() -> Dict[str, Dict[str, Any]]:
                     'env_var_name': env_var,
                     'source': 'environment'
                 }
+                
+                # ✅ NEW: Mark this provider as processed
+                processed_providers.add(provider_key)
                 break
     
     return ai_providers
