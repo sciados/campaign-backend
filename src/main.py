@@ -573,7 +573,7 @@ if WAITLIST_ROUTER_AVAILABLE and waitlist_router:
 # 🆕 Register dynamic AI providers router
 if DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE and dynamic_ai_providers_router:
     app.include_router(dynamic_ai_providers_router, prefix="/admin", tags=["admin", "ai-providers"])
-    logging.info("🔡 Dynamic AI providers router registered at /admin")
+    logging.info("📡 Dynamic AI providers router registered at /admin")
     
     # Debug: Show dynamic AI provider routes
     print(f"🔍 Dynamic AI providers router has {len(dynamic_ai_providers_router.routes)} routes:")
@@ -667,18 +667,6 @@ else:
             "created_at": "2025-01-17T12:00:00Z",
             "debug_url": "/api/debug/campaigns-status"
         }
-
-if DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE and dynamic_ai_providers_router:
-    app.include_router(dynamic_ai_providers_router, prefix="/admin", tags=["admin", "ai-providers"])
-    logging.info("🔡 Dynamic AI providers router registered at /admin")
-    
-    # Debug: Show dynamic AI provider routes
-    print(f"🔍 Dynamic AI providers router has {len(dynamic_ai_providers_router.routes)} routes:")
-    for route in dynamic_ai_providers_router.routes:
-        if hasattr(route, 'path') and hasattr(route, 'methods'):
-            print(f"  {list(route.methods)} /admin{route.path}")
-else:
-    logging.error("❌ Dynamic AI providers router not registered")
 
 if DASHBOARD_ROUTER_AVAILABLE:
     app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
@@ -935,7 +923,7 @@ async def health_check():
             "waitlist": WAITLIST_ROUTER_AVAILABLE,
             "content": CONTENT_ROUTER_AVAILABLE,
             "ultra_cheap_ai": CONTENT_ROUTER_AVAILABLE,
-            "dynamic_ai_providers": DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE
+            "dynamic_ai_providers": DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE,
         },
         "content_system": {  # ✅ FIXED: Content system status
             "main_router_available": INTELLIGENCE_MAIN_ROUTER_AVAILABLE,
