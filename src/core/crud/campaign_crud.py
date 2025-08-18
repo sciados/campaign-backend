@@ -149,7 +149,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
             
             # 🔧 FIXED: Count by status with proper enum handling
             status_counts = {}
-            for status_name in ["DRAFT", "ANALYSIS_STARTED", "COMPLETED", "ARCHIVED"]:
+            for status_name in ["DRAFT", "IN_PROGRESS", "COMPLETED", "ARCHIVED"]:
                 try:
                     # Convert string to proper enum
                     status_enum = CampaignStatus(status_name)
@@ -164,7 +164,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
                     status_counts[status_name.lower()] = 0
             
             # 🔧 FIXED: Safe active campaigns count (use non-draft campaigns)
-            active_campaigns = status_counts.get("analysis_started", 0) + status_counts.get("completed", 0)
+            active_campaigns = status_counts.get("in_progress", 0) + status_counts.get("completed", 0)
             
             # Calculate additional metrics safely
             try:
