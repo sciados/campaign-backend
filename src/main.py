@@ -160,6 +160,16 @@ except ImportError as e:
     waitlist_router = None
     WAITLIST_ROUTER_AVAILABLE = False
 
+# 🆕 Dynamic AI providers router import
+try:
+    from src.routes.dynamic_ai_providers import router as dynamic_ai_providers_router
+    logging.info("✅ Dynamic AI providers router imported successfully")
+    DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"⚠️ Dynamic AI providers router not available: {e}")
+    dynamic_ai_providers_router = None
+    DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE = False
+
 # Import intelligence routers
 INTELLIGENCE_ROUTERS_AVAILABLE = False
 ANALYSIS_ROUTER_AVAILABLE = False
@@ -431,7 +441,7 @@ app.add_middleware(
         "https://rodgersdigital.com",
         "https://www.rodgersdigital.com",
         "https://*.vercel.app",
-        "https://campaign-frontend-production-e2db.up.railway.app",
+        # "https://campaign-frontend-production-e2db.up.railway.app",
         # Add these additional variations to be safe
         "https://rodgersdigital.vercel.app",
         "https://www.rodgersdigital.vercel.app"
@@ -560,6 +570,19 @@ if WAITLIST_ROUTER_AVAILABLE and waitlist_router:
         if hasattr(route, 'path') and hasattr(route, 'methods'):
             print(f"  {list(route.methods)} /api/waitlist{route.path}")
 
+# 🆕 Register dynamic AI providers router
+if DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE and dynamic_ai_providers_router:
+    app.include_router(dynamic_ai_providers_router, prefix="/admin", tags=["admin", "ai-providers"])
+    logging.info("🔡 Dynamic AI providers router registered at /admin")
+    
+    # Debug: Show dynamic AI provider routes
+    print(f"🔍 Dynamic AI providers router has {len(dynamic_ai_providers_router.routes)} routes:")
+    for route in dynamic_ai_providers_router.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            print(f"  {list(route.methods)} /admin{route.path}")
+else:
+    logging.error("❌ Dynamic AI providers router not registered")
+
 # ✅ FIXED: Campaigns router registration with better error handling and fallback
 if CAMPAIGNS_ROUTER_AVAILABLE and campaigns_router:
     app.include_router(campaigns_router, prefix="/api/campaigns", tags=["campaigns"])
@@ -644,6 +667,18 @@ else:
             "created_at": "2025-01-17T12:00:00Z",
             "debug_url": "/api/debug/campaigns-status"
         }
+
+if DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE and dynamic_ai_providers_router:
+    app.include_router(dynamic_ai_providers_router, prefix="/admin", tags=["admin", "ai-providers"])
+    logging.info("🔡 Dynamic AI providers router registered at /admin")
+    
+    # Debug: Show dynamic AI provider routes
+    print(f"🔍 Dynamic AI providers router has {len(dynamic_ai_providers_router.routes)} routes:")
+    for route in dynamic_ai_providers_router.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            print(f"  {list(route.methods)} /admin{route.path}")
+else:
+    logging.error("❌ Dynamic AI providers router not registered")
 
 if DASHBOARD_ROUTER_AVAILABLE:
     app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
@@ -899,7 +934,8 @@ async def health_check():
             "affiliate_links": AFFILIATE_ROUTER_AVAILABLE,
             "waitlist": WAITLIST_ROUTER_AVAILABLE,
             "content": CONTENT_ROUTER_AVAILABLE,
-            "ultra_cheap_ai": CONTENT_ROUTER_AVAILABLE
+            "ultra_cheap_ai": CONTENT_ROUTER_AVAILABLE,
+            "dynamic_ai_providers": DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE
         },
         "content_system": {  # ✅ FIXED: Content system status
             "main_router_available": INTELLIGENCE_MAIN_ROUTER_AVAILABLE,
