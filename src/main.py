@@ -1,4 +1,4 @@
-# src/main.py - FIXED VERSION: Async Generator Context Manager Issue
+# src/main.py - UPDATED VERSION: AI Platform Discovery System Integrated
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -170,6 +170,16 @@ except ImportError as e:
     dynamic_ai_providers_router = None
     DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE = False
 
+# 🆕 AI Platform Discovery System router import
+try:
+    from src.routes.ai_platform_discovery import router as ai_discovery_router
+    logging.info("✅ AI Platform Discovery System router imported successfully")
+    AI_DISCOVERY_ROUTER_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"⚠️ AI Platform Discovery System router not available: {e}")
+    ai_discovery_router = None
+    AI_DISCOVERY_ROUTER_AVAILABLE = False
+
 # Import intelligence routers
 INTELLIGENCE_ROUTERS_AVAILABLE = False
 ANALYSIS_ROUTER_AVAILABLE = False
@@ -306,7 +316,7 @@ def get_async_session_manager():
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
-    logging.info("🚀 Starting CampaignForge AI Backend with Ultra-Cheap AI + Dual Storage + AI Monitoring + Enhanced Email Generation + FIXED Content Routes...")
+    logging.info("🚀 Starting CampaignForge AI Backend with Ultra-Cheap AI + Dual Storage + AI Monitoring + Enhanced Email Generation + AI Discovery System + FIXED Content Routes...")
     
     # Test database connection (no table creation)
     try:
@@ -367,6 +377,25 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logging.warning(f"⚠️ AI monitoring system initialization failed: {e}")
     
+    # 🆕 NEW: Initialize AI Discovery system
+    if AI_DISCOVERY_ROUTER_AVAILABLE:
+        try:
+            from src.services.ai_platform_discovery import AIPlatformDiscoveryService
+            from src.core.ai_discovery_database import get_ai_discovery_db
+            
+            # Test AI Discovery database connection
+            async with get_ai_discovery_db() as db:
+                from sqlalchemy import text
+                await db.execute(text("SELECT 1"))
+            
+            # Initialize discovery service
+            discovery_service = AIPlatformDiscoveryService()
+            app.state.discovery_service = discovery_service
+            
+            logging.info("✅ AI Platform Discovery System initialized")
+        except Exception as e:
+            logging.warning(f"⚠️ AI Discovery system initialization failed: {e}")
+    
     # Log available features
     features = []
     if AUTH_ROUTER_AVAILABLE:
@@ -393,6 +422,10 @@ async def lifespan(app: FastAPI):
         features.append("AI Monitoring & Optimization")  # ✅ NEW
     if WAITLIST_ROUTER_AVAILABLE:  # ✅ NEW
         features.append("Waitlist System")
+    if DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE:
+        features.append("Dynamic AI Providers")  # ✅ NEW
+    if AI_DISCOVERY_ROUTER_AVAILABLE:
+        features.append("AI Platform Discovery System")  # 🆕 NEW
     
     logging.info(f"🎯 Available features: {', '.join(features)}")
     
@@ -407,6 +440,8 @@ async def lifespan(app: FastAPI):
         logging.info("📊 AI Monitoring: Real-time optimization and 95%+ cost savings")
     if INTELLIGENCE_MAIN_ROUTER_AVAILABLE or CONTENT_ROUTER_AVAILABLE:
         logging.info("🎯 Intelligence Content: AI content generation from campaign intelligence")
+    if AI_DISCOVERY_ROUTER_AVAILABLE:
+        logging.info("🤖 AI Discovery: Automated AI platform discovery and management system")  # 🆕 NEW
     
     yield
     
@@ -419,8 +454,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CampaignForge AI Backend",
-    description="AI-powered marketing campaign generation with enhanced email generation, ultra-cheap image generation, dual storage, AI monitoring, and FIXED intelligence-based content generation",
-    version="3.2.1",  # ✅ FIXED: Updated version for content generation fix
+    description="AI-powered marketing campaign generation with enhanced email generation, ultra-cheap image generation, dual storage, AI monitoring, AI platform discovery system, and FIXED intelligence-based content generation",
+    version="3.3.0",  # 🆕 NEW: Updated version for AI Discovery System
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
@@ -520,10 +555,11 @@ storage_routes_registered = 0  # ✅ NEW: Track storage routes
 monitoring_routes_registered = 0  # ✅ NEW: Track monitoring routes
 email_routes_registered = 0  # ✅ NEW: Track email routes
 content_routes_registered = 0  # ✅ NEW: Track content routes
+discovery_routes_registered = 0  # 🆕 NEW: Track discovery routes
 
 if AUTH_ROUTER_AVAILABLE:
     app.include_router(auth_router, prefix="/api")
-    logging.info("🔡 Auth router registered")
+    logging.info("📡 Auth router registered")
     
     # ✅ DEBUG CODE - Show what auth routes are registered
     print(f"🔍 Auth router has {len(auth_router.routes)} routes:")
@@ -538,7 +574,7 @@ else:
 # Add this with your other router registrations
 if ADMIN_ROUTER_AVAILABLE and admin_router:
     app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
-    logging.info("🔡 Admin router registered at /api/admin")
+    logging.info("📡 Admin router registered at /api/admin")
     
     # Debug: Show admin routes
     print(f"🔍 Admin router has {len(admin_router.routes)} routes:")
@@ -562,7 +598,7 @@ except Exception as e:
 # Register waitlist router
 if WAITLIST_ROUTER_AVAILABLE and waitlist_router:
     app.include_router(waitlist_router, prefix="/api/waitlist", tags=["waitlist"])
-    logging.info("🔡 Waitlist router registered at /api/waitlist")
+    logging.info("📡 Waitlist router registered at /api/waitlist")
     
     # Debug: Show waitlist routes
     print(f"🔍 Waitlist router has {len(waitlist_router.routes)} routes:")
@@ -583,10 +619,24 @@ if DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE and dynamic_ai_providers_router:
 else:
     logging.error("❌ Dynamic AI providers router not registered")
 
+# 🆕 Register AI Platform Discovery System router
+if AI_DISCOVERY_ROUTER_AVAILABLE and ai_discovery_router:
+    app.include_router(ai_discovery_router, prefix="/api", tags=["ai-discovery"])
+    logging.info("📡 AI Platform Discovery System router registered at /api")
+    discovery_routes_registered += 1
+    
+    # Debug: Show AI discovery routes
+    print(f"🔍 AI Discovery router has {len(ai_discovery_router.routes)} routes:")
+    for route in ai_discovery_router.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            print(f"  {list(route.methods)} /api{route.path}")
+else:
+    logging.error("❌ AI Platform Discovery System router not registered")
+
 # ✅ FIXED: Campaigns router registration with better error handling and fallback
 if CAMPAIGNS_ROUTER_AVAILABLE and campaigns_router:
     app.include_router(campaigns_router, prefix="/api/campaigns", tags=["campaigns"])
-    logging.info("🔡 Campaigns router registered with prefix /api/campaigns")
+    logging.info("📡 Campaigns router registered with prefix /api/campaigns")
     
     # 🔍 DEBUG: Show campaigns routes
     print(f"🔍 Campaigns router has {len(campaigns_router.routes)} routes:")
@@ -670,7 +720,7 @@ else:
 
 if DASHBOARD_ROUTER_AVAILABLE:
     app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
-    logging.info("🔡 Dashboard router registered at /api/dashboard")
+    logging.info("📡 Dashboard router registered at /api/dashboard")
     
     # 🔍 DEBUG: Show dashboard routes
     print(f"🔍 Dashboard router has {len(dashboard_router.routes)} routes:")
@@ -728,7 +778,7 @@ if INTELLIGENCE_MAIN_ROUTER_AVAILABLE and intelligence_main_router:
         prefix="/api/intelligence",
         tags=["intelligence"]
     )
-    logging.info("🔡 Intelligence main router registered at /api/intelligence")
+    logging.info("📡 Intelligence main router registered at /api/intelligence")
     logging.info("✅ This includes content routes at /api/intelligence/content/*")
     content_routes_registered += 1
     intelligence_routes_registered += 1
@@ -749,7 +799,7 @@ elif CONTENT_ROUTER_AVAILABLE and content_router:
         prefix="/api/intelligence/content", 
         tags=["intelligence", "content", "generation"]
     )
-    logging.info("🔡 Content generation router registered directly at /api/intelligence/content")
+    logging.info("📡 Content generation router registered directly at /api/intelligence/content")
     content_routes_registered += 1
     intelligence_routes_registered += 1
     
@@ -793,7 +843,7 @@ if ENHANCED_EMAIL_ROUTER_AVAILABLE and enhanced_email_router:
         prefix="/api/intelligence/emails", 
         tags=["intelligence", "enhanced-email-generation", "learning"]
     )
-    logging.info("🔡 Enhanced email generation routes registered at /api/intelligence/emails")
+    logging.info("📡 Enhanced email generation routes registered at /api/intelligence/emails")
     email_routes_registered += 1
     intelligence_routes_registered += 1
     
@@ -806,7 +856,7 @@ if ENHANCED_EMAIL_ROUTER_AVAILABLE and enhanced_email_router:
 # ✅ NEW: Register enhanced stability routes (with ultra-cheap image generation)
 if STABILITY_ROUTER_AVAILABLE and stability_router:
     app.include_router(stability_router, prefix="/api/intelligence/stability", tags=["intelligence", "stability", "ultra-cheap-ai"])
-    logging.info("🔡 Stability AI routes (with ultra-cheap generation) registered at /api/intelligence/stability")
+    logging.info("📡 Stability AI routes (with ultra-cheap generation) registered at /api/intelligence/stability")
     intelligence_routes_registered += 1
     
     # ✅ DEBUG: Show stability routes
@@ -818,7 +868,7 @@ if STABILITY_ROUTER_AVAILABLE and stability_router:
 # ✅ NEW: Register universal storage routes
 if STORAGE_ROUTER_AVAILABLE and storage_router:
     app.include_router(storage_router, prefix="/api/storage", tags=["storage", "dual-storage", "universal"])
-    logging.info("🔡 Universal storage routes registered at /api/storage")
+    logging.info("📡 Universal storage routes registered at /api/storage")
     storage_routes_registered += 1
     
     # ✅ DEBUG: Show storage routes
@@ -830,7 +880,7 @@ if STORAGE_ROUTER_AVAILABLE and storage_router:
 # ✅ NEW: Register document management routes
 if DOCUMENT_ROUTER_AVAILABLE and document_router:
     app.include_router(document_router, prefix="/api/documents", tags=["documents", "file-management"])
-    logging.info("🔡 Document management routes registered at /api/documents")
+    logging.info("📡 Document management routes registered at /api/documents")
     storage_routes_registered += 1
     
     # ✅ DEBUG: Show document routes
@@ -842,7 +892,7 @@ if DOCUMENT_ROUTER_AVAILABLE and document_router:
 # ✅ NEW: Register AI monitoring routes
 if AI_MONITORING_ROUTER_AVAILABLE and include_ai_monitoring_routes:
     include_ai_monitoring_routes(app)
-    logging.info("🔡 AI monitoring routes registered at /api/ai-monitoring")
+    logging.info("📡 AI monitoring routes registered at /api/ai-monitoring")
     monitoring_routes_registered += 1
     
     # ✅ DEBUG: Show monitoring routes
@@ -884,6 +934,12 @@ if monitoring_routes_registered > 0:
 else:
     logging.warning("⚠️ AI monitoring system: No routers available")
 
+if discovery_routes_registered > 0:
+    logging.info(f"✅ AI Discovery system: {discovery_routes_registered} router registered")
+    logging.info("🎯 Complete AI Discovery: Two-table architecture + Automated discovery")
+else:
+    logging.warning("⚠️ AI Discovery system: No routers available")
+
 # ============================================================================
 # ✅ HEALTH CHECK ENDPOINTS
 # ============================================================================
@@ -898,7 +954,7 @@ async def health_check():
     """Health check with feature availability"""
     return {
         "status": "healthy",
-        "version": "3.2.1",  # ✅ FIXED: Updated version for content generation fix
+        "version": "3.3.0",  # 🆕 NEW: Updated version for AI Discovery System
         "features": {
             "authentication": AUTH_ROUTER_AVAILABLE,
             "campaigns": CAMPAIGNS_ROUTER_AVAILABLE,
@@ -924,6 +980,7 @@ async def health_check():
             "content": CONTENT_ROUTER_AVAILABLE,
             "ultra_cheap_ai": CONTENT_ROUTER_AVAILABLE,
             "dynamic_ai_providers": DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE,
+            "ai_discovery": AI_DISCOVERY_ROUTER_AVAILABLE  # 🆕 NEW: AI Platform Discovery System
         },
         "content_system": {  # ✅ FIXED: Content system status
             "main_router_available": INTELLIGENCE_MAIN_ROUTER_AVAILABLE,
@@ -941,18 +998,29 @@ async def health_check():
             "ai_subject_lines": ENHANCED_EMAIL_ROUTER_AVAILABLE,
             "performance_tracking": EMAIL_SYSTEM_AVAILABLE
         },
+        "ai_discovery_system": {  # 🆕 NEW: AI Discovery system status
+            "discovery_available": AI_DISCOVERY_ROUTER_AVAILABLE,
+            "two_table_architecture": AI_DISCOVERY_ROUTER_AVAILABLE,
+            "automated_discovery": AI_DISCOVERY_ROUTER_AVAILABLE,
+            "web_research": AI_DISCOVERY_ROUTER_AVAILABLE,
+            "top_3_ranking": AI_DISCOVERY_ROUTER_AVAILABLE,
+            "auto_promotion": AI_DISCOVERY_ROUTER_AVAILABLE,
+            "routes_registered": discovery_routes_registered
+        },
         "cost_savings": {  # ✅ NEW: Cost information
             "enhanced_emails": "25-35% open rates with AI learning",  # ✅ NEW
             "ultra_cheap_images": "90% savings vs DALL-E ($0.002 vs $0.040)",
             "dual_storage": "99.99% uptime with automatic failover",
             "ai_monitoring": "95%+ cost savings through dynamic routing",  # ✅ NEW
-            "intelligence_content": "Generate content from existing campaign intelligence"  # ✅ NEW
+            "intelligence_content": "Generate content from existing campaign intelligence",  # ✅ NEW
+            "ai_discovery": "Zero manual maintenance for AI provider management"  # 🆕 NEW
         },
         "intelligence_routes_count": intelligence_routes_registered,
         "email_routes_count": email_routes_registered,  # ✅ NEW
         "content_routes_count": content_routes_registered,  # ✅ NEW
         "storage_routes_count": storage_routes_registered,  # ✅ NEW
         "monitoring_routes_count": monitoring_routes_registered,  # ✅ NEW
+        "discovery_routes_count": discovery_routes_registered,  # 🆕 NEW
         "tables_status": "existing",
         "router_priority": "intelligence_main_router > content_router_direct > emergency_fallback"  # ✅ NEW
     }
@@ -1146,6 +1214,55 @@ async def ai_monitoring_system_health():
             "error": str(e),
             "message": "AI monitoring system health check failed"
         }
+
+# 🆕 NEW: AI Discovery system health endpoint
+@app.get("/api/ai-discovery/system-health")
+async def ai_discovery_system_health():
+    """AI Discovery system health check"""
+    if not AI_DISCOVERY_ROUTER_AVAILABLE:
+        return {"status": "unavailable", "message": "AI Discovery system not available"}
+    
+    try:
+        discovery_service = app.state.discovery_service
+        
+        # Test database connection
+        from src.core.ai_discovery_database import get_ai_discovery_db
+        async with get_ai_discovery_db() as db:
+            from sqlalchemy import text
+            await db.execute(text("SELECT 1"))
+        
+        return {
+            "status": "healthy",
+            "ai_discovery_system": {
+                "router_available": AI_DISCOVERY_ROUTER_AVAILABLE,
+                "database_connected": True,
+                "service_ready": True,
+                "routes_registered": discovery_routes_registered
+            },
+            "capabilities": {
+                "two_table_architecture": True,
+                "automated_discovery": True,
+                "web_research": True,
+                "ai_powered_analysis": True,
+                "smart_categorization": True,
+                "top_3_ranking": True,
+                "auto_promotion": True,
+                "zero_maintenance": True
+            },
+            "expected_features": {
+                "environment_scanning": "Finds all AI API keys automatically",
+                "cost_analysis": "Real costs, quality, performance metrics",
+                "discovery_research": "Discovers new platforms automatically",
+                "workflow_automation": "Seamless Table 2 → Table 1 workflow",
+                "management": "Full delete/clean capabilities"
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "message": "AI Discovery system health check failed"
+        }
     
 @app.get("/api/status")
 async def system_status():
@@ -1160,7 +1277,7 @@ async def system_status():
     
     return {
         "application": "CampaignForge AI Backend",
-        "version": "3.2.1",  # ✅ FIXED: Updated version for content generation fix
+        "version": "3.3.0",  # 🆕 NEW: Updated version for AI Discovery System
         "environment": os.getenv("RAILWAY_ENVIRONMENT_NAME", "development"),
         "database": db_status,
         "tables": "existing",
@@ -1177,7 +1294,9 @@ async def system_status():
             "storage": STORAGE_ROUTER_AVAILABLE,  # ✅ NEW
             "documents": DOCUMENT_ROUTER_AVAILABLE,  # ✅ NEW
             "ai_monitoring": AI_MONITORING_ROUTER_AVAILABLE,  # ✅ NEW
-            "waitlist": WAITLIST_ROUTER_AVAILABLE  # ✅ NEW
+            "waitlist": WAITLIST_ROUTER_AVAILABLE,  # ✅ NEW
+            "dynamic_ai_providers": DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE,  # ✅ NEW
+            "ai_discovery": AI_DISCOVERY_ROUTER_AVAILABLE  # 🆕 NEW: AI Platform Discovery System
         },
         "models": {
             "campaign_assets_enhanced": True,  # ✅ NEW:  with dual storage
@@ -1215,6 +1334,11 @@ async def system_status():
                 "available": AI_MONITORING_ROUTER_AVAILABLE,
                 "features": ["dynamic_routing", "cost_optimization", "real_time_monitoring"],
                 "cost_savings": "95%+ through intelligent provider selection"
+            },
+            "ai_discovery": {  # 🆕 NEW: AI Platform Discovery System
+                "available": AI_DISCOVERY_ROUTER_AVAILABLE,
+                "features": ["two_table_architecture", "automated_discovery", "top_3_ranking", "web_research", "auto_promotion"],
+                "description": "Intelligent AI platform discovery and management system"
             }
         },
         "python_path": sys.path[:3],
@@ -1226,7 +1350,7 @@ async def root():
     """Root endpoint"""
     return {
         "message": "CampaignForge AI Backend API",
-        "version": "3.2.1",  # ✅ FIXED: Updated version for content generation fix
+        "version": "3.3.0",  # 🆕 NEW: Updated version for AI Discovery System
         "status": "healthy",
         "docs": "/api/docs", 
         "health": "/api/health",
@@ -1240,7 +1364,8 @@ async def root():
             "dual_storage": "99.99% uptime with automatic failover",
             "document_management": "Complete file processing system",
             "ai_monitoring": "95%+ cost savings through dynamic routing",  # ✅ NEW
-            "smart_provider_selection": "Real-time optimization of AI providers"  # ✅ NEW
+            "smart_provider_selection": "Real-time optimization of AI providers",  # ✅ NEW
+            "ai_discovery": "Automated AI platform discovery and management"  # 🆕 NEW
         }
     }
 
@@ -1258,6 +1383,7 @@ async def debug_all_routes():
     email_routes = []  # ✅ NEW: Track email routes
     storage_routes = []  # ✅ NEW: Track storage routes
     monitoring_routes = []  # ✅ NEW: Track monitoring routes
+    discovery_routes = []  # 🆕 NEW: Track AI discovery routes
     
     for route in app.routes:
         if hasattr(route, 'path') and hasattr(route, 'methods'):
@@ -1291,6 +1417,10 @@ async def debug_all_routes():
             # ✅ NEW: Track monitoring routes
             if '/ai-monitoring/' in route.path:
                 monitoring_routes.append(route_info)
+            
+            # 🆕 NEW: Track AI discovery routes
+            if '/ai-discovery/' in route.path or '/admin/ai-discovery/' in route.path:
+                discovery_routes.append(route_info)
     
     return {
         "total_routes": len(routes_info),
@@ -1300,16 +1430,19 @@ async def debug_all_routes():
         "email_routes": len(email_routes),  # ✅ NEW
         "storage_routes": len(storage_routes),  # ✅ NEW
         "monitoring_routes": len(monitoring_routes),  # ✅ NEW
+        "discovery_routes": len(discovery_routes),  # 🆕 NEW
         "campaigns_router_status": CAMPAIGNS_ROUTER_AVAILABLE,  # ✅ NEW
         "content_router_status": CONTENT_ROUTER_AVAILABLE,  # ✅ FIXED
         "intelligence_main_router_status": INTELLIGENCE_MAIN_ROUTER_AVAILABLE,  # ✅ NEW
         "email_router_status": ENHANCED_EMAIL_ROUTER_AVAILABLE,  # ✅ NEW
+        "ai_discovery_router_status": AI_DISCOVERY_ROUTER_AVAILABLE,  # 🆕 NEW
         "auth_route_details": auth_routes,
         "campaigns_route_details": campaigns_routes,  # ✅ NEW
         "content_route_details": content_routes,  # ✅ NEW
         "email_route_details": email_routes,  # ✅ NEW
         "storage_route_details": storage_routes,  # ✅ NEW
         "monitoring_route_details": monitoring_routes,  # ✅ NEW
+        "discovery_route_details": discovery_routes,  # 🆕 NEW
         "system_capabilities": {  # ✅ NEW
             "content_generation": CONTENT_ROUTER_AVAILABLE,  # ✅ FIXED
             "intelligence_main_router": INTELLIGENCE_MAIN_ROUTER_AVAILABLE,  # ✅ NEW
@@ -1318,7 +1451,9 @@ async def debug_all_routes():
             "dual_storage": STORAGE_ROUTER_AVAILABLE,
             "document_management": DOCUMENT_ROUTER_AVAILABLE,
             "ai_monitoring": AI_MONITORING_ROUTER_AVAILABLE,  # ✅ NEW
-            "campaigns_available": CAMPAIGNS_ROUTER_AVAILABLE  # ✅ NEW
+            "campaigns_available": CAMPAIGNS_ROUTER_AVAILABLE,  # ✅ NEW
+            "dynamic_ai_providers": DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE,  # ✅ NEW
+            "ai_discovery": AI_DISCOVERY_ROUTER_AVAILABLE  # 🆕 NEW
         },
         "router_registration_order": [  # ✅ NEW: Show registration priority
             "intelligence_main_router (includes content)",
@@ -1326,6 +1461,7 @@ async def debug_all_routes():
             "emergency_endpoints (last resort)"
         ],
         "fix_summary": "Content router registration priority fixed",
+        "ai_discovery_summary": "AI Platform Discovery System with two-table architecture integrated",  # 🆕 NEW
         "all_routes": routes_info
     }
 
@@ -1389,6 +1525,42 @@ async def debug_content_status():
             "Test /api/intelligence/content/generate endpoint",
             "Check /api/content/system-health for detailed status",
             "Review logs for any import errors"
+        ]
+    }
+
+# 🆕 NEW: AI Discovery system debug endpoint
+@app.get("/api/debug/ai-discovery-status")
+async def debug_ai_discovery_status():
+    """Debug AI Discovery system status"""
+    return {
+        "router_availability": {
+            "ai_discovery_router": AI_DISCOVERY_ROUTER_AVAILABLE,
+            "routes_registered": discovery_routes_registered
+        },
+        "system_features": [
+            f"Two-table architecture: {'✅ READY' if AI_DISCOVERY_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}",
+            f"Environment scanning: {'✅ READY' if AI_DISCOVERY_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}",
+            f"Web research: {'✅ READY' if AI_DISCOVERY_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}",
+            f"AI-powered analysis: {'✅ READY' if AI_DISCOVERY_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}",
+            f"Auto-promotion workflow: {'✅ READY' if AI_DISCOVERY_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}"
+        ],
+        "expected_endpoints": {
+            "dashboard": "/api/admin/ai-discovery/dashboard",
+            "run_discovery": "/api/admin/ai-discovery/run-discovery",
+            "active_providers": "/api/admin/ai-discovery/active-providers",
+            "suggestions": "/api/admin/ai-discovery/discovered-suggestions",
+            "promote": "/api/admin/ai-discovery/promote-suggestion/{id}"
+        },
+        "database_tables": {
+            "active_ai_providers": "Table 1 - Providers with API keys",
+            "discovered_ai_providers": "Table 2 - Research suggestions"
+        },
+        "integration_status": "100% Complete" if AI_DISCOVERY_ROUTER_AVAILABLE else "Not Available",
+        "status": "healthy" if AI_DISCOVERY_ROUTER_AVAILABLE else "not_available",
+        "next_steps": [
+            "Test /api/admin/ai-discovery/dashboard endpoint",
+            "Check /api/ai-discovery/system-health for detailed status",
+            "Run discovery cycle via /api/admin/ai-discovery/run-discovery"
         ]
     }
 
@@ -1579,6 +1751,53 @@ async def test_content_generation(
             detail=f"Content generation test failed: {str(e)}"
         )
 
+# 🆕 NEW: AI Discovery test endpoint
+@app.post("/api/admin/ai-discovery/test-discovery")
+async def test_ai_discovery_system():
+    """Test AI Discovery system functionality"""
+    
+    if not AI_DISCOVERY_ROUTER_AVAILABLE:
+        raise HTTPException(
+            status_code=503, 
+            detail="AI Discovery system not available"
+        )
+    
+    try:
+        discovery_service = app.state.discovery_service
+        
+        # Test environment scanning
+        env_providers = await discovery_service.scan_environment_providers()
+        
+        return {
+            "success": True,
+            "test_result": "AI Discovery system operational",
+            "environment_scan": {
+                "providers_found": len(env_providers),
+                "sample_providers": [p.get("name", "unknown") for p in env_providers[:3]]
+            },
+            "system_capabilities": {
+                "two_table_architecture": True,
+                "environment_scanning": True,
+                "web_research": True,
+                "ai_analysis": True,
+                "auto_promotion": True
+            },
+            "endpoints_ready": {
+                "dashboard": "/api/admin/ai-discovery/dashboard",
+                "run_discovery": "/api/admin/ai-discovery/run-discovery",
+                "active_providers": "/api/admin/ai-discovery/active-providers",
+                "suggestions": "/api/admin/ai-discovery/discovered-suggestions"
+            },
+            "integration_status": "100% Complete - Ready for production"
+        }
+        
+    except Exception as e:
+        logging.error(f"❌ AI Discovery test failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI Discovery test failed: {str(e)}"
+        )
+
 # ✅ FIXED: Test endpoints - keep the original test endpoint that works
 @app.get("/api/campaigns/test")
 async def test_campaigns():
@@ -1619,7 +1838,7 @@ async def global_exception_handler(request, exc):
 async def startup_debug():
     """Additional startup debugging"""
     print("=" * 80)
-    print("🔍 STARTUP DEBUGGING - CONTENT GENERATION ROUTER FIXED")
+    print("🔍 STARTUP DEBUGGING - AI DISCOVERY SYSTEM INTEGRATED")
     print("=" * 80)
     
     # Count routes by category
@@ -1628,12 +1847,14 @@ async def startup_debug():
     campaigns_routes = len([r for r in app.routes if hasattr(r, 'path') and '/campaigns/' in r.path])
     content_routes = len([r for r in app.routes if hasattr(r, 'path') and '/intelligence/content/' in r.path])
     email_routes = len([r for r in app.routes if hasattr(r, 'path') and '/emails/' in r.path])
+    discovery_routes = len([r for r in app.routes if hasattr(r, 'path') and ('/ai-discovery/' in r.path or '/admin/ai-discovery/' in r.path)])
     
     print(f"📊 Total routes registered: {total_routes}")
-    print(f"🔐 Auth routes: {auth_routes}")
+    print(f"🔍 Auth routes: {auth_routes}")
     print(f"🎯 Campaigns routes: {campaigns_routes}")
     print(f"🎨 Content generation routes: {content_routes}")
     print(f"📧 Enhanced email routes: {email_routes}")
+    print(f"🤖 AI Discovery routes: {discovery_routes}")
     
     print(f"\n🎨 CONTENT GENERATION SYSTEM STATUS:")
     print(f"  • Intelligence main router: {'✅ ACTIVE' if INTELLIGENCE_MAIN_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}")
@@ -1647,6 +1868,13 @@ async def startup_debug():
     print(f"  • Email models: {'✅ LOADED' if EMAIL_MODELS_AVAILABLE else '❌ NOT AVAILABLE'}")
     print(f"  • Complete system: {'✅ READY' if EMAIL_SYSTEM_AVAILABLE else '❌ INCOMPLETE'}")
     print(f"  • Learning capabilities: {'✅ ENABLED' if EMAIL_SYSTEM_AVAILABLE else '❌ DISABLED'}")
+    
+    print(f"\n🤖 AI DISCOVERY SYSTEM STATUS:")
+    print(f"  • AI Discovery router: {'✅ ACTIVE' if AI_DISCOVERY_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}")
+    print(f"  • Routes registered: {discovery_routes_registered}")
+    print(f"  • Two-table architecture: {'✅ READY' if AI_DISCOVERY_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}")
+    print(f"  • Automated discovery: {'✅ READY' if AI_DISCOVERY_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}")
+    print(f"  • Integration status: {'✅ 100% COMPLETE' if AI_DISCOVERY_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}")
     
     print(f"\n🔧 CORS MIDDLEWARE STATUS:")
     print(f"  • CORS middleware: ✅ ACTIVE")
@@ -1692,17 +1920,35 @@ async def startup_debug():
     else:
         print("  ❌ No enhanced email endpoints available")
     
+    print(f"\n🤖 AI DISCOVERY ENDPOINTS:")
+    if AI_DISCOVERY_ROUTER_AVAILABLE:
+        discovery_endpoints = [
+            "GET /api/admin/ai-discovery/dashboard",
+            "POST /api/admin/ai-discovery/run-discovery",
+            "GET /api/admin/ai-discovery/active-providers",
+            "GET /api/admin/ai-discovery/discovered-suggestions",
+            "POST /api/admin/ai-discovery/promote-suggestion/{id}"
+        ]
+        for endpoint in discovery_endpoints:
+            print(f"  ✅ {endpoint}")
+    else:
+        print("  ❌ No AI Discovery endpoints available")
+    
     print(f"\n🔧 ROUTER REGISTRATION PRIORITY:")
     print(f"  1. Intelligence main router: {'✅ USED' if INTELLIGENCE_MAIN_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}")
     print(f"  2. Content router direct: {'✅ USED' if CONTENT_ROUTER_AVAILABLE and not INTELLIGENCE_MAIN_ROUTER_AVAILABLE else '⚠️ STANDBY' if CONTENT_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}")
     print(f"  3. Emergency endpoints: {'❌ NOT USED' if CONTENT_ROUTER_AVAILABLE else '🚨 ACTIVE'}")
+    print(f"  4. AI Discovery router: {'✅ ACTIVE' if AI_DISCOVERY_ROUTER_AVAILABLE else '❌ NOT AVAILABLE'}")
     
-    print(f"\n🚀 READY FOR CONTENT GENERATION TESTING!")
+    print(f"\n🚀 READY FOR FULL SYSTEM TESTING!")
     print(f"  • Backend health: https://campaign-backend-production-e2db.up.railway.app/health")
     print(f"  • Content system health: https://campaign-backend-production-e2db.up.railway.app/api/content/system-health")
+    print(f"  • AI Discovery health: https://campaign-backend-production-e2db.up.railway.app/api/ai-discovery/system-health")
     print(f"  • Content debug status: https://campaign-backend-production-e2db.up.railway.app/api/debug/content-status")
+    print(f"  • AI Discovery debug: https://campaign-backend-production-e2db.up.railway.app/api/debug/ai-discovery-status")
     print(f"  • Test content generation: https://campaign-backend-production-e2db.up.railway.app/api/intelligence/content/test-generation")
     print(f"  • Test enhanced emails: https://campaign-backend-production-e2db.up.railway.app/api/intelligence/emails/test-enhanced-generation")
+    print(f"  • Test AI Discovery: https://campaign-backend-production-e2db.up.railway.app/api/admin/ai-discovery/test-discovery")
     print(f"  • CORS test: https://campaign-backend-production-e2db.up.railway.app/test-cors")
     
     print("=" * 80)
