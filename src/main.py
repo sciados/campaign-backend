@@ -170,7 +170,7 @@ except ImportError as e:
     dynamic_ai_providers_router = None
     DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE = False
 
-# 🆕 AI Platform Discovery System router import
+# 🆕 AI Platform Discovery System router import - FIXED
 try:
     from src.routes.ai_platform_discovery import router as ai_discovery_router
     logging.info("✅ AI Platform Discovery System router imported successfully")
@@ -619,17 +619,24 @@ if DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE and dynamic_ai_providers_router:
 else:
     logging.error("❌ Dynamic AI providers router not registered")
 
-# 🆕 Register AI Platform Discovery System router
+# 🆕 Register AI Platform Discovery System router - FIXED PREFIX
 if AI_DISCOVERY_ROUTER_AVAILABLE and ai_discovery_router:
-    app.include_router(ai_discovery_router, prefix="/api", tags=["ai-discovery"])
-    logging.info("📡 AI Platform Discovery System router registered at /api")
+    app.include_router(ai_discovery_router, prefix="/api/admin/ai-discovery", tags=["ai-discovery"])
+    logging.info("📡 AI Platform Discovery System router registered at /api/admin/ai-discovery")
     discovery_routes_registered += 1
     
     # Debug: Show AI discovery routes
     print(f"🔍 AI Discovery router has {len(ai_discovery_router.routes)} routes:")
     for route in ai_discovery_router.routes:
         if hasattr(route, 'path') and hasattr(route, 'methods'):
-            print(f"  {list(route.methods)} /api{route.path}")
+            print(f"  {list(route.methods)} /api/admin/ai-discovery{route.path}")
+    
+    print("✅ AI Discovery endpoints now available at:")
+    print("  GET /api/admin/ai-discovery/health")
+    print("  GET /api/admin/ai-discovery/active-providers")
+    print("  GET /api/admin/ai-discovery/discovered-suggestions")
+    print("  GET /api/admin/ai-discovery/category-rankings")
+    print("  GET /api/admin/ai-discovery/dashboard")
 else:
     logging.error("❌ AI Platform Discovery System router not registered")
 
