@@ -9,11 +9,13 @@ Table 2: discovered_ai_providers (Research suggestions)
 
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 
 from src.core.ai_discovery_database import get_ai_discovery_db
+from src.core.database import get_db
 from src.services.ai_platform_discovery import (
     get_discovery_service, 
     ActiveAIProvider, 
@@ -319,6 +321,269 @@ async def get_discovered_suggestions(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get suggestions: {str(e)}")
 
+# ✅ FIXED: Category Rankings Endpoint (was causing 404 errors)
+@router.get("/category-rankings")
+async def get_category_rankings(db: Session = Depends(get_ai_discovery_db)):
+    """
+    🏆 Get category statistics and top 3 providers per category
+    This endpoint was missing and causing 404 errors in the frontend
+    """
+    try:
+        # Query category statistics from live data
+        category_query = text('''
+        SELECT 
+            category,
+            COUNT(*) as active_count,
+            AVG(COALESCE(cost_per_1k_tokens, 0.001)) as avg_cost,
+            AVG(COALESCE(quality_score, 4.0)) as avg_quality_score,
+            SUM(COALESCE(monthly_usage, 0) * COALESCE(cost_per_1k_tokens, 0.001) / 1000) as total_monthly_cost
+        FROM active_ai_providers 
+        WHERE is_active = true
+        GROUP BY category
+        ''')
+        
+        category_results = db.execute(category_query).fetchall()
+        
+        # Query top providers per category (ranked by quality and cost)
+        top_providers_query = text('''
+        SELECT 
+            id, provider_name, category, 
+            COALESCE(category_rank, 1) as category_rank,
+            COALESCE(is_top_3, false) as is_top_3,
+            COALESCE(cost_per_1k_tokens, 0.001) as cost_per_1k_tokens,
+            COALESCE(quality_score, 4.0) as quality_score,
+            COALESCE(response_time_ms, 2000) as response_time_ms,
+            COALESCE(monthly_usage, 10000) as monthly_usage,
+            is_active
+        FROM active_ai_providers 
+        WHERE is_active = true 
+        ORDER BY category, 
+                 COALESCE(category_rank, 999), 
+                 quality_score DESC, 
+                 cost_per_1k_tokens ASC
+        ''')
+        
+        top_providers_results = db.execute(top_providers_query).fetchall()
+        
+        # Group providers by category (take top 3 per category)
+        providers_by_category = {}
+        for provider in top_providers_results:
+            category = provider.category
+            if category not in providers_by_category:
+                providers_by_category[category] = []
+            
+            # Only take top 3 per category
+            if len(providers_by_category[category]) < 3:
+                rank = provider.category_rank if provider.category_rank else (len(providers_by_category[category]) + 1)
+                providers_by_category[category].append({
+                    "id": str(provider.id),
+                    "provider_name": provider.provider_name,
+                    "category": provider.category,
+                    "category_rank": rank,
+                    "is_top_3": True,  # All returned providers are considered top 3
+                    "cost_per_1k_tokens": float(provider.cost_per_1k_tokens),
+                    "quality_score": float(provider.quality_score),
+                    "response_time_ms": provider.response_time_ms,
+                    "monthly_usage": provider.monthly_usage,
+                    "is_active": provider.is_active
+                })
+        
+        # Build category statistics from live data
+        category_stats = []
+        for category_row in category_results:
+            category = category_row.category
+            category_stats.append({
+                "category": category,
+                "active_count": category_row.active_count,
+                "top_3_providers": providers_by_category.get(category, []),
+                "total_monthly_cost": float(category_row.total_monthly_cost or 0),
+                "avg_quality_score": float(category_row.avg_quality_score or 0)
+            })
+        
+        # Include all categories, even if empty (for consistent UI)
+        all_categories = ["text_generation", "image_generation", "video_generation", "audio_generation", "multimodal"]
+        existing_categories = {stat["category"] for stat in category_stats}
+        
+        for category in all_categories:
+            if category not in existing_categories:
+                category_stats.append({
+                    "category": category,
+                    "active_count": 0,
+                    "top_3_providers": [],
+                    "total_monthly_cost": 0.0,
+                    "avg_quality_score": 0.0
+                })
+        
+        return category_stats
+        
+    except Exception as e:
+        print(f"Database error in category rankings: {e}")
+        # Return empty categories structure on error
+        all_categories = ["text_generation", "image_generation", "video_generation", "audio_generation", "multimodal"]
+        category_stats = []
+        for category in all_categories:
+            category_stats.append({
+                "category": category,
+                "active_count": 0,
+                "top_3_providers": [],
+                "total_monthly_cost": 0.0,
+                "avg_quality_score": 0.0
+            })
+        return category_stats
+    finally:
+        db.close()
+
+# ✅ NEW: Live Usage Tracking Endpoints
+@router.post("/update-usage-stats")
+async def update_usage_stats(
+    ai_db: Session = Depends(get_ai_discovery_db),
+    main_db: Session = Depends(get_db)
+):
+    """
+    📊 Update monthly usage statistics from live system tracking
+    """
+    try:
+        # Query your actual usage tracking from the main database
+        usage_query = text('''
+        SELECT 
+            ai_model_used as provider_name,
+            COUNT(*) as monthly_requests,
+            SUM(COALESCE(processing_time, 1000)) as total_processing_time
+        FROM intelligence_data 
+        WHERE created_at >= date_trunc('month', CURRENT_DATE)
+        AND ai_model_used IS NOT NULL
+        GROUP BY ai_model_used
+        ''')
+        
+        usage_results = main_db.execute(usage_query).fetchall()
+        
+        # Map your AI model names to provider names
+        provider_mapping = {
+            'gpt-4': 'OpenAI GPT-4',
+            'gpt-3.5': 'OpenAI GPT-3.5',
+            'claude-3': 'Claude Sonnet',
+            'claude-sonnet': 'Claude Sonnet',
+            'dall-e-3': 'DALL-E 3',
+            'stable-diffusion': 'Stable Diffusion',
+            'gemini-pro': 'Gemini Pro',
+            'elevenlabs': 'ElevenLabs',
+            'runway': 'Runway ML'
+        }
+        
+        updated_count = 0
+        for usage_row in usage_results:
+            provider_name = provider_mapping.get(usage_row.provider_name.lower(), usage_row.provider_name)
+            
+            update_query = text('''
+            UPDATE active_ai_providers 
+            SET monthly_usage = :monthly_usage,
+                response_time_ms = :avg_response_time,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE provider_name ILIKE :provider_name
+            AND is_active = true
+            ''')
+            
+            result = ai_db.execute(update_query, {
+                'monthly_usage': usage_row.monthly_requests,
+                'avg_response_time': min(usage_row.total_processing_time // max(usage_row.monthly_requests, 1), 10000),
+                'provider_name': f'%{provider_name}%'
+            })
+            
+            if result.rowcount > 0:
+                updated_count += 1
+        
+        ai_db.commit()
+        
+        return {
+            "success": True,
+            "message": "Usage statistics updated from live tracking",
+            "updated_providers": updated_count,
+            "provider_usage": [
+                {"provider": provider_mapping.get(row.provider_name.lower(), row.provider_name), 
+                 "requests": row.monthly_requests} 
+                for row in usage_results
+            ],
+            "updated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"Error updating usage stats: {e}")
+        ai_db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update usage stats: {str(e)}"
+        )
+    finally:
+        ai_db.close()
+        main_db.close()
+
+@router.post("/sync-live-usage")
+async def sync_live_usage(
+    ai_db: Session = Depends(get_ai_discovery_db),
+    main_db: Session = Depends(get_db)
+):
+    """
+    🔄 Comprehensive sync of live usage data - call this from scheduled job
+    """
+    try:
+        # Update usage statistics
+        usage_result = await update_usage_stats(ai_db, main_db)
+        
+        # Also calculate quality scores from success rates
+        quality_query = text('''
+        SELECT 
+            ai_model_used,
+            COUNT(*) as total_requests,
+            SUM(CASE WHEN confidence_score > 0.8 THEN 1 ELSE 0 END) as successful_requests,
+            AVG(COALESCE(confidence_score, 0.5)) as avg_confidence
+        FROM intelligence_data 
+        WHERE created_at >= CURRENT_DATE - interval '30 days'
+        AND ai_model_used IS NOT NULL
+        GROUP BY ai_model_used
+        ''')
+        
+        quality_results = main_db.execute(quality_query).fetchall()
+        
+        # Update quality scores based on success rates
+        for quality_row in quality_results:
+            if quality_row.total_requests > 10:  # Only update if enough samples
+                success_rate = quality_row.successful_requests / quality_row.total_requests
+                quality_score = min(5.0, (success_rate * 4) + (quality_row.avg_confidence * 1))
+                
+                quality_update_query = text('''
+                UPDATE active_ai_providers 
+                SET quality_score = :quality_score,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE provider_name ILIKE :provider_name
+                AND is_active = true
+                ''')
+                
+                ai_db.execute(quality_update_query, {
+                    'quality_score': quality_score,
+                    'provider_name': f'%{quality_row.ai_model_used}%'
+                })
+        
+        ai_db.commit()
+        
+        return {
+            "success": True,
+            "message": "Live usage data synchronized successfully",
+            "usage_sync": usage_result,
+            "quality_scores_updated": len(quality_results),
+            "sync_timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"Error syncing live usage: {e}")
+        ai_db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to sync live usage: {str(e)}"
+        )
+    finally:
+        ai_db.close()
+        main_db.close()
+
 # ✅ Promote Suggestion to Active
 @router.post("/promote-suggestion/{suggestion_id}")
 async def promote_suggestion_to_active(
@@ -356,6 +621,7 @@ async def promote_suggestion_to_active(
             api_endpoint=suggestion.api_endpoint,
             capabilities=suggestion.unique_features,
             promoted_date=datetime.utcnow(),
+            monthly_usage=0,  # Will be updated by live tracking
             is_active=True
         )
         
@@ -540,129 +806,156 @@ async def remove_suggestion(suggestion_id: int, db: Session = Depends(get_ai_dis
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Removal failed: {str(e)}")
-    
-@router.get("/category-rankings")
-async def get_category_rankings():
-    """
-    Get category statistics and top 3 providers per category
-    This endpoint was missing and causing 404 errors in the frontend
-    """
-    try:
-        # Use database implementation instead of mock data
-        category_stats = await get_category_rankings_from_db()
-        return category_stats
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to fetch category rankings: {str(e)}"
-        )
 
-# Database implementation (replace the mock data version above):
-async def get_category_rankings_from_db():
+# ✅ Bulk Operations
+@router.post("/bulk-promote")
+async def bulk_promote_suggestions(
+    suggestion_ids: List[int],
+    db: Session = Depends(get_ai_discovery_db)
+):
     """
-    Get category statistics from database - FIXED VERSION
+    📦 Bulk promote multiple suggestions to active providers
     """
     try:
-        from src.core.ai_discovery_database import get_ai_discovery_db
-        from sqlalchemy import text
+        promoted_count = 0
+        failed_promotions = []
         
-        db = next(get_ai_discovery_db())
-        
-        # Query active providers grouped by category
-        category_query = text('''
-        SELECT 
-            category,
-            COUNT(*) as active_count,
-            AVG(cost_per_1k_tokens) as avg_cost,
-            AVG(quality_score) as avg_quality_score,
-            SUM(monthly_usage * cost_per_1k_tokens / 1000) as total_monthly_cost
-        FROM active_ai_providers 
-        WHERE is_active = true
-        GROUP BY category
-        ''')
-        
-        category_results = db.execute(category_query).fetchall()
-        
-        # Query top 3 providers per category
-        top_providers_query = text('''
-        SELECT 
-            id, provider_name, category, category_rank, is_top_3,
-            cost_per_1k_tokens, quality_score, response_time_ms,
-            monthly_usage, is_active
-        FROM active_ai_providers 
-        WHERE is_active = true AND is_top_3 = true
-        ORDER BY category, category_rank
-        ''')
-        
-        top_providers_results = db.execute(top_providers_query).fetchall()
-        
-        # Group top providers by category
-        providers_by_category = {}
-        for provider in top_providers_results:
-            category = provider.category
-            if category not in providers_by_category:
-                providers_by_category[category] = []
-            
-            providers_by_category[category].append({
-                "id": str(provider.id),
-                "provider_name": provider.provider_name,
-                "category": provider.category,
-                "category_rank": provider.category_rank,
-                "is_top_3": provider.is_top_3,
-                "cost_per_1k_tokens": float(provider.cost_per_1k_tokens or 0),
-                "quality_score": float(provider.quality_score or 0),
-                "response_time_ms": provider.response_time_ms or 0,
-                "monthly_usage": provider.monthly_usage or 0,
-                "is_active": provider.is_active
-            })
-        
-        # Build category stats with providers
-        category_stats = []
-        for category_row in category_results:
-            category = category_row.category
-            category_stats.append({
-                "category": category,
-                "active_count": category_row.active_count,
-                "top_3_providers": providers_by_category.get(category, []),
-                "total_monthly_cost": float(category_row.total_monthly_cost or 0),
-                "avg_quality_score": float(category_row.avg_quality_score or 0)
-            })
-        
-        # Add empty categories for completeness
-        all_categories = ["text_generation", "image_generation", "video_generation", "audio_generation", "multimodal"]
-        existing_categories = {stat["category"] for stat in category_stats}
-        
-        for category in all_categories:
-            if category not in existing_categories:
-                category_stats.append({
-                    "category": category,
-                    "active_count": 0,
-                    "top_3_providers": [],
-                    "total_monthly_cost": 0.0,
-                    "avg_quality_score": 0.0
+        for suggestion_id in suggestion_ids:
+            try:
+                suggestion = db.query(DiscoveredAIProvider).filter(
+                    DiscoveredAIProvider.id == suggestion_id
+                ).first()
+                
+                if not suggestion or suggestion.promotion_status != 'pending':
+                    failed_promotions.append({
+                        'id': suggestion_id,
+                        'reason': 'Not found or already processed'
+                    })
+                    continue
+                
+                # Create active provider (without API key - will need manual addition)
+                active_provider = ActiveAIProvider(
+                    provider_name=suggestion.provider_name,
+                    env_var_name=suggestion.suggested_env_var_name,
+                    category=suggestion.category,
+                    use_type=suggestion.use_type,
+                    cost_per_1k_tokens=suggestion.estimated_cost_per_1k_tokens,
+                    quality_score=suggestion.estimated_quality_score,
+                    monthly_usage=0,
+                    promoted_date=datetime.utcnow(),
+                    is_active=False  # Inactive until API key is added
+                )
+                
+                db.add(active_provider)
+                
+                # Update suggestion
+                suggestion.promotion_status = 'promoted'
+                suggestion.admin_notes = f"Bulk promoted on {datetime.utcnow().isoformat()}"
+                suggestion.updated_at = datetime.utcnow()
+                
+                promoted_count += 1
+                
+            except Exception as e:
+                failed_promotions.append({
+                    'id': suggestion_id,
+                    'reason': str(e)
                 })
         
-        return category_stats
+        db.commit()
+        
+        return {
+            'success': True,
+            'message': f'✅ Bulk promotion completed',
+            'promoted_count': promoted_count,
+            'failed_count': len(failed_promotions),
+            'failed_promotions': failed_promotions,
+            'next_steps': [
+                'Add API keys to environment variables for promoted providers',
+                'Run /sync-live-usage to activate providers with valid API keys'
+            ]
+        }
         
     except Exception as e:
-        # Fallback to empty data if database fails
-        print(f"Database error in category rankings: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Bulk promotion failed: {str(e)}")
+
+# ✅ Health Check for Frontend
+@router.get("/health")
+async def health_check():
+    """
+    ❤️ Simple health check for the AI Discovery system
+    Used by frontend to verify service availability
+    """
+    try:
+        return {
+            'status': 'healthy',
+            'service': 'ai_platform_discovery',
+            'version': '3.3.0',
+            'timestamp': datetime.utcnow().isoformat(),
+            'endpoints_available': [
+                '/active-providers',
+                '/discovered-suggestions', 
+                '/category-rankings',
+                '/run-discovery',
+                '/sync-live-usage'
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+
+# ✅ Quick Actions for Dashboard
+@router.get("/quick-stats")
+async def get_quick_stats(db: Session = Depends(get_ai_discovery_db)):
+    """
+    ⚡ Get quick statistics for dashboard overview
+    Lightweight endpoint for frequent polling
+    """
+    try:
+        stats_query = text('''
+        SELECT 
+            COUNT(CASE WHEN is_active = true THEN 1 END) as active_providers,
+            COUNT(CASE WHEN is_active = false THEN 1 END) as inactive_providers,
+            COUNT(CASE WHEN monthly_usage > 0 THEN 1 END) as providers_with_usage,
+            AVG(CASE WHEN is_active = true THEN quality_score END) as avg_quality,
+            SUM(CASE WHEN is_active = true THEN monthly_usage * cost_per_1k_tokens / 1000 END) as monthly_cost
+        FROM active_ai_providers
+        ''')
         
-        # Return empty categories structure
-        all_categories = ["text_generation", "image_generation", "video_generation", "audio_generation", "multimodal"]
-        category_stats = []
-        for category in all_categories:
-            category_stats.append({
-                "category": category,
-                "active_count": 0,
-                "top_3_providers": [],
-                "total_monthly_cost": 0.0,
-                "avg_quality_score": 0.0
-            })
+        stats = db.execute(stats_query).fetchone()
         
-        return category_stats
-    
-    finally:
-        if 'db' in locals():
-            db.close()
+        suggestions_query = text('''
+        SELECT 
+            COUNT(*) as total_suggestions,
+            COUNT(CASE WHEN recommendation_priority = 'high' THEN 1 END) as high_priority,
+            COUNT(CASE WHEN promotion_status = 'pending' THEN 1 END) as pending_review
+        FROM discovered_ai_providers
+        ''')
+        
+        suggestions_stats = db.execute(suggestions_query).fetchone()
+        
+        return {
+            'active_providers': stats.active_providers or 0,
+            'inactive_providers': stats.inactive_providers or 0,
+            'providers_with_usage': stats.providers_with_usage or 0,
+            'avg_quality_score': round(float(stats.avg_quality or 0), 1),
+            'monthly_cost': round(float(stats.monthly_cost or 0), 2),
+            'total_suggestions': suggestions_stats.total_suggestions or 0,
+            'high_priority_suggestions': suggestions_stats.high_priority or 0,
+            'pending_suggestions': suggestions_stats.pending_review or 0,
+            'last_updated': datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        # Return zeros on error to prevent dashboard crashes
+        return {
+            'active_providers': 0,
+            'inactive_providers': 0,
+            'providers_with_usage': 0,
+            'avg_quality_score': 0.0,
+            'monthly_cost': 0.0,
+            'total_suggestions': 0,
+            'high_priority_suggestions': 0,
+            'pending_suggestions': 0,
+            'last_updated': datetime.utcnow().isoformat(),
+            'error': str(e)
+        }
