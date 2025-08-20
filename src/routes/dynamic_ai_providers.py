@@ -3,7 +3,7 @@
 """
 Dynamic AI Provider Discovery and Management
 NO HARDCODED DATA - Everything from Database + Environment Variables
-✅ COMPLETE FIXED VERSION with AI Discovery DB Integration
+âœ… COMPLETE FIXED VERSION with AI Discovery DB Integration
 """
 
 import os
@@ -15,20 +15,20 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select, delete
 
-# ✅ FIXED: Correct imports
+# âœ… FIXED: Correct imports
 try:
     from src.core.ai_discovery_database import get_ai_discovery_db, RailwayAIProvider, get_ai_discovery_session
     AI_DISCOVERY_DB_AVAILABLE = True
 except ImportError:
-    print("⚠️ AI Discovery database not available - using fallback")
+    print("âš ï¸ AI Discovery database not available - using fallback")
     AI_DISCOVERY_DB_AVAILABLE = False
     # Fallback to regular database if AI Discovery DB not set up
     from src.core.database import get_db as get_ai_discovery_db
 
-# ✅ FIXED: Create router (not import from campaigns)
+# âœ… FIXED: Create router (not import from campaigns)
 router = APIRouter(tags=["admin", "ai-providers"])
 
-# ✅ RESTORED: All original Pydantic models
+# âœ… RESTORED: All original Pydantic models
 class DynamicProvider(BaseModel):
     """Dynamic provider model based on environment variables + database"""
     provider_name: str
@@ -63,7 +63,7 @@ class DynamicProvidersResponse(BaseModel):
     railway_environment: str
     last_updated: datetime
 
-# ✅ RESTORED: Environment variable checking functions
+# âœ… RESTORED: Environment variable checking functions
 def get_env_var_status(env_var_name: str) -> tuple[str, Optional[str]]:
     """Get the real status of an environment variable"""
     value = os.getenv(env_var_name)
@@ -119,10 +119,10 @@ def determine_priority_tier(cost_per_1k_tokens: float, category: str) -> str:
     else:
         return "discovered"  # Unknown/discovered
 
-# ✅ AI-POWERED: Environment scanning using AI analysis
+# âœ… AI-POWERED: Environment scanning using AI analysis
 async def scan_environment_for_ai_providers() -> Dict[str, Dict[str, Any]]:
     """
-    🤖 AI-POWERED: Dynamically scan Railway environment and use AI to analyze providers
+    ðŸ¤– AI-POWERED: Dynamically scan Railway environment and use AI to analyze providers
     NO MORE DUMMY DATA - Everything calculated using real AI analysis
     """
     try:
@@ -155,19 +155,19 @@ async def scan_environment_for_ai_providers() -> Dict[str, Dict[str, Any]]:
                 'ai_analyzed': True  # Flag to show this was AI-analyzed
             }
         
-        print(f"🤖 AI Analysis complete: Found {len(ai_providers)} providers")
+        print(f"ðŸ¤– AI Analysis complete: Found {len(ai_providers)} providers")
         return ai_providers
         
     except ImportError:
-        print("⚠️ AI Provider Analyzer not available, falling back to basic scan")
+        print("âš ï¸ AI Provider Analyzer not available, falling back to basic scan")
         return await basic_environment_scan()
     except Exception as e:
-        print(f"❌ AI analysis failed: {e}, falling back to basic scan")
+        print(f"âŒ AI analysis failed: {e}, falling back to basic scan")
         return await basic_environment_scan()
 
 async def basic_environment_scan() -> Dict[str, Dict[str, Any]]:
     """
-    📋 Fallback: Basic environment scan without AI analysis
+    ðŸ“‹ Fallback: Basic environment scan without AI analysis
     Only used if AI analyzer is not available
     """
     ai_providers = {}
@@ -198,7 +198,7 @@ async def basic_environment_scan() -> Dict[str, Dict[str, Any]]:
     
     return ai_providers
 
-# ✅ ENHANCED: Database functions for AI Discovery DB
+# âœ… ENHANCED: Database functions for AI Discovery DB
 async def get_ai_discovery_database_providers(db: Session) -> List[Dict[str, Any]]:
     """Get AI providers from AI Discovery database"""
     if not AI_DISCOVERY_DB_AVAILABLE:
@@ -263,7 +263,7 @@ async def save_providers_to_ai_discovery_db(providers: List[DynamicProvider], db
     db.commit()
     return {"saved": saved_count, "updated": updated_count}
 
-# ✅ MAIN ENDPOINT - Complete implementation with AI-powered analysis
+# âœ… MAIN ENDPOINT - Complete implementation with AI-powered analysis
 @router.get("/providers/dynamic", response_model=DynamicProvidersResponse)
 async def get_dynamic_providers(
     save_to_db: bool = True, 
@@ -271,14 +271,14 @@ async def get_dynamic_providers(
     db: Session = Depends(get_ai_discovery_db)
 ):
     """
-    🤖 AI-POWERED: Get all AI providers dynamically with real-time AI analysis
+    ðŸ¤– AI-POWERED: Get all AI providers dynamically with real-time AI analysis
     - Discovers providers from environment variables
     - Uses AI to calculate costs, performance, quality scores
     - Real-time API testing and analysis
     - NO HARDCODED DATA - everything is dynamically calculated
     """
     try:
-        # 1. 🤖 AI-powered environment scan
+        # 1. ðŸ¤– AI-powered environment scan
         env_providers = await scan_environment_for_ai_providers()
         
         # 2. Get providers from AI Discovery database
@@ -305,7 +305,7 @@ async def get_dynamic_providers(
             else:
                 missing_count += 1
             
-            # 🤖 Use AI-calculated metrics instead of hardcoded values
+            # ðŸ¤– Use AI-calculated metrics instead of hardcoded values
             cost = provider_data.get('cost_per_1k_tokens', 0.001)
             quality = provider_data.get('quality_score', 4.0)
             is_active = status == "configured" and provider_data.get('is_active', cost <= 0.001)
@@ -316,7 +316,7 @@ async def get_dynamic_providers(
             if provider_data.get('ai_analyzed', False):
                 ai_analyzed_count += 1
             
-            # 🎯 Use AI-calculated priority tier
+            # ðŸŽ¯ Use AI-calculated priority tier
             priority_tier = provider_data.get('priority_tier', 
                 determine_priority_tier(cost, provider_data.get('category', 'unknown')))
             
@@ -369,10 +369,10 @@ async def get_dynamic_providers(
                 )
                 all_providers.append(provider)
         
-        # ✅ Save AI-analyzed data to database
+        # âœ… Save AI-analyzed data to database
         if save_to_db and db and all_providers:
             save_result = await save_providers_to_ai_discovery_db(all_providers, db)
-            print(f"💾 AI Analysis saved to DB: {save_result}")
+            print(f"ðŸ’¾ AI Analysis saved to DB: {save_result}")
         
         railway_env = os.getenv("RAILWAY_ENVIRONMENT", "unknown")
         if railway_env == "unknown":
@@ -395,7 +395,7 @@ async def get_dynamic_providers(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get dynamic providers: {str(e)}")
 
-# ✅ RESTORED: All other endpoints
+# âœ… RESTORED: All other endpoints
 @router.get("/providers/environment-scan")
 async def scan_environment():
     """
@@ -447,7 +447,7 @@ async def activate_provider(env_var_name: str, db: Session = Depends(get_ai_disc
     return {
         "env_var_name": env_var_name,
         "status": "activated",
-        "message": f"✅ {env_var_name} has been activated",
+        "message": f"âœ… {env_var_name} has been activated",
         "timestamp": datetime.utcnow()
     }
 
@@ -479,7 +479,7 @@ async def deactivate_provider(env_var_name: str, db: Session = Depends(get_ai_di
     return {
         "env_var_name": env_var_name,
         "status": "deactivated", 
-        "message": f"⏸️ {env_var_name} has been deactivated",
+        "message": f"â¸ï¸ {env_var_name} has been deactivated",
         "timestamp": datetime.utcnow()
     }
 
@@ -498,11 +498,11 @@ async def test_provider_connection(env_var_name: str):
         "env_var_name": env_var_name,
         "test_status": "success",
         "api_key_preview": preview,
-        "message": f"✅ {env_var_name} is configured and ready for testing",
+        "message": f"âœ… {env_var_name} is configured and ready for testing",
         "test_timestamp": datetime.utcnow()
     }
 
-# ✅ ENHANCED: Delete endpoints with AI Discovery DB
+# âœ… ENHANCED: Delete endpoints with AI Discovery DB
 @router.delete("/providers/{env_var_name}")
 async def delete_provider(
     env_var_name: str, 
@@ -526,7 +526,7 @@ async def delete_provider(
         return {
             "env_var_name": env_var_name,
             "status": "deleted",
-            "message": f"🗑️ {env_var_name} has been removed from AI Discovery database",
+            "message": f"ðŸ—‘ï¸ {env_var_name} has been removed from AI Discovery database",
             "timestamp": datetime.utcnow()
         }
         
@@ -566,7 +566,7 @@ async def clean_duplicate_providers(db: Session = Depends(get_ai_discovery_db)):
             "duplicates_removed": len(to_delete),
             "unique_providers_remaining": len(seen_env_vars),
             "status": "cleaned",
-            "message": f"🧹 Removed {len(to_delete)} duplicate providers from AI Discovery DB",
+            "message": f"ðŸ§¹ Removed {len(to_delete)} duplicate providers from AI Discovery DB",
             "timestamp": datetime.utcnow()
         }
         
@@ -596,7 +596,7 @@ async def bulk_delete_providers(env_var_names: List[str], db: Session = Depends(
             "deleted_count": deleted_count,
             "env_var_names": env_var_names,
             "status": "bulk_deleted",
-            "message": f"🗑️ {deleted_count} providers removed from AI Discovery database",
+            "message": f"ðŸ—‘ï¸ {deleted_count} providers removed from AI Discovery database",
             "timestamp": datetime.utcnow()
         }
         
