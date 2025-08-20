@@ -1,13 +1,16 @@
-# src/core/ai_discovery_database.py - FIXED WITH ASYNC SUPPORT
+# src/core/ai_discovery_database.py - FIXED WITH PROPER IMPORTS
 
 import os
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, Text, DECIMAL
+from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, Text, DECIMAL, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.sql import func
 from contextlib import contextmanager, asynccontextmanager
 from datetime import datetime
+
+# ✅ FIX: Import text function properly
+from sqlalchemy import text
 
 # ✅ AI Discovery Database Connection (both sync and async)
 AI_DISCOVERY_DATABASE_URL = os.getenv(
@@ -23,24 +26,29 @@ ai_discovery_engine = create_engine(AI_DISCOVERY_DATABASE_URL)
 AIDiscoverySessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=ai_discovery_engine)
 
 # ✅ ASYNC ENGINE (for future async operations)
-if AI_DISCOVERY_DATABASE_URL.startswith('postgresql://'):
+if AI_DISCOVERY_DATABASE_URL and AI_DISCOVERY_DATABASE_URL.startswith('postgresql://'):
     # Convert to async URL
     async_url = AI_DISCOVERY_DATABASE_URL.replace('postgresql://', 'postgresql+asyncpg://')
 else:
     async_url = AI_DISCOVERY_DATABASE_URL
 
-ai_discovery_async_engine = create_async_engine(async_url)
-AIDiscoveryAsyncSessionLocal = async_sessionmaker(
-    autocommit=False, 
-    autoflush=False, 
-    bind=ai_discovery_async_engine,
-    class_=AsyncSession
-)
+try:
+    ai_discovery_async_engine = create_async_engine(async_url)
+    AIDiscoveryAsyncSessionLocal = async_sessionmaker(
+        autocommit=False, 
+        autoflush=False, 
+        bind=ai_discovery_async_engine,
+        class_=AsyncSession
+    )
+except Exception as e:
+    print(f"⚠️ Async engine creation failed: {e}")
+    ai_discovery_async_engine = None
+    AIDiscoveryAsyncSessionLocal = None
 
 AIDiscoveryBase = declarative_base()
 
-# ✅ SYNC DEPENDENCY (for current router)
-def get_ai_discovery_db() -> Session:
+# ✅ SYNC DEPENDENCY (for current router) - FIXED
+def get_ai_discovery_db():
     """Get AI Discovery database session (sync)"""
     db = AIDiscoverySessionLocal()
     try:
@@ -48,9 +56,12 @@ def get_ai_discovery_db() -> Session:
     finally:
         db.close()
 
-# ✅ ASYNC DEPENDENCY (for future use)
-async def get_ai_discovery_async_db() -> AsyncSession:
+# ✅ ASYNC DEPENDENCY (for future use) - FIXED
+async def get_ai_discovery_async_db():
     """Get AI Discovery database session (async)"""
+    if AIDiscoveryAsyncSessionLocal is None:
+        raise Exception("Async session not available")
+    
     async with AIDiscoveryAsyncSessionLocal() as session:
         yield session
 
@@ -70,6 +81,9 @@ def get_ai_discovery_session():
 @asynccontextmanager
 async def get_ai_discovery_async_session():
     """Async context manager for AI Discovery database session"""
+    if AIDiscoveryAsyncSessionLocal is None:
+        raise Exception("Async session not available")
+        
     async with AIDiscoveryAsyncSessionLocal() as session:
         try:
             yield session
@@ -77,6 +91,35 @@ async def get_ai_discovery_async_session():
         except Exception:
             await session.rollback()
             raise
+
+# ✅ SIMPLE DB TEST FUNCTION - FIXED
+def test_ai_discovery_connection():
+    """Test AI Discovery database connection"""
+    try:
+        db = AIDiscoverySessionLocal()
+        try:
+            # Use the properly imported text function
+            result = db.execute(text("SELECT 1"))
+            return True
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"❌ AI Discovery DB connection failed: {e}")
+        return False
+
+# ✅ ASYNC DB TEST FUNCTION - FIXED
+async def test_ai_discovery_connection_async():
+    """Test AI Discovery database connection (async)"""
+    if AIDiscoveryAsyncSessionLocal is None:
+        return False
+        
+    try:
+        async with AIDiscoveryAsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        return True
+    except Exception as e:
+        print(f"❌ AI Discovery DB connection failed (async): {e}")
+        return False
 
 # ✅ MODELS (same as before but ensuring they're properly exported)
 class RailwayAIProvider(AIDiscoveryBase):
@@ -150,30 +193,13 @@ def create_ai_discovery_tables():
 
 async def create_ai_discovery_tables_async():
     """Create AI Discovery tables asynchronously"""
+    if ai_discovery_async_engine is None:
+        print("⚠️ Async engine not available for table creation")
+        return
+        
     try:
         async with ai_discovery_async_engine.begin() as conn:
             await conn.run_sync(AIDiscoveryBase.metadata.create_all)
         print("✅ AI Discovery tables created/verified (async)")
     except Exception as e:
         print(f"⚠️ AI Discovery table creation failed (async): {e}")
-
-# ✅ HEALTH CHECK
-def test_ai_discovery_connection():
-    """Test AI Discovery database connection"""
-    try:
-        with get_ai_discovery_session() as db:
-            db.execute("SELECT 1")
-        return True
-    except Exception as e:
-        print(f"❌ AI Discovery DB connection failed: {e}")
-        return False
-
-async def test_ai_discovery_connection_async():
-    """Test AI Discovery database connection (async)"""
-    try:
-        async with get_ai_discovery_async_session() as db:
-            await db.execute("SELECT 1")
-        return True
-    except Exception as e:
-        print(f"❌ AI Discovery DB connection failed (async): {e}")
-        return False
