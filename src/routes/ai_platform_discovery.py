@@ -329,8 +329,57 @@ async def get_category_rankings(db: Session = Depends(get_ai_discovery_db)):
     This endpoint was missing and causing 404 errors in the frontend
     """
     try:
-        # Query category statistics from live data
-        category_query = text('''
+        # First check what columns actually exist in the table
+        columns_query = text('''
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'active_ai_providers'
+        ORDER BY column_name
+        ''')
+        
+        columns_result = db.execute(columns_query).fetchall()
+        available_columns = [row.column_name for row in columns_result]
+        print(f"Available columns in active_ai_providers: {available_columns}")
+        
+        # Build dynamic query based on available columns
+        base_columns = "id, provider_name, category, is_active"
+        optional_columns = []
+        
+        if 'category_rank' in available_columns:
+            optional_columns.append("COALESCE(category_rank, 1) as category_rank")
+        else:
+            optional_columns.append("1 as category_rank")
+            
+        if 'is_top_3' in available_columns:
+            optional_columns.append("COALESCE(is_top_3, false) as is_top_3")
+        else:
+            optional_columns.append("false as is_top_3")
+            
+        if 'cost_per_1k_tokens' in available_columns:
+            optional_columns.append("COALESCE(cost_per_1k_tokens, 0.001) as cost_per_1k_tokens")
+        else:
+            optional_columns.append("0.001 as cost_per_1k_tokens")
+            
+        if 'quality_score' in available_columns:
+            optional_columns.append("COALESCE(quality_score, 4.0) as quality_score")
+        else:
+            optional_columns.append("4.0 as quality_score")
+            
+        if 'response_time_ms' in available_columns:
+            optional_columns.append("COALESCE(response_time_ms, 2000) as response_time_ms")
+        else:
+            optional_columns.append("2000 as response_time_ms")
+            
+        if 'monthly_usage' in available_columns:
+            optional_columns.append("COALESCE(monthly_usage, 10000) as monthly_usage")
+        else:
+            optional_columns.append("10000 as monthly_usage")
+        
+        # Build the full query
+        select_columns = base_columns + ", " + ", ".join(optional_columns)
+        
+        # Query category statistics
+        category_query = text(f'''
         SELECT 
             category,
             COUNT(*) as active_count,
@@ -344,23 +393,15 @@ async def get_category_rankings(db: Session = Depends(get_ai_discovery_db)):
         
         category_results = db.execute(category_query).fetchall()
         
-        # Query top providers per category (ranked by quality and cost)
-        top_providers_query = text('''
-        SELECT 
-            id, provider_name, category, 
-            COALESCE(category_rank, 1) as category_rank,
-            COALESCE(is_top_3, false) as is_top_3,
-            COALESCE(cost_per_1k_tokens, 0.001) as cost_per_1k_tokens,
-            COALESCE(quality_score, 4.0) as quality_score,
-            COALESCE(response_time_ms, 2000) as response_time_ms,
-            COALESCE(monthly_usage, 10000) as monthly_usage,
-            is_active
+        # Query top providers per category with dynamic columns
+        top_providers_query = text(f'''
+        SELECT {select_columns}
         FROM active_ai_providers 
         WHERE is_active = true 
         ORDER BY category, 
                  COALESCE(category_rank, 999), 
-                 quality_score DESC, 
-                 cost_per_1k_tokens ASC
+                 COALESCE(quality_score, 4.0) DESC, 
+                 COALESCE(cost_per_1k_tokens, 0.001) ASC
         ''')
         
         top_providers_results = db.execute(top_providers_query).fetchall()
@@ -374,7 +415,7 @@ async def get_category_rankings(db: Session = Depends(get_ai_discovery_db)):
             
             # Only take top 3 per category
             if len(providers_by_category[category]) < 3:
-                rank = provider.category_rank if provider.category_rank else (len(providers_by_category[category]) + 1)
+                rank = provider.category_rank if hasattr(provider, 'category_rank') else (len(providers_by_category[category]) + 1)
                 providers_by_category[category].append({
                     "id": str(provider.id),
                     "provider_name": provider.provider_name,
