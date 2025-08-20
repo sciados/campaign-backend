@@ -36,7 +36,7 @@ class ActiveProviderResponse(BaseModel):
     category_rank: int
     is_top_3: bool
     is_active: bool
-    
+
 class DiscoveredProviderResponse(BaseModel):
     id: int
     provider_name: str
@@ -48,13 +48,17 @@ class DiscoveredProviderResponse(BaseModel):
     recommendation_priority: str
     unique_features: Optional[str]
     website_url: Optional[str]
-    
+
 class CategorySummary(BaseModel):
     category: str
     active_providers: List[ActiveProviderResponse]
     discovered_suggestions: List[DiscoveredProviderResponse]
     total_active: int
     total_suggestions: int
+
+class ReviewSuggestionRequest(BaseModel):
+    action: str  # 'approve', 'reject', 'needs_review'
+    admin_notes: Optional[str] = None
 
 # ✅ Main Dashboard Endpoint
 @router.get("/dashboard")
@@ -138,7 +142,7 @@ async def get_ai_discovery_dashboard(db: Session = Depends(get_ai_discovery_db))
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Dashboard load failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Dashboard load failed: " + str(e))
 
 # ✅ Full Discovery Cycle
 @router.post("/run-discovery")
@@ -178,26 +182,26 @@ async def run_full_discovery_cycle(
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Discovery cycle failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Discovery cycle failed: " + str(e))
 
 async def run_discovery_background(discovery_service, force_web_research: bool):
     """Background task for discovery cycle"""
     try:
         results = await discovery_service.full_discovery_cycle()
-        print(f"✅ Discovery cycle complete: {results}")
+        print("✅ Discovery cycle complete: " + str(results))
     except Exception as e:
-        print(f"❌ Discovery cycle failed: {e}")
+        print("❌ Discovery cycle failed: " + str(e))
 
-# ✅ Table 1: Active Providers (Environment-based)
+# ✅ FIXED: Table 1: Active Providers (Environment-based) - Now returns ALL providers by default
 @router.get("/active-providers")
 async def get_active_providers(
     category: Optional[str] = None,
-    top_3_only: bool = True,
+    top_3_only: bool = False,  # ✅ CHANGED: Default to False instead of True
     db: Session = Depends(get_ai_discovery_db)
 ):
     """
-    📋 Get active providers (Table 1) - Only providers with API keys
-    Optionally filter by category and show only top 3 performers
+    📋 Get active providers (Table 1) - ALL providers with API keys by default
+    Set top_3_only=true to filter to only top 3 performers
     """
     try:
         query = db.query(ActiveAIProvider).filter(ActiveAIProvider.is_active == True)
@@ -205,13 +209,14 @@ async def get_active_providers(
         if category:
             query = query.filter(ActiveAIProvider.category == category)
         
+        # ✅ FIXED: Only filter to top 3 if explicitly requested
         if top_3_only:
             query = query.filter(ActiveAIProvider.is_top_3 == True)
         
         providers = query.order_by(
             ActiveAIProvider.category,
             ActiveAIProvider.category_rank
-        ).all()
+        ).all()  # ✅ CHANGED: Removed .limit(3) to get ALL providers
         
         # Group by category
         by_category = {}
@@ -230,6 +235,8 @@ async def get_active_providers(
                 'speed_score': float(provider.speed_score),
                 'primary_model': provider.primary_model,
                 'api_endpoint': provider.api_endpoint,
+                'is_top_3': provider.is_top_3,  # ✅ ADDED: Include the is_top_3 flag
+                'is_active': provider.is_active,
                 'last_performance_check': provider.last_performance_check.isoformat() if provider.last_performance_check else None
             })
         
@@ -244,7 +251,7 @@ async def get_active_providers(
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get active providers: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get active providers: " + str(e))
 
 # ✅ Table 2: Discovered Providers (Research suggestions)
 @router.get("/discovered-suggestions")
@@ -319,7 +326,7 @@ async def get_discovered_suggestions(
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get suggestions: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get suggestions: " + str(e))
 
 # ✅ FIXED: Category Rankings Endpoint (was causing 404 errors)
 @router.get("/category-rankings")
@@ -339,7 +346,7 @@ async def get_category_rankings(db: Session = Depends(get_ai_discovery_db)):
         
         columns_result = db.execute(columns_query).fetchall()
         available_columns = [row.column_name for row in columns_result]
-        print(f"Available columns in active_ai_providers: {available_columns}")
+        print("Available columns in active_ai_providers: " + str(available_columns))
         
         # Build dynamic query based on available columns
         base_columns = "id, provider_name, category, is_active"
@@ -379,7 +386,7 @@ async def get_category_rankings(db: Session = Depends(get_ai_discovery_db)):
         select_columns = base_columns + ", " + ", ".join(optional_columns)
         
         # Query category statistics
-        category_query = text(f'''
+        category_query = text('''
         SELECT 
             category,
             COUNT(*) as active_count,
@@ -394,8 +401,7 @@ async def get_category_rankings(db: Session = Depends(get_ai_discovery_db)):
         category_results = db.execute(category_query).fetchall()
         
         # Query top providers per category with dynamic columns
-        top_providers_query = text(f'''
-        SELECT {select_columns}
+        top_providers_query = text(select_columns + '''
         FROM active_ai_providers 
         WHERE is_active = true 
         ORDER BY category, 
@@ -458,7 +464,7 @@ async def get_category_rankings(db: Session = Depends(get_ai_discovery_db)):
         return category_stats
         
     except Exception as e:
-        print(f"Database error in category rankings: {e}")
+        print("Database error in category rankings: " + str(e))
         # Return empty categories structure on error
         all_categories = ["text_generation", "image_generation", "video_generation", "audio_generation", "multimodal"]
         category_stats = []
@@ -474,156 +480,56 @@ async def get_category_rankings(db: Session = Depends(get_ai_discovery_db)):
     finally:
         db.close()
 
-# ✅ NEW: Live Usage Tracking Endpoints
-@router.post("/update-usage-stats")
-async def update_usage_stats(
-    ai_db: Session = Depends(get_ai_discovery_db),
-    main_db: Session = Depends(get_db)
+# ✅ Review and Approve Suggestions
+@router.post("/review-suggestion/{suggestion_id}")
+async def review_suggestion(
+    suggestion_id: int,
+    request: ReviewSuggestionRequest,  # ← Use Pydantic model for POST body
+    db: Session = Depends(get_ai_discovery_db)
 ):
     """
-    📊 Update monthly usage statistics from live system tracking
+    👥 Admin review of discovered suggestions
+    Mark suggestions as approved, rejected, or needing more review
     """
     try:
-        # Query your actual usage tracking from the main database
-        usage_query = text('''
-        SELECT 
-            ai_model_used as provider_name,
-            COUNT(*) as monthly_requests,
-            SUM(COALESCE(processing_time, 1000)) as total_processing_time
-        FROM intelligence_data 
-        WHERE created_at >= date_trunc('month', CURRENT_DATE)
-        AND ai_model_used IS NOT NULL
-        GROUP BY ai_model_used
-        ''')
+        suggestion = db.query(DiscoveredAIProvider).filter(
+            DiscoveredAIProvider.id == suggestion_id
+        ).first()
         
-        usage_results = main_db.execute(usage_query).fetchall()
+        if not suggestion:
+            raise HTTPException(status_code=404, detail="Suggestion not found")
         
-        # Map your AI model names to provider names
-        provider_mapping = {
-            'gpt-4': 'OpenAI GPT-4',
-            'gpt-3.5': 'OpenAI GPT-3.5',
-            'claude-3': 'Claude Sonnet',
-            'claude-sonnet': 'Claude Sonnet',
-            'dall-e-3': 'DALL-E 3',
-            'stable-diffusion': 'Stable Diffusion',
-            'gemini-pro': 'Gemini Pro',
-            'elevenlabs': 'ElevenLabs',
-            'runway': 'Runway ML'
-        }
+        valid_actions = ['approve', 'reject', 'needs_review']
+        if request.action not in valid_actions:
+            raise HTTPException(status_code=400, detail="Invalid action. Must be one of: " + str(valid_actions))
         
-        updated_count = 0
-        for usage_row in usage_results:
-            provider_name = provider_mapping.get(usage_row.provider_name.lower(), usage_row.provider_name)
-            
-            update_query = text('''
-            UPDATE active_ai_providers 
-            SET monthly_usage = :monthly_usage,
-                response_time_ms = :avg_response_time,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE provider_name ILIKE :provider_name
-            AND is_active = true
-            ''')
-            
-            result = ai_db.execute(update_query, {
-                'monthly_usage': usage_row.monthly_requests,
-                'avg_response_time': min(usage_row.total_processing_time // max(usage_row.monthly_requests, 1), 10000),
-                'provider_name': f'%{provider_name}%'
-            })
-            
-            if result.rowcount > 0:
-                updated_count += 1
+        # Update suggestion
+        suggestion.promotion_status = request.action
+        suggestion.admin_notes = request.admin_notes or ("Admin action: " + request.action)
+        suggestion.updated_at = datetime.utcnow()
         
-        ai_db.commit()
+        # Only set is_reviewed if the field exists
+        if hasattr(suggestion, 'is_reviewed'):
+            suggestion.is_reviewed = True
+        
+        db.commit()
         
         return {
-            "success": True,
-            "message": "Usage statistics updated from live tracking",
-            "updated_providers": updated_count,
-            "provider_usage": [
-                {"provider": provider_mapping.get(row.provider_name.lower(), row.provider_name), 
-                 "requests": row.monthly_requests} 
-                for row in usage_results
-            ],
-            "updated_at": datetime.now().isoformat()
+            'success': True,
+            'message': '✅ Suggestion ' + request.action + 'ed successfully',
+            'suggestion': {
+                'id': suggestion.id,
+                'provider_name': suggestion.provider_name,
+                'status': suggestion.promotion_status,
+                'admin_notes': suggestion.admin_notes
+            }
         }
         
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
     except Exception as e:
-        print(f"Error updating usage stats: {e}")
-        ai_db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to update usage stats: {str(e)}"
-        )
-    finally:
-        ai_db.close()
-        main_db.close()
-
-@router.post("/sync-live-usage")
-async def sync_live_usage(
-    ai_db: Session = Depends(get_ai_discovery_db),
-    main_db: Session = Depends(get_db)
-):
-    """
-    🔄 Comprehensive sync of live usage data - call this from scheduled job
-    """
-    try:
-        # Update usage statistics
-        usage_result = await update_usage_stats(ai_db, main_db)
-        
-        # Also calculate quality scores from success rates
-        quality_query = text('''
-        SELECT 
-            ai_model_used,
-            COUNT(*) as total_requests,
-            SUM(CASE WHEN confidence_score > 0.8 THEN 1 ELSE 0 END) as successful_requests,
-            AVG(COALESCE(confidence_score, 0.5)) as avg_confidence
-        FROM intelligence_data 
-        WHERE created_at >= CURRENT_DATE - interval '30 days'
-        AND ai_model_used IS NOT NULL
-        GROUP BY ai_model_used
-        ''')
-        
-        quality_results = main_db.execute(quality_query).fetchall()
-        
-        # Update quality scores based on success rates
-        for quality_row in quality_results:
-            if quality_row.total_requests > 10:  # Only update if enough samples
-                success_rate = quality_row.successful_requests / quality_row.total_requests
-                quality_score = min(5.0, (success_rate * 4) + (quality_row.avg_confidence * 1))
-                
-                quality_update_query = text('''
-                UPDATE active_ai_providers 
-                SET quality_score = :quality_score,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE provider_name ILIKE :provider_name
-                AND is_active = true
-                ''')
-                
-                ai_db.execute(quality_update_query, {
-                    'quality_score': quality_score,
-                    'provider_name': f'%{quality_row.ai_model_used}%'
-                })
-        
-        ai_db.commit()
-        
-        return {
-            "success": True,
-            "message": "Live usage data synchronized successfully",
-            "usage_sync": usage_result,
-            "quality_scores_updated": len(quality_results),
-            "sync_timestamp": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        print(f"Error syncing live usage: {e}")
-        ai_db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to sync live usage: {str(e)}"
-        )
-    finally:
-        ai_db.close()
-        main_db.close()
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Review failed: " + str(e))
 
 # ✅ Promote Suggestion to Active
 @router.post("/promote-suggestion/{suggestion_id}")
@@ -646,7 +552,7 @@ async def promote_suggestion_to_active(
             raise HTTPException(status_code=404, detail="Suggestion not found")
         
         if suggestion.promotion_status != 'pending':
-            raise HTTPException(status_code=400, detail=f"Suggestion already {suggestion.promotion_status}")
+            raise HTTPException(status_code=400, detail="Suggestion already " + suggestion.promotion_status)
         
         # Create active provider
         active_provider = ActiveAIProvider(
@@ -671,7 +577,7 @@ async def promote_suggestion_to_active(
         
         # Update suggestion status in Table 2
         suggestion.promotion_status = 'promoted'
-        suggestion.admin_notes = f"Manually promoted with API key on {datetime.utcnow().isoformat()}"
+        suggestion.admin_notes = "Manually promoted with API key on " + datetime.utcnow().isoformat()
         suggestion.updated_at = datetime.utcnow()
         
         db.commit()
@@ -682,7 +588,7 @@ async def promote_suggestion_to_active(
         
         return {
             'success': True,
-            'message': f'✅ {suggestion.provider_name} promoted to active providers',
+            'message': '✅ ' + suggestion.provider_name + ' promoted to active providers',
             'promoted_provider': {
                 'id': active_provider.id,
                 'provider_name': active_provider.provider_name,
@@ -690,14 +596,14 @@ async def promote_suggestion_to_active(
                 'category': active_provider.category
             },
             'next_steps': [
-                f'Add {suggestion.suggested_env_var_name}={api_key[:10]}... to environment variables',
+                'Add ' + suggestion.suggested_env_var_name + '=' + api_key[:10] + '... to environment variables',
                 'Provider will be included in top 3 ranking for its category',
                 'Performance monitoring will begin automatically'
             ]
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Promotion failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Promotion failed: " + str(e))
 
 # ✅ Update Rankings
 @router.post("/update-rankings")
@@ -719,53 +625,7 @@ async def update_provider_rankings(db: Session = Depends(get_ai_discovery_db)):
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ranking update failed: {str(e)}")
-
-# ✅ Review and Approve Suggestions
-@router.post("/review-suggestion/{suggestion_id}")
-async def review_suggestion(
-    suggestion_id: int,
-    action: str,  # 'approve', 'reject', 'needs_review'
-    admin_notes: Optional[str] = None,
-    db: Session = Depends(get_ai_discovery_db)
-):
-    """
-    👥 Admin review of discovered suggestions
-    Mark suggestions as approved, rejected, or needing more review
-    """
-    try:
-        suggestion = db.query(DiscoveredAIProvider).filter(
-            DiscoveredAIProvider.id == suggestion_id
-        ).first()
-        
-        if not suggestion:
-            raise HTTPException(status_code=404, detail="Suggestion not found")
-        
-        valid_actions = ['approve', 'reject', 'needs_review']
-        if action not in valid_actions:
-            raise HTTPException(status_code=400, detail=f"Invalid action. Must be one of: {valid_actions}")
-        
-        # Update suggestion
-        suggestion.promotion_status = action
-        suggestion.is_reviewed = True
-        suggestion.admin_notes = admin_notes or f"Admin action: {action}"
-        suggestion.updated_at = datetime.utcnow()
-        
-        db.commit()
-        
-        return {
-            'success': True,
-            'message': f'✅ Suggestion {action}ed successfully',
-            'suggestion': {
-                'id': suggestion.id,
-                'provider_name': suggestion.provider_name,
-                'status': suggestion.promotion_status,
-                'admin_notes': suggestion.admin_notes
-            }
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Review failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Ranking update failed: " + str(e))
 
 # ✅ System Status
 @router.get("/status")
@@ -805,7 +665,7 @@ async def get_discovery_system_status(db: Session = Depends(get_ai_discovery_db)
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Status check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Status check failed: " + str(e))
 
 # ✅ Delete/Remove Providers
 @router.delete("/active-provider/{provider_id}")
@@ -822,11 +682,11 @@ async def remove_active_provider(provider_id: int, db: Session = Depends(get_ai_
         
         return {
             'success': True,
-            'message': f'🗑️ {provider_name} removed from active providers',
+            'message': '🗑️ ' + provider_name + ' removed from active providers',
             'note': 'Provider can be re-discovered in next scan if API key still exists'
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Removal failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Removal failed: " + str(e))
 
 @router.delete("/suggestion/{suggestion_id}")
 async def remove_suggestion(suggestion_id: int, db: Session = Depends(get_ai_discovery_db)):
@@ -842,11 +702,11 @@ async def remove_suggestion(suggestion_id: int, db: Session = Depends(get_ai_dis
         
         return {
             'success': True,
-            'message': f'🗑️ {provider_name} removed from suggestions',
+            'message': '🗑️ ' + provider_name + ' removed from suggestions',
             'note': 'Provider may be re-discovered in future web research'
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Removal failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Removal failed: " + str(e))
 
 # ✅ Bulk Operations
 @router.post("/bulk-promote")
@@ -891,7 +751,7 @@ async def bulk_promote_suggestions(
                 
                 # Update suggestion
                 suggestion.promotion_status = 'promoted'
-                suggestion.admin_notes = f"Bulk promoted on {datetime.utcnow().isoformat()}"
+                suggestion.admin_notes = "Bulk promoted on " + datetime.utcnow().isoformat()
                 suggestion.updated_at = datetime.utcnow()
                 
                 promoted_count += 1
@@ -906,7 +766,7 @@ async def bulk_promote_suggestions(
         
         return {
             'success': True,
-            'message': f'✅ Bulk promotion completed',
+            'message': '✅ Bulk promotion completed',
             'promoted_count': promoted_count,
             'failed_count': len(failed_promotions),
             'failed_promotions': failed_promotions,
@@ -918,7 +778,7 @@ async def bulk_promote_suggestions(
         
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Bulk promotion failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Bulk promotion failed: " + str(e))
 
 # ✅ Health Check for Frontend
 @router.get("/health")
@@ -942,7 +802,7 @@ async def health_check():
             ]
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Health check failed: " + str(e))
 
 # ✅ Quick Actions for Dashboard
 @router.get("/quick-stats")
