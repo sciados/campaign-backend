@@ -387,13 +387,13 @@ async def get_category_rankings(db: Session = Depends(get_ai_discovery_db)):
         
         # Query category statistics
         category_query = text('''
-        SELECT 
+        SELECT
             category,
             COUNT(*) as active_count,
             AVG(COALESCE(cost_per_1k_tokens, 0.001)) as avg_cost,
             AVG(COALESCE(quality_score, 4.0)) as avg_quality_score,
             SUM(COALESCE(monthly_usage, 0) * COALESCE(cost_per_1k_tokens, 0.001) / 1000) as total_monthly_cost
-        FROM active_ai_providers 
+        FROM active_ai_providers
         WHERE is_active = true
         GROUP BY category
         ''')
@@ -401,12 +401,13 @@ async def get_category_rankings(db: Session = Depends(get_ai_discovery_db)):
         category_results = db.execute(category_query).fetchall()
         
         # Query top providers per category with dynamic columns
-        top_providers_query = text(select_columns + '''
-        FROM active_ai_providers 
-        WHERE is_active = true 
-        ORDER BY category, 
-                 COALESCE(category_rank, 999), 
-                 COALESCE(quality_score, 4.0) DESC, 
+        top_providers_query = text('''
+        SELECT ''' + select_columns + '''
+        FROM active_ai_providers
+        WHERE is_active = true
+        ORDER BY category,
+                 COALESCE(category_rank, 999),
+                 COALESCE(quality_score, 4.0) DESC,
                  COALESCE(cost_per_1k_tokens, 0.001) ASC
         ''')
         
