@@ -76,6 +76,33 @@ async def create_campaignforge_app():
     logger.info("🎯 Phase 4: Including core endpoints...")
     include_core_endpoints(app)
     
+    # Add emergency auth diagnostic endpoint
+    @app.get("/api/debug/auth-status")
+    async def debug_auth_status():
+        """Debug auth router status"""
+        router_status = get_router_status()
+        
+        # Check if auth routes exist
+        auth_routes = []
+        for route in app.routes:
+            if hasattr(route, 'path') and '/auth/' in route.path:
+                auth_routes.append({
+                    "path": route.path,
+                    "methods": list(route.methods) if hasattr(route, 'methods') else []
+                })
+        
+        return {
+            "auth_router_available": router_status.get("auth", False),
+            "auth_routes_found": auth_routes,
+            "expected_routes": [
+                "/api/auth/login",
+                "/api/auth/register", 
+                "/api/auth/profile"
+            ],
+            "total_routes": len(app.routes),
+            "auth_import_status": "Check logs for import details"
+        }
+    
     # Phase 5: Include emergency endpoints with live database queries
     logger.info("🚨 Phase 5: Including emergency endpoints...")
     include_emergency_endpoints(app)
@@ -228,28 +255,21 @@ if __name__ == "__main__":
     asyncio.run(run_development_server())
 
 # ============================================================================
-# ✅ PRODUCTION COMPATIBILITY
+# ✅ PRODUCTION COMPATIBILITY - FIXED
 # ============================================================================
 
 # For production deployment, create app at module level
 try:
     import asyncio
     
-    # Get current event loop or create new one
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If loop is already running (e.g., in Jupyter), use ensure_future
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, create_campaignforge_app())
-                app = future.result(timeout=30)  # 30 second timeout
-        else:
-            # Normal case - loop not running
-            app = loop.run_until_complete(create_campaignforge_app())
-    except RuntimeError:
-        # No event loop in current thread
-        app = asyncio.run(create_campaignforge_app())
+    # Force sync creation for Railway
+    def create_app_sync():
+        """Create app synchronously for Railway deployment"""
+        return asyncio.run(create_campaignforge_app())
+    
+    logger.info("🚀 Creating app for Railway deployment...")
+    app = create_app_sync()
+    logger.info("✅ App created successfully for Railway")
         
 except Exception as e:
     logger.error(f"❌ Failed to create app at module level: {e}")
