@@ -1,9 +1,9 @@
-# src/services/ai_platform_discovery.py - ENHANCED WORKING VERSION
+# src/services/ai_platform_discovery.py - FIXED VERSION WITH DATABASE SAVING
 
 """
-🔍 AI Platform Discovery & Management System - ENHANCED VERSION
+🔧 FIXED: AI Platform Discovery & Management System - COMPLETE WITH DATABASE INTEGRATION
 
-Two-Table Architecture + AI Analyzer Integration + YouTube Discovery:
+Two-Table Architecture + AI Analyzer Integration + YouTube Discovery + DATABASE SAVING:
 1. active_ai_providers - Only providers with environment API keys (Top 3 per category)
 2. discovered_ai_providers - Research discoveries and suggestions
 
@@ -12,6 +12,7 @@ Process:
 2. Main Discovery researches web + YouTube → Update Table 2  
 3. Combined AI-powered categorization and analysis
 4. Rank and prioritize discoveries
+5. 🔧 FIXED: ACTUALLY SAVE TO DATABASE instead of returning mock data
 """
 
 import os
@@ -124,12 +125,16 @@ class DiscoveredAIProvider(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 class AIPlatformDiscoveryService:
-    """ENHANCED AI Platform Discovery Service with YouTube Integration"""
+    """ENHANCED AI Platform Discovery Service with YouTube Integration + FIXED DATABASE SAVING"""
     
     def __init__(self, db_session=None):
         """Initialize with optional database session"""
         self.db = db_session
         self.session = None  # Will be created for web requests
+        
+        # 🔧 FIXED: Initialize storage for discovered platforms
+        self._discovered_platforms = []
+        self._environment_providers = []
         
         # 🎯 REAL DISCOVERY SOURCES (not predefined lists!)
         self.discovery_sources = {
@@ -206,7 +211,7 @@ class AIPlatformDiscoveryService:
                     'ai_categorization': await self.ai_categorize_platforms(),
                     'performance_testing': await self.test_provider_performance(),
                     'ranking_update': await self.update_rankings(),
-                    'database_update': await self.update_database(),
+                    'database_update': await self.update_database_with_discoveries(),  # 🔧 FIXED METHOD
                     'summary': await self.generate_discovery_summary()
                 }
                 
@@ -287,6 +292,9 @@ class AIPlatformDiscoveryService:
                         }
                         results['combined_providers'].append(enhanced_provider)
             
+            # 🔧 FIXED: Store environment providers for database saving
+            self._environment_providers = results['combined_providers']
+            
             logger.info(f"📊 Enhanced environment scan completed: {len(results['combined_providers'])} providers")
             
             return {
@@ -331,6 +339,9 @@ class AIPlatformDiscoveryService:
             directory_discoveries = await self.scrape_ai_directories()
             all_discovered.extend(directory_discoveries)
             
+            # 🔧 FIXED: Store discovered platforms for database saving
+            self._discovered_platforms = all_discovered
+            
             logger.info(f"🎯 Web research discovered {len(all_discovered)} platforms")
             
             return {
@@ -370,6 +381,9 @@ class AIPlatformDiscoveryService:
             # 3. Parse RSS feeds from AI channels
             rss_discoveries = await self.parse_youtube_rss_feeds(youtube_config['rss_feeds'])
             discoveries.extend(rss_discoveries)
+            
+            # 🔧 FIXED: Add YouTube discoveries to main discovery list
+            self._discovered_platforms.extend(discoveries)
             
             logger.info(f"🎥 YouTube discovery found {len(discoveries)} potential platforms")
             
@@ -1025,8 +1039,150 @@ class AIPlatformDiscoveryService:
     async def update_rankings(self) -> Dict[str, Any]:
         return {'categories_ranked': 0, 'status': 'success'}
 
-    async def update_database(self) -> Dict[str, Any]:
-        return {'providers_updated': 0, 'status': 'success'}
+    # 🔧 FIXED: ACTUAL DATABASE SAVING METHOD (NO MORE MOCK DATA!)
+    async def update_database_with_discoveries(self) -> Dict[str, Any]:
+        """
+        🔧 FIXED: Actually save discovered platforms to database - NO MORE MOCK DATA!
+        
+        This replaces the old mock method that returned fake data
+        """
+        logger.info("💾 Saving discovered platforms to database...")
+        
+        # Get discovered platforms from instance attributes
+        discovered_platforms = getattr(self, '_discovered_platforms', [])
+        environment_providers = getattr(self, '_environment_providers', [])
+        
+        if not discovered_platforms and not environment_providers:
+            logger.warning("⚠️ No platforms discovered - nothing to save")
+            return {
+                'providers_updated': 0,
+                'active_providers_updated': 0,
+                'status': 'success',
+                'message': 'No new platforms to save'
+            }
+        
+        providers_saved = 0
+        active_providers_updated = 0
+        
+        try:
+            # Import database session and models
+            from src.core.ai_discovery_database import AIDiscoverySessionLocal
+            
+            # Create database session
+            db = AIDiscoverySessionLocal()
+            try:
+                # 1️⃣ Save discovered platforms to Table 2 (DiscoveredAIProvider)
+                for platform in discovered_platforms:
+                    try:
+                        # Check if platform already exists
+                        existing = db.query(DiscoveredAIProvider).filter(
+                            DiscoveredAIProvider.provider_name == platform.get('provider_name')
+                        ).first()
+                        
+                        if existing:
+                            logger.info(f"🔄 Platform {platform.get('provider_name')} already exists - skipping")
+                            continue
+                        
+                        # Create new discovered provider
+                        new_discovery = DiscoveredAIProvider(
+                            provider_name=platform.get('provider_name', 'Unknown'),
+                            suggested_env_var_name=platform.get('suggested_env_var_name'),
+                            category=platform.get('category', 'general_ai'),
+                            use_type=platform.get('use_type', 'content_creation'),
+                            estimated_cost_per_1k_tokens=platform.get('estimated_cost_per_1k'),
+                            estimated_quality_score=platform.get('estimated_quality', 3.0),
+                            website_url=platform.get('website_url'),
+                            discovery_source=platform.get('discovery_source'),
+                            discovery_keywords=platform.get('discovery_keywords'),
+                            research_notes=platform.get('research_notes'),
+                            recommendation_priority=platform.get('recommendation_priority', 'medium'),
+                            unique_features=str(platform.get('unique_features', [])),
+                            discovered_date=datetime.utcnow(),
+                            created_at=datetime.utcnow(),
+                            updated_at=datetime.utcnow()
+                        )
+                        
+                        db.add(new_discovery)
+                        providers_saved += 1
+                        logger.info(f"✅ Added discovered platform: {platform.get('provider_name')}")
+                        
+                    except Exception as e:
+                        logger.error(f"❌ Failed to save platform {platform.get('provider_name')}: {str(e)}")
+                        continue
+                
+                # 2️⃣ Update active providers from environment scan (Table 1)
+                for env_provider in environment_providers:
+                    try:
+                        # Check if active provider already exists
+                        existing_active = db.query(ActiveAIProvider).filter(
+                            ActiveAIProvider.env_var_name == env_provider.get('env_var_name')
+                        ).first()
+                        
+                        if existing_active:
+                            # Update existing active provider
+                            existing_active.cost_per_1k_tokens = env_provider.get('cost_per_1k_tokens')
+                            existing_active.quality_score = env_provider.get('quality_score', 4.0)
+                            existing_active.is_active = env_provider.get('is_active', True)
+                            existing_active.last_performance_check = datetime.utcnow()
+                            existing_active.updated_at = datetime.utcnow()
+                            active_providers_updated += 1
+                            logger.info(f"🔄 Updated active provider: {env_provider.get('provider_name')}")
+                        else:
+                            # Create new active provider if env var exists
+                            env_var_name = env_provider.get('env_var_name')
+                            if env_var_name and env_var_name in os.environ:
+                                new_active = ActiveAIProvider(
+                                    provider_name=env_provider.get('provider_name', 'Unknown'),
+                                    env_var_name=env_var_name,
+                                    category=env_provider.get('category', 'general_ai'),
+                                    use_type=env_provider.get('use_type', 'content_creation'),
+                                    cost_per_1k_tokens=env_provider.get('cost_per_1k_tokens'),
+                                    quality_score=env_provider.get('quality_score', 4.0),
+                                    primary_model=env_provider.get('model'),
+                                    api_endpoint=env_provider.get('api_endpoint'),
+                                    is_active=env_provider.get('is_active', True),
+                                    discovered_date=datetime.utcnow(),
+                                    promoted_date=datetime.utcnow(),
+                                    created_at=datetime.utcnow(),
+                                    updated_at=datetime.utcnow()
+                                )
+                                
+                                db.add(new_active)
+                                active_providers_updated += 1
+                                logger.info(f"✅ Added new active provider: {env_provider.get('provider_name')}")
+                            
+                    except Exception as e:
+                        logger.error(f"❌ Failed to save active provider {env_provider.get('provider_name')}: {str(e)}")
+                        continue
+                
+                # 3️⃣ Commit all changes to database
+                db.commit()
+                
+                logger.info(f"💾 Database update completed: {providers_saved} discovered + {active_providers_updated} active providers")
+                
+                return {
+                    'providers_updated': providers_saved,
+                    'active_providers_updated': active_providers_updated,
+                    'total_saved': providers_saved + active_providers_updated,
+                    'status': 'success',
+                    'message': f'Successfully saved {providers_saved} discovered and updated {active_providers_updated} active providers'
+                }
+                
+            except Exception as e:
+                db.rollback()
+                logger.error(f"❌ Database transaction failed: {str(e)}")
+                raise e
+            finally:
+                db.close()
+                
+        except Exception as e:
+            logger.error(f"❌ Database update failed: {str(e)}")
+            return {
+                'error': str(e),
+                'providers_updated': 0,
+                'status': 'failed',
+                'message': f'Database update failed: {str(e)}'
+            }
 
     async def generate_discovery_summary(self) -> Dict[str, Any]:
         """Generate comprehensive discovery summary with AI Analyzer + YouTube integration"""
@@ -1044,7 +1200,8 @@ class AIPlatformDiscoveryService:
                     'enhanced_scanning': True,
                     'performance_testing': AI_ANALYZER_AVAILABLE,
                     'real_api_validation': AI_ANALYZER_AVAILABLE,
-                    'web_scraping_active': True
+                    'web_scraping_active': True,
+                    'database_saving_fixed': True  # 🔧 NEW: Database saving now works
                 },
                 'discovery_sources': {
                     'ai_news_sites': len(self.discovery_sources['ai_news_sites']),
@@ -1055,18 +1212,23 @@ class AIPlatformDiscoveryService:
                     'youtube_search_terms': len(self.discovery_sources['youtube_discovery']['search_terms']),
                     'youtube_rss_feeds': len(self.discovery_sources['youtube_discovery']['rss_feeds'])
                 },
+                'discoveries_made': {
+                    'platforms_discovered': len(getattr(self, '_discovered_platforms', [])),
+                    'environment_providers': len(getattr(self, '_environment_providers', [])),
+                    'total_discoveries': len(getattr(self, '_discovered_platforms', [])) + len(getattr(self, '_environment_providers', []))
+                },
                 'capabilities': {
                     'real_time_discovery': True,
                     'youtube_integration': True,
                     'ai_powered_analysis': AI_ANALYZER_AVAILABLE,
                     'web_scraping': True,
-                    'no_mock_data': True,
+                    'database_persistence': True,  # 🔧 FIXED: Now actually saves to database
                     'live_api_testing': AI_ANALYZER_AVAILABLE
                 },
                 'status': 'success'
             }
             
-            logger.info(f"📊 Enhanced summary generated with YouTube integration")
+            logger.info(f"📊 Enhanced summary generated with YouTube integration and database saving")
             return summary
             
         except Exception as e:
@@ -1080,43 +1242,44 @@ class AIPlatformDiscoveryService:
     # Fallback methods
     async def scan_environment_providers(self) -> Dict[str, Any]:
         """FALLBACK: Original Environment Variable Scanning"""
-        return {'new_active_providers': 0, 'status': 'fallback'}
+        return {'providers_details': []}
 
     # ADD PROMOTION METHOD FOR ROUTES
     async def promote_provider(self, suggestion, env_var_name: str, api_key: str):
         """Promote a discovered provider to active status"""
         try:
-            if not self.db:
-                raise Exception("Database session required for promotion")
+            from src.core.ai_discovery_database import AIDiscoverySessionLocal
             
-            # Create new active provider
-            new_provider = ActiveAIProvider(
-                provider_name=suggestion.provider_name,
-                env_var_name=env_var_name,
-                category=suggestion.category,
-                use_type=suggestion.use_type,
-                cost_per_1k_tokens=suggestion.estimated_cost_per_1k_tokens,
-                quality_score=suggestion.estimated_quality_score,
-                primary_model=None,  # Will be determined by testing
-                api_endpoint=suggestion.api_endpoint,
-                is_active=True,
-                discovered_date=suggestion.discovered_date,
-                promoted_date=datetime.utcnow()
-            )
-            
-            self.db.add(new_provider)
-            
-            # Update suggestion status
-            suggestion.promotion_status = 'promoted'
-            suggestion.admin_notes = f"Promoted to active provider on {datetime.utcnow().isoformat()}"
-            
-            self.db.commit()
-            
-            return new_provider
+            db = AIDiscoverySessionLocal()
+            try:
+                # Create new active provider
+                new_provider = ActiveAIProvider(
+                    provider_name=suggestion.provider_name,
+                    env_var_name=env_var_name,
+                    category=suggestion.category,
+                    use_type=suggestion.use_type,
+                    cost_per_1k_tokens=suggestion.estimated_cost_per_1k_tokens,
+                    quality_score=suggestion.estimated_quality_score,
+                    primary_model=None,  # Will be determined by testing
+                    api_endpoint=suggestion.api_endpoint,
+                    is_active=True,
+                    discovered_date=suggestion.discovered_date,
+                    promoted_date=datetime.utcnow()
+                )
+                
+                db.add(new_provider)
+                
+                # Update suggestion status
+                suggestion.promotion_status = 'promoted'
+                suggestion.admin_notes = f"Promoted to active provider on {datetime.utcnow().isoformat()}"
+                
+                db.commit()
+                
+                return new_provider
+            finally:
+                db.close()
             
         except Exception as e:
-            if self.db:
-                self.db.rollback()
             raise Exception(f"Failed to promote provider: {str(e)}")
 
 # ✅ FACTORY FUNCTION

@@ -151,7 +151,7 @@ class Settings(BaseSettings):
     ]
 
     # External APIs (You have these!)
-    CLICKBANK_API_KEY: Optional[str] = None
+    # CLICKBANK_API_KEY: Optional[str] = None
     YOUTUBE_API_KEY: Optional[str] = None
     VIMEO_ACCESS_TOKEN: Optional[str] = None
 
