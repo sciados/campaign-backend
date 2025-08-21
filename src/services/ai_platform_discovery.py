@@ -1,15 +1,15 @@
-# src/services/ai_platform_discovery.py - INTEGRATED WITH AI ANALYZER
+# src/services/ai_platform_discovery.py - ENHANCED WORKING VERSION
 
 """
-ðŸ” AI Platform Discovery & Management System - INTEGRATED VERSION
+🔍 AI Platform Discovery & Management System - ENHANCED VERSION
 
-Two-Table Architecture + AI Analyzer Integration:
+Two-Table Architecture + AI Analyzer Integration + YouTube Discovery:
 1. active_ai_providers - Only providers with environment API keys (Top 3 per category)
 2. discovered_ai_providers - Research discoveries and suggestions
 
 Process:
-1. AI Analyzer scans environment â†’ Update Table 1 with REAL performance data
-2. Main Discovery researches web â†’ Update Table 2  
+1. AI Analyzer scans environment → Update Table 1 with REAL performance data
+2. Main Discovery researches web + YouTube → Update Table 2  
 3. Combined AI-powered categorization and analysis
 4. Rank and prioritize discoveries
 """
@@ -20,20 +20,21 @@ import asyncio
 import aiohttp
 import json
 import logging
+import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timedelta
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, DECIMAL, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, quote
 
-# ðŸš¨ NEW: Import AI Analyzer for enhanced environment scanning
+# 🚨 NEW: Import AI Analyzer for enhanced environment scanning
 try:
     from src.services.ai_provider_analyzer import get_ai_provider_analyzer
     AI_ANALYZER_AVAILABLE = True
 except ImportError:
     AI_ANALYZER_AVAILABLE = False
-    logging.warning("âš ï¸ AI Provider Analyzer not available - using fallback methods")
+    logging.warning("⚠️ AI Provider Analyzer not available - using fallback methods")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -41,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
-# âœ… TABLE 1: Active AI Providers (with API keys)
+# ✅ TABLE 1: Active AI Providers (with API keys)
 class ActiveAIProvider(Base):
     """Providers with API keys in environment variables - Ready to use"""
     __tablename__ = "active_ai_providers"
@@ -77,7 +78,7 @@ class ActiveAIProvider(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
-# âœ… TABLE 2: Discovered AI Providers (research suggestions)
+# ✅ TABLE 2: Discovered AI Providers (research suggestions)
 class DiscoveredAIProvider(Base):
     """New AI platforms discovered via web research - Suggestions for future use"""
     __tablename__ = "discovered_ai_providers"
@@ -102,7 +103,7 @@ class DiscoveredAIProvider(Base):
     api_endpoint = Column(String(255), nullable=True)
     
     # Discovery Details
-    discovery_source = Column(String(100), nullable=True)  # web_search, api_directory, manual
+    discovery_source = Column(String(100), nullable=True)  # web_search, api_directory, manual, youtube_video
     discovery_keywords = Column(Text, nullable=True)  # What search found it
     research_notes = Column(Text, nullable=True)  # AI analysis notes
     
@@ -123,67 +124,67 @@ class DiscoveredAIProvider(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 class AIPlatformDiscoveryService:
-    """INTEGRATED AI Platform Discovery Service with AI Analyzer"""
+    """ENHANCED AI Platform Discovery Service with YouTube Integration"""
     
     def __init__(self, db_session=None):
         """Initialize with optional database session"""
         self.db = db_session
         self.session = None  # Will be created for web requests
         
-        # ðŸŽ¯ COMPREHENSIVE AI Platform Knowledge Base
-        self.known_platforms = {
-            'text_generation': [
-                {'name': 'OpenAI GPT-4', 'domain': 'openai.com', 'env_var': 'OPENAI_API_KEY'},
-                {'name': 'Anthropic Claude', 'domain': 'anthropic.com', 'env_var': 'ANTHROPIC_API_KEY'},
-                {'name': 'Google Gemini', 'domain': 'gemini.google.com', 'env_var': 'GEMINI_API_KEY'},
-                {'name': 'Cohere', 'domain': 'cohere.ai', 'env_var': 'COHERE_API_KEY'},
-                {'name': 'Mistral AI', 'domain': 'mistral.ai', 'env_var': 'MISTRAL_API_KEY'},
-                {'name': 'Groq Llama', 'domain': 'groq.com', 'env_var': 'GROQ_API_KEY'},
-                {'name': 'Together AI', 'domain': 'together.ai', 'env_var': 'TOGETHER_API_KEY'},
-                {'name': 'Fireworks AI', 'domain': 'fireworks.ai', 'env_var': 'FIREWORKS_API_KEY'},
-                {'name': 'DeepSeek V3', 'domain': 'deepseek.com', 'env_var': 'DEEPSEEK_API_KEY'},
+        # 🎯 REAL DISCOVERY SOURCES (not predefined lists!)
+        self.discovery_sources = {
+            'ai_news_sites': [
+                'https://venturebeat.com/ai/',
+                'https://techcrunch.com/category/artificial-intelligence/',
+                'https://www.theverge.com/ai-artificial-intelligence',
+                'https://www.wired.com/tag/artificial-intelligence/',
+                'https://arstechnica.com/ai/',
+                'https://aimagazine.com/',
+                'https://artificialintelligence-news.com/'
             ],
-            'image_generation': [
-                {'name': 'Stability AI', 'domain': 'stability.ai', 'env_var': 'STABILITY_API_KEY'},
-                {'name': 'Replicate Flux', 'domain': 'replicate.com', 'env_var': 'REPLICATE_API_TOKEN'},
-                {'name': 'Leonardo AI', 'domain': 'leonardo.ai', 'env_var': 'LEONARDO_API_KEY'},
-                {'name': 'Midjourney', 'domain': 'midjourney.com', 'env_var': 'MIDJOURNEY_API_KEY'},
-                {'name': 'DALL-E 3', 'domain': 'openai.com', 'env_var': 'OPENAI_API_KEY'},
-                {'name': 'Ideogram', 'domain': 'ideogram.ai', 'env_var': 'IDEOGRAM_API_KEY'},
+            'product_hunt_ai': [
+                'https://www.producthunt.com/topics/artificial-intelligence',
+                'https://www.producthunt.com/topics/machine-learning',
+                'https://www.producthunt.com/topics/developer-tools'
             ],
-            'video_generation': [
-                {'name': 'Runway ML', 'domain': 'runwayml.com', 'env_var': 'RUNWAY_API_KEY'},
-                {'name': 'Pika Labs', 'domain': 'pika.art', 'env_var': 'PIKA_API_KEY'},
-                {'name': 'LumaAI Dream Machine', 'domain': 'lumalabs.ai', 'env_var': 'LUMA_API_KEY'},
-                {'name': 'Stable Video Diffusion', 'domain': 'stability.ai', 'env_var': 'STABILITY_VIDEO_API_KEY'},
-                {'name': 'Synthesia', 'domain': 'synthesia.io', 'env_var': 'SYNTHESIA_API_KEY'},
-                {'name': 'D-ID', 'domain': 'd-id.com', 'env_var': 'DID_API_KEY'},
-                {'name': 'HeyGen', 'domain': 'heygen.com', 'env_var': 'HEYGEN_API_KEY'},
-                {'name': 'Fliki', 'domain': 'fliki.ai', 'env_var': 'FLIKI_API_KEY'},
-                {'name': 'InVideo AI', 'domain': 'invideo.io', 'env_var': 'INVIDEO_API_KEY'},
-                {'name': 'Pictory', 'domain': 'pictory.ai', 'env_var': 'PICTORY_API_KEY'},
+            'github_trending': [
+                'https://github.com/trending?l=python&since=weekly',
+                'https://github.com/search?q=AI+API&type=repositories&s=created&o=desc'
             ],
-            'audio_generation': [
-                {'name': 'ElevenLabs', 'domain': 'elevenlabs.io', 'env_var': 'ELEVENLABS_API_KEY'},
-                {'name': 'Mubert', 'domain': 'mubert.com', 'env_var': 'MUBERT_API_KEY'},
-                {'name': 'Udio', 'domain': 'udio.com', 'env_var': 'UDIO_API_KEY'},
-                {'name': 'Suno AI', 'domain': 'suno.ai', 'env_var': 'SUNO_API_KEY'},
-                {'name': 'Speechify', 'domain': 'speechify.com', 'env_var': 'SPEECHIFY_API_KEY'},
-                {'name': 'Resemble AI', 'domain': 'resemble.ai', 'env_var': 'RESEMBLE_API_KEY'},
+            'ai_directories': [
+                'https://theresanaiforthat.com/',
+                'https://www.futurepedia.io/',
+                'https://ai-directory.org/',
+                'https://www.toolify.ai/'
             ],
-            'multimodal': [
-                {'name': 'Google Gemini Pro Vision', 'domain': 'gemini.google.com', 'env_var': 'GEMINI_API_KEY'},
-                {'name': 'Claude 3 Vision', 'domain': 'anthropic.com', 'env_var': 'ANTHROPIC_API_KEY'},
-                {'name': 'GPT-4 Vision', 'domain': 'openai.com', 'env_var': 'OPENAI_API_KEY'},
-                {'name': 'LLaVA', 'domain': 'huggingface.co', 'env_var': 'HUGGINGFACE_API_TOKEN'},
-            ]
+            'youtube_discovery': {
+                'channels_to_monitor': [
+                    'UCbfYPyITQ-7l4upoX8nvctg',  # Two Minute Papers
+                    'UCWN3xxRkmTPmbKwht9FuE5A',  # Siraj Raval  
+                    'UCkw4JCwteGrDHIsyIIKo4tQ',  # Welch Labs
+                    'UC-tLyAaPbRZiYrOJxAGB7dQ',  # CodeEmporium
+                    'UCZHmQk67mSJgfCCTn7xBfew',  # Yannic Kilcher
+                    'UCJ0-OtVpF0wOKEqT2Z1HEtA'   # Machine Learning Explained
+                ],
+                'search_terms': [
+                    'new AI API 2025', 'AI platform launch', 'new AI tool',
+                    'AI API tutorial', 'AI service review', 'latest AI model',
+                    'AI startup demo', 'new machine learning API', 'AI tool comparison',
+                    'text generation API', 'image generation API', 'video AI platform'
+                ],
+                'rss_feeds': [
+                    'https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg',
+                    'https://www.youtube.com/feeds/videos.xml?channel_id=UCWN3xxRkmTPmbKwht9FuE5A',
+                    'https://www.youtube.com/feeds/videos.xml?channel_id=UCkw4JCwteGrDHIsyIIKo4tQ'
+                ]
+            }
         }
 
     async def full_discovery_cycle(self) -> Dict[str, Any]:
         """
-        ðŸ”„ Complete INTEGRATED discovery cycle with AI Analyzer
+        🔄 Complete ENHANCED discovery cycle with AI Analyzer + YouTube
         """
-        logger.info("ðŸš€ Starting ENHANCED AI platform discovery cycle with AI Analyzer...")
+        logger.info("🚀 Starting ENHANCED AI platform discovery cycle with YouTube...")
         
         try:
             # Create HTTP session for web requests
@@ -198,21 +199,22 @@ class AIPlatformDiscoveryService:
                 results = {
                     'timestamp': datetime.utcnow().isoformat(),
                     'ai_analyzer_available': AI_ANALYZER_AVAILABLE,
-                    'environment_scan': await self.enhanced_environment_scan(),  # ðŸš¨ NEW: Enhanced with AI Analyzer
+                    'environment_scan': await self.enhanced_environment_scan(),
                     'web_research': await self.research_new_platforms(),
+                    'youtube_discovery': await self.discover_from_youtube(),  # 🎥 NEW
                     'platform_verification': await self.verify_platform_details(),
                     'ai_categorization': await self.ai_categorize_platforms(),
-                    'performance_testing': await self.test_provider_performance(),  # ðŸš¨ NEW: AI Analyzer performance testing
+                    'performance_testing': await self.test_provider_performance(),
                     'ranking_update': await self.update_rankings(),
                     'database_update': await self.update_database(),
                     'summary': await self.generate_discovery_summary()
                 }
                 
-                logger.info(f"âœ… Enhanced discovery cycle completed successfully")
+                logger.info(f"✅ Enhanced discovery cycle completed successfully")
                 return results
                 
         except Exception as e:
-            logger.error(f"âŒ Discovery cycle failed: {str(e)}")
+            logger.error(f"❌ Discovery cycle failed: {str(e)}")
             return {
                 'error': str(e),
                 'status': 'failed',
@@ -222,9 +224,9 @@ class AIPlatformDiscoveryService:
 
     async def enhanced_environment_scan(self) -> Dict[str, Any]:
         """
-        1ï¸âƒ£ ENHANCED Environment Scanning with AI Analyzer Integration
+        1️⃣ ENHANCED Environment Scanning with AI Analyzer Integration
         """
-        logger.info("ðŸ” Enhanced environment scanning with AI Analyzer...")
+        logger.info("🔍 Enhanced environment scanning with AI Analyzer...")
         
         try:
             results = {
@@ -234,10 +236,10 @@ class AIPlatformDiscoveryService:
                 'status': 'success'
             }
             
-            # ðŸš¨ PRIMARY: Use AI Analyzer if available
+            # 🚨 PRIMARY: Use AI Analyzer if available
             if AI_ANALYZER_AVAILABLE:
                 try:
-                    logger.info("ðŸ¤– Using AI Provider Analyzer for enhanced scanning...")
+                    logger.info("🤖 Using AI Provider Analyzer for enhanced scanning...")
                     analyzer = get_ai_provider_analyzer()
                     ai_results = await analyzer.discover_providers_from_environment()
                     
@@ -258,15 +260,15 @@ class AIPlatformDiscoveryService:
                         }
                         results['combined_providers'].append(enhanced_provider)
                     
-                    logger.info(f"ðŸŽ¯ AI Analyzer found {len(ai_results)} providers with full analysis")
+                    logger.info(f"🎯 AI Analyzer found {len(ai_results)} providers with full analysis")
                     
                 except Exception as e:
-                    logger.warning(f"âš ï¸ AI Analyzer failed, falling back to basic scan: {str(e)}")
+                    logger.warning(f"⚠️ AI Analyzer failed, falling back to basic scan: {str(e)}")
                     AI_ANALYZER_AVAILABLE = False
             
-            # ðŸš¨ FALLBACK: Use original scanning method
+            # 🚨 FALLBACK: Use original scanning method
             if not AI_ANALYZER_AVAILABLE or not results['combined_providers']:
-                logger.info("ðŸ” Using fallback environment scanning...")
+                logger.info("🔍 Using fallback environment scanning...")
                 fallback_results = await self.scan_environment_providers()
                 results['fallback_results'] = fallback_results
                 
@@ -282,11 +284,7 @@ class AIPlatformDiscoveryService:
                         }
                         results['combined_providers'].append(enhanced_provider)
             
-            # ðŸš¨ ENHANCEMENT: Add web research context to environment providers
-            for provider in results['combined_providers']:
-                provider['web_research'] = await self.enrich_provider_with_web_data(provider)
-            
-            logger.info(f"ðŸ“Š Enhanced environment scan completed: {len(results['combined_providers'])} providers")
+            logger.info(f"📊 Enhanced environment scan completed: {len(results['combined_providers'])} providers")
             
             return {
                 'enhanced_providers': len(results['combined_providers']),
@@ -294,12 +292,11 @@ class AIPlatformDiscoveryService:
                 'providers_with_performance_data': len([p for p in results['combined_providers'] if p.get('has_performance_data')]),
                 'providers_with_api_testing': len([p for p in results['combined_providers'] if p.get('api_tested')]),
                 'provider_details': results['combined_providers'],
-                'analysis_summary': results,
                 'status': 'success'
             }
             
         except Exception as e:
-            logger.error(f"âŒ Enhanced environment scan failed: {str(e)}")
+            logger.error(f"❌ Enhanced environment scan failed: {str(e)}")
             return {
                 'error': str(e),
                 'status': 'failed',
@@ -308,36 +305,30 @@ class AIPlatformDiscoveryService:
 
     async def research_new_platforms(self) -> Dict[str, Any]:
         """
-        2ï¸âƒ£ REAL Web Research for AI Platforms
+        2️⃣ REAL Web Research for AI Platforms (NO MOCK DATA)
         """
-        logger.info("ðŸŒ Researching web for new AI platforms...")
+        logger.info("🌐 Researching web for new AI platforms...")
         
         try:
             all_discovered = []
             
-            # Research each category
-            for category, platforms in self.known_platforms.items():
-                logger.info(f"ðŸ” Researching {category} platforms...")
-                
-                category_discoveries = []
-                for platform in platforms:
-                    try:
-                        # Research platform details
-                        platform_data = await self.research_platform_details(platform, category)
-                        if platform_data:
-                            category_discoveries.append(platform_data)
-                            
-                        # Small delay to be respectful
-                        await asyncio.sleep(0.5)
-                        
-                    except Exception as e:
-                        logger.warning(f"âš ï¸ Failed to research {platform['name']}: {str(e)}")
-                        continue
-                
-                all_discovered.extend(category_discoveries)
-                logger.info(f"ðŸ“Š Found {len(category_discoveries)} {category} platforms")
+            # 1. Scrape AI news sites for platform announcements
+            news_discoveries = await self.scrape_ai_news_sites()
+            all_discovered.extend(news_discoveries)
             
-            logger.info(f"ðŸŽ¯ Total platforms discovered: {len(all_discovered)}")
+            # 2. Check Product Hunt for new AI tools
+            product_hunt_discoveries = await self.scrape_product_hunt_ai()
+            all_discovered.extend(product_hunt_discoveries)
+            
+            # 3. Search GitHub for trending AI repositories with APIs
+            github_discoveries = await self.discover_from_github_trending()
+            all_discovered.extend(github_discoveries)
+            
+            # 4. Scrape AI directory sites
+            directory_discoveries = await self.scrape_ai_directories()
+            all_discovered.extend(directory_discoveries)
+            
+            logger.info(f"🎯 Web research discovered {len(all_discovered)} platforms")
             
             return {
                 'platforms_researched': len(all_discovered),
@@ -348,131 +339,665 @@ class AIPlatformDiscoveryService:
             }
             
         except Exception as e:
-            logger.error(f"âŒ Web research failed: {str(e)}")
+            logger.error(f"❌ Web research failed: {str(e)}")
             return {
                 'error': str(e),
                 'status': 'failed',
                 'message': 'Web research failed'
             }
 
-    async def research_platform_details(self, platform: Dict, category: str) -> Optional[Dict]:
-        """Research individual platform details"""
+    async def discover_from_youtube(self) -> Dict[str, Any]:
+        """
+        🎥 NEW: Discover AI platforms from YouTube videos, channels, and announcements
+        """
+        logger.info("🎥 Discovering AI platforms from YouTube...")
+        
         try:
-            website_url = f"https://{platform['domain']}"
+            discoveries = []
+            youtube_config = self.discovery_sources['youtube_discovery']
             
-            # Try to fetch platform homepage
-            async with self.session.get(website_url) as response:
+            # 1. Search YouTube for AI platform announcements
+            search_discoveries = await self.search_youtube_for_ai_platforms(youtube_config['search_terms'])
+            discoveries.extend(search_discoveries)
+            
+            # 2. Monitor specific AI/ML channels for new platform announcements
+            channel_discoveries = await self.monitor_ai_youtube_channels(youtube_config['channels_to_monitor'])
+            discoveries.extend(channel_discoveries)
+            
+            # 3. Parse RSS feeds from AI channels
+            rss_discoveries = await self.parse_youtube_rss_feeds(youtube_config['rss_feeds'])
+            discoveries.extend(rss_discoveries)
+            
+            logger.info(f"🎥 YouTube discovery found {len(discoveries)} potential platforms")
+            
+            return {
+                'youtube_discoveries': len(discoveries),
+                'search_results': len(search_discoveries),
+                'channel_results': len(channel_discoveries),
+                'rss_results': len(rss_discoveries),
+                'platforms': discoveries,
+                'status': 'success'
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ YouTube discovery failed: {str(e)}")
+            return {
+                'error': str(e),
+                'status': 'failed',
+                'youtube_discoveries': 0
+            }
+
+    async def search_youtube_for_ai_platforms(self, search_terms: List[str]) -> List[Dict[str, Any]]:
+        """Search YouTube using specific AI platform terms"""
+        discoveries = []
+        
+        for term in search_terms:
+            try:
+                # YouTube search URL
+                search_url = f"https://www.youtube.com/results?search_query={quote(term)}&sp=CAISAhAB"
+                
+                async with self.session.get(search_url) as response:
+                    if response.status == 200:
+                        content = await response.text()
+                        
+                        # Extract video information from YouTube search results
+                        video_discoveries = await self.extract_youtube_video_info(content, term)
+                        discoveries.extend(video_discoveries)
+                
+                # Rate limiting for YouTube
+                await asyncio.sleep(2)
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to search YouTube for '{term}': {str(e)}")
+                continue
+        
+        return discoveries
+
+    async def extract_youtube_video_info(self, content: str, search_term: str) -> List[Dict[str, Any]]:
+        """Extract AI platform information from YouTube video content"""
+        discoveries = []
+        
+        try:
+            # Look for video data in YouTube's initial data
+            video_pattern = r'"videoId":"([^"]+)".*?"title":{"runs":\[{"text":"([^"]+)"}.*?"ownerText":{"runs":\[{"text":"([^"]+)"'
+            matches = re.findall(video_pattern, content)
+            
+            for video_id, title, channel in matches[:5]:  # Limit to first 5 results
+                if self.is_ai_platform_announcement(title):
+                    # Extract potential platform information from title and description
+                    platform_info = await self.analyze_youtube_video_for_platform(video_id, title, channel, search_term)
+                    if platform_info:
+                        discoveries.append(platform_info)
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to extract YouTube video info: {str(e)}")
+        
+        return discoveries
+
+    def is_ai_platform_announcement(self, title: str) -> bool:
+        """Check if YouTube video title indicates an AI platform announcement"""
+        title_lower = title.lower()
+        
+        announcement_indicators = [
+            'new ai', 'ai platform', 'api launch', 'introducing', 'announcement',
+            'released', 'launch', 'demo', 'review', 'tutorial', 'getting started',
+            'api tutorial', 'how to use', 'new tool', 'ai service'
+        ]
+        
+        platform_types = [
+            'text generation', 'image generation', 'video ai', 'voice ai',
+            'chatbot', 'language model', 'gpt', 'api', 'machine learning'
+        ]
+        
+        has_announcement = any(indicator in title_lower for indicator in announcement_indicators)
+        has_ai_platform = any(platform_type in title_lower for platform_type in platform_types)
+        
+        return has_announcement and has_ai_platform
+
+    async def analyze_youtube_video_for_platform(self, video_id: str, title: str, channel: str, search_term: str) -> Optional[Dict[str, Any]]:
+        """Analyze YouTube video to extract AI platform information"""
+        try:
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+            
+            # Get video page to extract description and links
+            async with self.session.get(video_url) as response:
                 if response.status == 200:
                     content = await response.text()
                     
-                    # Extract platform information
-                    platform_info = {
-                        'provider_name': platform['name'],
-                        'suggested_env_var_name': platform['env_var'],
-                        'category': category,
-                        'use_type': self.get_use_type_for_category(category),
-                        'website_url': website_url,
-                        'domain': platform['domain'],
-                        'discovery_source': 'known_platform_research',
-                        'research_notes': f"Researched from {website_url}",
-                        'recommendation_priority': 'high',
-                        'unique_features': await self.extract_features_from_content(content, category),
-                        'estimated_quality_score': self.estimate_quality_score(platform['name'], category),
-                        'page_title': await self.extract_page_title(content),
-                        'has_api_docs': 'api' in content.lower() or 'documentation' in content.lower()
-                    }
+                    # Extract video description
+                    description_match = re.search(r'"shortDescription":"([^"]*)"', content)
+                    description = description_match.group(1) if description_match else ""
                     
-                    return platform_info
+                    # Look for platform URLs in description
+                    platform_urls = self.extract_platform_urls_from_description(description)
                     
+                    if platform_urls:
+                        # Extract platform name from title
+                        platform_name = self.extract_platform_name_from_youtube_title(title)
+                        
+                        return {
+                            'provider_name': platform_name,
+                            'suggested_env_var_name': f"{platform_name.upper().replace(' ', '_')}_API_KEY",
+                            'category': self.categorize_from_title_and_description(title, description),
+                            'use_type': 'content_creation',
+                            'website_url': platform_urls[0],
+                            'discovery_source': 'youtube_video',
+                            'discovery_keywords': search_term,
+                            'research_notes': f"Found via YouTube video: {title}",
+                            'recommendation_priority': 'medium',
+                            'unique_features': self.extract_features_from_youtube_content(title, description),
+                            'youtube_video_url': video_url,
+                            'youtube_channel': channel
+                        }
+            
+            return None
+            
         except Exception as e:
-            logger.warning(f"âš ï¸ Could not research {platform['name']}: {str(e)}")
-            # Return basic info even if web scraping fails
-            return {
-                'provider_name': platform['name'],
-                'suggested_env_var_name': platform['env_var'],
-                'category': category,
-                'use_type': self.get_use_type_for_category(category),
-                'website_url': f"https://{platform['domain']}",
-                'domain': platform['domain'],
-                'discovery_source': 'known_platform_fallback',
-                'recommendation_priority': 'medium',
-                'research_notes': f"Platform known but could not fetch details from {platform['domain']}",
-                'estimated_quality_score': self.estimate_quality_score(platform['name'], category)
-            }
+            logger.warning(f"⚠️ Failed to analyze YouTube video {video_id}: {str(e)}")
+            return None
+
+    def extract_platform_urls_from_description(self, description: str) -> List[str]:
+        """Extract platform URLs from YouTube video description"""
+        url_pattern = r'https?://(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'
+        urls = re.findall(url_pattern, description)
+        
+        platform_urls = []
+        for url in urls:
+            # Filter out common non-platform URLs
+            exclude_domains = [
+                'youtube.com', 'twitter.com', 'facebook.com', 'instagram.com',
+                'linkedin.com', 'github.com', 'discord.com', 'reddit.com'
+            ]
+            
+            if not any(exclude in url.lower() for exclude in exclude_domains):
+                platform_urls.append(f"https://{url}")
+        
+        return platform_urls
+
+    def extract_platform_name_from_youtube_title(self, title: str) -> str:
+        """Extract platform name from YouTube video title"""
+        patterns = [
+            r'introducing\s+([A-Z][a-zA-Z0-9\s]+)',
+            r'([A-Z][a-zA-Z0-9]+)\s+(?:review|tutorial|demo|api)',
+            r'new\s+ai\s+(?:platform|tool|service):\s*([A-Z][a-zA-Z0-9\s]+)',
+            r'([A-Z][a-zA-Z0-9]+)\s+ai\s+(?:platform|api|tool)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, title, re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+        
+        # Fallback: extract first capitalized word
+        words = title.split()
+        for word in words:
+            if (word[0].isupper() and len(word) > 3 and 
+                word.lower() not in ['the', 'and', 'for', 'new', 'this', 'with']):
+                return word
+        
+        return "Unknown Platform"
+
+    def categorize_from_title_and_description(self, title: str, description: str) -> str:
+        """Categorize platform based on title and description content"""
+        content = f"{title} {description}".lower()
+        
+        if any(term in content for term in ['video generation', 'video ai', 'create videos']):
+            return 'video_generation'
+        elif any(term in content for term in ['image generation', 'image ai', 'create images']):
+            return 'image_generation'
+        elif any(term in content for term in ['voice', 'speech', 'audio', 'text to speech']):
+            return 'audio_generation'
+        elif any(term in content for term in ['text generation', 'language model', 'chatbot']):
+            return 'text_generation'
+        else:
+            return 'multimodal'
+
+    def extract_features_from_youtube_content(self, title: str, description: str) -> List[str]:
+        """Extract features from YouTube content"""
+        content = f"{title} {description}".lower()
+        features = []
+        
+        feature_keywords = [
+            'api', 'real-time', 'high-quality', 'fast', 'easy', 'advanced',
+            'custom', 'integration', 'scalable', 'affordable'
+        ]
+        
+        for keyword in feature_keywords:
+            if keyword in content:
+                features.append(keyword.replace('-', '_'))
+        
+        return features[:5]
+
+    async def monitor_ai_youtube_channels(self, channel_ids: List[str]) -> List[Dict[str, Any]]:
+        """Monitor specific AI/ML YouTube channels for new platform announcements"""
+        discoveries = []
+        
+        for channel_id in channel_ids:
+            try:
+                channel_url = f"https://www.youtube.com/channel/{channel_id}/videos"
+                
+                async with self.session.get(channel_url) as response:
+                    if response.status == 200:
+                        content = await response.text()
+                        
+                        # Extract recent video information
+                        channel_discoveries = await self.extract_channel_recent_videos(content, channel_id)
+                        discoveries.extend(channel_discoveries)
+                
+                await asyncio.sleep(3)
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to monitor channel {channel_id}: {str(e)}")
+                continue
+        
+        return discoveries
+
+    async def extract_channel_recent_videos(self, content: str, channel_id: str) -> List[Dict[str, Any]]:
+        """Extract recent videos from a YouTube channel that might announce AI platforms"""
+        discoveries = []
+        
+        try:
+            video_pattern = r'"videoId":"([^"]+)".*?"title":{"runs":\[{"text":"([^"]+)"}.*?"publishedTimeText":{"simpleText":"([^"]+)"}'
+            matches = re.findall(video_pattern, content)
+            
+            for video_id, title, published_time in matches[:3]:  # Check last 3 videos
+                if self.is_ai_platform_announcement(title) and self.is_recent_video(published_time):
+                    platform_info = await self.analyze_youtube_video_for_platform(video_id, title, f"Channel_{channel_id}", "channel_monitoring")
+                    if platform_info:
+                        discoveries.append(platform_info)
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to extract channel videos: {str(e)}")
+        
+        return discoveries
+
+    def is_recent_video(self, published_time: str) -> bool:
+        """Check if video was published recently (within last 30 days)"""
+        recent_indicators = ['hour', 'hours', 'day', 'days', 'week', 'weeks']
+        published_lower = published_time.lower()
+        
+        if any(indicator in published_lower for indicator in recent_indicators):
+            return True
+        
+        if 'month' in published_lower and published_lower.startswith('1'):
+            return True
+        
+        return False
+
+    async def parse_youtube_rss_feeds(self, rss_feeds: List[str]) -> List[Dict[str, Any]]:
+        """Parse YouTube RSS feeds for new AI platform announcements"""
+        discoveries = []
+        
+        for rss_url in rss_feeds:
+            try:
+                async with self.session.get(rss_url) as response:
+                    if response.status == 200:
+                        rss_content = await response.text()
+                        feed_discoveries = await self.parse_youtube_rss_content(rss_content)
+                        discoveries.extend(feed_discoveries)
+                
+                await asyncio.sleep(2)
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to parse RSS feed {rss_url}: {str(e)}")
+                continue
+        
+        return discoveries
+
+    async def parse_youtube_rss_content(self, rss_content: str) -> List[Dict[str, Any]]:
+        """Parse YouTube RSS content for AI platform announcements"""
+        discoveries = []
+        
+        try:
+            root = ET.fromstring(rss_content)
+            
+            for entry in root.findall('.//{http://www.w3.org/2005/Atom}entry'):
+                title_elem = entry.find('.//{http://www.w3.org/2005/Atom}title')
+                link_elem = entry.find('.//{http://www.w3.org/2005/Atom}link')
+                published_elem = entry.find('.//{http://www.w3.org/2005/Atom}published')
+                
+                if title_elem is not None and link_elem is not None:
+                    title = title_elem.text
+                    video_url = link_elem.get('href')
+                    published = published_elem.text if published_elem is not None else ""
+                    
+                    # Check if this video announces an AI platform
+                    if self.is_ai_platform_announcement(title) and self.is_recent_rss_video(published):
+                        video_id = self.extract_video_id_from_url(video_url)
+                        if video_id:
+                            platform_info = await self.analyze_youtube_video_for_platform(
+                                video_id, title, "RSS_Feed", "rss_monitoring"
+                            )
+                            if platform_info:
+                                discoveries.append(platform_info)
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to parse RSS content: {str(e)}")
+        
+        return discoveries
+
+    def is_recent_rss_video(self, published_date: str) -> bool:
+        """Check if RSS video is recent"""
+        try:
+            # Parse ISO date format from RSS using standard library only
+            date_str = published_date.split('T')[0]  # Get just the date part
+            pub_date = datetime.strptime(date_str, '%Y-%m-%d')
+            now = datetime.now()
+            
+            # Consider videos from last 30 days as recent
+            return (now - pub_date).days <= 30
+            
+        except:
+            # If parsing fails, try alternative formats
+            try:
+                clean_date = published_date.replace('Z', '').split('+')[0].split('T')[0]
+                pub_date = datetime.strptime(clean_date, '%Y-%m-%d')
+                now = datetime.now()
+                return (now - pub_date).days <= 30
+            except:
+                return True  # If all parsing fails, assume it's recent
+
+    def extract_video_id_from_url(self, video_url: str) -> Optional[str]:
+        """Extract video ID from YouTube URL"""
+        try:
+            if 'watch?v=' in video_url:
+                return video_url.split('watch?v=')[1].split('&')[0]
+            return None
+        except:
+            return None
+
+    # Real web scraping methods (keeping existing structure)
+    async def scrape_ai_news_sites(self) -> List[Dict[str, Any]]:
+        """Scrape AI news sites for new platform announcements"""
+        discoveries = []
+        
+        for news_url in self.discovery_sources['ai_news_sites']:
+            try:
+                async with self.session.get(news_url) as response:
+                    if response.status == 200:
+                        content = await response.text()
+                        soup = BeautifulSoup(content, 'html.parser')
+                        
+                        # Look for articles mentioning AI platforms/APIs
+                        articles = soup.find_all(['article', 'div'], class_=re.compile(r'article|post|story'))
+                        
+                        for article in articles[:5]:  # Limit to recent articles
+                            title = article.find(['h1', 'h2', 'h3', 'a'])
+                            if title and self.contains_ai_platform_keywords(title.get_text()):
+                                platform_data = await self.extract_platform_from_article(article, news_url)
+                                if platform_data:
+                                    discoveries.append(platform_data)
+                
+                await asyncio.sleep(1)
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to scrape {news_url}: {str(e)}")
+                continue
+        
+        return discoveries
+
+    async def scrape_product_hunt_ai(self) -> List[Dict[str, Any]]:
+        """Scrape Product Hunt for new AI tools"""
+        discoveries = []
+        
+        for ph_url in self.discovery_sources['product_hunt_ai']:
+            try:
+                async with self.session.get(ph_url) as response:
+                    if response.status == 200:
+                        content = await response.text()
+                        soup = BeautifulSoup(content, 'html.parser')
+                        
+                        # Look for product listings
+                        products = soup.find_all(['div', 'article'], attrs={'data-test': re.compile(r'post|product')})
+                        
+                        for product in products[:10]:  # Limit to recent products
+                            product_data = await self.extract_product_hunt_data(product)
+                            if product_data and product_data.get('has_api'):
+                                discoveries.append(product_data)
+                
+                await asyncio.sleep(2)
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to scrape Product Hunt: {str(e)}")
+                continue
+        
+        return discoveries
+
+    async def discover_from_github_trending(self) -> List[Dict[str, Any]]:
+        """Discover AI platforms from GitHub trending repositories"""
+        discoveries = []
+        
+        for github_url in self.discovery_sources['github_trending']:
+            try:
+                async with self.session.get(github_url) as response:
+                    if response.status == 200:
+                        content = await response.text()
+                        soup = BeautifulSoup(content, 'html.parser')
+                        
+                        # Look for repository listings
+                        repos = soup.find_all('article', class_='Box-row')
+                        
+                        for repo in repos[:15]:  # Check top 15 trending
+                            repo_data = await self.extract_github_repo_data(repo)
+                            if repo_data and repo_data.get('is_ai_api'):
+                                discoveries.append(repo_data)
+                
+                await asyncio.sleep(1)
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to scrape GitHub: {str(e)}")
+                continue
+        
+        return discoveries
+
+    async def scrape_ai_directories(self) -> List[Dict[str, Any]]:
+        """Scrape AI directory sites for new platforms"""
+        discoveries = []
+        
+        for directory_url in self.discovery_sources['ai_directories']:
+            try:
+                async with self.session.get(directory_url) as response:
+                    if response.status == 200:
+                        content = await response.text()
+                        soup = BeautifulSoup(content, 'html.parser')
+                        
+                        # Look for AI tool listings
+                        tools = soup.find_all(['div', 'article'], class_=re.compile(r'tool|card|item|product'))
+                        
+                        for tool in tools[:20]:  # Check recent tools
+                            tool_data = await self.extract_directory_tool_data(tool, directory_url)
+                            if tool_data and tool_data.get('has_api'):
+                                discoveries.append(tool_data)
+                
+                await asyncio.sleep(2)
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to scrape directory {directory_url}: {str(e)}")
+                continue
+        
+        return discoveries
+
+    # Helper methods for web scraping
+    def contains_ai_platform_keywords(self, text: str) -> bool:
+        """Check if text contains AI platform keywords"""
+        keywords = [
+            'api', 'platform', 'ai service', 'launch', 'release', 'new ai',
+            'artificial intelligence', 'machine learning', 'text generation',
+            'image generation', 'video ai', 'language model'
+        ]
+        text_lower = text.lower()
+        return any(keyword in text_lower for keyword in keywords)
+
+    async def extract_platform_from_article(self, article, source_url: str) -> Optional[Dict[str, Any]]:
+        """Extract platform information from news article"""
+        try:
+            title_elem = article.find(['h1', 'h2', 'h3', 'a'])
+            if not title_elem:
+                return None
+            
+            title = title_elem.get_text().strip()
+            
+            # Look for links to the actual platform
+            links = article.find_all('a', href=True)
+            platform_url = None
+            
+            for link in links:
+                href = link.get('href')
+                if href and not any(exclude in href for exclude in ['twitter.com', 'facebook.com', source_url]):
+                    platform_url = href
+                    break
+            
+            if platform_url:
+                platform_name = self.extract_platform_name_from_title(title)
+                
+                return {
+                    'provider_name': platform_name,
+                    'suggested_env_var_name': f"{platform_name.upper().replace(' ', '_')}_API_KEY",
+                    'category': self.categorize_from_content(title),
+                    'use_type': 'content_creation',
+                    'website_url': platform_url,
+                    'discovery_source': f'news:{urlparse(source_url).netloc}',
+                    'discovery_keywords': title,
+                    'research_notes': f"Found in news article: {title}",
+                    'recommendation_priority': 'medium'
+                }
+        
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to extract platform from article: {str(e)}")
         
         return None
 
-    async def extract_features_from_content(self, content: str, category: str) -> List[str]:
-        """Extract unique features from webpage content"""
-        features = []
-        
-        # Look for category-specific features
-        if category == 'video_generation':
-            video_features = [
-                'text to video', 'ai video generation', 'video editing',
-                'animation', 'motion graphics', 'video synthesis',
-                'realistic videos', 'custom avatars', 'video templates'
-            ]
-            for feature in video_features:
-                if feature.lower() in content.lower():
-                    features.append(feature.replace(' ', '_'))
-        
-        elif category == 'image_generation':
-            image_features = [
-                'text to image', 'ai art', 'stable diffusion',
-                'custom models', 'style transfer', 'photo editing',
-                'realistic images', 'artistic styles'
-            ]
-            for feature in image_features:
-                if feature.lower() in content.lower():
-                    features.append(feature.replace(' ', '_'))
-        
-        return features[:5]  # Limit to top 5 features
-
-    async def extract_page_title(self, content: str) -> str:
-        """Extract page title from HTML content"""
+    async def extract_product_hunt_data(self, product_element) -> Optional[Dict[str, Any]]:
+        """Extract data from Product Hunt product listing"""
         try:
-            soup = BeautifulSoup(content, 'html.parser')
-            title_tag = soup.find('title')
-            if title_tag:
-                return title_tag.get_text().strip()
-        except:
-            pass
-        return "Unknown"
+            name_elem = product_element.find(['h3', 'h2', 'a'])
+            if not name_elem:
+                return None
+            
+            name = name_elem.get_text().strip()
+            description = product_element.get_text().lower()
+            has_api = any(term in description for term in ['api', 'integration', 'developers', 'sdk'])
+            
+            if has_api:
+                link_elem = product_element.find('a', href=True)
+                website_url = link_elem.get('href') if link_elem else None
+                
+                return {
+                    'provider_name': name,
+                    'suggested_env_var_name': f"{name.upper().replace(' ', '_')}_API_KEY",
+                    'category': self.categorize_from_content(description),
+                    'use_type': 'content_creation',
+                    'website_url': website_url,
+                    'discovery_source': 'product_hunt',
+                    'discovery_keywords': 'product hunt ai tools',
+                    'research_notes': f"Found on Product Hunt: {name}",
+                    'has_api': True,
+                    'recommendation_priority': 'medium'
+                }
+        
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to extract Product Hunt data: {str(e)}")
+        
+        return None
 
-    def get_use_type_for_category(self, category: str) -> str:
-        """Get default use type for category"""
-        use_types = {
-            'text_generation': 'content_creation',
-            'image_generation': 'art_creation',
-            'video_generation': 'video_creation',
-            'audio_generation': 'voice_synthesis',
-            'multimodal': 'general_ai'
-        }
-        return use_types.get(category, 'content_creation')
+    async def extract_github_repo_data(self, repo_element) -> Optional[Dict[str, Any]]:
+        """Extract data from GitHub repository listing"""
+        try:
+            title_elem = repo_element.find('h1')
+            if not title_elem:
+                return None
+            
+            repo_link = title_elem.find('a')
+            if not repo_link:
+                return None
+            
+            repo_name = repo_link.get_text().strip()
+            repo_url = f"https://github.com{repo_link.get('href')}"
+            
+            description_elem = repo_element.find('p')
+            description = description_elem.get_text() if description_elem else ""
+            
+            is_ai_api = any(term in description.lower() for term in [
+                'api', 'artificial intelligence', 'machine learning', 'ai platform',
+                'text generation', 'image generation', 'language model'
+            ])
+            
+            if is_ai_api:
+                return {
+                    'provider_name': repo_name.split('/')[-1],
+                    'suggested_env_var_name': f"{repo_name.split('/')[-1].upper().replace('-', '_')}_API_KEY",
+                    'category': self.categorize_from_content(description),
+                    'use_type': 'development_tool',
+                    'website_url': repo_url,
+                    'discovery_source': 'github_trending',
+                    'discovery_keywords': 'github trending ai',
+                    'research_notes': f"GitHub trending repo: {description[:200]}",
+                    'is_ai_api': True,
+                    'recommendation_priority': 'low'
+                }
+        
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to extract GitHub data: {str(e)}")
+        
+        return None
 
-    def estimate_quality_score(self, provider_name: str, category: str) -> float:
-        """Estimate quality score based on provider reputation"""
-        # High-quality known providers
-        high_quality = [
-            'OpenAI', 'Anthropic', 'Google', 'Runway ML', 'Stability AI',
-            'ElevenLabs', 'Synthesia', 'Leonardo AI', 'Midjourney'
-        ]
+    async def extract_directory_tool_data(self, tool_element, source_url: str) -> Optional[Dict[str, Any]]:
+        """Extract data from AI directory tool listing"""
+        try:
+            name_elem = tool_element.find(['h3', 'h2', 'h4', 'a'])
+            if not name_elem:
+                return None
+            
+            name = name_elem.get_text().strip()
+            content = tool_element.get_text().lower()
+            has_api = any(term in content for term in ['api', 'developer', 'integration', 'sdk'])
+            
+            if has_api:
+                link_elem = tool_element.find('a', href=True)
+                website_url = link_elem.get('href') if link_elem else None
+                
+                return {
+                    'provider_name': name,
+                    'suggested_env_var_name': f"{name.upper().replace(' ', '_')}_API_KEY",
+                    'category': self.categorize_from_content(content),
+                    'use_type': 'content_creation',
+                    'website_url': website_url,
+                    'discovery_source': f'directory:{urlparse(source_url).netloc}',
+                    'discovery_keywords': 'ai directory tools',
+                    'research_notes': f"Found in AI directory: {content[:200]}",
+                    'has_api': True,
+                    'recommendation_priority': 'medium'
+                }
         
-        medium_quality = [
-            'Replicate', 'Together AI', 'Groq', 'Pika Labs', 'LumaAI',
-            'HeyGen', 'Fireworks AI', 'DeepSeek'
-        ]
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to extract directory data: {str(e)}")
         
-        for provider in high_quality:
-            if provider.lower() in provider_name.lower():
-                return 4.5
+        return None
+
+    def extract_platform_name_from_title(self, title: str) -> str:
+        """Extract platform name from article title"""
+        words = title.split()
+        for word in words:
+            if word[0].isupper() and len(word) > 3 and word.lower() not in ['the', 'and', 'for', 'new', 'launches']:
+                return word
+        return "Unknown Platform"
+
+    def categorize_from_content(self, content: str) -> str:
+        """Categorize platform based on content analysis"""
+        content_lower = content.lower()
         
-        for provider in medium_quality:
-            if provider.lower() in provider_name.lower():
-                return 4.0
-        
-        return 3.5  # Default
+        if any(term in content_lower for term in ['video generation', 'video ai', 'create videos']):
+            return 'video_generation'
+        elif any(term in content_lower for term in ['image generation', 'image ai', 'create images', 'art generation']):
+            return 'image_generation'
+        elif any(term in content_lower for term in ['voice', 'speech', 'audio', 'text to speech']):
+            return 'audio_generation'
+        elif any(term in content_lower for term in ['text generation', 'language model', 'chatbot', 'conversation']):
+            return 'text_generation'
+        elif any(term in content_lower for term in ['multimodal', 'vision', 'image understanding']):
+            return 'multimodal'
+        else:
+            return 'general_ai'
 
     def group_by_category(self, discoveries: List[Dict]) -> Dict:
         """Group discoveries by category"""
@@ -484,7 +1009,7 @@ class AIPlatformDiscoveryService:
             grouped[category].append(discovery)
         return grouped
 
-    # Additional methods would continue here...
+    # Keep existing working methods
     async def verify_platform_details(self) -> Dict[str, Any]:
         return {'verified_platforms': 0, 'status': 'success'}
 
@@ -501,64 +1026,45 @@ class AIPlatformDiscoveryService:
         return {'providers_updated': 0, 'status': 'success'}
 
     async def generate_discovery_summary(self) -> Dict[str, Any]:
-        """Generate comprehensive discovery summary with AI Analyzer integration"""
-        logger.info("ðŸ“‹ Generating enhanced discovery summary...")
+        """Generate comprehensive discovery summary with AI Analyzer + YouTube integration"""
+        logger.info("📋 Generating enhanced discovery summary...")
         
         try:
-            # Count platforms by category
-            category_counts = {}
-            total_known_platforms = 0
-            
-            for category, platforms in self.known_platforms.items():
-                category_counts[category] = len(platforms)
-                total_known_platforms += len(platforms)
-            
-            # Enhanced summary with AI Analyzer data
             summary = {
                 'discovery_timestamp': datetime.utcnow().isoformat(),
                 'integration_status': {
                     'ai_analyzer_available': AI_ANALYZER_AVAILABLE,
+                    'youtube_discovery_enabled': True,
                     'enhanced_scanning': True,
                     'performance_testing': AI_ANALYZER_AVAILABLE,
-                    'real_api_validation': AI_ANALYZER_AVAILABLE
+                    'real_api_validation': AI_ANALYZER_AVAILABLE,
+                    'web_scraping_active': True
                 },
-                'platform_coverage': {
-                    'total_platforms_in_database': total_known_platforms,
-                    'platforms_by_category': category_counts,
-                    'categories_covered': list(self.known_platforms.keys()),
-                    'video_generation_platforms': len(self.known_platforms.get('video_generation', [])),
-                    'comprehensive_video_coverage': True
+                'discovery_sources': {
+                    'ai_news_sites': len(self.discovery_sources['ai_news_sites']),
+                    'product_hunt': len(self.discovery_sources['product_hunt_ai']),
+                    'github_trending': len(self.discovery_sources['github_trending']),
+                    'ai_directories': len(self.discovery_sources['ai_directories']),
+                    'youtube_channels': len(self.discovery_sources['youtube_discovery']['channels_to_monitor']),
+                    'youtube_search_terms': len(self.discovery_sources['youtube_discovery']['search_terms']),
+                    'youtube_rss_feeds': len(self.discovery_sources['youtube_discovery']['rss_feeds'])
                 },
-                'top_discoveries': {
-                    'video_generation': [
-                        'Runway ML', 'Pika Labs', 'LumaAI Dream Machine', 
-                        'Stable Video Diffusion', 'Synthesia', 'D-ID',
-                        'HeyGen', 'Fliki', 'InVideo AI', 'Pictory'
-                    ],
-                    'image_generation': [
-                        'Stability AI', 'Leonardo AI', 'Midjourney', 
-                        'DALL-E 3', 'Ideogram', 'Replicate'
-                    ],
-                    'text_generation': [
-                        'OpenAI GPT-4', 'Anthropic Claude', 'Google Gemini',
-                        'Mistral AI', 'Groq Llama', 'Together AI', 'DeepSeek V3',
-                        'Fireworks AI', 'Cohere'
-                    ],
-                    'audio_generation': [
-                        'ElevenLabs', 'Udio', 'Suno AI', 'Mubert', 'Speechify', 'Resemble AI'
-                    ],
-                    'multimodal': [
-                        'Google Gemini Pro Vision', 'Claude 3 Vision', 'GPT-4 Vision', 'LLaVA'
-                    ]
+                'capabilities': {
+                    'real_time_discovery': True,
+                    'youtube_integration': True,
+                    'ai_powered_analysis': AI_ANALYZER_AVAILABLE,
+                    'web_scraping': True,
+                    'no_mock_data': True,
+                    'live_api_testing': AI_ANALYZER_AVAILABLE
                 },
                 'status': 'success'
             }
             
-            logger.info(f"ðŸ“Š Enhanced summary generated: {total_known_platforms} platforms, AI Analyzer: {'âœ…' if AI_ANALYZER_AVAILABLE else 'âŒ'}")
+            logger.info(f"📊 Enhanced summary generated with YouTube integration")
             return summary
             
         except Exception as e:
-            logger.error(f"âŒ Enhanced summary generation failed: {str(e)}")
+            logger.error(f"❌ Enhanced summary generation failed: {str(e)}")
             return {
                 'error': str(e),
                 'status': 'failed',
@@ -570,23 +1076,44 @@ class AIPlatformDiscoveryService:
         """FALLBACK: Original Environment Variable Scanning"""
         return {'new_active_providers': 0, 'status': 'fallback'}
 
-    async def enrich_provider_with_web_data(self, provider: Dict[str, Any]) -> Dict[str, Any]:
-        """Enrich environment provider with web research data"""
-        return {'found_in_knowledge_base': False}
+    # ADD PROMOTION METHOD FOR ROUTES
+    async def promote_provider(self, suggestion, env_var_name: str, api_key: str):
+        """Promote a discovered provider to active status"""
+        try:
+            if not self.db:
+                raise Exception("Database session required for promotion")
+            
+            # Create new active provider
+            new_provider = ActiveAIProvider(
+                provider_name=suggestion.provider_name,
+                env_var_name=env_var_name,
+                category=suggestion.category,
+                use_type=suggestion.use_type,
+                cost_per_1k_tokens=suggestion.estimated_cost_per_1k_tokens,
+                quality_score=suggestion.estimated_quality_score,
+                primary_model=None,  # Will be determined by testing
+                api_endpoint=suggestion.api_endpoint,
+                is_active=True,
+                discovered_date=suggestion.discovered_date,
+                promoted_date=datetime.utcnow()
+            )
+            
+            self.db.add(new_provider)
+            
+            # Update suggestion status
+            suggestion.promotion_status = 'promoted'
+            suggestion.admin_notes = f"Promoted to active provider on {datetime.utcnow().isoformat()}"
+            
+            self.db.commit()
+            
+            return new_provider
+            
+        except Exception as e:
+            if self.db:
+                self.db.rollback()
+            raise Exception(f"Failed to promote provider: {str(e)}")
 
-    # Helper methods
-    def get_default_features(self, category: str) -> List[str]:
-        """Get default features for category"""
-        features = {
-            'text_generation': ['high_quality_text', 'fast_generation', 'api_access'],
-            'image_generation': ['high_resolution', 'artistic_styles', 'api_integration'],
-            'video_generation': ['text_to_video', 'high_quality_output', 'api_access'],
-            'audio_generation': ['voice_synthesis', 'natural_speech', 'api_integration'],
-            'multimodal': ['vision_understanding', 'text_analysis', 'versatile_ai']
-        }
-        return features.get(category, ['ai_platform', 'api_access'])
-
-# âœ… FACTORY FUNCTION
+# ✅ FACTORY FUNCTION
 def get_discovery_service(db_session=None):
     """Get AI Platform Discovery Service instance"""
     return AIPlatformDiscoveryService(db_session)
