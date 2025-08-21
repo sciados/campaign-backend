@@ -1,15 +1,15 @@
 # src/services/ai_platform_discovery.py - INTEGRATED WITH AI ANALYZER
 
 """
-🔍 AI Platform Discovery & Management System - INTEGRATED VERSION
+ðŸ” AI Platform Discovery & Management System - INTEGRATED VERSION
 
 Two-Table Architecture + AI Analyzer Integration:
 1. active_ai_providers - Only providers with environment API keys (Top 3 per category)
 2. discovered_ai_providers - Research discoveries and suggestions
 
 Process:
-1. AI Analyzer scans environment → Update Table 1 with REAL performance data
-2. Main Discovery researches web → Update Table 2  
+1. AI Analyzer scans environment â†’ Update Table 1 with REAL performance data
+2. Main Discovery researches web â†’ Update Table 2  
 3. Combined AI-powered categorization and analysis
 4. Rank and prioritize discoveries
 """
@@ -27,13 +27,13 @@ from sqlalchemy.ext.declarative import declarative_base
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
-# 🚨 NEW: Import AI Analyzer for enhanced environment scanning
+# ðŸš¨ NEW: Import AI Analyzer for enhanced environment scanning
 try:
     from src.services.ai_provider_analyzer import get_ai_provider_analyzer
     AI_ANALYZER_AVAILABLE = True
 except ImportError:
     AI_ANALYZER_AVAILABLE = False
-    logging.warning("⚠️ AI Provider Analyzer not available - using fallback methods")
+    logging.warning("âš ï¸ AI Provider Analyzer not available - using fallback methods")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
-# ✅ TABLE 1: Active AI Providers (with API keys)
+# âœ… TABLE 1: Active AI Providers (with API keys)
 class ActiveAIProvider(Base):
     """Providers with API keys in environment variables - Ready to use"""
     __tablename__ = "active_ai_providers"
@@ -77,7 +77,7 @@ class ActiveAIProvider(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
-# ✅ TABLE 2: Discovered AI Providers (research suggestions)
+# âœ… TABLE 2: Discovered AI Providers (research suggestions)
 class DiscoveredAIProvider(Base):
     """New AI platforms discovered via web research - Suggestions for future use"""
     __tablename__ = "discovered_ai_providers"
@@ -130,7 +130,7 @@ class AIPlatformDiscoveryService:
         self.db = db_session
         self.session = None  # Will be created for web requests
         
-        # 🎯 COMPREHENSIVE AI Platform Knowledge Base
+        # ðŸŽ¯ COMPREHENSIVE AI Platform Knowledge Base
         self.known_platforms = {
             'text_generation': [
                 {'name': 'OpenAI GPT-4', 'domain': 'openai.com', 'env_var': 'OPENAI_API_KEY'},
@@ -181,9 +181,9 @@ class AIPlatformDiscoveryService:
 
     async def full_discovery_cycle(self) -> Dict[str, Any]:
         """
-        🔄 Complete INTEGRATED discovery cycle with AI Analyzer
+        ðŸ”„ Complete INTEGRATED discovery cycle with AI Analyzer
         """
-        logger.info("🚀 Starting ENHANCED AI platform discovery cycle with AI Analyzer...")
+        logger.info("ðŸš€ Starting ENHANCED AI platform discovery cycle with AI Analyzer...")
         
         try:
             # Create HTTP session for web requests
@@ -198,21 +198,21 @@ class AIPlatformDiscoveryService:
                 results = {
                     'timestamp': datetime.utcnow().isoformat(),
                     'ai_analyzer_available': AI_ANALYZER_AVAILABLE,
-                    'environment_scan': await self.enhanced_environment_scan(),  # 🚨 NEW: Enhanced with AI Analyzer
+                    'environment_scan': await self.enhanced_environment_scan(),  # ðŸš¨ NEW: Enhanced with AI Analyzer
                     'web_research': await self.research_new_platforms(),
                     'platform_verification': await self.verify_platform_details(),
                     'ai_categorization': await self.ai_categorize_platforms(),
-                    'performance_testing': await self.test_provider_performance(),  # 🚨 NEW: AI Analyzer performance testing
+                    'performance_testing': await self.test_provider_performance(),  # ðŸš¨ NEW: AI Analyzer performance testing
                     'ranking_update': await self.update_rankings(),
                     'database_update': await self.update_database(),
                     'summary': await self.generate_discovery_summary()
                 }
                 
-                logger.info(f"✅ Enhanced discovery cycle completed successfully")
+                logger.info(f"âœ… Enhanced discovery cycle completed successfully")
                 return results
                 
         except Exception as e:
-            logger.error(f"❌ Discovery cycle failed: {str(e)}")
+            logger.error(f"âŒ Discovery cycle failed: {str(e)}")
             return {
                 'error': str(e),
                 'status': 'failed',
@@ -222,9 +222,9 @@ class AIPlatformDiscoveryService:
 
     async def enhanced_environment_scan(self) -> Dict[str, Any]:
         """
-        1️⃣ ENHANCED Environment Scanning with AI Analyzer Integration
+        1ï¸âƒ£ ENHANCED Environment Scanning with AI Analyzer Integration
         """
-        logger.info("🔍 Enhanced environment scanning with AI Analyzer...")
+        logger.info("ðŸ” Enhanced environment scanning with AI Analyzer...")
         
         try:
             results = {
@@ -234,10 +234,10 @@ class AIPlatformDiscoveryService:
                 'status': 'success'
             }
             
-            # 🚨 PRIMARY: Use AI Analyzer if available
+            # ðŸš¨ PRIMARY: Use AI Analyzer if available
             if AI_ANALYZER_AVAILABLE:
                 try:
-                    logger.info("🤖 Using AI Provider Analyzer for enhanced scanning...")
+                    logger.info("ðŸ¤– Using AI Provider Analyzer for enhanced scanning...")
                     analyzer = get_ai_provider_analyzer()
                     ai_results = await analyzer.discover_providers_from_environment()
                     
@@ -258,15 +258,15 @@ class AIPlatformDiscoveryService:
                         }
                         results['combined_providers'].append(enhanced_provider)
                     
-                    logger.info(f"🎯 AI Analyzer found {len(ai_results)} providers with full analysis")
+                    logger.info(f"ðŸŽ¯ AI Analyzer found {len(ai_results)} providers with full analysis")
                     
                 except Exception as e:
-                    logger.warning(f"⚠️ AI Analyzer failed, falling back to basic scan: {str(e)}")
+                    logger.warning(f"âš ï¸ AI Analyzer failed, falling back to basic scan: {str(e)}")
                     AI_ANALYZER_AVAILABLE = False
             
-            # 🚨 FALLBACK: Use original scanning method
+            # ðŸš¨ FALLBACK: Use original scanning method
             if not AI_ANALYZER_AVAILABLE or not results['combined_providers']:
-                logger.info("🔍 Using fallback environment scanning...")
+                logger.info("ðŸ” Using fallback environment scanning...")
                 fallback_results = await self.scan_environment_providers()
                 results['fallback_results'] = fallback_results
                 
@@ -282,11 +282,11 @@ class AIPlatformDiscoveryService:
                         }
                         results['combined_providers'].append(enhanced_provider)
             
-            # 🚨 ENHANCEMENT: Add web research context to environment providers
+            # ðŸš¨ ENHANCEMENT: Add web research context to environment providers
             for provider in results['combined_providers']:
                 provider['web_research'] = await self.enrich_provider_with_web_data(provider)
             
-            logger.info(f"📊 Enhanced environment scan completed: {len(results['combined_providers'])} providers")
+            logger.info(f"ðŸ“Š Enhanced environment scan completed: {len(results['combined_providers'])} providers")
             
             return {
                 'enhanced_providers': len(results['combined_providers']),
@@ -299,7 +299,7 @@ class AIPlatformDiscoveryService:
             }
             
         except Exception as e:
-            logger.error(f"❌ Enhanced environment scan failed: {str(e)}")
+            logger.error(f"âŒ Enhanced environment scan failed: {str(e)}")
             return {
                 'error': str(e),
                 'status': 'failed',
@@ -308,16 +308,16 @@ class AIPlatformDiscoveryService:
 
     async def research_new_platforms(self) -> Dict[str, Any]:
         """
-        2️⃣ REAL Web Research for AI Platforms
+        2ï¸âƒ£ REAL Web Research for AI Platforms
         """
-        logger.info("🌐 Researching web for new AI platforms...")
+        logger.info("ðŸŒ Researching web for new AI platforms...")
         
         try:
             all_discovered = []
             
             # Research each category
             for category, platforms in self.known_platforms.items():
-                logger.info(f"🔍 Researching {category} platforms...")
+                logger.info(f"ðŸ” Researching {category} platforms...")
                 
                 category_discoveries = []
                 for platform in platforms:
@@ -331,13 +331,13 @@ class AIPlatformDiscoveryService:
                         await asyncio.sleep(0.5)
                         
                     except Exception as e:
-                        logger.warning(f"⚠️ Failed to research {platform['name']}: {str(e)}")
+                        logger.warning(f"âš ï¸ Failed to research {platform['name']}: {str(e)}")
                         continue
                 
                 all_discovered.extend(category_discoveries)
-                logger.info(f"📊 Found {len(category_discoveries)} {category} platforms")
+                logger.info(f"ðŸ“Š Found {len(category_discoveries)} {category} platforms")
             
-            logger.info(f"🎯 Total platforms discovered: {len(all_discovered)}")
+            logger.info(f"ðŸŽ¯ Total platforms discovered: {len(all_discovered)}")
             
             return {
                 'platforms_researched': len(all_discovered),
@@ -348,7 +348,7 @@ class AIPlatformDiscoveryService:
             }
             
         except Exception as e:
-            logger.error(f"❌ Web research failed: {str(e)}")
+            logger.error(f"âŒ Web research failed: {str(e)}")
             return {
                 'error': str(e),
                 'status': 'failed',
@@ -385,7 +385,7 @@ class AIPlatformDiscoveryService:
                     return platform_info
                     
         except Exception as e:
-            logger.warning(f"⚠️ Could not research {platform['name']}: {str(e)}")
+            logger.warning(f"âš ï¸ Could not research {platform['name']}: {str(e)}")
             # Return basic info even if web scraping fails
             return {
                 'provider_name': platform['name'],
@@ -502,7 +502,7 @@ class AIPlatformDiscoveryService:
 
     async def generate_discovery_summary(self) -> Dict[str, Any]:
         """Generate comprehensive discovery summary with AI Analyzer integration"""
-        logger.info("📋 Generating enhanced discovery summary...")
+        logger.info("ðŸ“‹ Generating enhanced discovery summary...")
         
         try:
             # Count platforms by category
@@ -554,11 +554,11 @@ class AIPlatformDiscoveryService:
                 'status': 'success'
             }
             
-            logger.info(f"📊 Enhanced summary generated: {total_known_platforms} platforms, AI Analyzer: {'✅' if AI_ANALYZER_AVAILABLE else '❌'}")
+            logger.info(f"ðŸ“Š Enhanced summary generated: {total_known_platforms} platforms, AI Analyzer: {'âœ…' if AI_ANALYZER_AVAILABLE else 'âŒ'}")
             return summary
             
         except Exception as e:
-            logger.error(f"❌ Enhanced summary generation failed: {str(e)}")
+            logger.error(f"âŒ Enhanced summary generation failed: {str(e)}")
             return {
                 'error': str(e),
                 'status': 'failed',
@@ -586,7 +586,7 @@ class AIPlatformDiscoveryService:
         }
         return features.get(category, ['ai_platform', 'api_access'])
 
-# ✅ FACTORY FUNCTION
+# âœ… FACTORY FUNCTION
 def get_discovery_service(db_session=None):
     """Get AI Platform Discovery Service instance"""
     return AIPlatformDiscoveryService(db_session)
