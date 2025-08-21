@@ -292,7 +292,11 @@ def initialize_database():
         # Test async connection
         try:
             import asyncio
-            asyncio.get_event_loop().run_until_complete(test_async_connection())
+            try:
+                asyncio.get_event_loop().run_until_complete(test_async_connection())
+            except RuntimeError:
+                # Event loop already running, skip async test
+                logger.info("ℹ️ Skipping async connection test (event loop running)")
         except Exception as async_test_error:
             logger.warning(f"⚠️ Async connection test failed: {async_test_error}")
         

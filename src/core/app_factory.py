@@ -1,4 +1,4 @@
-# src/core/app_factory.py - App Creation & Configuration (FIXED)
+# src/core/app_factory.py - App Creation & Configuration (FIXED - NO AI DISCOVERY INTERFERENCE)
 """
 FastAPI app creation, middleware, basic configuration, and lifespan management
 Responsibility: FastAPI app instantiation, CORS middleware, TrustedHost middleware,
@@ -43,7 +43,7 @@ def get_async_session_manager():
     return AsyncSessionManager()
 
 # ============================================================================
-# ✅ APPLICATION LIFESPAN - FIXED VERSION
+# ✅ APPLICATION LIFESPAN - FIXED VERSION (NO AI DISCOVERY INTERFERENCE)
 # ============================================================================
 
 @asynccontextmanager
@@ -112,28 +112,8 @@ async def create_lifespan(app: FastAPI):
     except Exception as e:
         logging.warning(f"⚠️ AI monitoring system initialization failed: {e}")
     
-    # 🆕 FIXED: Initialize AI Discovery system without async context manager issues
-    try:
-        from src.services.ai_platform_discovery import get_discovery_service
-        from src.core.ai_discovery_database import test_ai_discovery_connection
-        
-        # ✅ FIX: Test database connection without async context manager
-        db_connected = test_ai_discovery_connection()
-        if not db_connected:
-            logging.warning("⚠️ AI Discovery database connection failed - using mock mode")
-        
-        # ✅ FIX: Initialize discovery service without database dependency
-        discovery_service = get_discovery_service()
-        
-        logging.info("✅ AI Platform Discovery System initialized (mock mode if DB failed)")
-    except Exception as e:
-        logging.warning(f"⚠️ AI Discovery system initialization failed: {e}")
-        # Create a mock service
-        try:
-            from src.services.ai_platform_discovery import AIPlatformDiscoveryService
-            logging.info("✅ AI Discovery fallback service created")
-        except Exception as fallback_error:
-            logging.error(f"❌ AI Discovery fallback failed: {fallback_error}")
+    # ✅ REMOVED: AI Discovery initialization that was causing interference
+    # Let AI Discovery work as it did before refactoring - no interference!
     
     logging.info("🎯 CampaignForge AI Backend startup completed")
     
