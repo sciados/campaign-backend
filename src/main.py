@@ -105,7 +105,7 @@ async def create_campaignforge_app():
     
     # Phase 5: Include emergency endpoints with live database queries
     logger.info("🚨 Phase 5: Including emergency endpoints...")
-    include_emergency_endpoints(app)
+    # include_emergency_endpoints(app)
     
     # Log orchestration summary
     router_status = get_router_status()
