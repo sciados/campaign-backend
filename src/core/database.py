@@ -1,4 +1,5 @@
 # src/core/database.py - FIXED VERSION for AsyncEngine with proper driver
+from email.mime import text
 import os
 import logging
 from sqlalchemy import create_engine, MetaData
@@ -250,7 +251,7 @@ async def test_async_connection():
     """
     try:
         async with async_engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
         logger.info("✅ Async database connection test successful (asyncpg)")
         return True
     except Exception as e:
