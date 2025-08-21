@@ -278,9 +278,20 @@ def register_all_routers(app: FastAPI):
         routes_registered += 1
 
     if AI_DISCOVERY_ROUTER_AVAILABLE and ai_discovery_router:
-        app.include_router(ai_discovery_router, prefix="/api/admin/ai-discovery", tags=["ai-discovery"])
-        logging.info("ðŸ“¡ AI Discovery router registered")
-        routes_registered += 1
+        try:
+            print(f"🔄 Attempting to register AI Discovery router...")
+            print(f"🔍 Router object exists: {ai_discovery_router is not None}")
+            print(f"🔍 Router has routes: {len(ai_discovery_router.routes) if hasattr(ai_discovery_router, 'routes') else 'No routes'}")
+        
+            app.include_router(ai_discovery_router, prefix="/api/admin/ai-discovery", tags=["ai-discovery"])
+        
+            print("✅ AI Discovery router registered successfully")
+            logging.info("📡 AI Discovery router registered")
+            routes_registered += 1
+        except Exception as e:
+            print(f"❌ AI Discovery router registration failed: {e}")
+            print(f"🔍 Full error: {traceback.format_exc()}")
+            logging.error(f"❌ AI Discovery router registration failed: {e}")
 
     if INTELLIGENCE_MAIN_ROUTER_AVAILABLE and intelligence_main_router:
         app.include_router(intelligence_main_router, prefix="/api/intelligence", tags=["intelligence"])
