@@ -47,7 +47,7 @@ def get_async_session_manager():
 # ============================================================================
 
 @asynccontextmanager
-async def create_lifespan():
+async def create_lifespan(app: FastAPI):
     """Application lifespan manager - FIXED VERSION"""
     # Startup
     logging.info("🚀 Starting CampaignForge AI Backend with Ultra-Cheap AI + Dual Storage + AI Monitoring + Enhanced Email Generation + AI Discovery System + FIXED Content Routes...")
