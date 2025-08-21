@@ -135,10 +135,14 @@ def import_core_routers():
 
     try:
         from src.routes.ai_platform_discovery import router as ai_discovery_router
-        logging.info("âœ… AI Platform Discovery System router imported successfully")
         AI_DISCOVERY_ROUTER_AVAILABLE = True
+        print("✅ AI Platform Discovery System router imported successfully")
+        print(f"🔍 AI Discovery router object: {ai_discovery_router}")
+        print(f"🔍 AI Discovery router routes: {len(ai_discovery_router.routes) if hasattr(ai_discovery_router, 'routes') else 'No routes'}")
+        logging.info("✅ AI Platform Discovery System router imported successfully")
     except ImportError as e:
-        logging.warning(f"âš ï¸ AI Platform Discovery System router not available: {e}")
+        print(f"❌ AI Discovery router import failed: {e}")
+        logging.warning(f"⚠️ AI Platform Discovery System router not available: {e}")
 
 def import_intelligence_routers():
     """Import intelligence and AI-related routers"""
