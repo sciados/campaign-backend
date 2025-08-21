@@ -265,14 +265,40 @@ try:
     # Force sync creation for Railway
     def create_app_sync():
         """Create app synchronously for Railway deployment"""
-        return asyncio.run(create_campaignforge_app())
+        print("🔍 DEBUG: About to call create_campaignforge_app()")
+        logger.info("🔍 DEBUG: About to call create_campaignforge_app()")
+        result = asyncio.run(create_campaignforge_app())
+        print("🔍 DEBUG: create_campaignforge_app() completed")
+        logger.info("🔍 DEBUG: create_campaignforge_app() completed")
+        return result
     
+    print("🚀 DEBUG: Creating app for Railway deployment...")
     logger.info("🚀 Creating app for Railway deployment...")
     app = create_app_sync()
+    print("✅ DEBUG: App created successfully for Railway")
     logger.info("✅ App created successfully for Railway")
+    
+    # Debug: Check how many routes we have
+    route_count = len(app.routes)
+    print(f"🔍 DEBUG: App has {route_count} routes after creation")
+    logger.info(f"🔍 DEBUG: App has {route_count} routes after creation")
+    
+    # Debug: Check if auth routes exist
+    auth_routes = [route for route in app.routes if hasattr(route, 'path') and '/auth/' in route.path]
+    print(f"🔍 DEBUG: Found {len(auth_routes)} auth routes")
+    logger.info(f"🔍 DEBUG: Found {len(auth_routes)} auth routes")
+    
+    for route in auth_routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            print(f"🔍 DEBUG: Auth route: {list(route.methods)} {route.path}")
+            logger.info(f"🔍 DEBUG: Auth route: {list(route.methods)} {route.path}")
         
 except Exception as e:
+    print(f"❌ DEBUG: Failed to create app at module level: {e}")
     logger.error(f"❌ Failed to create app at module level: {e}")
+    import traceback
+    print(f"❌ DEBUG: Full traceback: {traceback.format_exc()}")
+    logger.error(f"❌ DEBUG: Full traceback: {traceback.format_exc()}")
     
     # Fallback: Create minimal app
     from fastapi import FastAPI
