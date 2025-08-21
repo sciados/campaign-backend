@@ -14,7 +14,7 @@ from fastapi import FastAPI
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# ✅ ROUTER AVAILABILITY FLAGS
+# âœ… ROUTER AVAILABILITY FLAGS
 # ============================================================================
 
 # Core router flags
@@ -61,7 +61,7 @@ document_router = None
 include_ai_monitoring_routes = None
 
 # ============================================================================
-# ✅ IMPORT CORE ROUTERS
+# âœ… IMPORT CORE ROUTERS
 # ============================================================================
 
 def import_core_routers():
@@ -74,71 +74,71 @@ def import_core_routers():
     global DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE, dynamic_ai_providers_router
     global AI_DISCOVERY_ROUTER_AVAILABLE, ai_discovery_router
     
-    print("🔍 Starting auth router import...")
+    print("ðŸ” Starting auth router import...")
     
     # Import auth router with detailed debugging - COPY EXACT LOGIC FROM ORIGINAL
     try:
         from src.auth.routes import router as auth_router
         AUTH_ROUTER_AVAILABLE = True
-        print("✅ Auth router imported successfully")
-        print(f"🔍 Auth router object: {type(auth_router)}")
-        print(f"🔍 Auth router routes: {len(auth_router.routes) if hasattr(auth_router, 'routes') else 'No routes'}")
-        logging.info("✅ Auth router imported successfully")
+        print("âœ… Auth router imported successfully")
+        print(f"ðŸ” Auth router object: {type(auth_router)}")
+        print(f"ðŸ” Auth router routes: {len(auth_router.routes) if hasattr(auth_router, 'routes') else 'No routes'}")
+        logging.info("âœ… Auth router imported successfully")
     except ImportError as e:
         AUTH_ROUTER_AVAILABLE = False
         auth_router = None
-        print(f"❌ Auth router import failed: {e}")
-        logging.error(f"❌ Auth router not available: {e}")
+        print(f"âŒ Auth router import failed: {e}")
+        logging.error(f"âŒ Auth router not available: {e}")
     except Exception as e:
         AUTH_ROUTER_AVAILABLE = False  
         auth_router = None
-        print(f"❌ Auth router unexpected error: {e}")
-        logging.error(f"❌ Auth router unexpected error: {e}")
+        print(f"âŒ Auth router unexpected error: {e}")
+        logging.error(f"âŒ Auth router unexpected error: {e}")
     
-    print(f"🔍 Final auth status: AUTH_ROUTER_AVAILABLE={AUTH_ROUTER_AVAILABLE}, auth_router={auth_router}")
+    print(f"ðŸ” Final auth status: AUTH_ROUTER_AVAILABLE={AUTH_ROUTER_AVAILABLE}, auth_router={auth_router}")
     
     # Import other routers
     try:
         from src.campaigns.routes import router as campaigns_router
         CAMPAIGNS_ROUTER_AVAILABLE = True
-        logging.info("✅ Campaigns router imported successfully")
+        logging.info("âœ… Campaigns router imported successfully")
     except ImportError as e:
-        logging.error(f"❌ Campaigns router not available: {e}")
+        logging.error(f"âŒ Campaigns router not available: {e}")
 
     try:
         from src.dashboard.routes import router as dashboard_router
-        logging.info("✅ Dashboard router imported successfully")
+        logging.info("âœ… Dashboard router imported successfully")
         DASHBOARD_ROUTER_AVAILABLE = True
     except ImportError as e:
-        logging.warning(f"⚠️ Dashboard router not available: {e}")
+        logging.warning(f"âš ï¸ Dashboard router not available: {e}")
 
     try:
         from src.admin.routes import router as admin_router
-        logging.info("✅ Admin router imported successfully")
+        logging.info("âœ… Admin router imported successfully")
         ADMIN_ROUTER_AVAILABLE = True
     except ImportError as e:
-        logging.warning(f"⚠️ Admin router not available: {e}")
+        logging.warning(f"âš ï¸ Admin router not available: {e}")
 
     try:
         from src.routes.waitlist import router as waitlist_router
-        logging.info("✅ Waitlist router imported successfully")
+        logging.info("âœ… Waitlist router imported successfully")
         WAITLIST_ROUTER_AVAILABLE = True
     except ImportError as e:
-        logging.warning(f"⚠️ Waitlist router not available: {e}")
+        logging.warning(f"âš ï¸ Waitlist router not available: {e}")
 
     try:
         from src.routes.dynamic_ai_providers import router as dynamic_ai_providers_router
-        logging.info("✅ Dynamic AI providers router imported successfully")
+        logging.info("âœ… Dynamic AI providers router imported successfully")
         DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE = True
     except ImportError as e:
-        logging.warning(f"⚠️ Dynamic AI providers router not available: {e}")
+        logging.warning(f"âš ï¸ Dynamic AI providers router not available: {e}")
 
     try:
         from src.routes.ai_platform_discovery import router as ai_discovery_router
-        logging.info("✅ AI Platform Discovery System router imported successfully")
+        logging.info("âœ… AI Platform Discovery System router imported successfully")
         AI_DISCOVERY_ROUTER_AVAILABLE = True
     except ImportError as e:
-        logging.warning(f"⚠️ AI Platform Discovery System router not available: {e}")
+        logging.warning(f"âš ï¸ AI Platform Discovery System router not available: {e}")
 
 def import_intelligence_routers():
     """Import intelligence and AI-related routers"""
@@ -156,25 +156,25 @@ def import_intelligence_routers():
     # Import enhanced email models
     try:
         from src.models.email_subject_templates import EmailSubjectTemplate, EmailSubjectPerformance
-        logging.info("✅ Enhanced email models imported successfully")
+        logging.info("âœ… Enhanced email models imported successfully")
         EMAIL_MODELS_AVAILABLE = True
     except ImportError as e:
-        logging.warning(f"⚠️ Enhanced email models not available: {e}")
+        logging.warning(f"âš ï¸ Enhanced email models not available: {e}")
 
     # Import intelligence routers
     try:
         from src.intelligence.routes import router as intelligence_main_router
         INTELLIGENCE_MAIN_ROUTER_AVAILABLE = True
-        logging.info("✅ Intelligence main router imported successfully")
+        logging.info("âœ… Intelligence main router imported successfully")
     except ImportError as e:
-        logging.warning(f"⚠️ Intelligence main router not available: {e}")
+        logging.warning(f"âš ï¸ Intelligence main router not available: {e}")
 
     try:
         from src.intelligence.routers.content_routes import router as content_router
-        logging.info("✅ Content generation router imported successfully")
+        logging.info("âœ… Content generation router imported successfully")
         CONTENT_ROUTER_AVAILABLE = True
     except ImportError as e:
-        logging.error(f"❌ Content generation router not available: {e}")
+        logging.error(f"âŒ Content generation router not available: {e}")
 
     # Update system status flags
     INTELLIGENCE_ROUTERS_AVAILABLE = any([
@@ -195,16 +195,16 @@ def import_intelligence_routers():
     EMAIL_SYSTEM_AVAILABLE = ENHANCED_EMAIL_ROUTER_AVAILABLE and EMAIL_MODELS_AVAILABLE
 
 # ============================================================================
-# ✅ ROUTER REGISTRATION FUNCTIONS
+# âœ… ROUTER REGISTRATION FUNCTIONS
 # ============================================================================
 
 def register_all_routers(app: FastAPI):
     """Register all routers with the FastAPI app"""
-    print("🔄 Starting router registration...")
-    logging.info("🔄 Starting router registration...")
+    print("ðŸ”„ Starting router registration...")
+    logging.info("ðŸ”„ Starting router registration...")
     
     # Import all routers first
-    print("📥 Importing routers...")
+    print("ðŸ“¥ Importing routers...")
     import_core_routers()
     import_intelligence_routers()
     
@@ -214,82 +214,82 @@ def register_all_routers(app: FastAPI):
     try:
         from src.routes.health import health_router
         app.include_router(health_router)
-        print("✅ Health router registered")
-        logging.info("📡 Health router registered")
+        print("âœ… Health router registered")
+        logging.info("ðŸ“¡ Health router registered")
         routes_registered += 1
     except Exception as e:
-        print(f"❌ Failed to register health router: {e}")
-        logging.error(f"❌ Failed to register health router: {e}")
+        print(f"âŒ Failed to register health router: {e}")
+        logging.error(f"âŒ Failed to register health router: {e}")
     
-    # ✅ COPY EXACT LOGIC FROM ORIGINAL MAIN.PY WITH DEBUG
-    print(f"🔍 About to register auth router - AUTH_ROUTER_AVAILABLE: {AUTH_ROUTER_AVAILABLE}")
-    print(f"🔍 auth_router object: {auth_router}")
+    # âœ… COPY EXACT LOGIC FROM ORIGINAL MAIN.PY WITH DEBUG
+    print(f"ðŸ” About to register auth router - AUTH_ROUTER_AVAILABLE: {AUTH_ROUTER_AVAILABLE}")
+    print(f"ðŸ” auth_router object: {auth_router}")
     
     if AUTH_ROUTER_AVAILABLE:
         try:
-            print("🔄 Registering auth router...")
+            print("ðŸ”„ Registering auth router...")
             app.include_router(auth_router, prefix="/api")
-            print("✅ Auth router registered successfully")
-            logging.info("📡 Auth router registered")
+            print("âœ… Auth router registered successfully")
+            logging.info("ðŸ“¡ Auth router registered")
             routes_registered += 1
             
-            # ✅ COPY EXACT DEBUG FROM ORIGINAL
-            print(f"🔍 Auth router has {len(auth_router.routes)} routes:")
+            # âœ… COPY EXACT DEBUG FROM ORIGINAL
+            print(f"ðŸ” Auth router has {len(auth_router.routes)} routes:")
             for route in auth_router.routes:
                 if hasattr(route, 'path') and hasattr(route, 'methods'):
                     print(f"  {list(route.methods)} /api{route.path}")
                 else:
                     print(f"  Route object: {type(route)} - {route}")
         except Exception as e:
-            print(f"❌ Auth router registration failed: {e}")
-            logging.error(f"❌ Auth router registration failed: {e}")
+            print(f"âŒ Auth router registration failed: {e}")
+            logging.error(f"âŒ Auth router registration failed: {e}")
     else:
-        print("❌ Auth router not available - authentication will not work")
-        logging.error("❌ Auth router not registered - authentication will not work")
+        print("âŒ Auth router not available - authentication will not work")
+        logging.error("âŒ Auth router not registered - authentication will not work")
     
     # Register other routers
     if CAMPAIGNS_ROUTER_AVAILABLE and campaigns_router:
         app.include_router(campaigns_router, prefix="/api/campaigns", tags=["campaigns"])
-        logging.info("📡 Campaigns router registered")
+        logging.info("ðŸ“¡ Campaigns router registered")
         routes_registered += 1
 
     if DASHBOARD_ROUTER_AVAILABLE and dashboard_router:
         app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
-        logging.info("📡 Dashboard router registered")
+        logging.info("ðŸ“¡ Dashboard router registered")
         routes_registered += 1
 
     if ADMIN_ROUTER_AVAILABLE and admin_router:
         app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
-        logging.info("📡 Admin router registered")
+        logging.info("ðŸ“¡ Admin router registered")
         routes_registered += 1
 
     if WAITLIST_ROUTER_AVAILABLE and waitlist_router:
         app.include_router(waitlist_router, prefix="/api/waitlist", tags=["waitlist"])
-        logging.info("📡 Waitlist router registered")
+        logging.info("ðŸ“¡ Waitlist router registered")
         routes_registered += 1
 
     if DYNAMIC_AI_PROVIDERS_ROUTER_AVAILABLE and dynamic_ai_providers_router:
         app.include_router(dynamic_ai_providers_router, prefix="/admin", tags=["admin", "ai-providers"])
-        logging.info("📡 Dynamic AI providers router registered")
+        logging.info("ðŸ“¡ Dynamic AI providers router registered")
         routes_registered += 1
 
     if AI_DISCOVERY_ROUTER_AVAILABLE and ai_discovery_router:
         app.include_router(ai_discovery_router, prefix="/api/admin/ai-discovery", tags=["ai-discovery"])
-        logging.info("📡 AI Discovery router registered")
+        logging.info("ðŸ“¡ AI Discovery router registered")
         routes_registered += 1
 
     if INTELLIGENCE_MAIN_ROUTER_AVAILABLE and intelligence_main_router:
         app.include_router(intelligence_main_router, prefix="/api/intelligence", tags=["intelligence"])
-        logging.info("📡 Intelligence router registered")
+        logging.info("ðŸ“¡ Intelligence router registered")
         routes_registered += 1
 
     if CONTENT_ROUTER_AVAILABLE and content_router:
         app.include_router(content_router, prefix="/api/intelligence/content", tags=["content"])
-        logging.info("📡 Content router registered")
+        logging.info("ðŸ“¡ Content router registered")
         routes_registered += 1
     
-    print(f"✅ Router registration completed: {routes_registered} routers registered")
-    logging.info(f"✅ Router registration completed: {routes_registered} routers registered")
+    print(f"âœ… Router registration completed: {routes_registered} routers registered")
+    logging.info(f"âœ… Router registration completed: {routes_registered} routers registered")
     
     return {
         "total_routes": routes_registered,
@@ -322,7 +322,7 @@ def get_router_status():
     }
 
 # ============================================================================
-# ✅ EXPORTS
+# âœ… EXPORTS
 # ============================================================================
 
 __all__ = [

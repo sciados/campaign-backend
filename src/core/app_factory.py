@@ -1,4 +1,4 @@
-# src/core/app_factory.py - App Creation & Configuration
+# src/core/app_factory.py - App Creation & Configuration (FIXED)
 """
 FastAPI app creation, middleware, basic configuration, and lifespan management
 Responsibility: FastAPI app instantiation, CORS middleware, TrustedHost middleware,
@@ -49,108 +49,98 @@ def get_async_session_manager():
 @asynccontextmanager
 async def create_lifespan():
     """Application lifespan manager - FIXED VERSION"""
+    # Startup
+    logging.info("🚀 Starting CampaignForge AI Backend with Ultra-Cheap AI + Dual Storage + AI Monitoring + Enhanced Email Generation + AI Discovery System + FIXED Content Routes...")
     
-    async def lifespan(app: FastAPI):
-        # Startup
-        logging.info("🚀 Starting CampaignForge AI Backend with Ultra-Cheap AI + Dual Storage + AI Monitoring + Enhanced Email Generation + AI Discovery System + FIXED Content Routes...")
-        
-        # ✅ FIX: Test database connection with proper text import
-        try:
-            from src.core.database import engine
-            with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            logging.info("✅ Database connection verified")
-        except Exception as e:
-            logging.error(f"❌ Database connection failed: {e}")
+    # ✅ FIX: Test database connection with proper text import
+    try:
+        from src.core.database import engine
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+        logging.info("✅ Database connection verified")
+    except Exception as e:
+        logging.error(f"❌ Database connection failed: {e}")
 
-        # 🔧 CRITICAL FIX: Enhanced email system health check with proper session management
-        try:
-            from src.models.email_subject_templates import EmailSubjectTemplate
-            EMAIL_MODELS_AVAILABLE = True
-            logging.info("✅ Enhanced email models available")
-        except ImportError:
-            EMAIL_MODELS_AVAILABLE = False
-            logging.warning("⚠️ Enhanced email models not available")
+    # 🔧 CRITICAL FIX: Enhanced email system health check with proper session management
+    try:
+        from src.models.email_subject_templates import EmailSubjectTemplate
+        EMAIL_MODELS_AVAILABLE = True
+        logging.info("✅ Enhanced email models available")
+    except ImportError:
+        EMAIL_MODELS_AVAILABLE = False
+        logging.warning("⚠️ Enhanced email models not available")
 
-        if EMAIL_MODELS_AVAILABLE:
-            try:
-                from src.intelligence.generators.database_seeder import seed_subject_line_templates
-                from sqlalchemy import select, func
+    if EMAIL_MODELS_AVAILABLE:
+        try:
+            from src.intelligence.generators.database_seeder import seed_subject_line_templates
+            from sqlalchemy import select, func
+            
+            # 🔧 FIX: Use proper async context manager
+            async with get_async_session_manager() as db:
+                # Check if templates exist
+                result = await db.execute(select(func.count(EmailSubjectTemplate.id)))
+                template_count = result.scalar()
                 
-                # 🔧 FIX: Use proper async context manager
-                async with get_async_session_manager() as db:
-                    # Check if templates exist
-                    result = await db.execute(select(func.count(EmailSubjectTemplate.id)))
-                    template_count = result.scalar()
+                if template_count == 0:
+                    logging.info("🔥 Seeding email templates on startup...")
+                    await seed_subject_line_templates()
+                    logging.info("✅ Email templates seeded successfully")
+                else:
+                    logging.info(f"✅ Enhanced email system ready with {template_count} templates")
                     
-                    if template_count == 0:
-                        logging.info("🔥 Seeding email templates on startup...")
-                        await seed_subject_line_templates()
-                        logging.info("✅ Email templates seeded successfully")
-                    else:
-                        logging.info(f"✅ Enhanced email system ready with {template_count} templates")
-                        
-            except Exception as e:
-                logging.warning(f"⚠️ Enhanced email system startup check failed: {str(e)}")
+        except Exception as e:
+            logging.warning(f"⚠️ Enhanced email system startup check failed: {str(e)}")
 
-        # ✅ NEW: Test storage system health
-        try:
-            from src.storage.universal_dual_storage import get_storage_manager
-            storage_manager = get_storage_manager()
-            health = await storage_manager.get_storage_health()
-            logging.info(f"✅ Storage system health: {health['overall_status']}")
-        except Exception as e:
-            logging.warning(f"⚠️ Storage system health check failed: {e}")
-        
-        # ✅ NEW: Initialize AI monitoring system
-        try:
-            from src.intelligence.utils.smart_router import get_smart_router
-            from src.intelligence.generators.factory import get_global_factory
-            
-            smart_router = get_smart_router()
-            enhanced_factory = get_global_factory()
-            
-            # Store in app state for access
-            app.state.smart_router = smart_router
-            app.state.enhanced_factory = enhanced_factory
-            
-            logging.info("✅ AI monitoring system initialized")
-        except Exception as e:
-            logging.warning(f"⚠️ AI monitoring system initialization failed: {e}")
-        
-        # 🆕 FIXED: Initialize AI Discovery system without async context manager issues
-        try:
-            from src.services.ai_platform_discovery import get_discovery_service
-            from src.core.ai_discovery_database import test_ai_discovery_connection
-            
-            # ✅ FIX: Test database connection without async context manager
-            db_connected = test_ai_discovery_connection()
-            if not db_connected:
-                logging.warning("⚠️ AI Discovery database connection failed - using mock mode")
-            
-            # ✅ FIX: Initialize discovery service without database dependency
-            discovery_service = get_discovery_service()
-            app.state.discovery_service = discovery_service
-            
-            logging.info("✅ AI Platform Discovery System initialized (mock mode if DB failed)")
-        except Exception as e:
-            logging.warning(f"⚠️ AI Discovery system initialization failed: {e}")
-            # Create a mock service
-            try:
-                from src.services.ai_platform_discovery import AIPlatformDiscoveryService
-                app.state.discovery_service = AIPlatformDiscoveryService()
-                logging.info("✅ AI Discovery fallback service created")
-            except Exception as fallback_error:
-                logging.error(f"❌ AI Discovery fallback failed: {fallback_error}")
-        
-        logging.info("🎯 CampaignForge AI Backend startup completed")
-        
-        yield
-        
-        # Shutdown
-        logging.info("🛑 Shutting down CampaignForge AI Backend...")
+    # ✅ NEW: Test storage system health
+    try:
+        from src.storage.universal_dual_storage import get_storage_manager
+        storage_manager = get_storage_manager()
+        health = await storage_manager.get_storage_health()
+        logging.info(f"✅ Storage system health: {health['overall_status']}")
+    except Exception as e:
+        logging.warning(f"⚠️ Storage system health check failed: {e}")
     
-    return lifespan
+    # ✅ NEW: Initialize AI monitoring system
+    try:
+        from src.intelligence.utils.smart_router import get_smart_router
+        from src.intelligence.generators.factory import get_global_factory
+        
+        smart_router = get_smart_router()
+        enhanced_factory = get_global_factory()
+        
+        logging.info("✅ AI monitoring system initialized")
+    except Exception as e:
+        logging.warning(f"⚠️ AI monitoring system initialization failed: {e}")
+    
+    # 🆕 FIXED: Initialize AI Discovery system without async context manager issues
+    try:
+        from src.services.ai_platform_discovery import get_discovery_service
+        from src.core.ai_discovery_database import test_ai_discovery_connection
+        
+        # ✅ FIX: Test database connection without async context manager
+        db_connected = test_ai_discovery_connection()
+        if not db_connected:
+            logging.warning("⚠️ AI Discovery database connection failed - using mock mode")
+        
+        # ✅ FIX: Initialize discovery service without database dependency
+        discovery_service = get_discovery_service()
+        
+        logging.info("✅ AI Platform Discovery System initialized (mock mode if DB failed)")
+    except Exception as e:
+        logging.warning(f"⚠️ AI Discovery system initialization failed: {e}")
+        # Create a mock service
+        try:
+            from src.services.ai_platform_discovery import AIPlatformDiscoveryService
+            logging.info("✅ AI Discovery fallback service created")
+        except Exception as fallback_error:
+            logging.error(f"❌ AI Discovery fallback failed: {fallback_error}")
+    
+    logging.info("🎯 CampaignForge AI Backend startup completed")
+    
+    yield
+    
+    # Shutdown
+    logging.info("🛑 Shutting down CampaignForge AI Backend...")
 
 # ============================================================================
 # ✅ MIDDLEWARE CONFIGURATION
@@ -244,21 +234,21 @@ def configure_exception_handlers(app: FastAPI):
         }
 
 # ============================================================================
-# ✅ FASTAPI APP CREATION
+# ✅ FASTAPI APP CREATION - FIXED
 # ============================================================================
 
 async def create_app() -> FastAPI:
     """
-    Create and configure FastAPI application
+    Create and configure FastAPI application - FIXED
     """
-    # Create lifespan manager
-    lifespan = await create_lifespan()
+    # 🔧 FIX: Don't await the lifespan function, just pass the function reference
+    lifespan = create_lifespan  # ✅ FIXED: No await here!
     
     # Create FastAPI app
     app = FastAPI(
         title="CampaignForge AI Backend",
         description="AI-powered marketing campaign generation with enhanced email generation, ultra-cheap image generation, dual storage, AI monitoring, AI platform discovery system, and FIXED intelligence-based content generation",
-        version="3.3.0",  # 🆕 NEW: Updated version for AI Discovery System
+        version="3.3.1",  # 🆕 NEW: Updated version for refactoring
         docs_url="/api/docs",
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
