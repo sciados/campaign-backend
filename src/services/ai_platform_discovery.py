@@ -228,6 +228,9 @@ class AIPlatformDiscoveryService:
         """
         logger.info("🔍 Enhanced environment scanning with AI Analyzer...")
         
+        # Fix: Declare global at method level
+        global AI_ANALYZER_AVAILABLE
+        
         try:
             results = {
                 'ai_analyzer_results': None,
@@ -1028,6 +1031,9 @@ class AIPlatformDiscoveryService:
     async def generate_discovery_summary(self) -> Dict[str, Any]:
         """Generate comprehensive discovery summary with AI Analyzer + YouTube integration"""
         logger.info("📋 Generating enhanced discovery summary...")
+        
+        # Fix: Declare global at method level
+        global AI_ANALYZER_AVAILABLE
         
         try:
             summary = {
