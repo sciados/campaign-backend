@@ -191,7 +191,11 @@ async def initialize_for_railway():
         
         @fallback_app.get("/health")
         async def fallback_health():
-            return {"status": "initialization_failed", "error": str(e)}
+            return {"status": "initialization_failed", "error": "Railway initialization failed"}
+        
+        @fallback_app.get("/")
+        async def fallback_root():
+            return {"message": "CampaignForge AI Backend - Railway Fallback", "status": "error"}
         
         return fallback_app
 
@@ -262,7 +266,7 @@ except Exception as e:
     async def fallback_health():
         return {
             "status": "fallback_mode", 
-            "error": str(e),
+            "error": "App initialization failed",
             "message": "App initialization failed - running in fallback mode"
         }
     
@@ -271,7 +275,7 @@ except Exception as e:
         return {
             "message": "CampaignForge AI Backend - Fallback Mode",
             "status": "initialization_error",
-            "error": str(e),
+            "error": "App initialization failed",
             "docs": "/docs"
         }
 
