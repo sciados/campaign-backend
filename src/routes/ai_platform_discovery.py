@@ -17,7 +17,7 @@ from src.services.ai_platform_discovery import (
 )
 
 # ✅ FIX: Create the router properly
-router = APIRouter(prefix="/api/admin/ai-discovery", tags=["admin", "ai-discovery"])
+router = APIRouter(tags=["admin", "ai-discovery"])
 
 # ✅ REQUEST MODELS
 class ToggleProviderRequest(BaseModel):
