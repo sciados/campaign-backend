@@ -158,6 +158,9 @@ async def create_lifespan():
 
 def configure_cors_middleware(app: FastAPI):
     """Configure CORS middleware"""
+    print("🔧 Configuring CORS middleware...")
+    
+    # Add CORS middleware with explicit configuration
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -167,15 +170,22 @@ def configure_cors_middleware(app: FastAPI):
             "https://campaignforge-frontend.vercel.app",
             "https://rodgersdigital.com",
             "https://www.rodgersdigital.com",
-            "https://*.vercel.app",
             "https://rodgersdigital.vercel.app",
-            "https://www.rodgersdigital.vercel.app"
+            "https://www.rodgersdigital.vercel.app",
+            "https://*.vercel.app"  # This might not work, so let's be explicit
         ],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
         expose_headers=["*"],
     )
+    
+    print("✅ CORS middleware configured")
+    print("🌐 Allowed origins include:")
+    print("  - https://www.rodgersdigital.com")
+    print("  - https://rodgersdigital.com") 
+    print("  - https://rodgersdigital.vercel.app")
+    print("  - https://www.rodgersdigital.vercel.app")
 
 def configure_trusted_host_middleware(app: FastAPI):
     """Configure TrustedHost middleware"""
@@ -196,35 +206,22 @@ def configure_custom_middleware(app: FastAPI):
     @app.middleware("http")
     async def cors_fix_middleware(request: Request, call_next):
         """
-        Fixed middleware that doesn't interfere with CORS
+        Simplified middleware that doesn't interfere with CORS
         """
-        # Skip redirects for OPTIONS requests (CORS preflight)
+        # Skip all middleware processing for OPTIONS requests (CORS preflight)
         if request.method == "OPTIONS":
             response = await call_next(request)
             return response
         
-        # Skip redirects for API routes to prevent CORS issues
-        if request.url.path.startswith("/api/"):
-            response = await call_next(request)
-            
-            # Add security headers without redirects
-            if os.getenv("RAILWAY_ENVIRONMENT_NAME") == "production":
-                response.headers["X-Content-Type-Options"] = "nosniff"
-                response.headers["X-Frame-Options"] = "DENY"
-                response.headers["X-XSS-Protection"] = "1; mode=block"
-            
-            return response
-        
-        # Only handle redirects for non-API routes
-        if (os.getenv("RAILWAY_ENVIRONMENT_NAME") == "production" and 
-            request.headers.get("x-forwarded-proto") == "http"):
-            https_url = request.url.replace(scheme="https")
-            return Response(
-                status_code=301,
-                headers={"Location": str(https_url)}
-            )
-        
+        # For all other requests, just pass through
         response = await call_next(request)
+        
+        # Only add security headers in production, and only for non-OPTIONS
+        if os.getenv("RAILWAY_ENVIRONMENT_NAME") == "production":
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-XSS-Protection"] = "1; mode=block"
+        
         return response
 
 # ============================================================================

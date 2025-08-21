@@ -1,6 +1,7 @@
 # src/core/router_registry.py - Router Management
 """
 All router imports, registration, and availability tracking
+
 Responsibility: Router imports with error handling, Router availability flags,
 Router registration logic with prefixes, Debug route counting and logging,
 Router status tracking variables, Import error debugging and fallback logic
