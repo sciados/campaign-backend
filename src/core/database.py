@@ -1,8 +1,8 @@
 # src/core/database.py - FIXED VERSION for AsyncEngine with proper driver
-from email.mime import text
+# from email.mime import text
 import os
 import logging
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import create_engine, MetaData, text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
