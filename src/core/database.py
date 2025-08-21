@@ -238,7 +238,7 @@ def test_connection():
     """
     try:
         with engine.connect() as conn:
-            result = conn.execute("SELECT 1")
+            result = conn.execute(text("SELECT 1"))
             logger.info("✅ Sync database connection test successful (psycopg2)")
             return True
     except Exception as e:
