@@ -786,29 +786,19 @@ class RealAIPlatformDiscoveryService:
     def is_recent_rss_video(self, published_date: str) -> bool:
         """Check if RSS video is recent"""
         try:
-            # Parse ISO date format from RSS using standard library only
+            # Parse ISO date format from RSS
             from datetime import datetime, timedelta
+            import dateutil.parser
             
-            # YouTube RSS feeds use ISO format: 2025-01-15T10:30:00+00:00
-            # Remove timezone info and parse manually
-            date_str = published_date.split('T')[0]  # Get just the date part
-            pub_date = datetime.strptime(date_str, '%Y-%m-%d')
-            now = datetime.now()
+            pub_date = dateutil.parser.parse(published_date)
+            now = datetime.now(pub_date.tzinfo)
             
             # Consider videos from last 30 days as recent
             return (now - pub_date).days <= 30
             
         except:
-            # If parsing fails, try alternative formats
-            try:
-                # Try parsing without timezone
-                clean_date = published_date.replace('Z', '').split('+')[0].split('T')[0]
-                pub_date = datetime.strptime(clean_date, '%Y-%m-%d')
-                now = datetime.now()
-                return (now - pub_date).days <= 30
-            except:
-                # If all parsing fails, assume it's recent to be safe
-                return True
+            # If parsing fails, assume it's recent to be safe
+            return True
 
     def extract_video_id_from_url(self, video_url: str) -> Optional[str]:
         """Extract video ID from YouTube URL"""
