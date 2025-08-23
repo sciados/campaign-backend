@@ -6,6 +6,7 @@ NO HARDCODED DATA - Everything from Database + Environment Variables
 âœ… COMPLETE FIXED VERSION with AI Discovery DB Integration
 """
 
+import json
 import os
 import re
 from datetime import datetime
@@ -122,16 +123,17 @@ def determine_priority_tier(cost_per_1k_tokens: float, category: str) -> str:
 # âœ… AI-POWERED: Environment scanning using AI analysis
 async def scan_environment_for_ai_providers() -> Dict[str, Dict[str, Any]]:
     """
-    ðŸ¤– AI-POWERED: Dynamically scan Railway environment and use AI to analyze providers
-    NO MORE DUMMY DATA - Everything calculated using real AI analysis
+    🤖 AI-POWERED: Dynamically scan Railway environment and use AI to analyze providers
+    ZERO HARDCODED CATEGORIES - Everything is AI-determined
     """
     try:
-        from src.services.ai_provider_analyzer import get_ai_provider_analyzer
+        # Use the new dynamic analyzer instead of the old hardcoded one
+        from src.services.ai_provider_analyzer import get_dynamic_ai_provider_analyzer
         
-        # Get AI analyzer instance
-        analyzer = get_ai_provider_analyzer()
+        # Get dynamic AI analyzer instance  
+        analyzer = get_dynamic_ai_provider_analyzer()
         
-        # Use AI to discover and analyze all providers
+        # Use AI to discover and analyze all providers with dynamic categorization
         discovered_providers = await analyzer.discover_providers_from_environment()
         
         # Convert to expected format
@@ -140,30 +142,135 @@ async def scan_environment_for_ai_providers() -> Dict[str, Dict[str, Any]]:
             env_var = provider['env_var_name']
             ai_providers[env_var] = {
                 'provider_name': provider['provider_name'],
-                'category': provider['category'],
+                
+                # 🤖 AI-DETERMINED CATEGORIES (no hardcoding!)
+                'category': provider['primary_category'],  # AI-determined
+                'secondary_categories': provider['secondary_categories'],  # AI-determined
+                'capabilities': provider['capabilities'],  # AI-determined
+                'use_types': provider['use_types'],  # AI-determined
+                
+                # 🤖 AI-CALCULATED METRICS
                 'cost_per_1k_tokens': provider['cost_per_1k_tokens'],
-                'model': provider['model'],
-                'env_var_name': env_var,
-                'source': 'environment',
+                'video_cost_per_minute': provider.get('video_cost_per_minute'),
+                'image_cost_per_generation': provider.get('image_cost_per_generation'),
                 'quality_score': provider['quality_score'],
-                'capabilities': provider['capabilities'],
+                'speed_rating': provider['speed_rating'],
+                
+                'model': provider['primary_model'],
+                'supported_models': provider['supported_models'],
+                'env_var_name': env_var,
+                'source': 'ai_analyzed',
                 'response_time_ms': provider['response_time_ms'],
                 'error_rate': provider['error_rate'],
                 'api_endpoint': provider['api_endpoint'],
                 'priority_tier': provider['priority_tier'],
                 'is_active': provider['is_active'],
-                'ai_analyzed': True  # Flag to show this was AI-analyzed
+                
+                # 🤖 AI METADATA
+                'ai_analyzed': True,
+                'ai_confidence_score': provider['ai_confidence_score'],
+                'ai_analysis_version': provider['ai_analysis_version']
             }
         
-        print(f"ðŸ¤– AI Analysis complete: Found {len(ai_providers)} providers")
+        print(f"🤖 Dynamic AI Analysis complete: Found {len(ai_providers)} providers")
+        print(f"📊 Categories discovered: {set(p['category'] for p in ai_providers.values())}")
+        
         return ai_providers
         
-    except ImportError:
-        print("âš ï¸ AI Provider Analyzer not available, falling back to basic scan")
+    except ImportError as e:
+        print(f"⚠️ Dynamic AI Provider Analyzer not available: {e}")
         return await basic_environment_scan()
     except Exception as e:
-        print(f"âŒ AI analysis failed: {e}, falling back to basic scan")
+        print(f"❌ Dynamic AI analysis failed: {e}, falling back to basic scan")
         return await basic_environment_scan()
+    
+async def save_ai_analyzed_providers_to_db(providers: List[DynamicProvider], db: Session):
+    """
+    💾 Save AI-analyzed providers with dynamic categories to database
+    """
+    if not AI_DISCOVERY_DB_AVAILABLE:
+        return {"saved": 0, "updated": 0, "error": "AI Discovery DB not available"}
+    
+    saved_count = 0
+    updated_count = 0
+    
+    for provider in providers:
+        # Check if provider already exists
+        existing = db.query(RailwayAIProvider).filter(
+            RailwayAIProvider.env_var_name == provider.env_var_name
+        ).first()
+        
+        if existing:
+            # Update existing provider with AI-analyzed data
+            existing.env_var_status = provider.env_var_status
+            existing.value_preview = provider.value_preview
+            existing.integration_status = provider.integration_status
+            
+            # 🤖 UPDATE WITH AI-DETERMINED CATEGORIES
+            existing.category = provider.category  # AI-determined primary category
+            existing.secondary_categories = json.dumps(provider.get('secondary_categories', []))
+            existing.use_types = json.dumps(provider.get('use_types', []))
+            existing.capabilities = ",".join(provider.capabilities) if provider.capabilities else ""
+            
+            # 🤖 UPDATE WITH AI-CALCULATED METRICS  
+            existing.cost_per_1k_tokens = provider.cost_per_1k_tokens
+            existing.video_cost_per_minute = provider.get('video_cost_per_minute')
+            existing.image_cost_per_generation = provider.get('image_cost_per_generation')
+            existing.quality_score = provider.quality_score
+            existing.speed_rating = provider.get('speed_rating')
+            
+            existing.last_checked = provider.last_checked
+            existing.is_active = provider.is_active
+            existing.updated_at = datetime.utcnow()
+            
+            # 🤖 AI ANALYSIS METADATA
+            existing.ai_confidence_score = provider.get('ai_confidence_score')
+            existing.ai_analysis_version = provider.get('ai_analysis_version')
+            
+            updated_count += 1
+        else:
+            # Create new provider with AI-analyzed data
+            db_provider = RailwayAIProvider(
+                provider_name=provider.provider_name,
+                env_var_name=provider.env_var_name,
+                env_var_status=provider.env_var_status,
+                value_preview=provider.value_preview,
+                integration_status=provider.integration_status,
+                
+                # 🤖 AI-DETERMINED CATEGORIES
+                category=provider.category,  # No hardcoding!
+                secondary_categories=json.dumps(provider.get('secondary_categories', [])),
+                use_types=json.dumps(provider.get('use_types', [])),
+                
+                # 🤖 AI-CALCULATED METRICS
+                priority_tier=provider.priority_tier,
+                cost_per_1k_tokens=provider.cost_per_1k_tokens,
+                video_cost_per_minute=provider.get('video_cost_per_minute'),
+                image_cost_per_generation=provider.get('image_cost_per_generation'),
+                quality_score=provider.quality_score,
+                speed_rating=provider.get('speed_rating'),
+                
+                model=provider.primary_model,
+                supported_models=json.dumps(provider.get('supported_models', [])),
+                capabilities=",".join(provider.capabilities) if provider.capabilities else "",
+                monthly_usage=provider.monthly_usage,
+                response_time_ms=provider.response_time_ms,
+                error_rate=provider.error_rate,
+                source=provider.source,
+                last_checked=provider.last_checked,
+                is_active=provider.is_active,
+                api_endpoint=provider.api_endpoint,
+                discovery_date=provider.discovery_date or datetime.utcnow(),
+                
+                # 🤖 AI ANALYSIS METADATA
+                ai_confidence_score=provider.get('ai_confidence_score'),
+                ai_analysis_version=provider.get('ai_analysis_version', '2.0_dynamic')
+            )
+            db.add(db_provider)
+            saved_count += 1
+    
+    db.commit()
+    return {"saved": saved_count, "updated": updated_count}
 
 async def basic_environment_scan() -> Dict[str, Dict[str, Any]]:
     """
