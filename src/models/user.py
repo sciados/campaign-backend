@@ -16,15 +16,15 @@ from .base import BaseModel
 
 # 🎭 NEW: User Type Enums (add these to your existing enums)
 class UserType(str, enum.Enum):
-    affiliate_marketer = "affiliate_marketer"
-    content_creator = "content_creator" 
-    business_owner = "business_owner"
+    AFFILIATE_MARKETER = "affiliate_marketer"
+    CONTENT_CREATOR = "content_creator" 
+    BUSINESS_OWNER = "business_owner"
 
 class UserTier(str, enum.Enum):
-    free = "free"
-    starter = "starter" 
-    pro = "pro"
-    elite = "elite"
+    FREE = "free"
+    STARTER = "starter" 
+    PRO = "pro"
+    ELITE = "elite"
 
 class OnboardingStatus(str, enum.Enum):
     INCOMPLETE = "incomplete"
@@ -63,7 +63,7 @@ class User(BaseModel):
     # 🆕 NEW: Multi-User Type System (ONLY these fields added)
     user_type = Column(Enum(UserType, name='usertype'), nullable=True)  # null during onboarding
     user_tier = Column(Enum(UserTier, name='usertier'), default=UserTier.free)
-    onboarding_status = Column(Enum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.incomplete)
+    onboarding_status = Column(Enum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.INCOMPLETE)
     onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
     
     # 🎯 NEW: User Goals & Experience (minimal additions)
