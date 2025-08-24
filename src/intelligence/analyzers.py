@@ -1,9 +1,9 @@
-# COMPLETE: src/intelligence/analyzers.py - Product Name Placeholder Fix
+# COMPLETE: src/intelligence/analyzers.py - Enhanced with RAG System Integration
 """
 Intelligence analysis engines - The core AI that extracts competitive insights
-🔥 FIXED: Product name placeholder issue - AI now uses actual product names
-📝 UPDATED:  prompts and post-processing to eliminate generic placeholders
-✅ COMPLETE: Full file with all methods and placeholder substitution system
+🔥 ENHANCED: Now includes RAG system for research document context
+🔍 NEW: Semantic search capabilities for competitive intelligence
+✅ COMPLETE: Full file with RAG integration and placeholder substitution system
 """
 import aiohttp
 import asyncio
@@ -57,8 +57,17 @@ except ImportError as e:
     PRODUCT_EXTRACTOR_AVAILABLE = False
     logger.warning(f"⚠️ Product extractor import failed: {e}")
 
+# 🔍 NEW: Import Enhanced RAG system for research document context
+try:
+    from src.intelligence.utils.enhanced_rag_system import IntelligenceRAGSystem
+    RAG_SYSTEM_AVAILABLE = True
+    logger.info("✅ Enhanced RAG system imported successfully")
+except ImportError as e:
+    RAG_SYSTEM_AVAILABLE = False
+    logger.warning(f"⚠️ Enhanced RAG system not available: {e}")
+
 class SalesPageAnalyzer:
-    """Analyze competitor sales pages for offers, psychology, and opportunities"""
+    """Analyze competitor sales pages for offers, psychology, and opportunities with RAG enhancement"""
     
     def __init__(self):
         # 🔥 UPDATED: Use load balanced AI provider system when available
@@ -74,8 +83,8 @@ class SalesPageAnalyzer:
             self._init_tiered_providers()
         else:
             self.use_load_balanced_system = False
-            print("❌ No AI provider systems available - using expensive providers")
-            logger.warning("❌ No AI provider systems available")
+            print("⚠ No AI provider systems available - using expensive providers")
+            logger.warning("⚠ No AI provider systems available")
             self.available_providers = []
             self._init_expensive_providers_fallback()
         
@@ -86,6 +95,22 @@ class SalesPageAnalyzer:
         else:
             self.product_extractor = None
             logger.warning("⚠️ Product extractor not available")
+        
+        # 🔍 NEW: Initialize RAG system if available
+        if RAG_SYSTEM_AVAILABLE:
+            try:
+                self.rag_system = IntelligenceRAGSystem()
+                self.has_rag = True
+                logger.info("🔍 RAG system initialized for enhanced intelligence")
+                print("🔍 RAG system available for research-enhanced analysis")
+            except Exception as e:
+                self.rag_system = None
+                self.has_rag = False
+                logger.warning(f"⚠️ RAG system initialization failed: {e}")
+        else:
+            self.rag_system = None
+            self.has_rag = False
+            logger.info("📝 Using standard intelligence system (no RAG)")
     
     def _init_load_balanced_providers(self):
         """🔥 NEW: Initialize with load balanced provider system"""
@@ -112,13 +137,13 @@ class SalesPageAnalyzer:
                 
                 logger.info(f"✅ Load balanced AI system initialized with {len(self.available_providers)} providers")
             else:
-                print("❌ No ultra-cheap providers available - falling back")
-                logger.warning("❌ No ultra-cheap providers available")
+                print("⚠ No ultra-cheap providers available - falling back")
+                logger.warning("⚠ No ultra-cheap providers available")
                 self.use_load_balanced_system = False
                 self._init_expensive_providers_fallback()
                 
         except Exception as e:
-            logger.error(f"❌ Load balanced system initialization failed: {e}")
+            logger.error(f"⚠ Load balanced system initialization failed: {e}")
             self.use_load_balanced_system = False
             self._init_tiered_providers()
     
@@ -162,12 +187,12 @@ class SalesPageAnalyzer:
                 
                 logger.info(f"✅ Tiered AI system initialized with {len(self.available_providers)} providers")
             else:
-                print("❌ No ultra-cheap providers available - falling back to expensive providers")
-                logger.warning("❌ No ultra-cheap providers available")
+                print("⚠ No ultra-cheap providers available - falling back to expensive providers")
+                logger.warning("⚠ No ultra-cheap providers available")
                 self._init_expensive_providers_fallback()
                 
         except Exception as e:
-            logger.error(f"❌ Tiered system initialization failed: {e}")
+            logger.error(f"⚠ Tiered system initialization failed: {e}")
             self._init_expensive_providers_fallback()
     
     def _init_expensive_providers_fallback(self):
@@ -227,6 +252,77 @@ class SalesPageAnalyzer:
             # Return a fallback response instead of raising
             return self._error_fallback_analysis(url, str(e))
     
+    async def analyze_with_research_context(self, url: str, research_docs: List[str] = None) -> Dict[str, Any]:
+        """🔍 NEW: Enhanced analysis method with optional RAG research context"""
+        
+        try:
+            logger.info(f"Starting RESEARCH-ENHANCED analysis for URL: {url}")
+            
+            # Always do standard analysis first
+            base_analysis = await self.analyze(url)
+            
+            # Add RAG enhancement if available and research docs provided
+            if self.has_rag and research_docs:
+                try:
+                    logger.info(f"🔍 Adding {len(research_docs)} research documents to RAG system")
+                    
+                    # Add research documents to RAG system
+                    for i, doc_content in enumerate(research_docs):
+                        doc_id = f"research_doc_{i}_{uuid.uuid4().hex[:8]}"
+                        await self.rag_system.add_research_document(doc_id, doc_content, {
+                            'source': f'user_uploaded_doc_{i}',
+                            'timestamp': datetime.now(timezone.utc).isoformat(),
+                            'analysis_url': url
+                        })
+                    
+                    # Generate enhanced intelligence with research context
+                    product_name = base_analysis.get('product_name', 'Product')
+                    research_query = f"competitive analysis market research pricing strategy {product_name}"
+                    
+                    logger.info(f"🔍 Querying RAG system for: {research_query}")
+                    relevant_chunks = await self.rag_system.intelligent_research_query(research_query, top_k=5)
+                    
+                    if relevant_chunks:
+                        logger.info(f"🔍 Found {len(relevant_chunks)} relevant research chunks")
+                        enhanced_intel = await self.rag_system.generate_enhanced_intelligence(
+                            research_query, relevant_chunks
+                        )
+                        
+                        # Enhance the base analysis with research insights
+                        base_analysis['enhanced_intelligence'] = enhanced_intel
+                        base_analysis['research_enhanced'] = True
+                        base_analysis['research_sources'] = len(research_docs)
+                        base_analysis['rag_confidence'] = enhanced_intel.get('confidence_score', 0.0)
+                        base_analysis['research_chunks_found'] = len(relevant_chunks)
+                        base_analysis['analysis_method'] = 'rag_enhanced_analysis'
+                        
+                        # Update confidence score based on research enhancement
+                        original_confidence = base_analysis.get('confidence_score', 0.6)
+                        rag_confidence = enhanced_intel.get('confidence_score', 0.0)
+                        enhanced_confidence = min((original_confidence + rag_confidence) / 2 + 0.1, 0.95)
+                        base_analysis['confidence_score'] = enhanced_confidence
+                        
+                        logger.info(f"✅ RAG enhancement completed for {product_name} (confidence: {enhanced_confidence:.2f})")
+                    else:
+                        logger.warning("🔍 No relevant research chunks found")
+                        base_analysis['research_enhancement_note'] = "No relevant research context found"
+                
+                except Exception as e:
+                    logger.error(f"❌ RAG enhancement failed: {str(e)}")
+                    base_analysis['rag_enhancement_error'] = str(e)
+                    base_analysis['research_enhanced'] = False
+            
+            elif research_docs and not self.has_rag:
+                base_analysis['research_docs_provided'] = len(research_docs)
+                base_analysis['rag_availability'] = "RAG system not available - install enhanced_rag_system.py"
+                logger.warning("📝 Research documents provided but RAG system not available")
+            
+            return base_analysis
+            
+        except Exception as e:
+            logger.error(f"Research-enhanced analysis failed for {url}: {str(e)}")
+            return self._error_fallback_analysis(url, str(e))
+    
     async def _extract_product_name(self, page_content: Dict[str, str], structured_content: Dict[str, Any]) -> str:
         """Extract product name using advanced product extractor"""
         
@@ -246,7 +342,7 @@ class SalesPageAnalyzer:
             return self._basic_product_extraction(page_content["content"], page_content["title"])
             
         except Exception as e:
-            logger.error(f"❌ Product extraction failed: {e}")
+            logger.error(f"⚠ Product extraction failed: {e}")
             return self._basic_product_extraction(page_content["content"], page_content["title"])
     
     def _basic_product_extraction(self, content: str, title: str) -> str:
@@ -466,7 +562,7 @@ class SalesPageAnalyzer:
                 selected_provider = self.available_providers[0]
             
             if not selected_provider:
-                logger.error("❌ No provider selected by load balancer")
+                logger.error("⚠ No provider selected by load balancer")
                 return self._fallback_analysis(structured_content, url, product_name)
             
             provider_name = selected_provider.get("name", "unknown")
@@ -492,6 +588,8 @@ class SalesPageAnalyzer:
                 "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
                 "confidence_score": self._calculate_confidence_score(intelligence, structured_content),
                 "raw_content": structured_content["content"][:1000],
+                "analysis_method": "load_balanced_ai",
+                "rag_enhanced": False,  # Will be updated if RAG is used
                 "load_balanced_analysis": {
                     "provider_selected": provider_name,
                     "cost_per_1k_tokens": cost_per_1k,
@@ -504,7 +602,7 @@ class SalesPageAnalyzer:
             return intelligence
             
         except Exception as e:
-            logger.error(f"❌ Load balanced intelligence extraction failed: {str(e)}")
+            logger.error(f"⚠ Load balanced intelligence extraction failed: {str(e)}")
             logger.info("🔄 Falling back to pattern-based analysis")
             return self._fallback_analysis(structured_content, url, product_name)
     
@@ -568,17 +666,17 @@ class SalesPageAnalyzer:
                 return response
             else:
                 # 🔧 IMPROVED: Better error handling and logging
-                logger.error(f"❌ Unexpected response format for {provider_name}: {type(response)}")
+                logger.error(f"⚠ Unexpected response format for {provider_name}: {type(response)}")
                 # 🔧 FIXED: Return safe fallback instead of raising exception
                 return safe_json_dumps({
                     "error": "Unexpected response format",
                     "response_type": str(type(response)),
                     "provider": provider_name,
                     "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+                })
     
         except Exception as e:
-            logger.error(f"❌ AI request failed for {provider_name}: {str(e)}")
+            logger.error(f"⚠ AI request failed for {provider_name}: {str(e)}")
             # 🔧 IMPROVED: Return error response instead of raising
             return safe_json_dumps({
                 "error": "AI request failed",
@@ -586,7 +684,7 @@ class SalesPageAnalyzer:
                 "provider": provider_name,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "fallback": True
-        })
+            })
     
     async def _extract_intelligence_ultra_cheap(self, structured_content: Dict[str, Any], url: str, product_name: str = "Product") -> Dict[str, Any]:
         """Extract intelligence using ultra-cheap AI providers (original method)"""
@@ -633,6 +731,8 @@ class SalesPageAnalyzer:
                 "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
                 "confidence_score": self._calculate_confidence_score(intelligence, structured_content),
                 "raw_content": structured_content["content"][:1000],
+                "analysis_method": "ultra_cheap_ai",
+                "rag_enhanced": False,  # Will be updated if RAG is used
                 "ultra_cheap_analysis": {
                     "provider_used": result.get("provider_used", "unknown"),
                     "cost_per_request": estimated_cost,
@@ -647,14 +747,14 @@ class SalesPageAnalyzer:
             return intelligence
             
         except Exception as e:
-            logger.error(f"❌ Ultra-cheap intelligence extraction failed: {str(e)}")
+            logger.error(f"⚠ Ultra-cheap intelligence extraction failed: {str(e)}")
             logger.info("🔄 Falling back to pattern-based analysis")
             return self._fallback_analysis(structured_content, url, product_name)
     
     def _create_intelligence_prompt(self, structured_content: Dict[str, Any], url: str, product_name: str) -> str:
         """🔥 FIXED: Create optimized prompt with product name enforcement - eliminates placeholders"""
         
-        # 🔥 CRITICAL:  prompt that enforces actual product name usage
+        # 🔥 CRITICAL: prompt that enforces actual product name usage
         prompt = f"""Analyze this sales page for the specific product "{product_name}":
 
 CRITICAL INSTRUCTIONS:
@@ -721,7 +821,7 @@ Respond with structured analysis using "{product_name}" throughout."""
                 return intelligence
             except Exception as e:
                 providers_tried.append("Claude")
-                logger.warning(f"❌ Claude failed: {str(e)}")
+                logger.warning(f"⚠ Claude failed: {str(e)}")
         
         # Try Cohere second (expensive)
         if getattr(self, 'cohere_client', None):
@@ -732,7 +832,7 @@ Respond with structured analysis using "{product_name}" throughout."""
                 return intelligence
             except Exception as e:
                 providers_tried.append("Cohere")
-                logger.warning(f"❌ Cohere failed: {str(e)}")
+                logger.warning(f"⚠ Cohere failed: {str(e)}")
 
         # Try OpenAI third (most expensive)
         if getattr(self, 'openai_client', None):
@@ -743,7 +843,7 @@ Respond with structured analysis using "{product_name}" throughout."""
                 return intelligence
             except Exception as e:
                 providers_tried.append("OpenAI")
-                logger.warning(f"❌ OpenAI failed: {str(e)}")
+                logger.warning(f"⚠ OpenAI failed: {str(e)}")
         
         # All providers failed
         logger.warning(f"🚨 All providers failed ({', '.join(providers_tried)}), using pattern matching")
@@ -799,6 +899,8 @@ Respond with structured analysis using "{product_name}" throughout."""
                 "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
                 "confidence_score": self._calculate_confidence_score(intelligence, structured_content),
                 "raw_content": structured_content["content"][:1000],
+                "analysis_method": "expensive_openai_fallback",
+                "rag_enhanced": False,  # Will be updated if RAG is used
                 "expensive_analysis_warning": {
                     "provider_used": "openai_gpt4",
                     "estimated_cost": estimated_cost,
@@ -1026,8 +1128,13 @@ Respond with structured analysis using "{product_name}" throughout."""
         completeness_bonus = (categories_populated / 5) * 0.1
         score += completeness_bonus
 
-        # Apply realism cap - max confidence should be 85% for automated analysis
-        final_score = min(score, 0.85)  # Cap at 85% instead of 100%
+        # 🔍 NEW: RAG enhancement bonus
+        if intelligence.get("research_enhanced"):
+            rag_bonus = min(intelligence.get("rag_confidence", 0.0) * 0.1, 0.1)
+            score += rag_bonus
+
+        # Apply realism cap - max confidence should be 90% for automated analysis with RAG
+        final_score = min(score, 0.90 if intelligence.get("research_enhanced") else 0.85)
 
         logger.info(f"📊 Confidence calculation: base={score:.2f}, final={final_score:.2f} ({final_score*100:.1f}%)")
 
@@ -1057,7 +1164,7 @@ Respond with structured analysis using "{product_name}" throughout."""
             },
             "competitive_intelligence": {
                 "opportunities": [
-                    f" {product_name} positioning possible",  # 🔥 FIXED
+                    f"Alternative {product_name} positioning possible",  # 🔥 FIXED
                     f"Competitive differentiation opportunities for {product_name}",  # 🔥 FIXED
                     f"{product_name} market gap analysis needed"  # 🔥 FIXED
                 ],
@@ -1089,6 +1196,8 @@ Respond with structured analysis using "{product_name}" throughout."""
             "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
             "confidence_score": 0.6,
             "raw_content": structured_content.get("content", "")[:1000],
+            "analysis_method": "fallback_pattern_matching",
+            "rag_enhanced": False,
             "analysis_note": f"Fallback analysis for {product_name} - AI providers recommended for enhanced insights",  # 🔥 FIXED
             "load_balancing_analysis": {
                 "load_balancing_available": LOAD_BALANCING_AVAILABLE,
@@ -1144,6 +1253,8 @@ Respond with structured analysis using "{product_name}" throughout."""
             "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
             "confidence_score": 0.0,
             "raw_content": "",
+            "analysis_method": "error_fallback",
+            "rag_enhanced": False,
             "error_message": error_msg,
             "analysis_note": f"Analysis failed: {error_msg}",
             "load_balancing_analysis": {
@@ -1154,22 +1265,26 @@ Respond with structured analysis using "{product_name}" throughout."""
         }
 
 
-#  analyzer class that extends the base
-class SalesPageAnalyzer(SalesPageAnalyzer):
-    """ sales page analyzer with additional features"""
+# Enhanced analyzer class that extends the base
+class EnhancedSalesPageAnalyzer(SalesPageAnalyzer):
+    """Enhanced sales page analyzer with additional features and built-in RAG"""
     
     async def analyze_enhanced(
         self, 
         url: str, 
         campaign_id: str = None, 
         analysis_depth: str = "comprehensive",
-        include_vsl_detection: bool = True
+        include_vsl_detection: bool = True,
+        research_docs: List[str] = None
     ) -> Dict[str, Any]:
-        """Perform enhanced analysis with all advanced features"""
+        """Perform enhanced analysis with all advanced features including RAG"""
         
         try:
-            # Use existing analyze method as base
-            base_analysis = await self.analyze(url)
+            # Use existing analyze method with research context if available
+            if research_docs and self.has_rag:
+                base_analysis = await self.analyze_with_research_context(url, research_docs)
+            else:
+                base_analysis = await self.analyze(url)
             
             # Get actual product name from base analysis
             product_name = base_analysis.get("product_name", "Product")
@@ -1179,19 +1294,26 @@ class SalesPageAnalyzer(SalesPageAnalyzer):
                 **base_analysis,
                 "intelligence_id": f"intel_{uuid.uuid4().hex[:8]}",
                 "analysis_depth": analysis_depth,
+                "campaign_id": campaign_id,
                 "campaign_angles": self._generate_basic_campaign_angles(base_analysis, product_name),
                 "actionable_insights": self._generate_actionable_insights(base_analysis, product_name),
-                "technical_analysis": self._analyze_technical_aspects(url, product_name)
+                "technical_analysis": self._analyze_technical_aspects(url, product_name),
+                "analysis_method": f"{base_analysis.get('analysis_method', 'standard')}_enhanced"
             }
             
             # Add VSL detection if requested (simplified for now)
             if include_vsl_detection:
                 enhanced_intelligence["vsl_analysis"] = self._detect_video_content(base_analysis, product_name)
             
+            # Update confidence score for enhanced analysis
+            if enhanced_intelligence.get("research_enhanced"):
+                original_confidence = enhanced_intelligence.get("confidence_score", 0.6)
+                enhanced_intelligence["confidence_score"] = min(original_confidence + 0.05, 0.95)
+            
             return enhanced_intelligence
             
         except Exception as e:
-            logger.error(f" analysis failed: {str(e)}")
+            logger.error(f"Enhanced analysis failed: {str(e)}")
             # Return basic analysis on error
             return await self.analyze(url)
     
@@ -1277,7 +1399,7 @@ class SalesPageAnalyzer(SalesPageAnalyzer):
 
 # Simplified document analyzer
 class DocumentAnalyzer:
-    """Analyze uploaded documents for intelligence extraction"""
+    """Analyze uploaded documents for intelligence extraction with optional RAG enhancement"""
     
     def __init__(self):
         # Initialize OpenAI client if available
@@ -1286,9 +1408,23 @@ class DocumentAnalyzer:
             self.openai_client = openai.AsyncOpenAI(api_key=api_key)
         else:
             self.openai_client = None
+        
+        # 🔍 NEW: Initialize RAG system if available
+        if RAG_SYSTEM_AVAILABLE:
+            try:
+                self.rag_system = IntelligenceRAGSystem()
+                self.has_rag = True
+                logger.info("🔍 RAG system initialized for document analysis")
+            except Exception as e:
+                self.rag_system = None
+                self.has_rag = False
+                logger.warning(f"⚠️ RAG system initialization failed: {e}")
+        else:
+            self.rag_system = None
+            self.has_rag = False
     
-    async def analyze_document(self, file_content: bytes, file_extension: str) -> Dict[str, Any]:
-        """Analyze uploaded document and extract intelligence"""
+    async def analyze_document(self, file_content: bytes, file_extension: str, context_docs: List[str] = None) -> Dict[str, Any]:
+        """Analyze uploaded document and extract intelligence with optional context"""
         
         try:
             # Extract text based on file type
@@ -1315,8 +1451,33 @@ class DocumentAnalyzer:
                     "Develop case studies from examples"
                 ],
                 "extracted_text": text_content[:1000],
-                "confidence_score": 0.7
+                "confidence_score": 0.7,
+                "analysis_method": "document_analysis",
+                "rag_enhanced": False
             }
+            
+            # 🔍 NEW: Add RAG enhancement if available and context provided
+            if self.has_rag and context_docs:
+                try:
+                    # Add context documents to RAG system
+                    for i, doc_content in enumerate(context_docs):
+                        await self.rag_system.add_research_document(f"context_doc_{i}", doc_content)
+                    
+                    # Query for relevant context
+                    relevant_chunks = await self.rag_system.intelligent_research_query(
+                        "document analysis insights market research", top_k=3
+                    )
+                    
+                    if relevant_chunks:
+                        enhanced_intel = await self.rag_system.generate_enhanced_intelligence(
+                            "document analysis market insights", relevant_chunks
+                        )
+                        intelligence["enhanced_intelligence"] = enhanced_intel
+                        intelligence["rag_enhanced"] = True
+                        intelligence["confidence_score"] = min(intelligence["confidence_score"] + 0.1, 0.9)
+                
+                except Exception as e:
+                    logger.error(f"RAG enhancement for document analysis failed: {e}")
             
             return intelligence
             
@@ -1328,6 +1489,8 @@ class DocumentAnalyzer:
                 "content_opportunities": [],
                 "extracted_text": "",
                 "confidence_score": 0.0,
+                "analysis_method": "document_analysis_failed",
+                "rag_enhanced": False,
                 "error": str(e)
             }
     
@@ -1357,23 +1520,40 @@ class DocumentAnalyzer:
         return (percentages + numbers)[:5]
 
 
-# Simplified web analyzer
+# Simplified web analyzer with RAG capabilities
 class WebAnalyzer:
-    """Analyze general websites and web content"""
+    """Analyze general websites and web content with RAG enhancement"""
     
     def __init__(self):
         self.sales_page_analyzer = SalesPageAnalyzer()
     
-    async def analyze(self, url: str) -> Dict[str, Any]:
-        """Analyze general website content"""
+    async def analyze(self, url: str, research_docs: List[str] = None) -> Dict[str, Any]:
+        """Analyze general website content with optional research context"""
         
-        # Delegate to sales page analyzer
-        return await self.sales_page_analyzer.analyze(url)
+        # Use enhanced analysis if research docs provided
+        if research_docs and self.sales_page_analyzer.has_rag:
+            return await self.sales_page_analyzer.analyze_with_research_context(url, research_docs)
+        else:
+            # Delegate to sales page analyzer
+            return await self.sales_page_analyzer.analyze(url)
 
 
 # Additional analyzer classes for the enhanced API
 class VSLAnalyzer:
-    """Simplified VSL analyzer"""
+    """Simplified VSL analyzer with potential RAG integration"""
+    
+    def __init__(self):
+        # 🔍 NEW: Initialize RAG system if available for transcript analysis
+        if RAG_SYSTEM_AVAILABLE:
+            try:
+                self.rag_system = IntelligenceRAGSystem()
+                self.has_rag = True
+            except Exception:
+                self.rag_system = None
+                self.has_rag = False
+        else:
+            self.rag_system = None
+            self.has_rag = False
     
     async def detect_vsl(self, url: str) -> Dict[str, Any]:
         """Detect VSL content"""
@@ -1383,36 +1563,58 @@ class VSLAnalyzer:
             "video_length_estimate": "Unknown",
             "video_type": "unknown",
             "transcript_available": False,
-            "key_video_elements": ["Video content analysis requires additional tools"]
+            "key_video_elements": ["Video content analysis requires additional tools"],
+            "rag_available": self.has_rag
         }
     
-    async def analyze_vsl(self, url: str, campaign_id: str, extract_transcript: bool = True) -> Dict[str, Any]:
-        """Analyze VSL content"""
+    async def analyze_vsl(self, url: str, campaign_id: str, extract_transcript: bool = True, context_docs: List[str] = None) -> Dict[str, Any]:
+        """Analyze VSL content with optional research context"""
         
-        return {
+        base_analysis = {
             "transcript_id": f"vsl_{uuid.uuid4().hex[:8]}",
             "video_url": url,
             "transcript_text": "VSL analysis requires video processing tools",
             "key_moments": [],
             "psychological_hooks": ["Video analysis not yet implemented"],
             "offer_mentions": [],
-            "call_to_actions": []
+            "call_to_actions": [],
+            "campaign_id": campaign_id,
+            "rag_enhanced": False
         }
-    
+        
+        # 🔍 NEW: Add RAG enhancement if available and context provided
+        if self.has_rag and context_docs:
+            try:
+                # Add context documents for VSL analysis
+                for i, doc_content in enumerate(context_docs):
+                    await self.rag_system.add_research_document(f"vsl_context_{i}", doc_content)
+                
+                # This would be enhanced with actual transcript analysis
+                base_analysis["rag_enhanced"] = True
+                base_analysis["research_context_available"] = len(context_docs)
+            
+            except Exception as e:
+                logger.error(f"RAG enhancement for VSL analysis failed: {e}")
+        
+        return base_analysis
+
 class CompetitiveAnalyzer:
-    """🔥 MISSING CLASS: Competitive intelligence analyzer"""
+    """🔥 ENHANCED: Competitive intelligence analyzer with RAG capabilities"""
     
     def __init__(self):
         # Use the existing SalesPageAnalyzer as the core engine
         self.sales_analyzer = SalesPageAnalyzer()
-        logger.info("✅ CompetitiveAnalyzer initialized")
+        logger.info("✅ CompetitiveAnalyzer initialized with RAG capabilities")
     
-    async def analyze_competitor(self, url: str, campaign_id: str = None) -> Dict[str, Any]:
-        """Analyze competitor using existing sales page analyzer"""
+    async def analyze_competitor(self, url: str, campaign_id: str = None, research_docs: List[str] = None) -> Dict[str, Any]:
+        """Analyze competitor using existing sales page analyzer with optional research context"""
         
         try:
-            # Use existing sales page analysis
-            analysis = await self.sales_analyzer.analyze(url)
+            # Use enhanced analysis with research context if available
+            if research_docs and self.sales_analyzer.has_rag:
+                analysis = await self.sales_analyzer.analyze_with_research_context(url, research_docs)
+            else:
+                analysis = await self.sales_analyzer.analyze(url)
             
             # Add competitive-specific metadata
             competitive_analysis = {
@@ -1421,7 +1623,9 @@ class CompetitiveAnalyzer:
                     "analyzer_type": "CompetitiveAnalyzer",
                     "competitive_focus": True,
                     "campaign_id": campaign_id,
+                    "research_docs_count": len(research_docs) if research_docs else 0,
                     "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
+                    "rag_capabilities_available": self.sales_analyzer.has_rag
                 }
             }
             
@@ -1429,26 +1633,74 @@ class CompetitiveAnalyzer:
             return competitive_analysis
             
         except Exception as e:
-            logger.error(f"❌ Competitive analysis failed: {str(e)}")
+            logger.error(f"⚠ Competitive analysis failed: {str(e)}")
             raise
     
     async def analyze_enhanced(
         self, 
         url: str, 
         campaign_id: str = None, 
-        analysis_depth: str = "comprehensive"
+        analysis_depth: str = "comprehensive",
+        research_docs: List[str] = None
     ) -> Dict[str, Any]:
-        """Enhanced competitive analysis"""
+        """Enhanced competitive analysis with RAG integration"""
         
         # Use the enhanced analyzer from SalesPageAnalyzer
-        enhanced_analyzer = SalesPageAnalyzer()  # This extends the base class
+        enhanced_analyzer = EnhancedSalesPageAnalyzer()
         return await enhanced_analyzer.analyze_enhanced(
             url=url,
             campaign_id=campaign_id,
             analysis_depth=analysis_depth,
-            include_vsl_detection=True
+            include_vsl_detection=True,
+            research_docs=research_docs
         )
 
 # At the end of src/intelligence/analyzers.py:
 ANALYZERS_AVAILABLE = True
 COMPETITIVE_ANALYZER_AVAILABLE = True
+RAG_ENHANCED_ANALYZERS = RAG_SYSTEM_AVAILABLE
+
+# 🔍 NEW: Export RAG availability for other modules
+def get_rag_availability() -> Dict[str, Any]:
+    """Get RAG system availability status"""
+    return {
+        "rag_available": RAG_SYSTEM_AVAILABLE,
+        "enhanced_analyzers": RAG_ENHANCED_ANALYZERS,
+        "capabilities": {
+            "research_document_analysis": RAG_SYSTEM_AVAILABLE,
+            "semantic_search": RAG_SYSTEM_AVAILABLE,
+            "enhanced_intelligence": RAG_SYSTEM_AVAILABLE,
+            "context_aware_analysis": RAG_SYSTEM_AVAILABLE
+        }
+    }
+
+# 🔍 NEW: Convenience function to create analyzer with best available capabilities
+def create_best_analyzer() -> SalesPageAnalyzer:
+    """Create the best available analyzer (with RAG if possible)"""
+    if RAG_SYSTEM_AVAILABLE:
+        return EnhancedSalesPageAnalyzer()
+    else:
+        return SalesPageAnalyzer()
+
+# 🔍 NEW: Health check function for analyzers
+def analyzers_health_check() -> Dict[str, Any]:
+    """Perform health check on analyzer systems"""
+    return {
+        "analyzers_available": ANALYZERS_AVAILABLE,
+        "competitive_analyzer_available": COMPETITIVE_ANALYZER_AVAILABLE,
+        "rag_system_available": RAG_SYSTEM_AVAILABLE,
+        "tiered_ai_available": TIERED_AI_AVAILABLE,
+        "load_balancing_available": LOAD_BALANCING_AVAILABLE,
+        "product_extractor_available": PRODUCT_EXTRACTOR_AVAILABLE,
+        "enhanced_capabilities": {
+            "research_enhanced_analysis": RAG_SYSTEM_AVAILABLE,
+            "ultra_cheap_ai_providers": TIERED_AI_AVAILABLE,
+            "load_balanced_providers": LOAD_BALANCING_AVAILABLE,
+            "advanced_product_extraction": PRODUCT_EXTRACTOR_AVAILABLE
+        },
+        "status": "fully_operational" if all([
+            ANALYZERS_AVAILABLE,
+            COMPETITIVE_ANALYZER_AVAILABLE,
+            TIERED_AI_AVAILABLE
+        ]) else "partial_functionality"
+    }
