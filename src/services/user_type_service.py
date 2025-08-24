@@ -2,7 +2,7 @@
 """
 User Type Management Service for CampaignForge Multi-User System
 🎭 Handles user type detection, routing, and configuration
-🎯 Provides user-specific recommendations and optimizations
+🎯 Provides user-specific recommendations / optimizations
 """
 
 from typing import Dict, List, Optional, Any

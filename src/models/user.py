@@ -2,7 +2,7 @@
 """
 Enhanced User model with multi-user type system for existing CampaignForge database
 🎭 Adds user type functionality while preserving all existing relationships
-🔧 Minimal changes - only adds essential user type fields
+🔧 Minimal changes - only adds essential user types
 """
 
 from sqlalchemy import Column, String, Boolean, ForeignKey, Text, Integer, DateTime, Enum
