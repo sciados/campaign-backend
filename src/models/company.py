@@ -19,7 +19,7 @@ class CompanySize(str, enum.Enum):
     ENTERPRISE = "enterprise"
 
 class CompanySubscriptionTier(str, enum.Enum):
-    FREE = "free"
+    free = "free"
     STARTER = "starter"
     PROFESSIONAL = "professional"
     AGENCY = "agency"
@@ -59,7 +59,7 @@ class Company(BaseModel, EnumSerializerMixin):
     brand_guidelines = Column(JSONB, default={})
     
     # Subscription & Billing
-    subscription_tier = Column(String(50), default=CompanySubscriptionTier.FREE.value)
+    subscription_tier = Column(String(50), default=CompanySubscriptionTier.free.value)
     subscription_status = Column(String(50), default="active")
     billing_email = Column(String(255))
     

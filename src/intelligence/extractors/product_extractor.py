@@ -50,7 +50,7 @@ class ProductNameExtractor:
         # 🔧 NEW: Common unwanted suffixes to remove
         self.unwanted_suffixes = [
             'try', 'TRY', 'get', 'GET', 'now', 'NOW', 'today', 'TODAY',
-            'free', 'FREE', 'new', 'NEW', 'best', 'BEST'
+            'free', 'free', 'new', 'NEW', 'best', 'BEST'
         ]
 
     def extract_product_name(self, content: str, page_title: str = None) -> str:

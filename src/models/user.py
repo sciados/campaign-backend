@@ -62,7 +62,7 @@ class User(BaseModel):
     
     # 🆕 NEW: Multi-User Type System (ONLY these fields added)
     user_type = Column(Enum(UserType, name='usertype'), nullable=True)  # null during onboarding
-    user_tier = Column(Enum(UserTier, name='usertier'), default=UserTier.FREE)
+    user_tier = Column(Enum(UserTier, name='usertier'), default=UserTier.free)
     onboarding_status = Column(Enum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.INCOMPLETE)
     onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
     

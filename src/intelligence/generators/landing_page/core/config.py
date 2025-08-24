@@ -31,7 +31,7 @@ PAGE_CONFIGS: Dict[PageType, PageConfig] = {
         focus="demo engagement",
         conversion_elements=["demo_video", "feature_highlights", "trial_offer"]
     ),
-    PageType.FREE_TRIAL: PageConfig(
+    PageType.free_TRIAL: PageConfig(
         sections=["hero", "features", "benefits", "trial_form", "testimonials", "guarantee", "footer"],
         primary_cta="Start Free Trial",
         focus="trial signup",

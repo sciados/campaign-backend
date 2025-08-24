@@ -13,7 +13,7 @@ class PageType(Enum):
     SALES = "sales"
     WEBINAR = "webinar"
     PRODUCT_DEMO = "product_demo"
-    FREE_TRIAL = "free_trial"
+    free_TRIAL = "free_trial"
 
 class ColorScheme(Enum):
     """Available color schemes"""

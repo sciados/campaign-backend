@@ -399,8 +399,8 @@ class AnalysisHandler:
         try:
             from src.intelligence.utils.tiered_ai_provider import get_tiered_ai_provider, ServiceTier
             
-            tiered_manager = get_tiered_ai_provider(ServiceTier.FREE)
-            providers = tiered_manager.get_available_providers(ServiceTier.FREE)
+            tiered_manager = get_tiered_ai_provider(ServiceTier.free)
+            providers = tiered_manager.get_available_providers(ServiceTier.free)
             
             if providers:
                 primary_provider = providers[0]

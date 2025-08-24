@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class ServiceTier(Enum):
     """Service tiers for AI provider selection"""
-    FREE = "free"                    # Ultra-cheap providers only
+    free = "free"                    # Ultra-cheap providers only
     STANDARD = "standard"            # Balanced providers  
     PREMIUM = "premium"              # High-quality providers
     ENTERPRISE = "enterprise"        # All providers with priority routing
@@ -57,7 +57,7 @@ class TieredAIProviderManager:
     Optimizes for cost while allowing premium upgrades
     """
     
-    def __init__(self, service_tier: ServiceTier = ServiceTier.FREE):
+    def __init__(self, service_tier: ServiceTier = ServiceTier.free):
         self.service_tier = service_tier
         self.providers = []
         self.available_providers = []
@@ -73,7 +73,7 @@ class TieredAIProviderManager:
     def _initialize_tiered_providers(self):
         """Initialize providers optimized for ultra-cheap default tier"""
 
-        # TIER 1: ULTRA-CHEAP (DEFAULT for FREE/STANDARD users)
+        # TIER 1: ULTRA-CHEAP (DEFAULT for free/STANDARD users)
         groq_config = TieredProviderConfig(
             name="groq",
             priority=1,
@@ -81,7 +81,7 @@ class TieredAIProviderManager:
             quality_score=78.0,
             speed_rating=10,
             provider_tier=ProviderTier.ULTRA_CHEAP,
-            available_in_tiers=[ServiceTier.FREE, ServiceTier.STANDARD, ServiceTier.PREMIUM, ServiceTier.ENTERPRISE],
+            available_in_tiers=[ServiceTier.free, ServiceTier.STANDARD, ServiceTier.PREMIUM, ServiceTier.ENTERPRISE],
             api_key_env="GROQ_API_KEY",
             client_class="groq.AsyncGroq",
             # model_name="llama-3.3-70b-specdec",
@@ -100,7 +100,7 @@ class TieredAIProviderManager:
             quality_score=82.0,
             speed_rating=7,
             provider_tier=ProviderTier.ULTRA_CHEAP,
-            available_in_tiers=[ServiceTier.FREE, ServiceTier.STANDARD, ServiceTier.PREMIUM, ServiceTier.ENTERPRISE],
+            available_in_tiers=[ServiceTier.free, ServiceTier.STANDARD, ServiceTier.PREMIUM, ServiceTier.ENTERPRISE],
             api_key_env="TOGETHER_API_KEY",
             client_class="openai.AsyncOpenAI",
             model_name="meta-llama/Llama-3.1-70B-Instruct-Turbo",  # Together AI model
@@ -115,7 +115,7 @@ class TieredAIProviderManager:
             quality_score=72.0,
             speed_rating=6,
             provider_tier=ProviderTier.ULTRA_CHEAP,
-            available_in_tiers=[ServiceTier.FREE, ServiceTier.STANDARD, ServiceTier.PREMIUM, ServiceTier.ENTERPRISE],
+            available_in_tiers=[ServiceTier.free, ServiceTier.STANDARD, ServiceTier.PREMIUM, ServiceTier.ENTERPRISE],
             api_key_env="DEEPSEEK_API_KEY",
             client_class="openai.AsyncOpenAI",
             model_name="deepseek-chat",  # Deepseek model
@@ -405,7 +405,7 @@ class TieredAIProviderManager:
 # Global tiered provider manager
 _global_tiered_manager = None
 
-def get_tiered_ai_provider(service_tier: ServiceTier = ServiceTier.FREE) -> TieredAIProviderManager:
+def get_tiered_ai_provider(service_tier: ServiceTier = ServiceTier.free) -> TieredAIProviderManager:
     """Get the global tiered AI provider manager"""
     global _global_tiered_manager
     
@@ -414,7 +414,7 @@ def get_tiered_ai_provider(service_tier: ServiceTier = ServiceTier.FREE) -> Tier
     
     return _global_tiered_manager
 
-def set_default_service_tier(tier: ServiceTier = ServiceTier.FREE):
+def set_default_service_tier(tier: ServiceTier = ServiceTier.free):
     """Set the default service tier for your application"""
     global _global_tiered_manager
     _global_tiered_manager = TieredAIProviderManager(tier)
@@ -422,7 +422,7 @@ def set_default_service_tier(tier: ServiceTier = ServiceTier.FREE):
     logger.info(f"🎯 Default service tier set to: {tier.value.upper()}")
     
     # Log the impact
-    if tier == ServiceTier.FREE:
+    if tier == ServiceTier.free:
         logger.info("💎 Using ultra-cheap providers: Groq, Together AI, Deepseek")
         logger.info("💰 Expected savings: 95-99% vs OpenAI")
         logger.info("🎯 Quality range: 72-82/100")
@@ -435,7 +435,7 @@ def set_default_service_tier(tier: ServiceTier = ServiceTier.FREE):
 async def make_tiered_ai_request(
     prompt: str,
     max_tokens: int = 1000,
-    service_tier: ServiceTier = ServiceTier.FREE,
+    service_tier: ServiceTier = ServiceTier.free,
     temperature: float = 0.3
 ) -> Dict[str, Any]:
     """Make AI request using tiered provider system"""
@@ -537,7 +537,7 @@ def log_tier_comparison():
     logger.info("🎯 SERVICE TIER COMPARISON:")
     logger.info("=" * 60)
     
-    tiers = [ServiceTier.FREE, ServiceTier.STANDARD, ServiceTier.PREMIUM, ServiceTier.ENTERPRISE]
+    tiers = [ServiceTier.free, ServiceTier.STANDARD, ServiceTier.PREMIUM, ServiceTier.ENTERPRISE]
     
     for tier in tiers:
         manager = TieredAIProviderManager(tier)
@@ -553,7 +553,7 @@ def log_tier_comparison():
 
 if __name__ == "__main__":
     # Set ultra-cheap as default for your application
-    set_default_service_tier(ServiceTier.FREE)
+    set_default_service_tier(ServiceTier.free)
     
     # Show tier comparison
     log_tier_comparison()

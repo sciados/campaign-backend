@@ -154,8 +154,8 @@ class AdCopyGenerator(BaseContentGenerator, EnumSerializerMixin):
         # Try to get from tiered system first
         try:
             from src.intelligence.utils.tiered_ai_provider import get_tiered_ai_provider, ServiceTier
-            tiered_manager = get_tiered_ai_provider(ServiceTier.FREE)
-            providers = tiered_manager.get_available_providers(ServiceTier.FREE)
+            tiered_manager = get_tiered_ai_provider(ServiceTier.free)
+            providers = tiered_manager.get_available_providers(ServiceTier.free)
             
             if providers:
                 logger.info(f"✅ Loaded {len(providers)} ultra-cheap providers from tiered system")

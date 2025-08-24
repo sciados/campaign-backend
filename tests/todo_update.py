@@ -125,7 +125,7 @@ CONFIGURATION CHANGES NEEDED:
    from src.intelligence.utils.tiered_ai_provider import set_default_service_tier, ServiceTier
    
    # Set ultra-cheap as default for all users
-   set_default_service_tier(ServiceTier.FREE)
+   set_default_service_tier(ServiceTier.free)
    ```
 
 4. Update enhancement modules to use the new provider format:
@@ -199,11 +199,11 @@ async def test_ultra_cheap_providers():
     print("=" * 40)
     
     try:
-        # Test FREE tier (ultra-cheap providers)
+        # Test free tier (ultra-cheap providers)
         result = await make_tiered_ai_request(
             prompt=test_prompt,
             max_tokens=500,
-            service_tier=ServiceTier.FREE
+            service_tier=ServiceTier.free
         )
         
         print(f"✅ SUCCESS!")
@@ -322,7 +322,7 @@ def print_implementation_checklist():
             "tasks": [
                 "□ Add tiered_ai_provider.py to your project",
                 "□ Update analysis_handler.py with new provider method",
-                "□ Set ServiceTier.FREE as default"
+                "□ Set ServiceTier.free as default"
             ],
             "time": "10 minutes",
             "priority": "🔥 CRITICAL"

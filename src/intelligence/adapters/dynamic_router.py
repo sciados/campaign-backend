@@ -1,6 +1,6 @@
 # src/intelligence/adapters/dynamic_router.py
 """
-DYNAMIC AI ROUTER - CIRCULAR IMPORT FREE VERSION
+DYNAMIC AI ROUTER - CIRCULAR IMPORT free VERSION
 🎯 Automatically selects optimal providers with clean architecture
 💰 Maximizes cost savings while maintaining quality
 🔄 No circular imports through lazy loading

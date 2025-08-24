@@ -116,10 +116,10 @@ class SalesPageAnalyzer:
         """🔥 NEW: Initialize with load balanced provider system"""
         try:
             # Get the tiered provider manager
-            self.ai_provider_manager = get_tiered_ai_provider(ServiceTier.FREE)
+            self.ai_provider_manager = get_tiered_ai_provider(ServiceTier.free)
             
             # Get available ultra-cheap providers in load balancing format
-            self.available_providers = self.ai_provider_manager.get_available_providers(ServiceTier.FREE)
+            self.available_providers = self.ai_provider_manager.get_available_providers(ServiceTier.free)
             
             if self.available_providers:
                 # Log load balanced setup
@@ -151,10 +151,10 @@ class SalesPageAnalyzer:
         """Initialize with standard tiered provider system (fallback)"""
         try:
             # Get the tiered provider manager
-            self.ai_provider_manager = get_tiered_ai_provider(ServiceTier.FREE)
+            self.ai_provider_manager = get_tiered_ai_provider(ServiceTier.free)
             
             # Get available ultra-cheap providers
-            provider_configs = self.ai_provider_manager.get_providers_for_tier(ServiceTier.FREE)
+            provider_configs = self.ai_provider_manager.get_providers_for_tier(ServiceTier.free)
             
             if provider_configs:
                 # Convert to format expected by analyzers
@@ -707,7 +707,7 @@ class SalesPageAnalyzer:
             result = await make_tiered_ai_request(
                 prompt=analysis_prompt,
                 max_tokens=2000,
-                service_tier=ServiceTier.FREE  # Use ultra-cheap tier
+                service_tier=ServiceTier.free  # Use ultra-cheap tier
             )
             
             # Log cost savings

@@ -9,7 +9,7 @@ from typing import List, Dict, Any
 # 🔧 CRITICAL FIX: Add StorageTier enum class that generators expect
 class StorageTier(Enum):
     """Storage tier enumeration"""
-    FREE = "free"
+    free = "free"
     PRO = "pro"
     ENTERPRISE = "enterprise"
 
@@ -34,7 +34,7 @@ class StorageTierInfo:
         for tier in StorageTier:
             if tier.value == tier_name or tier_name in tier.value:
                 return tier
-        return StorageTier.FREE
+        return StorageTier.free
 
 # Storage tier definitions
 STORAGE_TIERS = {
@@ -230,7 +230,7 @@ def get_content_type_from_filename(filename: str) -> str:
 def parse_tier_from_string(tier_string: str) -> StorageTier:
     """Parse StorageTier enum from string with fallback"""
     if not tier_string:
-        return StorageTier.FREE
+        return StorageTier.free
     
     tier_string = tier_string.lower().strip()
     
@@ -239,7 +239,7 @@ def parse_tier_from_string(tier_string: str) -> StorageTier:
             return tier
     
     # Fallback to free tier if not found
-    return StorageTier.FREE
+    return StorageTier.free
 
 def get_user_tier_limits(tier: StorageTier) -> Dict[str, Any]:
     """Get comprehensive tier limits for a user"""
@@ -336,7 +336,7 @@ def get_tier_by_name(tier_name: str) -> StorageTier:
 
 def get_default_tier() -> StorageTier:
     """Get default tier for new users"""
-    return StorageTier.FREE
+    return StorageTier.free
 
 def get_tier_features(tier: StorageTier) -> List[str]:
     """Get features list for a tier"""
