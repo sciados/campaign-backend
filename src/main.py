@@ -3,7 +3,7 @@
 Refactored main.py - Orchestration Only
 Responsibility: Import and orchestrate the 4 modules, Call app_factory.create_app(),
 Register routers via router_registry, Include endpoints from endpoints module,
-Include emergency_endpoints if needed, uvicorn.run() at bottom
+Include emergency_endpoints if needed, uvicorn.run() added at bottom
 """
 
 import os
