@@ -5,9 +5,12 @@ Enhanced User model with multi-user type system for existing CampaignForge datab
 🔧 FIXED: Correct enum access patterns and default values
 """
 
-from sqlalchemy import Column, String, Boolean, ForeignKey, Text, Integer, DateTime, Enum
+# from sqlalchemy import Column, String, Boolean, ForeignKey, Text, Integer, DateTime, Enum
 from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Column, String, Boolean, ForeignKey, Text, Integer, DateTime
+from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 from sqlalchemy.orm import relationship
+from sqlalchemy_utils import ChoiceType
 from datetime import datetime, timezone
 import enum
 
@@ -61,9 +64,13 @@ class User(BaseModel):
     last_storage_check = Column(DateTime(timezone=True), nullable=True)
     
     # 🆕 NEW: Multi-User Type System (ONLY these fields added)
-    user_type = Column(Enum(UserType, name='usertype'), nullable=True)  # null during onboarding
-    user_tier = Column(Enum(UserTier, name='usertier'), default=UserTier.FREE)
-    onboarding_status = Column(Enum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.INCOMPLETE)  # ✅ Fixed default
+    # user_type = Column(Enum(UserType, name='usertype'), nullable=True)  # null during onboarding
+    # user_type = Column(ChoiceType(UserType), nullable=True)
+    # user_tier = Column(enum.Enum(UserTier, name='usertier'), default=UserTier.FREE)
+    # onboarding_status = Column(enum.Enum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.INCOMPLETE)  # ✅ Fixed default
+    user_type = Column(PostgreSQLEnum(UserType, name='usertype'), nullable=True)
+    user_tier = Column(PostgreSQLEnum(UserTier, name='usertier'), default=UserTier.FREE, nullable=False)
+    onboarding_status = Column(PostgreSQLEnum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.INCOMPLETE, nullable=False)
     onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
     
     # 🎯 NEW: User Goals & Experience (minimal additions)
