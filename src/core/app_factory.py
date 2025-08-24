@@ -127,10 +127,10 @@ async def create_lifespan(app: FastAPI):
 # ============================================================================
 
 def configure_cors_middleware(app: FastAPI):
-    """Configure CORS middleware"""
+    """Configure CORS middleware - FIXED VERSION"""
     print("🔧 Configuring CORS middleware...")
     
-    # Add CORS middleware with explicit configuration
+    # Add CORS middleware with explicit configuration - NO WILDCARDS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -142,7 +142,7 @@ def configure_cors_middleware(app: FastAPI):
             "https://www.rodgersdigital.com",
             "https://rodgersdigital.vercel.app",
             "https://www.rodgersdigital.vercel.app",
-            "https://*.vercel.app"  # This might not work, so let's be explicit
+            # REMOVED: "https://*.vercel.app" - wildcards don't work!
         ],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
