@@ -10,7 +10,6 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy import Column, String, Boolean, ForeignKey, Text, Integer, DateTime
 from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 from sqlalchemy.orm import relationship
-from sqlalchemy_utils import ChoiceType
 from datetime import datetime, timezone
 import enum
 
