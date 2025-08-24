@@ -16,9 +16,9 @@ from .base import BaseModel
 
 # 🎭 NEW: User Type Enums (add these to your existing enums)
 class UserType(str, enum.Enum):
-    AFFILIATE_MARKETER = "affiliate_marketer"
-    CONTENT_CREATOR = "content_creator" 
-    BUSINESS_OWNER = "business_owner"
+    affiliate_marketer = "affiliate_marketer"
+    content_creator = "content_creator" 
+    business_owner = "business_owner"
 
 class UserTier(str, enum.Enum):
     FREE = "free"
@@ -139,13 +139,13 @@ class User(BaseModel):
     
     def _set_default_limits_by_type(self):
         """Set default limits based on user type"""
-        if self.user_type == UserType.AFFILIATE_MARKETER:
+        if self.user_type == UserType.affiliate_marketer:
             self.monthly_campaign_limit = 10  # Affiliates create more campaigns
             self.monthly_analysis_limit = 25
-        elif self.user_type == UserType.CONTENT_CREATOR:
+        elif self.user_type == UserType.content_creator:
             self.monthly_campaign_limit = 15  # Creators need lots of content
             self.monthly_analysis_limit = 20
-        elif self.user_type == UserType.BUSINESS_OWNER:
+        elif self.user_type == UserType.business_owner:
             self.monthly_campaign_limit = 8   # Businesses focus on quality
             self.monthly_analysis_limit = 15
     
@@ -154,7 +154,7 @@ class User(BaseModel):
         if not self.preferences:
             self.preferences = {}
             
-        if self.user_type == UserType.AFFILIATE_MARKETER:
+        if self.user_type == UserType.affiliate_marketer:
             self.preferences['intelligence'] = {
                 "focus_areas": ["competitor_analysis", "conversion_optimization", "commission_tracking"],
                 "auto_track_competitors": True,
@@ -163,7 +163,7 @@ class User(BaseModel):
                 "preferred_sources": ["competitor_pages", "affiliate_networks", "commission_data"]
             }
             
-        elif self.user_type == UserType.CONTENT_CREATOR:
+        elif self.user_type == UserType.content_creator:
             self.preferences['intelligence'] = {
                 "focus_areas": ["viral_analysis", "trend_detection", "audience_insights"],
                 "auto_track_trends": True,
@@ -172,7 +172,7 @@ class User(BaseModel):
                 "preferred_sources": ["social_media", "viral_content", "trend_data"]
             }
             
-        elif self.user_type == UserType.BUSINESS_OWNER:
+        elif self.user_type == UserType.business_owner:
             self.preferences['intelligence'] = {
                 "focus_areas": ["market_research", "lead_generation", "competitor_monitoring"],
                 "auto_market_analysis": True,
@@ -190,39 +190,39 @@ class User(BaseModel):
     
     def get_dashboard_route(self) -> str:
         """Get the appropriate dashboard route for this user type"""
-        if self.user_type == UserType.AFFILIATE_MARKETER:
+        if self.user_type == UserType.affiliate_marketer:
             return "/dashboard/affiliate"
-        elif self.user_type == UserType.CONTENT_CREATOR:
+        elif self.user_type == UserType.content_creator:
             return "/dashboard/creator"
-        elif self.user_type == UserType.BUSINESS_OWNER:
+        elif self.user_type == UserType.business_owner:
             return "/dashboard/business"
         else:
             return "/user-selection"  # Not set yet
     
     def get_user_type_display(self) -> str:
         """Get display name for user type"""
-        if self.user_type == UserType.AFFILIATE_MARKETER:
+        if self.user_type == UserType.affiliate_marketer:
             return "💰 Affiliate Marketer"
-        elif self.user_type == UserType.CONTENT_CREATOR:
+        elif self.user_type == UserType.content_creator:
             return "🎬 Content Creator"
-        elif self.user_type == UserType.BUSINESS_OWNER:
+        elif self.user_type == UserType.business_owner:
             return "🏢 Business Owner"
         else:
             return "User"
     
     def get_available_features(self) -> list:
         """Get list of available features for this user type"""
-        if self.user_type == UserType.AFFILIATE_MARKETER:
+        if self.user_type == UserType.affiliate_marketer:
             return [
                 'competitor_tracking', 'commission_analysis', 'compliance_check',
                 'ad_creative_generator', 'email_sequences', 'traffic_analysis'
             ]
-        elif self.user_type == UserType.CONTENT_CREATOR:
+        elif self.user_type == UserType.content_creator:
             return [
                 'viral_analysis', 'trend_detection', 'content_optimization', 
                 'audience_insights', 'brand_partnerships', 'cross_platform'
             ]
-        elif self.user_type == UserType.BUSINESS_OWNER:
+        elif self.user_type == UserType.business_owner:
             return [
                 'market_research', 'lead_generation', 'competitor_analysis',
                 'customer_insights', 'sales_optimization', 'roi_tracking'  

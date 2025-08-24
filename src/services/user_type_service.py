@@ -61,11 +61,11 @@ class UserTypeService:
         
         # Return the highest scoring type (with ties going to business owner as default)
         if affiliate_score > creator_score and affiliate_score > business_score:
-            return UserType.AFFILIATE_MARKETER
+            return UserType.affiliate_marketer
         elif creator_score > business_score and creator_score >= affiliate_score:
-            return UserType.CONTENT_CREATOR
+            return UserType.content_creator
         else:
-            return UserType.BUSINESS_OWNER
+            return UserType.business_owner
     
     def set_user_type(self, user_id: str, user_type: UserType, type_data: dict = None) -> User:
         """Set user type and initialize type-specific configuration"""
@@ -101,9 +101,9 @@ class UserTypeService:
         """Get statistics about user types in the system"""
         total_users = self.db.query(User).count()
         
-        affiliate_count = self.db.query(User).filter(User.user_type == UserType.AFFILIATE_MARKETER).count()
-        creator_count = self.db.query(User).filter(User.user_type == UserType.CONTENT_CREATOR).count()
-        business_count = self.db.query(User).filter(User.user_type == UserType.BUSINESS_OWNER).count()
+        affiliate_count = self.db.query(User).filter(User.user_type == UserType.affiliate_marketer).count()
+        creator_count = self.db.query(User).filter(User.user_type == UserType.content_creator).count()
+        business_count = self.db.query(User).filter(User.user_type == UserType.business_owner).count()
         no_type_count = self.db.query(User).filter(User.user_type.is_(None)).count()
         
         return {
@@ -152,11 +152,11 @@ class UserTypeService:
             "optimization_tips": []
         }
         
-        if user.user_type == UserType.AFFILIATE_MARKETER:
+        if user.user_type == UserType.affiliate_marketer:
             recommendations = self._get_affiliate_recommendations(user, recent_campaigns)
-        elif user.user_type == UserType.CONTENT_CREATOR:
+        elif user.user_type == UserType.content_creator:
             recommendations = self._get_creator_recommendations(user, recent_campaigns)
-        elif user.user_type == UserType.BUSINESS_OWNER:
+        elif user.user_type == UserType.business_owner:
             recommendations = self._get_business_recommendations(user, recent_campaigns)
         
         return recommendations
@@ -255,7 +255,7 @@ class UserTypeService:
         }
         
         # Add user-type specific dashboard widgets and layout
-        if user.user_type == UserType.AFFILIATE_MARKETER:
+        if user.user_type == UserType.affiliate_marketer:
             base_config.update({
                 "primary_widgets": [
                     "commission_tracker", "competitor_intel", "campaign_performance",
@@ -265,7 +265,7 @@ class UserTypeService:
                 "main_cta": "Track Competitors",
                 "theme_color": "green"
             })
-        elif user.user_type == UserType.CONTENT_CREATOR:
+        elif user.user_type == UserType.content_creator:
             base_config.update({
                 "primary_widgets": [
                     "viral_opportunities", "content_studio", "audience_insights",
@@ -275,7 +275,7 @@ class UserTypeService:
                 "main_cta": "Analyze Viral Content",
                 "theme_color": "purple"
             })
-        elif user.user_type == UserType.BUSINESS_OWNER:
+        elif user.user_type == UserType.business_owner:
             base_config.update({
                 "primary_widgets": [
                     "market_intelligence", "lead_generation", "competitor_watch",
@@ -293,21 +293,21 @@ class UserTypeService:
     def get_user_type_display_info(self, user_type: UserType) -> dict:
         """Get display information for a user type"""
         type_info = {
-            UserType.AFFILIATE_MARKETER: {
+            UserType.affiliate_marketer: {
                 "emoji": "💰",
                 "title": "Affiliate Marketer",
                 "description": "Promote products and earn commissions",
                 "features": ["Competitor tracking", "Commission analysis", "Compliance monitoring"],
                 "pricing_start": "$149/month"
             },
-            UserType.CONTENT_CREATOR: {
+            UserType.content_creator: {
                 "emoji": "🎬",
                 "title": "Content Creator",
                 "description": "Create viral content and grow your audience",
                 "features": ["Viral analysis", "Trend detection", "Brand partnerships"],
                 "pricing_start": "$99/month"
             },
-            UserType.BUSINESS_OWNER: {
+            UserType.business_owner: {
                 "emoji": "🏢",
                 "title": "Business Owner",
                 "description": "Generate leads and grow your business",
@@ -463,19 +463,19 @@ class UserTypeService:
         if not user:
             return "Welcome to CampaignForge!"
         
-        if user.user_type == UserType.AFFILIATE_MARKETER:
+        if user.user_type == UserType.affiliate_marketer:
             if user.total_campaigns_created == 0:
                 return "💰 Ready to optimize your affiliate campaigns? Let's start by analyzing your top competitor!"
             else:
                 return f"💰 Welcome back! You've created {user.total_campaigns_created} campaigns. Time to discover new opportunities!"
         
-        elif user.user_type == UserType.CONTENT_CREATOR:
+        elif user.user_type == UserType.content_creator:
             if user.total_campaigns_created == 0:
                 return "🎬 Ready to create viral content? Let's analyze what's trending in your niche!"
             else:
                 return f"🎬 Welcome back, creator! You've analyzed {user.total_campaigns_created} pieces of content. Let's find your next viral hit!"
         
-        elif user.user_type == UserType.BUSINESS_OWNER:
+        elif user.user_type == UserType.business_owner:
             if user.total_campaigns_created == 0:
                 return "🏢 Ready to grow your business? Let's start with market research and competitor analysis!"
             else:
@@ -648,21 +648,21 @@ class UserTypeService:
         
         # Define success milestones by user type
         milestones = {
-            UserType.AFFILIATE_MARKETER: [
+            UserType.affiliate_marketer: [
                 {"name": "First Campaign", "threshold": 1, "metric": "campaigns"},
                 {"name": "Campaign Master", "threshold": 10, "metric": "campaigns"},
                 {"name": "Intelligence Expert", "threshold": 25, "metric": "intelligence"},
                 {"name": "Content Creator", "threshold": 50, "metric": "content"},
                 {"name": "Power User", "threshold": 100, "metric": "campaigns"}
             ],
-            UserType.CONTENT_CREATOR: [
+            UserType.content_creator: [
                 {"name": "Content Analyzer", "threshold": 1, "metric": "campaigns"},
                 {"name": "Trend Spotter", "threshold": 5, "metric": "intelligence"},
                 {"name": "Viral Hunter", "threshold": 15, "metric": "campaigns"},
                 {"name": "Content Machine", "threshold": 100, "metric": "content"},
                 {"name": "Influence Master", "threshold": 50, "metric": "campaigns"}
             ],
-            UserType.BUSINESS_OWNER: [
+            UserType.business_owner: [
                 {"name": "Market Researcher", "threshold": 1, "metric": "campaigns"},
                 {"name": "Lead Generator", "threshold": 5, "metric": "campaigns"},
                 {"name": "Business Intelligence", "threshold": 20, "metric": "intelligence"},
