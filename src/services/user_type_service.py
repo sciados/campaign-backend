@@ -340,12 +340,12 @@ class UserTypeService:
         should_upgrade = campaign_usage_percent > 80 or analysis_usage_percent > 80
         
         # Suggest appropriate tier
-        if user.user_tier == UserTier.FREE and should_upgrade:
-            suggested_tier = UserTier.STARTER
-        elif user.user_tier == UserTier.STARTER and should_upgrade:
-            suggested_tier = UserTier.PRO
-        elif user.user_tier == UserTier.PRO and should_upgrade:
-            suggested_tier = UserTier.ELITE
+        if user.user_tier == UserTier.free and should_upgrade:
+            suggested_tier = UserTier.starter
+        elif user.user_tier == UserTier.starter and should_upgrade:
+            suggested_tier = UserTier.pro
+        elif user.user_tier == UserTier.pro and should_upgrade:
+            suggested_tier = UserTier.elite
         else:
             suggested_tier = None
         

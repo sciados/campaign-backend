@@ -21,10 +21,10 @@ class UserType(str, enum.Enum):
     business_owner = "business_owner"
 
 class UserTier(str, enum.Enum):
-    FREE = "free"
-    STARTER = "starter" 
-    PRO = "pro"
-    ELITE = "elite"
+    free = "free"
+    starter = "starter" 
+    pro = "pro"
+    elite = "elite"
 
 class OnboardingStatus(str, enum.Enum):
     INCOMPLETE = "incomplete"
