@@ -63,7 +63,7 @@ class User(BaseModel):
     # 🆕 NEW: Multi-User Type System (ONLY these fields added)
     user_type = Column(Enum(UserType, name='usertype'), nullable=True)  # null during onboarding
     user_tier = Column(Enum(UserTier, name='usertier'), default=UserTier.free)
-    onboarding_status = Column(Enum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.INCOMPLETE)
+    onboarding_status = Column(Enum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.incomplete)
     onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
     
     # 🎯 NEW: User Goals & Experience (minimal additions)
@@ -124,7 +124,7 @@ class User(BaseModel):
     def set_user_type(self, user_type: UserType, type_data: dict = None):
         """Set user type and initialize type-specific data"""
         self.user_type = user_type
-        self.onboarding_status = OnboardingStatus.TYPE_SELECTED
+        self.onboarding_status = OnboardingStatus.type_selected
         
         # Store type-specific data in existing settings field to avoid new column
         if not self.settings:
@@ -185,7 +185,7 @@ class User(BaseModel):
         """Complete user onboarding process"""
         self.user_goals = goals or []
         self.experience_level = experience_level
-        self.onboarding_status = OnboardingStatus.COMPLETED
+        self.onboarding_status = OnboardingStatus.completed
         self.onboarding_completed_at = datetime.now(timezone.utc)
     
     def get_dashboard_route(self) -> str:
@@ -286,7 +286,7 @@ class User(BaseModel):
             "user_goals": self.user_goals,
             "user_type_data": self.settings.get('user_type_data', {}) if self.settings else {},
             "intelligence_preferences": self.preferences.get('intelligence', {}) if self.preferences else {},
-            "onboarding_completed": self.onboarding_status == OnboardingStatus.COMPLETED
+            "onboarding_completed": self.onboarding_status == OnboardingStatus.completed
         }
     
     # 🔧 EXISTING METHODS (preserved exactly as-is)
