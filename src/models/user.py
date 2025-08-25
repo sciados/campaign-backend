@@ -67,9 +67,12 @@ class User(BaseModel):
     # user_type = Column(ChoiceType(UserType), nullable=True)
     # user_tier = Column(enum.Enum(UserTier, name='usertier'), default=UserTier.FREE)
     # onboarding_status = Column(enum.Enum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.INCOMPLETE)  # ✅ Fixed default
-    user_type = Column(PostgreSQLEnum(UserType, name='usertype'), nullable=True)
-    user_tier = Column(PostgreSQLEnum(UserTier, name='usertier'), default=UserTier.FREE, nullable=False)
-    onboarding_status = Column(PostgreSQLEnum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.INCOMPLETE, nullable=False)
+    # user_type = Column(PostgreSQLEnum(UserType, name='usertype'), nullable=True)
+    # user_tier = Column(PostgreSQLEnum(UserTier, name='usertier'), default=UserTier.FREE, nullable=False)
+    # onboarding_status = Column(PostgreSQLEnum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.INCOMPLETE, nullable=False)
+    user_type = Column(String(50), nullable=True)
+    user_tier = Column(String(20), default="free", nullable=False)
+    onboarding_status = Column(String(30), default="incomplete", nullable=False)
     onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
     
     # 🎯 NEW: User Goals & Experience (minimal additions)

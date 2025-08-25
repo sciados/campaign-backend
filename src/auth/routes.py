@@ -205,65 +205,49 @@ async def login_user_json(user_login: UserLogin, db: Session = Depends(get_db)):
     """
     Logs in an existing user and returns an access token, accepting JSON body.
     """
-    try:
-        # DEBUG: Check what SQLAlchemy thinks the enum values are
-        from src.models.user import UserType, UserTier, OnboardingStatus
-        
-        print(f"🔍 DEBUG: UserType values: {[e.value for e in UserType]}")
-        print(f"🔍 DEBUG: UserTier values: {[e.value for e in UserTier]}")
-        print(f"🔍 DEBUG: OnboardingStatus values: {[e.value for e in OnboardingStatus]}")
-        
-        # Check the actual SQLAlchemy column definition
-        from src.models.user import User
-        print(f"🔍 DEBUG: user_tier column type: {type(User.user_tier.type)}")
-        print(f"🔍 DEBUG: user_tier column info: {User.user_tier.type}")
 
+    # ✅ FIXED: Remove await
+    user = db.scalar(select(User).where(User.email == user_login.email))
 
-        # ✅ FIXED: Remove await
-        user = db.scalar(select(User).where(User.email == user_login.email))
-
-        # Use verify_password from src.core.security.py
-        if not user or not verify_password(user_login.password, user.password_hash): # Use user.password_hash
-            logger.warning(f"JSON login attempt failed for email: {user_login.email}")
-            raise HTTPException(
-                status_code=http_status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email or password",
-            )
-    
-        if not user.is_active:
-             raise HTTPException(
-                status_code=http_status.HTTP_401_UNAUTHORIZED,
-                detail="User account is inactive. Please contact support."
-            )
-
-        # ✅ ADDED: Get company information for response - FIXED: Remove await
-        company = db.scalar(select(Company).where(Company.id == user.company_id))
-
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": str(user.id), "email": user.email, "role": user.role, "company_id": str(user.company_id)},
-            expires_delta=access_token_expires
+    # Use verify_password from src.core.security.py
+    if not user or not verify_password(user_login.password, user.password_hash): # Use user.password_hash
+        logger.warning(f"JSON login attempt failed for email: {user_login.email}")
+        raise HTTPException(
+            status_code=http_status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
         )
     
-        logger.info(f"User {user_login.email} logged in successfully via JSON, issued token.")
-    
-        # ✅ FIXED: Return format expected by frontend
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "full_name": user.full_name,
-                "role": user.role,
-                "company_id": str(user.company_id),
-                "company_name": company.company_name if company else "Unknown"
-            }
-        }
+    if not user.is_active:
+         raise HTTPException(
+            status_code=http_status.HTTP_401_UNAUTHORIZED,
+            detail="User account is inactive. Please contact support."
+        )
 
-    except Exception as e:
-        print(f"❌ DEBUG: Login error: {str(e)}")
-        raise
+    # ✅ ADDED: Get company information for response - FIXED: Remove await
+    company = db.scalar(select(Company).where(Company.id == user.company_id))
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user.id), "email": user.email, "role": user.role, "company_id": str(user.company_id)},
+        expires_delta=access_token_expires
+    )
+    
+    logger.info(f"User {user_login.email} logged in successfully via JSON, issued token.")
+    
+    # ✅ FIXED: Return format expected by frontend
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "company_id": str(user.company_id),
+            "company_name": company.company_name if company else "Unknown"
+        }
+    }
+
 
 @router.get("/profile", summary="Get current user profile")
 async def get_user_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):  # ✅ FIXED: Changed AsyncSession to Session
