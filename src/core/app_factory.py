@@ -126,8 +126,11 @@ async def create_lifespan(app: FastAPI):
 # ✅ MIDDLEWARE CONFIGURATION
 # ============================================================================
 
+# Add this to your src/core/app_factory.py configure_cors_middleware function
+# Replace the existing function with this enhanced debug version:
+
 def configure_cors_middleware(app: FastAPI):
-    """Configure CORS middleware - FIXED VERSION"""
+    """Configure CORS middleware - FIXED VERSION WITH DEBUG"""
     print("🔧 Configuring CORS middleware...")
     
     # Add CORS middleware with explicit configuration - NO WILDCARDS
@@ -142,7 +145,6 @@ def configure_cors_middleware(app: FastAPI):
             "https://www.rodgersdigital.com",
             "https://rodgersdigital.vercel.app",
             "https://www.rodgersdigital.vercel.app",
-            # REMOVED: "https://*.vercel.app" - wildcards don't work!
         ],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -156,6 +158,23 @@ def configure_cors_middleware(app: FastAPI):
     print("  - https://rodgersdigital.com") 
     print("  - https://rodgersdigital.vercel.app")
     print("  - https://www.rodgersdigital.vercel.app")
+    
+    # Add debug middleware to log CORS requests
+    @app.middleware("http")
+    async def debug_cors_middleware(request: Request, call_next):
+        origin = request.headers.get("origin")
+        method = request.method
+        
+        if method == "OPTIONS":
+            print(f"🔍 CORS DEBUG: OPTIONS request from origin: {origin}")
+            print(f"🔍 CORS DEBUG: Request headers: {dict(request.headers)}")
+        
+        response = await call_next(request)
+        
+        if method == "OPTIONS":
+            print(f"🔍 CORS DEBUG: Response headers: {dict(response.headers)}")
+        
+        return response
 
 def configure_trusted_host_middleware(app: FastAPI):
     """Configure TrustedHost middleware"""
