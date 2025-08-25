@@ -1,4 +1,4 @@
-# src/auth/routes.py - FIXED VERSION with correct timezone import
+# src/auth/routes.py - FIXED VERSION with correct timezone import + Dashboard Routing
 
 import os
 import logging
@@ -205,7 +205,6 @@ async def login_user_json(user_login: UserLogin, db: Session = Depends(get_db)):
     """
     Logs in an existing user and returns an access token, accepting JSON body.
     """
-
     # ✅ FIXED: Remove await
     user = db.scalar(select(User).where(User.email == user_login.email))
 
@@ -243,6 +242,9 @@ async def login_user_json(user_login: UserLogin, db: Session = Depends(get_db)):
             "email": user.email,
             "full_name": user.full_name,
             "role": user.role,
+            "user_type": user.user_type,  # ✅ NEW: Add user_type for dashboard routing
+            "user_tier": user.user_tier,  # ✅ NEW: Add user_tier
+            "onboarding_status": user.onboarding_status,  # ✅ NEW: Add onboarding_status
             "company_id": str(user.company_id),
             "company_name": company.company_name if company else "Unknown"
         }
@@ -273,6 +275,9 @@ async def get_user_profile(current_user: User = Depends(get_current_user), db: S
             "email": current_user.email,
             "full_name": current_user.full_name,
             "role": current_user.role,
+            "user_type": current_user.user_type,  # ✅ NEW: Add user_type
+            "user_tier": current_user.user_tier,  # ✅ NEW: Add user_tier
+            "onboarding_status": current_user.onboarding_status,  # ✅ NEW: Add onboarding_status
             "is_active": current_user.is_active,
             "is_verified": current_user.is_verified,
             "company": {
@@ -294,3 +299,40 @@ async def get_user_profile(current_user: User = Depends(get_current_user), db: S
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch user profile"
         )
+
+@router.get("/dashboard-route", summary="Get appropriate dashboard route for current user")
+async def get_dashboard_route(current_user: User = Depends(get_current_user)):
+    """Get the appropriate dashboard route for the current user"""
+    
+    # Admin users go to admin dashboard
+    if current_user.role == "admin":
+        return {
+            "route": "/admin",
+            "user_type": "admin",
+            "message": "Redirecting to admin dashboard"
+        }
+    
+    # Users without user_type go to user selection
+    if not current_user.user_type:
+        return {
+            "route": "/user-selection", 
+            "user_type": None,
+            "message": "Please select your user type"
+        }
+    
+    # Users with user_type go to appropriate dashboard
+    dashboard_routes = {
+        "affiliate_marketer": "/dashboard/affiliate",
+        "content_creator": "/dashboard/creator", 
+        "business_owner": "/dashboard/business"
+    }
+    
+    route = dashboard_routes.get(current_user.user_type, "/user-selection")
+    
+    return {
+        "route": route,
+        "user_type": current_user.user_type,
+        "user_type_display": current_user.get_user_type_display(),
+        "onboarding_status": current_user.onboarding_status,
+        "message": f"Redirecting to {current_user.get_user_type_display()} dashboard"
+    }
