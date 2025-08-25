@@ -129,14 +129,20 @@ async def create_lifespan(app: FastAPI):
 # Add this to your src/core/app_factory.py configure_cors_middleware function
 # Replace the existing function with this enhanced debug version:
 
+# In src/core/app_factory.py
+# Replace your configure_cors_middleware function with this:
+
 def configure_cors_middleware(app: FastAPI):
-    """Configure CORS middleware - FIXED VERSION WITH DEBUG"""
+    """Configure CORS middleware - UNIFIED WITH CONFIG"""
     print("🔧 Configuring CORS middleware...")
     
-    # Add CORS middleware with explicit configuration - NO WILDCARDS
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[
+    # Import settings to get allowed origins
+    try:
+        from src.core.config import settings
+        allowed_origins = settings.allowed_origins
+    except ImportError:
+        # Fallback if config import fails
+        allowed_origins = [
             "http://localhost:3000",
             "http://localhost:3001", 
             "https://campaignforge.vercel.app",
@@ -145,19 +151,23 @@ def configure_cors_middleware(app: FastAPI):
             "https://www.rodgersdigital.com",
             "https://rodgersdigital.vercel.app",
             "https://www.rodgersdigital.vercel.app",
-        ],
+        ]
+    
+    print(f"🌐 Using {len(allowed_origins)} allowed origins from config")
+    for origin in allowed_origins:
+        print(f"  - {origin}")
+    
+    # Add CORS middleware with origins from config
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
         expose_headers=["*"],
     )
     
-    print("✅ CORS middleware configured")
-    print("🌐 Allowed origins include:")
-    print("  - https://www.rodgersdigital.com")
-    print("  - https://rodgersdigital.com") 
-    print("  - https://rodgersdigital.vercel.app")
-    print("  - https://www.rodgersdigital.vercel.app")
+    print("✅ CORS middleware configured successfully")
     
     # Add debug middleware to log CORS requests
     @app.middleware("http")
@@ -167,12 +177,14 @@ def configure_cors_middleware(app: FastAPI):
         
         if method == "OPTIONS":
             print(f"🔍 CORS DEBUG: OPTIONS request from origin: {origin}")
-            print(f"🔍 CORS DEBUG: Request headers: {dict(request.headers)}")
+            print(f"🔍 CORS DEBUG: Method: {method}, Path: {request.url.path}")
         
         response = await call_next(request)
         
         if method == "OPTIONS":
-            print(f"🔍 CORS DEBUG: Response headers: {dict(response.headers)}")
+            print(f"🔍 CORS DEBUG: Response status: {response.status_code}")
+            cors_headers = {k: v for k, v in response.headers.items() if k.lower().startswith('access-control')}
+            print(f"🔍 CORS DEBUG: CORS headers: {cors_headers}")
         
         return response
 
