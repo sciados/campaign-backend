@@ -179,6 +179,14 @@ def import_intelligence_routers():
         CONTENT_ROUTER_AVAILABLE = True
     except ImportError as e:
         logging.error(f"âŒ Content generation router not available: {e}")
+    
+    try:
+        from src.routes.user_type_routes import router as user_type_router
+        app.include_router(user_type_router)
+        print("✅ User type routes registered") 
+        routes_registered += 1
+    except ImportError as e:
+        print(f"⚠️ User type routes not available: {e}")
 
     # Update system status flags
     INTELLIGENCE_ROUTERS_AVAILABLE = any([
