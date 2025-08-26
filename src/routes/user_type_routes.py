@@ -16,7 +16,7 @@ from ..auth.dependencies import get_current_user
 from ..models.user import User, UserType, UserTier, OnboardingStatus
 from ..services.user_type_service import UserTypeService
 
-router = APIRouter(tags=["user-types"])
+router = APIRouter(prefix="/api/user-types", tags=["user-types"])
 
 # 📝 Pydantic Models for Request/Response
 

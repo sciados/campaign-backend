@@ -296,7 +296,7 @@ def register_all_routers(app: FastAPI):
     # FIXED: Register user type routes with correct import
     try:
         from src.routes.user_type_routes import router as user_type_router
-        app.include_router(user_type_router, prefix="/api/user-types", tags=["user-types"])
+        app.include_router(user_type_router, tags=["user-types"])
         print("User type routes registered") 
         logging.info("User type routes registered")
         routes_registered += 1
