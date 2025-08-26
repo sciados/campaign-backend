@@ -12,7 +12,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 from ..core.database import get_db
-from ..core.security import get_current_user
+from ..auth.dependencies import get_current_user
 from ..models.user import User, UserType, UserTier, OnboardingStatus
 from ..services.user_type_service import UserTypeService
 
