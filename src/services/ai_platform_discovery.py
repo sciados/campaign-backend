@@ -33,7 +33,7 @@ from urllib.parse import urljoin, urlparse, quote
 
 # 🚨 FIXED: Import AI Analyzer with better error handling
 try:
-    from src.services.ai_provider_analyzer import get_ai_provider_analyzer
+    from src.services.ai_provider_analyzer import get_dynamic_ai_provider_analyzer
     AI_ANALYZER_AVAILABLE = True
 except ImportError as e:
     AI_ANALYZER_AVAILABLE = False
@@ -276,7 +276,7 @@ class AIPlatformDiscoveryService:
             if AI_ANALYZER_AVAILABLE:
                 try:
                     logger.info("🤖 Using AI Provider Analyzer for enhanced scanning...")
-                    analyzer = get_ai_provider_analyzer()
+                    analyzer = get_dynamic_ai_provider_analyzer()
                     ai_results = await analyzer.discover_providers_from_environment()
                     
                     if ai_results and len(ai_results) > 0:

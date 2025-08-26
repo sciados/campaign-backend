@@ -37,8 +37,8 @@ def include_health_endpoints(app: FastAPI):
         video_detection_ready = False
         
         try:
-            from src.services.ai_provider_analyzer import get_ai_provider_analyzer
-            analyzer = get_ai_provider_analyzer()
+            from src.services.ai_provider_analyzer import get_dynamic_ai_provider_analyzer
+            analyzer = get_dynamic_ai_provider_analyzer()
             ai_categories_available = True
             dynamic_analysis_available = True
             video_detection_ready = True
@@ -130,8 +130,8 @@ def include_health_endpoints(app: FastAPI):
         }
         
         try:
-            from src.services.ai_provider_analyzer import get_ai_provider_analyzer
-            analyzer = get_ai_provider_analyzer()
+            from src.services.ai_provider_analyzer import get_dynamic_ai_provider_analyzer
+            analyzer = get_dynamic_ai_provider_analyzer()
             ai_features.update({
                 "ai_categories_available": True,
                 "dynamic_analysis_available": True,
@@ -200,8 +200,8 @@ def include_health_endpoints(app: FastAPI):
         # Check AI category features
         ai_category_features = False
         try:
-            from src.services.ai_provider_analyzer import get_ai_provider_analyzer
-            get_ai_provider_analyzer()
+            from src.services.ai_provider_analyzer import get_dynamic_ai_provider_analyzer
+            get_dynamic_ai_provider_analyzer()
             ai_category_features = True
         except:
             pass
@@ -280,9 +280,9 @@ def include_debug_endpoints(app: FastAPI):
     async def debug_ai_category_system():
         """🆕 Debug AI category system status"""
         try:
-            from src.services.ai_provider_analyzer import get_ai_provider_analyzer
+            from src.services.ai_provider_analyzer import get_dynamic_ai_provider_analyzer
             
-            analyzer = get_ai_provider_analyzer()
+            analyzer = get_dynamic_ai_provider_analyzer()
             
             # Test basic functionality
             test_results = {
@@ -361,8 +361,8 @@ def include_debug_endpoints(app: FastAPI):
             # Test AI analysis of video providers
             video_analysis_results = {}
             try:
-                from src.services.ai_provider_analyzer import get_ai_provider_analyzer
-                analyzer = get_ai_provider_analyzer()
+                from src.services.ai_provider_analyzer import get_dynamic_ai_provider_analyzer
+                analyzer = get_dynamic_ai_provider_analyzer()
                 
                 # Test specifically with Replicate
                 if video_env_vars["REPLICATE_API_TOKEN"]["configured"]:
@@ -582,8 +582,8 @@ def include_debug_endpoints(app: FastAPI):
         }
         
         try:
-            from src.services.ai_provider_analyzer import get_ai_provider_analyzer
-            get_ai_provider_analyzer()
+            from src.services.ai_provider_analyzer import get_dynamic_ai_provider_analyzer
+            get_dynamic_ai_provider_analyzer()
             ai_category_info["analyzer_available"] = True
         except:
             pass
@@ -648,8 +648,8 @@ def include_feature_endpoints(app: FastAPI):
         }
         
         try:
-            from src.services.ai_provider_analyzer import get_ai_provider_analyzer
-            analyzer = get_ai_provider_analyzer()
+            from src.services.ai_provider_analyzer import get_dynamic_ai_provider_analyzer
+            analyzer = get_dynamic_ai_provider_analyzer()
             ai_category_features.update({
                 "available": True,
                 "video_detection": True,
@@ -784,8 +784,8 @@ def include_feature_endpoints(app: FastAPI):
         # Check AI category capabilities
         ai_category_score = 0
         try:
-            from src.services.ai_provider_analyzer import get_ai_provider_analyzer
-            get_ai_provider_analyzer()
+            from src.services.ai_provider_analyzer import get_dynamic_ai_provider_analyzer
+            get_dynamic_ai_provider_analyzer()
             ai_category_score = 1
         except:
             pass

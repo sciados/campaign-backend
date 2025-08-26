@@ -128,10 +128,10 @@ async def scan_environment_for_ai_providers() -> Dict[str, Dict[str, Any]]:
     """
     try:
         # Use the new dynamic analyzer instead of the old hardcoded one
-        from src.services.ai_provider_analyzer import get_ai_provider_analyzer
+        from src.services.ai_provider_analyzer import get_dynamic_ai_provider_analyzer
         
         # Get dynamic AI analyzer instance  
-        analyzer = get_ai_provider_analyzer()
+        analyzer = get_dynamic_ai_provider_analyzer()
         
         # Use AI to discover and analyze all providers with dynamic categorization
         discovered_providers = await analyzer.discover_providers_from_environment()
