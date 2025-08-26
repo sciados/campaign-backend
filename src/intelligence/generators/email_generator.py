@@ -14,6 +14,7 @@ ENHANCED EMAIL SEQUENCE GENERATOR WITH ULTRA-CHEAP AI INTEGRATION + DATABASE LEA
 🔥 FIXED: Universal product support for any sales page
 🔥 FIXED: Generic fallbacks for thousands of products
 🔥 FIXED: All syntax errors corrected
+🔥 FIXED: Circular import eliminated by moving imports inside methods
 """
 
 import os
@@ -57,7 +58,7 @@ def fix_email_sequence_placeholders(emails: List[Dict], intelligence_data: Dict[
     product_name = extract_product_name_from_intelligence(intelligence_data)
     company_name = product_name  # Often same for direct-to-consumer
     
-    logger.info(f"🔧 Applying product name fixes: '{product_name}' to {len(emails)} emails")
+    logger.info(f"📧 Applying product name fixes: '{product_name}' to {len(emails)} emails")
     
     fixed_emails = []
     for email in emails:
@@ -112,8 +113,36 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
             }
         ]
         
+        # Initialize services as None - will be lazy loaded
+        self.ai_subject_service = None
+        self.learning_service = None
+        
         logger.info(f"✅ Email Generator: Ultra-cheap AI system ready")
         logger.info(f"🎯 Email Angles: {len(self.email_angles)} diversified marketing approaches")
+    
+    def _lazy_load_ai_subject_service(self):
+        """🔥 FIXED: Lazy load AI subject service to avoid circular imports"""
+        if self.ai_subject_service is None:
+            try:
+                from src.intelligence.generators.subject_line_ai_service import AISubjectLineService
+                self.ai_subject_service = AISubjectLineService()
+                logger.info("✅ AI Subject Line Service loaded")
+            except ImportError as e:
+                logger.warning(f"⚠️ AI Subject Line Service not available: {e}")
+                self.ai_subject_service = False  # Mark as unavailable
+        return self.ai_subject_service
+    
+    def _lazy_load_learning_service(self):
+        """🔥 FIXED: Lazy load learning service to avoid circular imports"""
+        if self.learning_service is None:
+            try:
+                from src.intelligence.generators.self_learning_subject_service import SelfLearningSubjectService
+                self.learning_service = SelfLearningSubjectService()
+                logger.info("✅ Self Learning Subject Service loaded")
+            except ImportError as e:
+                logger.warning(f"⚠️ Self Learning Subject Service not available: {e}")
+                self.learning_service = False  # Mark as unavailable
+        return self.learning_service
     
     async def _generate_ai_subject_with_db_reference(
         self,
@@ -125,13 +154,14 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
     ) -> str:
         """Generate AI subject line using database templates as reference patterns"""
         
-        if not hasattr(self, 'ai_subject_service'):
-            from src.intelligence.generators.subject_line_ai_service import AISubjectLineService
-            self.ai_subject_service = AISubjectLineService()
+        ai_service = self._lazy_load_ai_subject_service()
+        if not ai_service:
+            logger.warning("AI Subject Service not available, using psychology fallback")
+            return self._generate_unique_psychology_subject(product_name, email_number, angle["id"])
         
         try:
             # Use the AI service to generate with database reference
-            result = await self.ai_subject_service.generate_ai_subject_with_reference(
+            result = await ai_service.generate_ai_subject_with_reference(
                 db=db,
                 product_name=product_name,
                 angle_id=angle["id"],
@@ -174,11 +204,13 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
     ) -> Dict[str, Any]:
         """Generate subject that learns from performance"""
         
-        if not hasattr(self, 'learning_service'):
-            from src.intelligence.generators.self_learning_subject_service import SelfLearningSubjectService
-            self.learning_service = SelfLearningSubjectService()
+        learning_service = self._lazy_load_learning_service()
+        if not learning_service:
+            logger.warning("Learning Service not available, using standard subject generation")
+            subject = self._generate_unique_psychology_subject(product_name, email_number, angle["id"])
+            return {"subject_line": subject, "can_learn_from": False}
         
-        result = await self.learning_service.generate_and_learn_subject(
+        result = await learning_service.generate_and_learn_subject(
             db=db,
             product_name=product_name,
             angle_id=angle["id"],
@@ -280,98 +312,6 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
         logger.warning("🔄 Using enhanced email fallback with campaign focus")
         return self._guaranteed_campaign_email_fallback(product_details, sequence_length, uniqueness_id)
 
-    async def generate_email_sequence_with_db(
-        self,
-        intelligence_data: Dict[str, Any],
-        db: AsyncSession,
-        campaign_id: str,
-        preferences: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
-        """Generate email sequence with database-referenced AI subject lines"""
-        
-        if preferences is None:
-            preferences = {}
-        
-        # Get product name using centralized extractor
-        actual_product_name = extract_product_name_from_intelligence(intelligence_data)
-        logger.info(f"🎯 DB-Enhanced Email Generator: Using product name '{actual_product_name}'")
-        
-        # Extract intelligence for email generation
-        product_details = get_product_details_summary(intelligence_data)
-        product_details["name"] = actual_product_name
-        
-        sequence_length = self._safe_int_conversion(preferences.get("length", "5"), 5, 3, 10)
-        uniqueness_id = str(uuid.uuid4())[:8]
-        
-        logger.info(f"🎯 Generating {sequence_length} emails with DB-referenced AI subject lines")
-        
-        # Create basic email structure first
-        emails = []
-        for i in range(sequence_length):
-            angle = self.email_angles[i % len(self.email_angles)]
-            
-            email = {
-                "email_number": i + 1,
-                "subject": "temp",  # Will be replaced by AI generation
-                "body": "temp",    # Will be replaced by connected body
-                "send_delay": f"Day {i * 2 + 1}",
-                "campaign_focus": f"{angle['name']} campaign email for {actual_product_name}",
-                "uniqueness_id": uniqueness_id,
-                "product_name": actual_product_name,
-                "product_name_source": "source_title"
-            }
-            emails.append(email)
-        
-        # Apply angle diversity with database-referenced AI subjects
-        diversified_emails = await self._apply_angle_diversity_with_db(
-            emails, sequence_length, db, campaign_id
-        )
-        
-        # Apply product name fixes
-        fixed_emails = []
-        for email in diversified_emails:
-            fixed_email = substitute_placeholders_in_data(email, actual_product_name, actual_product_name)
-            fixed_emails.append(fixed_email)
-        
-        # Validate no placeholders remain
-        for email in fixed_emails:
-            subject_clean = validate_no_placeholders(email.get("subject", ""), actual_product_name)
-            body_clean = validate_no_placeholders(email.get("body", ""), actual_product_name)
-            if not subject_clean or not body_clean:
-                logger.warning(f"⚠️ Placeholders found in email {email.get('email_number', 'unknown')}")
-        
-        logger.info(f"✅ SUCCESS: Generated {len(fixed_emails)} emails with DB-referenced AI subjects")
-        
-        # Create enhanced response with database metadata
-        ai_result = {
-            "success": True,
-            "content": "Email sequence with database-referenced AI subject lines",
-            "provider_used": "ai_with_database_templates",
-            "cost": 0.0,
-            "quality_score": 99,
-            "generation_time": 2.0,
-            "database_templates_used": True,
-            "ai_generation_method": "reference_based"
-        }
-        
-        return self._create_enhanced_response(
-            content={
-                "sequence_title": f"AI-Enhanced Email Sequence - {actual_product_name}",
-                "emails": fixed_emails,
-                "campaign_focus": "AI-generated subjects using database template references",
-                "product_name_used": actual_product_name,
-                "product_name_source": "source_title",
-                "database_enhanced": True,
-                "ai_generated": True,
-                "subject_body_connected": True,
-                "generation_metadata": getattr(self, '_subject_generation_metadata', {})
-            },
-            title=f"AI-Enhanced {len(fixed_emails)}-Email Sequence for {actual_product_name}",
-            product_name=actual_product_name,
-            ai_result=ai_result,
-            preferences=preferences
-        )
-
     async def track_subject_performance(
         self,
         db: AsyncSession,
@@ -383,11 +323,12 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
         """Track performance of generated subject lines"""
         
         try:
-            if not hasattr(self, 'ai_subject_service'):
-                from src.intelligence.generators.subject_line_ai_service import AISubjectLineService
-                self.ai_subject_service = AISubjectLineService()
+            ai_service = self._lazy_load_ai_subject_service()
+            if not ai_service:
+                logger.warning("AI Subject Service not available for performance tracking")
+                return False
             
-            performance = await self.ai_subject_service.performance_crud.update_performance_metrics(
+            performance = await ai_service.performance_crud.update_performance_metrics(
                 db=db,
                 performance_id=performance_record_id,
                 emails_sent=emails_sent,
@@ -400,7 +341,7 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
                 
                 # Update template performance if this was template-based
                 if performance.template_id:
-                    await self.ai_subject_service.template_crud.update_template_performance(
+                    await ai_service.template_crud.update_template_performance(
                         db=db,
                         template_id=str(performance.template_id),
                         new_opens=emails_opened,
@@ -418,9 +359,10 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
         """Seed database with proven subject line templates"""
         
         try:
-            if not hasattr(self, 'ai_subject_service'):
-                from src.intelligence.generators.subject_line_ai_service import AISubjectLineService
-                self.ai_subject_service = AISubjectLineService()
+            ai_service = self._lazy_load_ai_subject_service()
+            if not ai_service:
+                logger.warning("AI Subject Service not available for template seeding")
+                return False
             
             # Import the required enums
             from src.models.email_subject_templates import SubjectLineCategory, PerformanceLevel
@@ -487,7 +429,7 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
             ]
             
             # Seed the database
-            await self.ai_subject_service.template_crud.add_template_batch(db, proven_templates)
+            await ai_service.template_crud.add_template_batch(db, proven_templates)
             
             logger.info(f"✅ Seeded {len(proven_templates)} proven subject line templates")
             return True
@@ -495,80 +437,6 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
         except Exception as e:
             logger.error(f"❌ Failed to seed templates: {str(e)}")
             return False
-
-    async def _apply_angle_diversity_with_db(
-        self, 
-        emails: List[Dict], 
-        sequence_length: int, 
-        db: AsyncSession, 
-        campaign_id: str
-    ) -> List[Dict]:
-        """Apply strategic angle diversity with database-referenced AI subjects"""
-        
-        # Initialize subject generation metadata tracking
-        self._subject_generation_metadata = {}
-        
-        diversified_emails = []
-        
-        for i, email in enumerate(emails[:sequence_length]):
-            angle = self.email_angles[i % len(self.email_angles)]
-            
-            enhanced_email = email.copy()
-            enhanced_email["strategic_angle"] = angle["id"]
-            enhanced_email["angle_name"] = angle["name"]
-            enhanced_email["angle_focus"] = angle["focus"]
-            enhanced_email["angle_approach"] = angle["approach"]
-            enhanced_email["emotional_triggers"] = angle["triggers"]
-            enhanced_email["email_type"] = "campaign_email"
-            
-            # GET PRODUCT NAME
-            product_name = enhanced_email.get("product_name", "this product")
-            
-            # GENERATE AI SUBJECT LINE WITH DATABASE REFERENCE
-            if db:  # If database session available
-                unique_subject = await self._generate_ai_subject_with_db_reference(
-                    db=db,
-                    product_name=product_name,
-                    angle=angle,
-                    email_number=i + 1,
-                    campaign_id=campaign_id
-                )
-            else:  # Fallback to psychology templates if no DB
-                unique_subject = self._generate_unique_psychology_subject(
-                    product_name, i + 1, angle["id"]
-                )
-            
-            enhanced_email["subject"] = unique_subject
-            
-            # CREATE CONNECTED EMAIL BODY
-            connected_body = self._create_subject_body_connection(
-                unique_subject, product_name, angle
-            )
-            enhanced_email["body"] = connected_body
-            
-            # ADD ENHANCED METADATA
-            enhanced_email["ai_generated_subject"] = True
-            enhanced_email["subject_body_connected"] = True
-            enhanced_email["database_referenced"] = db is not None
-            enhanced_email["campaign_focus"] = f"{angle['name']} campaign email - {angle['approach']}"
-            enhanced_email["product_name_source"] = "source_title"
-            
-            # Add subject generation metadata if available
-            if hasattr(self, '_subject_generation_metadata') and (i + 1) in self._subject_generation_metadata:
-                enhanced_email["subject_metadata"] = self._subject_generation_metadata[i + 1]
-            
-            enhanced_email["campaign_metadata"] = {
-                "angle_position": i + 1,
-                "total_angles": len(self.email_angles),
-                "diversity_strategy": "ai_with_database_reference",
-                "marketing_approach": "high_converting_campaign",
-                "subject_body_connection": True,
-                "database_templates_used": db is not None
-            }
-            
-            diversified_emails.append(enhanced_email)
-        
-        return diversified_emails
 
     def _apply_angle_diversity(self, emails: List[Dict], sequence_length: int) -> List[Dict]:
         """Apply strategic angle diversity to email sequence"""
@@ -638,59 +506,6 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
         template_index = (email_number - 1) % len(angle_templates)
         
         return angle_templates[template_index]
-
-    def _create_subject_body_connection(self, subject_line: str, product_name: str, angle: Dict[str, Any]) -> str:
-        """Create email body that connects to the subject line"""
-        
-        # Hook starters that connect to different subject types
-        connection_hooks = {
-            "Why": f"Let me tell you exactly why {product_name}",
-            "How": f"Here's exactly how {product_name}",
-            "What": f"What I discovered about {product_name}",
-            "The": f"The truth about {product_name}",
-            "Clinical": f"The latest clinical research on {product_name}",
-            "Scientists": f"What scientists are saying about {product_name}",
-            "Join": f"When you join the {product_name} community",
-            "Limited": f"This limited opportunity with {product_name}",
-            "Don't": f"I don't want you to miss out on {product_name}",
-            "Transform": f"The transformation possible with {product_name}"
-        }
-        
-        # Find the best hook based on subject line start
-        hook = f"I wanted to share something important about {product_name}"
-        for start_word, hook_template in connection_hooks.items():
-            if subject_line.startswith(start_word):
-                hook = hook_template
-                break
-        
-        # Create connected body
-        body = f"""{hook} that I think you need to know.
-
-{product_name} isn't just another product - it's a comprehensive solution that focuses on {angle['focus'].lower()}.
-
-What makes {product_name} special is how it delivers real results through proven methods that work naturally and effectively.
-
-Here's what people are experiencing with {product_name}:
-
-• {angle['focus']} that you can see and feel
-• Lasting results, not just temporary fixes
-• A proven approach that thousands have used successfully
-• Safe, natural methods that work with your body
-
-The response from {product_name} users has been incredible. They're achieving breakthroughs they never thought possible.
-
-I know you may have tried other solutions before. But {product_name} addresses the root causes that other products miss.
-
-If you're ready to experience what {product_name} can do for you, I'd love to show you exactly how it works.
-
-Your next step is simple - just reply to this email or click here to learn more about {product_name}.
-
-Best regards,
-Your {product_name} Success Team
-
-P.S. - Don't let another day pass wondering "what if." {product_name} could be the breakthrough you've been searching for."""
-        
-        return substitute_product_placeholders(body, product_name)
 
     async def generate_content(self, intelligence_data: Dict[str, Any], preferences: Dict[str, Any] = None) -> Dict[str, Any]:
         """Generate content - main interface for factory integration"""
@@ -779,25 +594,21 @@ Generate the complete {sequence_length}-email sequence now.
         # Emergency extraction
         return self._emergency_email_extraction(ai_response, sequence_length, product_name, uniqueness_id)
     
-    def _parse_structured_email_format_safe(self, ai_response: str, sequence_length: int, product_name: str, uniqueness_id: str) -> List[Dict]:
-        """Parse structured ===EMAIL_X=== format - Safe version without complex regex"""
+    def _parse_structured_email_format(self, ai_response: str, sequence_length: int, product_name: str, uniqueness_id: str) -> List[Dict]:
+        """Parse structured ===EMAIL_X=== format"""
     
         emails = []
-    
-        # Split by email markers
         email_sections = ai_response.split('===EMAIL_')
     
         for section in email_sections[1:]:  # Skip first empty section
             try:
-                # Find the email number
                 if not section:
                     continue
                 
-                # Extract email number from start of section
                 lines = section.split('\n')
                 first_line = lines[0] if lines else ""
             
-                # Extract email number (should be like "1===")
+                # Extract email number
                 email_num_match = re.match(r'(\d+)===', first_line)
                 if not email_num_match:
                     continue
@@ -809,10 +620,9 @@ Generate the complete {sequence_length}-email sequence now.
                 if content_start == -1:
                     continue
                 
-                # Reconstruct content without the email number line
                 email_content = first_line[content_start + 3:] + '\n' + '\n'.join(lines[1:])
             
-                # Remove end markers more safely
+                # Remove end markers
                 end_marker_patterns = [
                     f'===END_EMAIL_{email_num}===',
                     '===END_EMAIL_',
@@ -1037,121 +847,6 @@ Your {actual_product_name} Team""",
         except:
             return default
 
-    async def _prepare_intelligence_data(self, campaign_id: str, campaign, user) -> Dict[str, Any]:
-        """✅ CRUD MIGRATED: Prepare intelligence data for content generation with universal product support"""
-        from src.core.crud import intelligence_crud
-        
-        # Get intelligence sources using CRUD (now with company_id support)
-        intelligence_sources = await intelligence_crud.get_campaign_intelligence(
-            db=self.db if hasattr(self, 'db') else None,
-            campaign_id=UUID(campaign_id),
-            company_id=UUID(user.company_id) if hasattr(user, 'company_id') else None
-        )
-        
-        # 🔧 CRITICAL FIX: Extract product name from FIRST source's direct source_title
-        actual_product_name = "this product"  # 🔧 FIXED: Generic fallback for any product
-        
-        if intelligence_sources and len(intelligence_sources) > 0:
-            first_source = intelligence_sources[0]
-            if hasattr(first_source, 'source_title') and first_source.source_title:
-                actual_product_name = first_source.source_title.strip()
-                logger.info(f"🎯 Using DIRECT source_title: '{actual_product_name}'")
-        
-        # Prepare intelligence data structure with CORRECT product name
-        intelligence_data = {
-            "campaign_id": campaign_id,
-            "campaign_name": campaign.title if hasattr(campaign, 'title') else "Campaign",
-            "source_title": actual_product_name,  # 🔧 ADD: Direct source title
-            "target_audience": getattr(campaign, 'target_audience', None) or "individuals seeking solutions",
-            "offer_intelligence": {},
-            "psychology_intelligence": {},
-            "content_intelligence": {},
-            "competitive_intelligence": {},
-            "brand_intelligence": {},
-            "intelligence_sources": []
-        }
-        
-        # Aggregate intelligence data from all sources
-        for source in intelligence_sources:
-            try:
-                source_data = {
-                    "id": str(source.id),
-                    "source_type": source.source_type.value if source.source_type else "unknown",
-                    "source_url": source.source_url,
-                    "confidence_score": source.confidence_score or 0.0,
-                    "offer_intelligence": self._serialize_enum_field(source.offer_intelligence),
-                    "psychology_intelligence": self._serialize_enum_field(source.psychology_intelligence),
-                    "content_intelligence": self._serialize_enum_field(source.content_intelligence),
-                    "competitive_intelligence": self._serialize_enum_field(source.competitive_intelligence),
-                    "brand_intelligence": self._serialize_enum_field(source.brand_intelligence),
-                    "scientific_intelligence": self._serialize_enum_field(source.scientific_intelligence),
-                    "credibility_intelligence": self._serialize_enum_field(source.credibility_intelligence),
-                    "market_intelligence": self._serialize_enum_field(source.market_intelligence),
-                    "emotional_transformation_intelligence": self._serialize_enum_field(source.emotional_transformation_intelligence),
-                    "scientific_authority_intelligence": self._serialize_enum_field(source.scientific_authority_intelligence),
-                    "processing_metadata": self._serialize_enum_field(source.processing_metadata),
-                }
-                intelligence_data["intelligence_sources"].append(source_data)
-                
-                # Merge into aggregate intelligence
-                for intel_type in ["offer_intelligence", "psychology_intelligence", "content_intelligence", "competitive_intelligence", "brand_intelligence"]:
-                    self._merge_intelligence_category(intelligence_data, source_data, intel_type)
-                    
-            except Exception as source_error:
-                logger.warning(f"⚠️ Error processing source {source.id}: {str(source_error)}")
-                continue
-        
-        logger.info(f"✅ Content Handler prepared intelligence data: {len(intelligence_data['intelligence_sources'])} sources")
-        return intelligence_data
-    
-    def _merge_intelligence_category(self, target: Dict, source: Dict, category: str):
-        """Merge intelligence category from source into target"""
-        source_intel = source.get(category, {})
-        if not source_intel:
-            return
-        
-        current_intel = target.get(category, {})
-        
-        for key, value in source_intel.items():
-            if key in current_intel:
-                if isinstance(value, list) and isinstance(current_intel[key], list):
-                    current_intel[key].extend(value)
-                elif isinstance(value, str) and isinstance(current_intel[key], str):
-                    if value not in current_intel[key]:
-                        current_intel[key] += f" {value}"
-            else:
-                current_intel[key] = value
-        
-        target[category] = current_intel
-    
-    # Convenience functions
-    async def generate_email_sequence_with_ultra_cheap_ai(
-        intelligence_data: Dict[str, Any],
-        sequence_length: int = 5,
-        preferences: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
-        """Generate email sequence using ultra-cheap AI system with universal product support"""
-    
-        generator = EmailSequenceGenerator()
-        if preferences is None:
-            preferences = {"length": str(sequence_length)}
-        else:
-            preferences["length"] = str(sequence_length)
-    
-        return await generator.generate_email_sequence(intelligence_data, preferences)
-
-    def get_email_generator_cost_summary() -> Dict[str, Any]:
-        """Get cost summary from email generator"""
-        generator = EmailSequenceGenerator()
-        return generator.get_optimization_analytics()
-
-    def get_product_name_for_emails(intelligence_data: Dict[str, Any]) -> str:
-        """
-        🔥 FIXED: Public function to get product name for email generation
-        Uses centralized product name extractor for universal product support
-        """
-        return extract_product_name_from_intelligence(intelligence_data)
-    
 # Alias classes for backward compatibility
 EmailGenerator = EmailSequenceGenerator
 ContentGenerator = EmailSequenceGenerator

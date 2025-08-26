@@ -105,21 +105,37 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 # Database dependency functions
-def get_db() -> Session:
+def get_db():
     """Synchronous database dependency for FastAPI"""
     db = SessionLocal()
     try:
         yield db
+    except Exception as e:
+        db.rollback()
+        raise
     finally:
         db.close()
 
-async def get_async_db() -> AsyncSession:
+async def get_async_db():
     """Asynchronous database dependency for FastAPI"""
     async with AsyncSessionLocal() as session:
         try:
             yield session
+        except Exception as e:
+            await session.rollback()
+            raise
         finally:
             await session.close()
+
+# Alternative sync database function for non-dependency usage
+def get_sync_db_session():
+    """Get a synchronous database session (not for FastAPI dependency)"""
+    return SessionLocal()
+
+# Alternative async database function for non-dependency usage  
+async def get_async_db_session():
+    """Get an asynchronous database session (not for FastAPI dependency)"""
+    return AsyncSessionLocal()
 
 # Alias for backward compatibility
 get_async_session = get_async_db
