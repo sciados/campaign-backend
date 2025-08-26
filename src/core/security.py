@@ -1,15 +1,11 @@
-# src/core/security.py - FIXED VERSION with corrected imports
+# src/core/security.py - FIXED VERSION with no circular imports
 
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-
-from fastapi import Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import select
+from fastapi import HTTPException, status
 
 # JWT Configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
