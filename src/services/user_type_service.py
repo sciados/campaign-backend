@@ -22,7 +22,7 @@ class UserTypeService:
     
     # 🎭 User Type Detection & Configuration
     
-    def detect_user_type_from_data(self, user_data: dict) -> UserType:
+    def detect_user_type_from_data(self, user_data: dict) -> str:
         """
         Intelligent user type detection based on provided data
         🧠 Analyzes user inputs to suggest the best user type
@@ -61,20 +61,30 @@ class UserTypeService:
         
         # Return the highest scoring type (with ties going to business owner as default)
         if affiliate_score > creator_score and affiliate_score > business_score:
-            return UserType.affiliate_marketer
+            return "affiliate_marketer"
         elif creator_score > business_score and creator_score >= affiliate_score:
-            return UserType.content_creator
+            return "content_creator"
         else:
-            return UserType.business_owner
+            return "business_owner"
     
-    def set_user_type(self, user_id: str, user_type: UserType, type_data: dict = None) -> User:
+    def set_user_type(self, user_id: str, user_type: str, type_data: dict = None) -> User:
         """Set user type and initialize type-specific configuration"""
         user = self.db.query(User).filter(User.id == user_id).first()
         if not user:
             raise ValueError(f"User {user_id} not found")
         
-        # Set user type
-        user.set_user_type(user_type, type_data or {})
+        # Set user type (accepting string directly)
+        user.user_type = user_type
+        user.onboarding_status = "type_selected"
+        
+        # Store type-specific data
+        if not user.settings:
+            user.settings = {}
+        user.settings['user_type_data'] = type_data or {}
+        
+        # Set default limits and preferences
+        user._set_default_limits_by_type()
+        user._set_default_intelligence_preferences()
         
         # Commit changes
         self.db.commit()
@@ -101,9 +111,9 @@ class UserTypeService:
         """Get statistics about user types in the system"""
         total_users = self.db.query(User).count()
         
-        affiliate_count = self.db.query(User).filter(User.user_type == UserType.affiliate_marketer).count()
-        creator_count = self.db.query(User).filter(User.user_type == UserType.content_creator).count()
-        business_count = self.db.query(User).filter(User.user_type == UserType.business_owner).count()
+        affiliate_count = self.db.query(User).filter(User.user_type == "affiliate_marketer").count()
+        creator_count = self.db.query(User).filter(User.user_type == "content_creator").count()
+        business_count = self.db.query(User).filter(User.user_type == "business_owner").count()
         no_type_count = self.db.query(User).filter(User.user_type.is_(None)).count()
         
         return {
@@ -128,7 +138,7 @@ class UserTypeService:
             }
         }
     
-    def get_users_by_type(self, user_type: UserType, limit: int = 100) -> List[User]:
+    def get_users_by_type(self, user_type: str, limit: int = 100) -> List[User]:
         """Get users of a specific type"""
         return self.db.query(User).filter(User.user_type == user_type).limit(limit).all()
     
@@ -152,11 +162,11 @@ class UserTypeService:
             "optimization_tips": []
         }
         
-        if user.user_type == UserType.affiliate_marketer:
+        if user.user_type == "affiliate_marketer":
             recommendations = self._get_affiliate_recommendations(user, recent_campaigns)
-        elif user.user_type == UserType.content_creator:
+        elif user.user_type == "content_creator":
             recommendations = self._get_creator_recommendations(user, recent_campaigns)
-        elif user.user_type == UserType.business_owner:
+        elif user.user_type == "business_owner":
             recommendations = self._get_business_recommendations(user, recent_campaigns)
         
         return recommendations
@@ -255,7 +265,7 @@ class UserTypeService:
         }
         
         # Add user-type specific dashboard widgets and layout
-        if user.user_type == UserType.affiliate_marketer:
+        if user.user_type == "affiliate_marketer":
             base_config.update({
                 "primary_widgets": [
                     "commission_tracker", "competitor_intel", "campaign_performance",
@@ -265,7 +275,7 @@ class UserTypeService:
                 "main_cta": "Track Competitors",
                 "theme_color": "green"
             })
-        elif user.user_type == UserType.content_creator:
+        elif user.user_type == "content_creator":
             base_config.update({
                 "primary_widgets": [
                     "viral_opportunities", "content_studio", "audience_insights",
@@ -275,7 +285,7 @@ class UserTypeService:
                 "main_cta": "Analyze Viral Content",
                 "theme_color": "purple"
             })
-        elif user.user_type == UserType.business_owner:
+        elif user.user_type == "business_owner":
             base_config.update({
                 "primary_widgets": [
                     "market_intelligence", "lead_generation", "competitor_watch",
@@ -290,24 +300,24 @@ class UserTypeService:
     
     # 🔧 User Type Utilities
     
-    def get_user_type_display_info(self, user_type: UserType) -> dict:
+    def get_user_type_display_info(self, user_type: str) -> dict:
         """Get display information for a user type"""
         type_info = {
-            UserType.affiliate_marketer: {
+            "affiliate_marketer": {
                 "emoji": "💰",
                 "title": "Affiliate Marketer",
                 "description": "Promote products and earn commissions",
                 "features": ["Competitor tracking", "Commission analysis", "Compliance monitoring"],
                 "pricing_start": "$149/month"
             },
-            UserType.content_creator: {
+            "content_creator": {
                 "emoji": "🎬",
                 "title": "Content Creator",
                 "description": "Create viral content and grow your audience",
                 "features": ["Viral analysis", "Trend detection", "Brand partnerships"],
                 "pricing_start": "$99/month"
             },
-            UserType.business_owner: {
+            "business_owner": {
                 "emoji": "🏢",
                 "title": "Business Owner",
                 "description": "Generate leads and grow your business",
@@ -321,8 +331,8 @@ class UserTypeService:
     def get_all_user_types_info(self) -> dict:
         """Get display information for all user types"""
         return {
-            user_type.value: self.get_user_type_display_info(user_type)
-            for user_type in UserType
+            user_type: self.get_user_type_display_info(user_type)
+            for user_type in ["affiliate_marketer", "content_creator", "business_owner"]
         }
     
     def can_user_upgrade_tier(self, user_id: str) -> dict:
@@ -340,20 +350,20 @@ class UserTypeService:
         should_upgrade = campaign_usage_percent > 80 or analysis_usage_percent > 80
         
         # Suggest appropriate tier
-        if user.user_tier == UserTier.free and should_upgrade:
-            suggested_tier = UserTier.starter
-        elif user.user_tier == UserTier.starter and should_upgrade:
-            suggested_tier = UserTier.pro
-        elif user.user_tier == UserTier.pro and should_upgrade:
-            suggested_tier = UserTier.elite
+        if user.user_tier == "free" and should_upgrade:
+            suggested_tier = "starter"
+        elif user.user_tier == "starter" and should_upgrade:
+            suggested_tier = "pro"
+        elif user.user_tier == "pro" and should_upgrade:
+            suggested_tier = "elite"
         else:
             suggested_tier = None
         
         return {
             "can_upgrade": suggested_tier is not None,
             "should_upgrade": should_upgrade,
-            "current_tier": user.user_tier.value,
-            "suggested_tier": suggested_tier.value if suggested_tier else None,
+            "current_tier": user.user_tier,
+            "suggested_tier": suggested_tier,
             "reasons": [
                 f"Campaign usage: {campaign_usage_percent:.1f}%" if campaign_usage_percent > 80 else None,
                 f"Analysis usage: {analysis_usage_percent:.1f}%" if analysis_usage_percent > 80 else None
@@ -368,13 +378,13 @@ class UserTypeService:
         query = self.db.query(User)
         
         if filters.get("user_type"):
-            query = query.filter(User.user_type == UserType(filters["user_type"]))
+            query = query.filter(User.user_type == filters["user_type"])
         
         if filters.get("user_tier"):
-            query = query.filter(User.user_tier == UserTier(filters["user_tier"]))
+            query = query.filter(User.user_tier == filters["user_tier"])
         
         if filters.get("onboarding_status"):
-            query = query.filter(User.onboarding_status == OnboardingStatus(filters["onboarding_status"]))
+            query = query.filter(User.onboarding_status == filters["onboarding_status"])
         
         if filters.get("experience_level"):
             query = query.filter(User.experience_level == filters["experience_level"])
@@ -405,7 +415,7 @@ class UserTypeService:
         
         return {
             "user_id": user_id,
-            "user_type": user.user_type.value if user.user_type else None,
+            "user_type": user.user_type,
             "period_days": days,
             "activity": {
                 "campaigns_created": recent_campaigns,
@@ -424,7 +434,7 @@ class UserTypeService:
     
     # 🎯 User Type Migration
     
-    def migrate_user_type(self, user_id: str, new_user_type: UserType, reason: str = None) -> User:
+    def migrate_user_type(self, user_id: str, new_user_type: str, reason: str = None) -> User:
         """Migrate user from one type to another"""
         user = self.db.query(User).filter(User.id == user_id).first()
         if not user:
@@ -433,13 +443,13 @@ class UserTypeService:
         old_type = user.user_type
         
         # Update user type
-        user.set_user_type(new_user_type)
+        user.user_type = new_user_type
         
         # Log the migration (you could add a migration log table)
         migration_log = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "old_type": old_type.value if old_type else None,
-            "new_type": new_user_type.value,
+            "old_type": old_type,
+            "new_type": new_user_type,
             "reason": reason
         }
         
@@ -463,19 +473,19 @@ class UserTypeService:
         if not user:
             return "Welcome to CampaignForge!"
         
-        if user.user_type == UserType.affiliate_marketer:
+        if user.user_type == "affiliate_marketer":
             if user.total_campaigns_created == 0:
                 return "💰 Ready to optimize your affiliate campaigns? Let's start by analyzing your top competitor!"
             else:
                 return f"💰 Welcome back! You've created {user.total_campaigns_created} campaigns. Time to discover new opportunities!"
         
-        elif user.user_type == UserType.content_creator:
+        elif user.user_type == "content_creator":
             if user.total_campaigns_created == 0:
                 return "🎬 Ready to create viral content? Let's analyze what's trending in your niche!"
             else:
                 return f"🎬 Welcome back, creator! You've analyzed {user.total_campaigns_created} pieces of content. Let's find your next viral hit!"
         
-        elif user.user_type == UserType.business_owner:
+        elif user.user_type == "business_owner":
             if user.total_campaigns_created == 0:
                 return "🏢 Ready to grow your business? Let's start with market research and competitor analysis!"
             else:
@@ -484,16 +494,16 @@ class UserTypeService:
         else:
             return "Welcome to CampaignForge! Let's set up your user type to get started."
     
-    # 🔄 Advanced User Type Analytics
+    # 📈 Advanced User Type Analytics
     
-    def get_user_type_performance_metrics(self, user_type: UserType, days: int = 30) -> dict:
+    def get_user_type_performance_metrics(self, user_type: str, days: int = 30) -> dict:
         """Get performance metrics for a specific user type"""
         start_date = datetime.now(timezone.utc) - timedelta(days=days)
         
         users = self.db.query(User).filter(User.user_type == user_type).all()
         
         if not users:
-            return {"error": f"No users found for type {user_type.value}"}
+            return {"error": f"No users found for type {user_type}"}
         
         total_users = len(users)
         active_users = len([u for u in users if u.last_active_at and u.last_active_at >= start_date])
@@ -507,7 +517,7 @@ class UserTypeService:
         avg_content = total_content / total_users if total_users > 0 else 0
         
         return {
-            "user_type": user_type.value,
+            "user_type": user_type,
             "period_days": days,
             "metrics": {
                 "total_users": total_users,
@@ -584,7 +594,7 @@ class UserTypeService:
         
         return {
             "user_id": user_id,
-            "user_type": user.user_type.value if user.user_type else None,
+            "user_type": user.user_type,
             "engagement": {
                 "level": engagement_level,
                 "score": round(engagement_score, 1),
@@ -648,21 +658,21 @@ class UserTypeService:
         
         # Define success milestones by user type
         milestones = {
-            UserType.affiliate_marketer: [
+            "affiliate_marketer": [
                 {"name": "First Campaign", "threshold": 1, "metric": "campaigns"},
                 {"name": "Campaign Master", "threshold": 10, "metric": "campaigns"},
                 {"name": "Intelligence Expert", "threshold": 25, "metric": "intelligence"},
                 {"name": "Content Creator", "threshold": 50, "metric": "content"},
                 {"name": "Power User", "threshold": 100, "metric": "campaigns"}
             ],
-            UserType.content_creator: [
+            "content_creator": [
                 {"name": "Content Analyzer", "threshold": 1, "metric": "campaigns"},
                 {"name": "Trend Spotter", "threshold": 5, "metric": "intelligence"},
                 {"name": "Viral Hunter", "threshold": 15, "metric": "campaigns"},
                 {"name": "Content Machine", "threshold": 100, "metric": "content"},
                 {"name": "Influence Master", "threshold": 50, "metric": "campaigns"}
             ],
-            UserType.business_owner: [
+            "business_owner": [
                 {"name": "Market Researcher", "threshold": 1, "metric": "campaigns"},
                 {"name": "Lead Generator", "threshold": 5, "metric": "campaigns"},
                 {"name": "Business Intelligence", "threshold": 20, "metric": "intelligence"},
@@ -702,7 +712,7 @@ class UserTypeService:
         
         return {
             "user_id": user_id,
-            "user_type": user.user_type.value if user.user_type else None,
+            "user_type": user.user_type,
             "success_score": round(success_score, 1),
             "achievements": achievements,
             "next_milestone": next((a for a in achievements if not a["achieved"]), None),

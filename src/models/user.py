@@ -2,13 +2,11 @@
 """
 Enhanced User model with multi-user type system for existing CampaignForge database
 🎭 Adds user type functionality while preserving all existing relationships
-🔧 FIXED: Correct enum access patterns and default values
+🔧 FIXED: Correct string handling and removed enum dependencies
 """
 
-# from sqlalchemy import Column, String, Boolean, ForeignKey, Text, Integer, DateTime, Enum
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy import Column, String, Boolean, ForeignKey, Text, Integer, DateTime
-from sqlalchemy.dialects.postgresql import ENUM as PostgreSQLEnum
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import enum
@@ -16,7 +14,7 @@ import enum
 # Import from your existing base module
 from .base import BaseModel
 
-# 🎭 User Type Enums (lowercase values, UPPERCASE names)
+# 🎭 User Type Enums (kept for reference, but using strings in database)
 class UserType(str, enum.Enum):
     AFFILIATE_MARKETER = "affiliate_marketer"
     CONTENT_CREATOR = "content_creator" 
@@ -62,14 +60,7 @@ class User(BaseModel):
     storage_tier = Column(String(20), default="free", nullable=False)
     last_storage_check = Column(DateTime(timezone=True), nullable=True)
     
-    # 🆕 NEW: Multi-User Type System (ONLY these fields added)
-    # user_type = Column(Enum(UserType, name='usertype'), nullable=True)  # null during onboarding
-    # user_type = Column(ChoiceType(UserType), nullable=True)
-    # user_tier = Column(enum.Enum(UserTier, name='usertier'), default=UserTier.FREE)
-    # onboarding_status = Column(enum.Enum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.INCOMPLETE)  # ✅ Fixed default
-    # user_type = Column(PostgreSQLEnum(UserType, name='usertype'), nullable=True)
-    # user_tier = Column(PostgreSQLEnum(UserTier, name='usertier'), default=UserTier.FREE, nullable=False)
-    # onboarding_status = Column(PostgreSQLEnum(OnboardingStatus, name='onboardingstatus'), default=OnboardingStatus.INCOMPLETE, nullable=False)
+    # 🆕 NEW: Multi-User Type System (using strings for consistency)
     user_type = Column(String(50), nullable=True)
     user_tier = Column(String(20), default="free", nullable=False)
     onboarding_status = Column(String(30), default="incomplete", nullable=False)
@@ -128,12 +119,12 @@ class User(BaseModel):
     # Storage relationship (existing)
     storage_usage = relationship("UserStorageUsage", back_populates="user", cascade="all, delete-orphan")
     
-    # 🆕 NEW: Multi-User Type Methods (only additions)
+    # 🆕 NEW: Multi-User Type Methods (FIXED to use strings)
     
-    def set_user_type(self, user_type: UserType, type_data: dict = None):
+    def set_user_type(self, user_type: str, type_data: dict = None):
         """Set user type and initialize type-specific data"""
         self.user_type = user_type
-        self.onboarding_status = OnboardingStatus.TYPE_SELECTED  # ✅ Fixed enum access
+        self.onboarding_status = "type_selected"
         
         # Store type-specific data in existing settings field to avoid new column
         if not self.settings:
@@ -147,23 +138,23 @@ class User(BaseModel):
         self._set_default_intelligence_preferences()
     
     def _set_default_limits_by_type(self):
-        """Set default limits based on user type - ✅ FIXED enum access"""
-        if self.user_type == UserType.AFFILIATE_MARKETER:  # ✅ Use enum name
+        """Set default limits based on user type"""
+        if self.user_type == "affiliate_marketer":
             self.monthly_campaign_limit = 10  # Affiliates create more campaigns
             self.monthly_analysis_limit = 25
-        elif self.user_type == UserType.CONTENT_CREATOR:   # ✅ Use enum name
+        elif self.user_type == "content_creator":
             self.monthly_campaign_limit = 15  # Creators need lots of content
             self.monthly_analysis_limit = 20
-        elif self.user_type == UserType.BUSINESS_OWNER:    # ✅ Use enum name
+        elif self.user_type == "business_owner":
             self.monthly_campaign_limit = 8   # Businesses focus on quality
             self.monthly_analysis_limit = 15
     
     def _set_default_intelligence_preferences(self):
-        """Set default intelligence preferences in existing preferences field - ✅ FIXED enum access"""
+        """Set default intelligence preferences in existing preferences field"""
         if not self.preferences:
             self.preferences = {}
             
-        if self.user_type == UserType.AFFILIATE_MARKETER:   # ✅ Use enum name
+        if self.user_type == "affiliate_marketer":
             self.preferences['intelligence'] = {
                 "focus_areas": ["competitor_analysis", "conversion_optimization", "commission_tracking"],
                 "auto_track_competitors": True,
@@ -172,7 +163,7 @@ class User(BaseModel):
                 "preferred_sources": ["competitor_pages", "affiliate_networks", "commission_data"]
             }
             
-        elif self.user_type == UserType.CONTENT_CREATOR:    # ✅ Use enum name
+        elif self.user_type == "content_creator":
             self.preferences['intelligence'] = {
                 "focus_areas": ["viral_analysis", "trend_detection", "audience_insights"],
                 "auto_track_trends": True,
@@ -181,7 +172,7 @@ class User(BaseModel):
                 "preferred_sources": ["social_media", "viral_content", "trend_data"]
             }
             
-        elif self.user_type == UserType.BUSINESS_OWNER:     # ✅ Use enum name
+        elif self.user_type == "business_owner":
             self.preferences['intelligence'] = {
                 "focus_areas": ["market_research", "lead_generation", "competitor_monitoring"],
                 "auto_market_analysis": True,
@@ -191,47 +182,47 @@ class User(BaseModel):
             }
     
     def complete_onboarding(self, goals: list = None, experience_level: str = "beginner"):
-        """Complete user onboarding process - ✅ FIXED enum access"""
+        """Complete user onboarding process"""
         self.user_goals = goals or []
         self.experience_level = experience_level
-        self.onboarding_status = OnboardingStatus.COMPLETED  # ✅ Use enum name
+        self.onboarding_status = "completed"
         self.onboarding_completed_at = datetime.now(timezone.utc)
     
     def get_dashboard_route(self) -> str:
-        """Get the appropriate dashboard route for this user type - ✅ FIXED enum access"""
-        if self.user_type == UserType.AFFILIATE_MARKETER:   # ✅ Use enum name
+        """Get the appropriate dashboard route for this user type"""
+        if self.user_type == "affiliate_marketer":
             return "/dashboard/affiliate"
-        elif self.user_type == UserType.CONTENT_CREATOR:    # ✅ Use enum name
+        elif self.user_type == "content_creator":
             return "/dashboard/creator"
-        elif self.user_type == UserType.BUSINESS_OWNER:     # ✅ Use enum name
+        elif self.user_type == "business_owner":
             return "/dashboard/business"
         else:
             return "/user-selection"  # Not set yet
     
     def get_user_type_display(self) -> str:
-        """Get display name for user type - ✅ FIXED enum access"""
-        if self.user_type == UserType.AFFILIATE_MARKETER:   # ✅ Use enum name
+        """Get display name for user type"""
+        if self.user_type == "affiliate_marketer":
             return "💰 Affiliate Marketer"
-        elif self.user_type == UserType.CONTENT_CREATOR:    # ✅ Use enum name
+        elif self.user_type == "content_creator":
             return "🎬 Content Creator"
-        elif self.user_type == UserType.BUSINESS_OWNER:     # ✅ Use enum name
+        elif self.user_type == "business_owner":
             return "🏢 Business Owner"
         else:
             return "User"
     
     def get_available_features(self) -> list:
-        """Get list of available features for this user type - ✅ FIXED enum access"""
-        if self.user_type == UserType.AFFILIATE_MARKETER:   # ✅ Use enum name
+        """Get list of available features for this user type"""
+        if self.user_type == "affiliate_marketer":
             return [
                 'competitor_tracking', 'commission_analysis', 'compliance_check',
                 'ad_creative_generator', 'email_sequences', 'traffic_analysis'
             ]
-        elif self.user_type == UserType.CONTENT_CREATOR:    # ✅ Use enum name
+        elif self.user_type == "content_creator":
             return [
                 'viral_analysis', 'trend_detection', 'content_optimization', 
                 'audience_insights', 'brand_partnerships', 'cross_platform'
             ]
-        elif self.user_type == UserType.BUSINESS_OWNER:     # ✅ Use enum name
+        elif self.user_type == "business_owner":
             return [
                 'market_research', 'lead_generation', 'competitor_analysis',
                 'customer_insights', 'sales_optimization', 'roi_tracking'  
@@ -279,15 +270,15 @@ class User(BaseModel):
         }
     
     def get_user_profile(self) -> dict:
-        """Get comprehensive user profile for dashboard - ✅ FIXED enum access"""
+        """Get comprehensive user profile for dashboard"""
         return {
             "id": str(self.id),
             "email": self.email,
             "full_name": self.full_name,
-            "user_type": self.user_type.value if self.user_type else None,
+            "user_type": self.user_type,  # Already a string
             "user_type_display": self.get_user_type_display(),
-            "user_tier": self.user_tier.value if self.user_tier else "free",
-            "onboarding_status": self.onboarding_status.value if self.onboarding_status else "incomplete",
+            "user_tier": self.user_tier,  # Already a string
+            "onboarding_status": self.onboarding_status,  # Already a string
             "experience_level": self.experience_level,
             "dashboard_route": self.get_dashboard_route(),
             "available_features": self.get_available_features(),
@@ -295,7 +286,7 @@ class User(BaseModel):
             "user_goals": self.user_goals,
             "user_type_data": self.settings.get('user_type_data', {}) if self.settings else {},
             "intelligence_preferences": self.preferences.get('intelligence', {}) if self.preferences else {},
-            "onboarding_completed": self.onboarding_status == OnboardingStatus.COMPLETED  # ✅ Fixed enum access
+            "onboarding_completed": self.onboarding_status == "completed"
         }
     
     # 🔧 EXISTING METHODS (preserved exactly as-is)
