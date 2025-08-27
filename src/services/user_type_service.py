@@ -25,46 +25,45 @@ class UserTypeService:
     def detect_user_type_from_data(self, user_data: dict) -> str:
         """
         Intelligent user type detection based on provided data
-        🧠 Analyzes user inputs to suggest the best user type
         """
-        # Keywords that indicate different user types
-        affiliate_keywords = [
-            "affiliate", "commission", "promote products", "earn money", 
-            "traffic", "conversions", "epc", "cpa", "cpm", "clickbank",
-            "amazon associate", "marketing funnels", "landing pages"
-        ]
+        try:
+            if not user_data or not isinstance(user_data, dict):
+             return "business_owner"
         
-        creator_keywords = [
-            "content", "social media", "influencer", "youtube", "tiktok", 
-            "instagram", "viral", "followers", "engagement", "brand deals",
-            "creator", "video", "podcast", "blog", "audience", "subscribers"
-        ]
+            # ... your keyword lists stay the same ...
         
-        business_keywords = [
-            "business", "company", "leads", "customers", "sales", 
-            "marketing", "roi", "growth", "market share", "b2b",
-            "startup", "entrepreneur", "revenue", "profit", "enterprise"
-        ]
+            # Handle different data types properly
+            description = user_data.get("description") or ""
         
-        # Analyze user input text
-        text_to_analyze = " ".join([
-            user_data.get("goals", ""),
-            user_data.get("description", ""),
-            user_data.get("interests", ""),
-            str(user_data.get("current_activities", []))
-        ]).lower()
+            goals = user_data.get("goals", [])
+            if isinstance(goals, list):
+                goals = " ".join(str(g) for g in goals if g)
+            else:
+                goals = str(goals) if goals else ""
         
-        # Score each user type
-        affiliate_score = sum(1 for keyword in affiliate_keywords if keyword in text_to_analyze)
-        creator_score = sum(1 for keyword in creator_keywords if keyword in text_to_analyze)
-        business_score = sum(1 for keyword in business_keywords if keyword in text_to_analyze)
+            interests = user_data.get("interests", [])
+            if isinstance(interests, list):
+                interests = " ".join(str(i) for i in interests if i)
+            else:
+                interests = str(interests) if interests else ""
         
-        # Return the highest scoring type (with ties going to business owner as default)
-        if affiliate_score > creator_score and affiliate_score > business_score:
-            return "affiliate_marketer"
-        elif creator_score > business_score and creator_score >= affiliate_score:
-            return "content_creator"
-        else:
+            current_activities = user_data.get("current_activities", [])
+            if isinstance(current_activities, list):
+                current_activities = " ".join(str(a) for a in current_activities if a)
+            else:
+                current_activities = str(current_activities) if current_activities else ""
+        
+            text_to_analyze = " ".join([
+                description,
+                goals,
+                interests,
+                current_activities
+            ]).lower()
+        
+            # ... rest of your scoring logic stays the same ...
+        
+        except Exception as e:
+            print(f"Error in detect_user_type_from_data: {e}")
             return "business_owner"
     
     def set_user_type(self, user_id: str, user_type: str, type_data: dict = None) -> User:

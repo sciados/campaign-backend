@@ -67,9 +67,9 @@ async def detect_user_type(
         
         user_data = {
             "description": request.description,
-            "goals": " ".join(request.goals),
-            "current_activities": request.current_activities,
-            "interests": " ".join(request.interests)
+            "goals": request.goals or [],  # Keep as list
+            "current_activities": request.current_activities or [],  # Keep as list
+            "interests": request.interests or []  # Keep as list
         }
         
         detected_type = service.detect_user_type_from_data(user_data)
@@ -77,14 +77,18 @@ async def detect_user_type(
         
         return {
             "success": True,
-            "detected_type": detected_type.value,
+            "detected_type": detected_type,  # Remove .value since it's already a string
             "type_info": type_info,
-            "confidence": "high",  # Could implement confidence scoring
+            "confidence": "high",
             "all_types": service.get_all_user_types_info(),
             "message": f"Based on your input, we recommend: {type_info.get('title', 'Unknown')}"
         }
     
     except Exception as e:
+        # Better error logging
+        import traceback
+        print(f"User type detection error: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"User type detection failed: {str(e)}")
 
 @router.post("/select")
