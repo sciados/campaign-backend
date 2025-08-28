@@ -1,9 +1,9 @@
 """
-FastAPI dependencies for authentication and database - ASYNC FIXED VERSION
+FastAPI dependencies for authentication and database - ASYNC VERSION
+Standardized on async operations for consistency
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi import status as http_status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,9 +11,10 @@ from sqlalchemy import select
 from typing import Optional
 from uuid import UUID
 import structlog
+from datetime import datetime, timezone
 
-from src.core.database import get_async_db  # ✅ FIXED: Use get_async_db
-from src.core.security import verify_token, SECRET_KEY
+from src.core.database import get_async_db
+from src.core.security import SECRET_KEY
 from src.models.user import User
 from jose import jwt, JWTError
 
@@ -22,12 +23,12 @@ security = HTTPBearer()
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_async_db)  # ✅ FIXED: Use get_async_db
+    db: AsyncSession = Depends(get_async_db)
 ) -> User:
     """Get current authenticated user"""
 
     credentials_exception = HTTPException(
-        status_code=http_status.HTTP_401_UNAUTHORIZED,
+        status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
@@ -49,7 +50,7 @@ async def get_current_user(
         except ValueError:
             raise credentials_exception
         
-        # ✅ FIXED: Use async database operation
+        # Use async database operation
         result = await db.execute(
             select(User)
             .where(User.id == user_id)
@@ -65,11 +66,15 @@ async def get_current_user(
             logger.warning(f"Token company_id mismatch for user {user_id}. Token: {company_id}, User DB: {user.company_id}")
             raise credentials_exception
 
+        # Update last active timestamp
+        user.last_active_at = datetime.now(timezone.utc)
+        await db.commit()
+
         return user
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(
-            status_code=http_status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -78,7 +83,7 @@ async def get_current_user(
     except Exception as e:
         logger.error(f"Unexpected error in get_current_user: {str(e)}")
         raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication processing error",
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -87,7 +92,7 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
     """Get current active user"""
     if not current_user.is_active:
         raise HTTPException(
-            status_code=http_status.HTTP_400_BAD_REQUEST, 
+            status_code=status.HTTP_400_BAD_REQUEST, 
             detail="Inactive user"
         )
     return current_user
@@ -96,7 +101,7 @@ async def get_current_admin_user(current_user: User = Depends(get_current_active
     """Get current admin user"""
     if current_user.role != "admin":
         raise HTTPException(
-            status_code=http_status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
         )
     return current_user

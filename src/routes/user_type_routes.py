@@ -1,24 +1,24 @@
 # src/routes/user_type_routes.py
 """
-User Type Management API Routes for CampaignForge Multi-User System
+User Type Management API Routes for CampaignForge Multi-User System - ASYNC VERSION
 🎭 Handles user type selection, configuration, and management
-🔧 RESTful API endpoints for user type operations
+🔧 RESTful API endpoints for user type operations with async database operations
 """
 
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
-from ..core.database import get_db
+from ..core.database import get_async_db
 from ..auth.dependencies import get_current_user
 from ..models.user import User, UserType, UserTier, OnboardingStatus
 from ..services.user_type_service import UserTypeService
 
 router = APIRouter(prefix="/api/user-types", tags=["user-types"])
 
-# 📝 Pydantic Models for Request/Response
+# 🔍 Pydantic Models for Request/Response
 
 class UserTypeSelectionRequest(BaseModel):
     user_type: UserType = Field(..., description="Selected user type")
@@ -56,7 +56,7 @@ class UserSearchRequest(BaseModel):
 async def detect_user_type(
     request: UserTypeDetectionRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     🧠 Intelligent user type detection based on user input
@@ -67,17 +67,17 @@ async def detect_user_type(
         
         user_data = {
             "description": request.description,
-            "goals": request.goals or [],  # Keep as list
-            "current_activities": request.current_activities or [],  # Keep as list
-            "interests": request.interests or []  # Keep as list
+            "goals": request.goals or [],
+            "current_activities": request.current_activities or [],
+            "interests": request.interests or []
         }
         
-        detected_type = service.detect_user_type_from_data(user_data)
+        detected_type = await service.detect_user_type_from_data(user_data)
         type_info = service.get_user_type_display_info(detected_type)
         
         return {
             "success": True,
-            "detected_type": detected_type,  # Remove .value since it's already a string
+            "detected_type": detected_type,
             "type_info": type_info,
             "confidence": "high",
             "all_types": service.get_all_user_types_info(),
@@ -85,7 +85,6 @@ async def detect_user_type(
         }
     
     except Exception as e:
-        # Better error logging
         import traceback
         print(f"User type detection error: {str(e)}")
         print(f"Traceback: {traceback.format_exc()}")
@@ -95,7 +94,7 @@ async def detect_user_type(
 async def select_user_type(
     request: UserTypeSelectionRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     🎯 Set user type and initialize type-specific configuration
@@ -114,14 +113,14 @@ async def select_user_type(
         }
         
         # Set user type
-        updated_user = service.set_user_type(
+        updated_user = await service.set_user_type(
             str(current_user.id), 
             request.user_type, 
             type_data
         )
         
         # Get dashboard configuration
-        dashboard_config = service.get_dashboard_config(str(current_user.id))
+        dashboard_config = await service.get_dashboard_config(str(current_user.id))
         
         return {
             "success": True,
@@ -138,7 +137,7 @@ async def select_user_type(
 async def complete_onboarding(
     request: OnboardingCompleteRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     ✅ Complete user onboarding process
@@ -146,15 +145,15 @@ async def complete_onboarding(
     try:
         service = UserTypeService(db)
         
-        updated_user = service.complete_user_onboarding(
+        updated_user = await service.complete_user_onboarding(
             str(current_user.id),
             request.goals,
             request.experience_level
         )
         
         # Get recommendations for new user
-        recommendations = service.get_user_recommendations(str(current_user.id))
-        welcome_message = service.get_personalized_welcome_message(str(current_user.id))
+        recommendations = await service.get_user_recommendations(str(current_user.id))
+        welcome_message = service.get_personalized_welcome_message(updated_user)
         
         return {
             "success": True,
@@ -173,7 +172,7 @@ async def complete_onboarding(
 @router.get("/current")
 async def get_current_user_type(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     📋 Get current user's type information and configuration
@@ -182,13 +181,13 @@ async def get_current_user_type(
         service = UserTypeService(db)
         
         user_profile = current_user.get_user_profile()
-        dashboard_config = service.get_dashboard_config(str(current_user.id))
+        dashboard_config = await service.get_dashboard_config(str(current_user.id))
         
         return {
             "success": True,
             "user_profile": user_profile,
             "dashboard_config": dashboard_config,
-            "onboarding_complete": current_user.onboarding_status == OnboardingStatus.COMPLETED
+            "onboarding_complete": current_user.onboarding_status == "completed"
         }
     
     except Exception as e:
@@ -197,14 +196,14 @@ async def get_current_user_type(
 @router.get("/dashboard-config")
 async def get_dashboard_config(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     🎨 Get user-specific dashboard configuration
     """
     try:
         service = UserTypeService(db)
-        config = service.get_dashboard_config(str(current_user.id))
+        config = await service.get_dashboard_config(str(current_user.id))
         
         return {
             "success": True,
@@ -217,19 +216,19 @@ async def get_dashboard_config(
 @router.get("/recommendations")
 async def get_user_recommendations(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     🎯 Get personalized recommendations for the user
     """
     try:
         service = UserTypeService(db)
-        recommendations = service.get_user_recommendations(str(current_user.id))
+        recommendations = await service.get_user_recommendations(str(current_user.id))
         
         return {
             "success": True,
             "recommendations": recommendations,
-            "user_type": current_user.user_type.value if current_user.user_type else None
+            "user_type": current_user.user_type if current_user.user_type else None
         }
     
     except Exception as e:
@@ -248,8 +247,8 @@ async def get_usage_summary(
         return {
             "success": True,
             "usage": usage_summary,
-            "user_type": current_user.user_type.value if current_user.user_type else None,
-            "tier": current_user.user_tier.value if current_user.user_tier else "free"
+            "user_type": current_user.user_type if current_user.user_type else None,
+            "tier": current_user.user_tier if current_user.user_tier else "free"
         }
     
     except Exception as e:
@@ -258,14 +257,14 @@ async def get_usage_summary(
 @router.get("/upgrade-check")
 async def check_upgrade_eligibility(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     🚀 Check if user can/should upgrade their tier
     """
     try:
         service = UserTypeService(db)
-        upgrade_info = service.can_user_upgrade_tier(str(current_user.id))
+        upgrade_info = await service.can_user_upgrade_tier(str(current_user.id))
         
         return {
             "success": True,
@@ -280,15 +279,14 @@ async def check_upgrade_eligibility(
 @router.get("/stats")
 async def get_user_type_statistics(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     📊 Get user type statistics (admin only)
     """
-    # Add admin permission check here if needed
     try:
         service = UserTypeService(db)
-        stats = service.get_user_type_stats()
+        stats = await service.get_user_type_stats()
         
         return {
             "success": True,
@@ -302,16 +300,15 @@ async def get_user_type_statistics(
 async def search_users_by_type(
     request: UserSearchRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     🔍 Search users by type and other filters (admin only)
     """
-    # Add admin permission check here if needed
     try:
         service = UserTypeService(db)
         filters = request.dict(exclude_unset=True)
-        users = service.search_users(filters)
+        users = await service.search_users(filters)
         
         return {
             "success": True,
@@ -320,9 +317,9 @@ async def search_users_by_type(
                     "id": str(user.id),
                     "email": user.email,
                     "full_name": user.full_name,
-                    "user_type": user.user_type.value if user.user_type else None,
-                    "user_tier": user.user_tier.value if user.user_tier else "free",
-                    "onboarding_status": user.onboarding_status.value if user.onboarding_status else "incomplete",
+                    "user_type": user.user_type if user.user_type else None,
+                    "user_tier": user.user_tier if user.user_tier else "free",
+                    "onboarding_status": user.onboarding_status if user.onboarding_status else "incomplete",
                     "total_campaigns": user.total_campaigns_created,
                     "last_active": user.last_active_at.isoformat() if user.last_active_at else None
                 }
@@ -339,15 +336,14 @@ async def get_user_activity_summary(
     user_id: str,
     days: int = Query(30, ge=1, le=365),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     📈 Get user activity summary for specified user (admin only)
     """
-    # Add admin permission check here if needed
     try:
         service = UserTypeService(db)
-        activity = service.get_user_activity_summary(user_id, days)
+        activity = await service.get_user_activity_summary(user_id, days)
         
         return {
             "success": True,
@@ -363,7 +359,7 @@ async def get_user_activity_summary(
 async def migrate_user_type(
     request: UserTypeMigrationRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     🔄 Migrate user to a different user type
@@ -371,15 +367,15 @@ async def migrate_user_type(
     try:
         service = UserTypeService(db)
         
-        updated_user = service.migrate_user_type(
+        updated_user = await service.migrate_user_type(
             str(current_user.id),
             request.new_user_type,
             request.reason
         )
         
         # Get new dashboard configuration
-        dashboard_config = service.get_dashboard_config(str(current_user.id))
-        recommendations = service.get_user_recommendations(str(current_user.id))
+        dashboard_config = await service.get_dashboard_config(str(current_user.id))
+        recommendations = await service.get_user_recommendations(str(current_user.id))
         
         return {
             "success": True,
@@ -414,19 +410,19 @@ async def get_all_user_types():
 @router.get("/welcome-message")
 async def get_welcome_message(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     👋 Get personalized welcome message for current user
     """
     try:
         service = UserTypeService(db)
-        message = service.get_personalized_welcome_message(str(current_user.id))
+        message = service.get_personalized_welcome_message(current_user)
         
         return {
             "success": True,
             "welcome_message": message,
-            "user_type": current_user.user_type.value if current_user.user_type else None
+            "user_type": current_user.user_type if current_user.user_type else None
         }
     
     except Exception as e:

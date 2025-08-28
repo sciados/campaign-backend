@@ -1,36 +1,56 @@
 # src/services/user_type_service.py
 """
-User Type Management Service for CampaignForge Multi-User System
-🎭 Handles user type detection, routing, and configuration
+User Type Management Service for CampaignForge Multi-User System - ASYNC VERSION
+🎭 Handles user type detection, routing, and configuration with async operations
 🎯 Provides user-specific recommendations / optimizations
 """
 
 from typing import Dict, List, Optional, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_, func
 from datetime import datetime, timezone, timedelta
 
 from ..models.user import User, UserType, UserTier, OnboardingStatus
 from ..models.campaign import Campaign
-from ..core.database import get_db
+from ..core.database import get_async_db
 
 class UserTypeService:
     """Service for managing user types and user-specific functionality"""
     
-    def __init__(self, db: Session = None):
-        self.db = db or next(get_db())
+    def __init__(self, db: AsyncSession = None):
+        self.db = db
     
     # 🎭 User Type Detection & Configuration
     
-    def detect_user_type_from_data(self, user_data: dict) -> str:
+    async def detect_user_type_from_data(self, user_data: dict) -> str:
         """
         Intelligent user type detection based on provided data
         """
         try:
             if not user_data or not isinstance(user_data, dict):
-             return "business_owner"
+                return "business_owner"
         
-            # ... your keyword lists stay the same ...
+            # Define keyword patterns
+            affiliate_keywords = [
+                'affiliate', 'commission', 'promote products', 'earn money online', 
+                'clickbank', 'amazon associates', 'referral', 'conversion rate',
+                'traffic', 'landing page', 'sales funnel', 'cpa', 'cpc', 'epc',
+                'affiliate network', 'promote offers', 'email marketing'
+            ]
+            
+            creator_keywords = [
+                'content creator', 'influencer', 'youtube', 'tiktok', 'instagram',
+                'followers', 'subscribers', 'viral', 'social media', 'brand deals',
+                'sponsorship', 'creator fund', 'monetize content', 'audience',
+                'engagement', 'views', 'likes', 'shares', 'content strategy'
+            ]
+            
+            business_keywords = [
+                'business owner', 'entrepreneur', 'startup', 'company', 'sales',
+                'leads', 'customers', 'market research', 'revenue', 'growth',
+                'b2b', 'b2c', 'roi', 'marketing', 'brand', 'product', 'service',
+                'competition', 'market share', 'business development'
+            ]
         
             # Handle different data types properly
             description = user_data.get("description") or ""
@@ -60,15 +80,28 @@ class UserTypeService:
                 current_activities
             ]).lower()
         
-            # ... rest of your scoring logic stays the same ...
+            # Score each user type
+            affiliate_score = sum(1 for keyword in affiliate_keywords if keyword in text_to_analyze)
+            creator_score = sum(1 for keyword in creator_keywords if keyword in text_to_analyze)
+            business_score = sum(1 for keyword in business_keywords if keyword in text_to_analyze)
+        
+            # Return user type with highest score
+            if affiliate_score > creator_score and affiliate_score > business_score:
+                return "affiliate_marketer"
+            elif creator_score > business_score:
+                return "content_creator"
+            else:
+                return "business_owner"
         
         except Exception as e:
             print(f"Error in detect_user_type_from_data: {e}")
             return "business_owner"
     
-    def set_user_type(self, user_id: str, user_type: str, type_data: dict = None) -> User:
+    async def set_user_type(self, user_id: str, user_type: str, type_data: dict = None) -> User:
         """Set user type and initialize type-specific configuration"""
-        user = self.db.query(User).filter(User.id == user_id).first()
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        
         if not user:
             raise ValueError(f"User {user_id} not found")
         
@@ -86,34 +119,52 @@ class UserTypeService:
         user._set_default_intelligence_preferences()
         
         # Commit changes
-        self.db.commit()
-        self.db.refresh(user)
+        await self.db.commit()
+        await self.db.refresh(user)
         
         return user
     
-    def complete_user_onboarding(self, user_id: str, goals: list, experience_level: str) -> User:
+    async def complete_user_onboarding(self, user_id: str, goals: list, experience_level: str) -> User:
         """Complete user onboarding process"""
-        user = self.db.query(User).filter(User.id == user_id).first()
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        
         if not user:
             raise ValueError(f"User {user_id} not found")
         
         user.complete_onboarding(goals, experience_level)
         
-        self.db.commit()
-        self.db.refresh(user)
+        await self.db.commit()
+        await self.db.refresh(user)
         
         return user
     
     # 📊 User Type Analytics
     
-    def get_user_type_stats(self) -> dict:
+    async def get_user_type_stats(self) -> dict:
         """Get statistics about user types in the system"""
-        total_users = self.db.query(User).count()
+        total_users_result = await self.db.execute(select(func.count(User.id)))
+        total_users = total_users_result.scalar()
         
-        affiliate_count = self.db.query(User).filter(User.user_type == "affiliate_marketer").count()
-        creator_count = self.db.query(User).filter(User.user_type == "content_creator").count()
-        business_count = self.db.query(User).filter(User.user_type == "business_owner").count()
-        no_type_count = self.db.query(User).filter(User.user_type.is_(None)).count()
+        affiliate_result = await self.db.execute(
+            select(func.count(User.id)).where(User.user_type == "affiliate_marketer")
+        )
+        affiliate_count = affiliate_result.scalar()
+        
+        creator_result = await self.db.execute(
+            select(func.count(User.id)).where(User.user_type == "content_creator")
+        )
+        creator_count = creator_result.scalar()
+        
+        business_result = await self.db.execute(
+            select(func.count(User.id)).where(User.user_type == "business_owner")
+        )
+        business_count = business_result.scalar()
+        
+        no_type_result = await self.db.execute(
+            select(func.count(User.id)).where(User.user_type.is_(None))
+        )
+        no_type_count = no_type_result.scalar()
         
         return {
             "total_users": total_users,
@@ -137,22 +188,29 @@ class UserTypeService:
             }
         }
     
-    def get_users_by_type(self, user_type: str, limit: int = 100) -> List[User]:
+    async def get_users_by_type(self, user_type: str, limit: int = 100) -> List[User]:
         """Get users of a specific type"""
-        return self.db.query(User).filter(User.user_type == user_type).limit(limit).all()
+        result = await self.db.execute(
+            select(User).where(User.user_type == user_type).limit(limit)
+        )
+        return result.scalars().all()
     
     # 🎯 User-Specific Recommendations
     
-    def get_user_recommendations(self, user_id: str) -> dict:
+    async def get_user_recommendations(self, user_id: str) -> dict:
         """Get personalized recommendations for a user based on their type and activity"""
-        user = self.db.query(User).filter(User.id == user_id).first()
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        
         if not user:
             raise ValueError(f"User {user_id} not found")
         
         # Get user's campaign history
-        recent_campaigns = self.db.query(Campaign).filter(
-            and_(Campaign.user_id == user_id)
-        ).order_by(Campaign.created_at.desc()).limit(5).all()
+        campaigns_result = await self.db.execute(
+            select(Campaign).where(Campaign.user_id == user_id)
+            .order_by(Campaign.created_at.desc()).limit(5)
+        )
+        recent_campaigns = campaigns_result.scalars().all()
         
         recommendations = {
             "next_actions": [],
@@ -250,9 +308,11 @@ class UserTypeService:
     
     # 🎨 User Interface Customization
     
-    def get_dashboard_config(self, user_id: str) -> dict:
+    async def get_dashboard_config(self, user_id: str) -> dict:
         """Get user-type specific dashboard configuration"""
-        user = self.db.query(User).filter(User.id == user_id).first()
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        
         if not user:
             raise ValueError(f"User {user_id} not found")
         
@@ -334,9 +394,11 @@ class UserTypeService:
             for user_type in ["affiliate_marketer", "content_creator", "business_owner"]
         }
     
-    def can_user_upgrade_tier(self, user_id: str) -> dict:
+    async def can_user_upgrade_tier(self, user_id: str) -> dict:
         """Check if user can/should upgrade their tier"""
-        user = self.db.query(User).filter(User.id == user_id).first()
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        
         if not user:
             raise ValueError(f"User {user_id} not found")
         
@@ -372,45 +434,53 @@ class UserTypeService:
     
     # 🔍 User Search and Filtering
     
-    def search_users(self, filters: dict) -> List[User]:
+    async def search_users(self, filters: dict) -> List[User]:
         """Search users with various filters"""
-        query = self.db.query(User)
+        query = select(User)
         
         if filters.get("user_type"):
-            query = query.filter(User.user_type == filters["user_type"])
+            query = query.where(User.user_type == filters["user_type"])
         
         if filters.get("user_tier"):
-            query = query.filter(User.user_tier == filters["user_tier"])
+            query = query.where(User.user_tier == filters["user_tier"])
         
         if filters.get("onboarding_status"):
-            query = query.filter(User.onboarding_status == filters["onboarding_status"])
+            query = query.where(User.onboarding_status == filters["onboarding_status"])
         
         if filters.get("experience_level"):
-            query = query.filter(User.experience_level == filters["experience_level"])
+            query = query.where(User.experience_level == filters["experience_level"])
         
         if filters.get("is_active") is not None:
-            query = query.filter(User.is_active == filters["is_active"])
+            query = query.where(User.is_active == filters["is_active"])
         
         limit = filters.get("limit", 50)
-        return query.limit(limit).all()
+        query = query.limit(limit)
+        
+        result = await self.db.execute(query)
+        return result.scalars().all()
     
     # 📈 Usage Analytics
     
-    def get_user_activity_summary(self, user_id: str, days: int = 30) -> dict:
+    async def get_user_activity_summary(self, user_id: str, days: int = 30) -> dict:
         """Get user activity summary for the last N days"""
-        user = self.db.query(User).filter(User.id == user_id).first()
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        
         if not user:
             raise ValueError(f"User {user_id} not found")
         
         start_date = datetime.now(timezone.utc) - timedelta(days=days)
         
         # Get recent campaigns
-        recent_campaigns = self.db.query(Campaign).filter(
-            and_(
-                Campaign.user_id == user_id,
-                Campaign.created_at >= start_date
+        campaigns_result = await self.db.execute(
+            select(func.count(Campaign.id)).where(
+                and_(
+                    Campaign.user_id == user_id,
+                    Campaign.created_at >= start_date
+                )
             )
-        ).count()
+        )
+        recent_campaigns = campaigns_result.scalar()
         
         return {
             "user_id": user_id,
@@ -433,9 +503,11 @@ class UserTypeService:
     
     # 🎯 User Type Migration
     
-    def migrate_user_type(self, user_id: str, new_user_type: str, reason: str = None) -> User:
+    async def migrate_user_type(self, user_id: str, new_user_type: str, reason: str = None) -> User:
         """Migrate user from one type to another"""
-        user = self.db.query(User).filter(User.id == user_id).first()
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        
         if not user:
             raise ValueError(f"User {user_id} not found")
         
@@ -459,16 +531,15 @@ class UserTypeService:
             user.settings["type_migrations"] = []
         user.settings["type_migrations"].append(migration_log)
         
-        self.db.commit()
-        self.db.refresh(user)
+        await self.db.commit()
+        await self.db.refresh(user)
         
         return user
     
     # 🎨 Personalization
     
-    def get_personalized_welcome_message(self, user_id: str) -> str:
+    def get_personalized_welcome_message(self, user: User) -> str:
         """Get personalized welcome message based on user type and progress"""
-        user = self.db.query(User).filter(User.id == user_id).first()
         if not user:
             return "Welcome to CampaignForge!"
         
@@ -492,233 +563,3 @@ class UserTypeService:
         
         else:
             return "Welcome to CampaignForge! Let's set up your user type to get started."
-    
-    # 📈 Advanced User Type Analytics
-    
-    def get_user_type_performance_metrics(self, user_type: str, days: int = 30) -> dict:
-        """Get performance metrics for a specific user type"""
-        start_date = datetime.now(timezone.utc) - timedelta(days=days)
-        
-        users = self.db.query(User).filter(User.user_type == user_type).all()
-        
-        if not users:
-            return {"error": f"No users found for type {user_type}"}
-        
-        total_users = len(users)
-        active_users = len([u for u in users if u.last_active_at and u.last_active_at >= start_date])
-        total_campaigns = sum(u.total_campaigns_created for u in users)
-        total_intelligence = sum(u.total_intelligence_generated for u in users)
-        total_content = sum(u.total_content_generated for u in users)
-        
-        # Calculate averages
-        avg_campaigns = total_campaigns / total_users if total_users > 0 else 0
-        avg_intelligence = total_intelligence / total_users if total_users > 0 else 0
-        avg_content = total_content / total_users if total_users > 0 else 0
-        
-        return {
-            "user_type": user_type,
-            "period_days": days,
-            "metrics": {
-                "total_users": total_users,
-                "active_users": active_users,
-                "activity_rate": (active_users / total_users * 100) if total_users > 0 else 0,
-                "total_campaigns": total_campaigns,
-                "total_intelligence": total_intelligence,
-                "total_content": total_content,
-                "avg_campaigns_per_user": round(avg_campaigns, 1),
-                "avg_intelligence_per_user": round(avg_intelligence, 1),
-                "avg_content_per_user": round(avg_content, 1)
-            }
-        }
-    
-    def get_user_engagement_insights(self, user_id: str) -> dict:
-        """Get detailed engagement insights for a specific user"""
-        user = self.db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise ValueError(f"User {user_id} not found")
-        
-        # Calculate engagement metrics
-        usage = user.get_usage_summary()
-        
-        # Determine engagement level
-        campaign_usage = usage["campaigns"]["percentage"]
-        analysis_usage = usage["analysis"]["percentage"]
-        
-        engagement_score = (campaign_usage + analysis_usage) / 2
-        
-        if engagement_score >= 80:
-            engagement_level = "high"
-            engagement_message = "🔥 Power user! You're getting maximum value from CampaignForge."
-        elif engagement_score >= 50:
-            engagement_level = "medium"
-            engagement_message = "📈 Great progress! Consider exploring more features to unlock additional value."
-        elif engagement_score >= 20:
-            engagement_level = "low"
-            engagement_message = "🌱 Getting started! Try creating more campaigns to see better results."
-        else:
-            engagement_level = "minimal"
-            engagement_message = "👋 Welcome! Let's help you get started with your first campaign."
-        
-        # Get recommendations based on usage patterns
-        recommendations = []
-        
-        if campaign_usage < 30:
-            recommendations.append({
-                "type": "action",
-                "title": "Create more campaigns",
-                "description": "You're only using 30% of your campaign limit. Create more to get better insights!",
-                "cta": "Create Campaign",
-                "priority": "high"
-            })
-        
-        if analysis_usage < 30:
-            recommendations.append({
-                "type": "feature",
-                "title": "Try auto-analysis",
-                "description": "Enable auto-analysis to get insights without manual work.",
-                "cta": "Enable Auto-Analysis",
-                "priority": "medium"
-            })
-        
-        if user.last_active_at:
-            days_since_active = (datetime.now(timezone.utc) - user.last_active_at).days
-            if days_since_active > 7:
-                recommendations.append({
-                    "type": "retention",
-                    "title": "Welcome back!",
-                    "description": f"It's been {days_since_active} days since your last visit. Check out what's new!",
-                    "cta": "See Updates",
-                    "priority": "high"
-                })
-        
-        return {
-            "user_id": user_id,
-            "user_type": user.user_type,
-            "engagement": {
-                "level": engagement_level,
-                "score": round(engagement_score, 1),
-                "message": engagement_message
-            },
-            "usage": usage,
-            "recommendations": recommendations,
-            "insights": {
-                "most_used_feature": "campaigns" if campaign_usage > analysis_usage else "analysis",
-                "underutilized_features": [
-                    "campaigns" if campaign_usage < 50 else None,
-                    "analysis" if analysis_usage < 50 else None
-                ],
-                "tier_recommendation": self.can_user_upgrade_tier(user_id)
-            }
-        }
-    
-    # 🎯 User Type Optimization
-    
-    def optimize_user_limits(self, user_id: str) -> dict:
-        """Optimize user limits based on usage patterns"""
-        user = self.db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise ValueError(f"User {user_id} not found")
-        
-        usage = user.get_usage_summary()
-        
-        # Calculate optimal limits
-        current_campaign_usage = usage["campaigns"]["used"]
-        current_analysis_usage = usage["analysis"]["used"]
-        
-        # Suggest limits with 20% buffer
-        optimal_campaign_limit = max(user.monthly_campaign_limit, int(current_campaign_usage * 1.2))
-        optimal_analysis_limit = max(user.monthly_analysis_limit, int(current_analysis_usage * 1.2))
-        
-        return {
-            "user_id": user_id,
-            "current_limits": {
-                "campaigns": user.monthly_campaign_limit,
-                "analysis": user.monthly_analysis_limit
-            },
-            "usage": {
-                "campaigns": current_campaign_usage,
-                "analysis": current_analysis_usage
-            },
-            "recommended_limits": {
-                "campaigns": optimal_campaign_limit,
-                "analysis": optimal_analysis_limit
-            },
-            "optimization_potential": {
-                "campaign_increase": optimal_campaign_limit - user.monthly_campaign_limit,
-                "analysis_increase": optimal_analysis_limit - user.monthly_analysis_limit
-            }
-        }
-    
-    def get_user_success_metrics(self, user_id: str) -> dict:
-        """Get user success metrics and milestones"""
-        user = self.db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise ValueError(f"User {user_id} not found")
-        
-        # Define success milestones by user type
-        milestones = {
-            "affiliate_marketer": [
-                {"name": "First Campaign", "threshold": 1, "metric": "campaigns"},
-                {"name": "Campaign Master", "threshold": 10, "metric": "campaigns"},
-                {"name": "Intelligence Expert", "threshold": 25, "metric": "intelligence"},
-                {"name": "Content Creator", "threshold": 50, "metric": "content"},
-                {"name": "Power User", "threshold": 100, "metric": "campaigns"}
-            ],
-            "content_creator": [
-                {"name": "Content Analyzer", "threshold": 1, "metric": "campaigns"},
-                {"name": "Trend Spotter", "threshold": 5, "metric": "intelligence"},
-                {"name": "Viral Hunter", "threshold": 15, "metric": "campaigns"},
-                {"name": "Content Machine", "threshold": 100, "metric": "content"},
-                {"name": "Influence Master", "threshold": 50, "metric": "campaigns"}
-            ],
-            "business_owner": [
-                {"name": "Market Researcher", "threshold": 1, "metric": "campaigns"},
-                {"name": "Lead Generator", "threshold": 5, "metric": "campaigns"},
-                {"name": "Business Intelligence", "threshold": 20, "metric": "intelligence"},
-                {"name": "Growth Hacker", "threshold": 25, "metric": "campaigns"},
-                {"name": "Market Leader", "threshold": 100, "metric": "intelligence"}
-            ]
-        }
-        
-        user_milestones = milestones.get(user.user_type, [])
-        
-        # Calculate achievement status
-        achievements = []
-        for milestone in user_milestones:
-            if milestone["metric"] == "campaigns":
-                current_value = user.total_campaigns_created
-            elif milestone["metric"] == "intelligence":
-                current_value = user.total_intelligence_generated
-            elif milestone["metric"] == "content":
-                current_value = user.total_content_generated
-            else:
-                current_value = 0
-            
-            achieved = current_value >= milestone["threshold"]
-            progress = min(100, (current_value / milestone["threshold"]) * 100)
-            
-            achievements.append({
-                "name": milestone["name"],
-                "threshold": milestone["threshold"],
-                "current": current_value,
-                "achieved": achieved,
-                "progress": round(progress, 1)
-            })
-        
-        # Calculate overall success score
-        achieved_count = sum(1 for a in achievements if a["achieved"])
-        success_score = (achieved_count / len(achievements) * 100) if achievements else 0
-        
-        return {
-            "user_id": user_id,
-            "user_type": user.user_type,
-            "success_score": round(success_score, 1),
-            "achievements": achievements,
-            "next_milestone": next((a for a in achievements if not a["achieved"]), None),
-            "total_achievements": achieved_count,
-            "lifetime_stats": {
-                "campaigns": user.total_campaigns_created,
-                "intelligence": user.total_intelligence_generated,
-                "content": user.total_content_generated
-            }
-        }

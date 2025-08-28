@@ -47,9 +47,9 @@ class Settings(BaseSettings):
             "https://rodgersdigital.com",
             "https://www.rodgersdigital.com",
             "https://rodgersdigital.vercel.app",
-            "https://www.rodgersdigital.vercel.app",
-            "http://localhost:3000",
-            "http://localhost:3001"
+            "https://www.rodgersdigital.vercel.app"
+            # "http://localhost:3000",
+            # "http://localhost:3001"
         ]
 
     # 🔥 ULTRA-CHEAP AI PROVIDERS (Your excellent setup!)
