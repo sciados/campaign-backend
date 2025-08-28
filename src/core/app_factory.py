@@ -48,10 +48,24 @@ def get_async_session_manager():
 # ============================================================================
 
 # Trust Railway's proxy headers
-@app.middleware("http")
-async def trust_proxy_headers(request, call_next):
+# @app.middleware("http")
+# async def trust_proxy_headers(request, call_next):
     # Railway handles HTTPS termination, don't redirect
+#    response = await call_next(request)
+#    return response
+
+@app.middleware("http")
+async def railway_proxy_middleware(request, call_next):
+    """Handle Railway's proxy correctly to prevent HTTPS redirects"""
+    
+    # Don't do any redirect logic - let Railway handle HTTPS
     response = await call_next(request)
+    
+    # Only add security headers, no redirects
+    if os.getenv("RAILWAY_ENVIRONMENT_NAME") == "production":
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+    
     return response
 
 @asynccontextmanager

@@ -382,6 +382,16 @@ __all__.extend([
     'get_orchestration_status'
 ])
 
+if __name__ == "__main__":
+     import uvicorn
+     uvicorn.run(
+         "main:app",
+         host="0.0.0.0",
+         port=int(os.environ.get("PORT", 8000)),
+         forwarded_allow_ips="*",
+         proxy_headers=True
+     )
+
 # ============================================================================
 # 📊 REFACTORING SUMMARY
 # ============================================================================
