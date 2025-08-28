@@ -16,6 +16,7 @@ from fastapi.responses import Response
 from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
+app = FastAPI()
 
 # ============================================================================
 # 🔧 CRITICAL FIX: ASYNC SESSION MANAGER FOR CONTEXT MANAGER PROTOCOL
@@ -45,6 +46,13 @@ def get_async_session_manager():
 # ============================================================================
 # ✅ APPLICATION LIFESPAN - FIXED VERSION (NO AI DISCOVERY INTERFERENCE)
 # ============================================================================
+
+# Trust Railway's proxy headers
+@app.middleware("http")
+async def trust_proxy_headers(request, call_next):
+    # Railway handles HTTPS termination, don't redirect
+    response = await call_next(request)
+    return response
 
 @asynccontextmanager
 async def create_lifespan(app: FastAPI):
@@ -125,12 +133,6 @@ async def create_lifespan(app: FastAPI):
 # ============================================================================
 # ✅ MIDDLEWARE CONFIGURATION
 # ============================================================================
-
-# Add this to your src/core/app_factory.py configure_cors_middleware function
-# Replace the existing function with this enhanced debug version:
-
-# In src/core/app_factory.py
-# Replace your configure_cors_middleware function with this:
 
 def configure_cors_middleware(app: FastAPI):
     """Configure CORS middleware - UNIFIED WITH CONFIG"""
