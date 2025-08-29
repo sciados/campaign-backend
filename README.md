@@ -5,37 +5,43 @@ Multimedia Campaign Creation Platform - FastAPI Backend
 ## Quick Start
 
 1. **Create virtual environment:**
+
 ```bash
 python -m venv venv
 venv\Scripts\activate  # Windows
 ```
 
 2. **Install dependencies:**
+
 ```bash
 pip install -r requirements.txt
 ```
 
 3. **Set up environment:**
+
 ```bash
 copy .env.template .env
 # Edit .env with your configuration
 ```
 
 4. **Run with Docker (Recommended):**
+
 ```bash
 docker-compose up -d
 ```
 
 5. **Or run locally:**
+
 ```bash
 # Start PostgreSQL and Redis first
 uvicorn src.main:app --reload
 ```
 
 6. **Access API documentation:**
+
 ```
-http://localhost:8000/docs  # Swagger UI
-http://localhost:8000/redoc # ReDoc
+# http://localhost:8000/docs  # Swagger UI
+# http://localhost:8000/redoc # ReDoc
 ```
 
 ## Project Structure
@@ -124,22 +130,26 @@ docker run -p 8000:8000 campaignforge-backend
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/v1/auth/register` - Register new user
 - `POST /api/v1/auth/login` - User login
 - `POST /api/v1/auth/refresh` - Refresh token
 
 ### Campaigns
+
 - `GET /api/v1/campaigns/` - List campaigns
 - `POST /api/v1/campaigns/` - Create campaign
 - `GET /api/v1/campaigns/{id}` - Get campaign
 - `PUT /api/v1/campaigns/{id}` - Update campaign
 
 ### Content Processing
+
 - `POST /api/v1/content/process-video` - Process video URL
 - `POST /api/v1/content/upload-file` - Upload document
 - `POST /api/v1/content/generate` - Generate content
 
 ### AI Generation
+
 - `POST /api/v1/content/generate-text` - Generate text content
 - `POST /api/v1/content/generate-image` - Generate images
 - `POST /api/v1/content/generate-video` - Generate videos

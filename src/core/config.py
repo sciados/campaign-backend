@@ -30,8 +30,8 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
 
-    # Redis Cache
-    REDIS_URL: str = "redis://localhost:6379"
+    # Redis Cache    
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 
     # CORS - Updated to match Railway format
     ALLOWED_ORIGINS_STR: Optional[str] = None
@@ -48,8 +48,6 @@ class Settings(BaseSettings):
             "https://www.rodgersdigital.com",
             "https://rodgersdigital.vercel.app",
             "https://www.rodgersdigital.vercel.app"
-            # "http://localhost:3000",
-            # "http://localhost:3001"
         ]
 
     # 🔥 ULTRA-CHEAP AI PROVIDERS (Your excellent setup!)

@@ -52,7 +52,7 @@ class CampaignService:
             logger.info(f"🎯 Creating streamlined campaign for user {user.id}")
             
             # 🔧 CRITICAL FIX: Validate required product name
-            product_name = campaign_data.get("product_name", "").strip()
+            product_name = campaign_data.get("product_name", "Product").strip()
             if not product_name or len(product_name) < 2:
                 raise ValueError("Product name is required and must be at least 2 characters long")
             

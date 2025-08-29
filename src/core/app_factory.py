@@ -158,9 +158,7 @@ def configure_cors_middleware(app: FastAPI):
         allowed_origins = settings.allowed_origins
     except ImportError:
         # Fallback if config import fails
-        allowed_origins = [
-            "http://localhost:3000",
-            "http://localhost:3001", 
+        allowed_origins = [ 
             "https://campaignforge.vercel.app",
             "https://campaignforge-frontend.vercel.app",
             "https://rodgersdigital.com",
@@ -209,7 +207,6 @@ def configure_trusted_host_middleware(app: FastAPI):
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=[
-            "localhost",
             "127.0.0.1",
             "*.railway.app",
             "*.vercel.app",
