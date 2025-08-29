@@ -62,7 +62,7 @@ class CampaignService:
             new_campaign_data = {
                 "title": campaign_data.get("title"),
                 "description": campaign_data.get("description"),
-                "product_name": product_name,
+                "product_name": campaign_data.get("product_name,"),
                 "keywords": campaign_data.get("keywords", []),
                 "target_audience": campaign_data.get("target_audience"),
                 "tone": campaign_data.get("tone", "conversational"),
