@@ -111,7 +111,7 @@ class CampaignService:
             logger.error(f"Error creating campaign: {e}")
             await self.db.rollback()
             raise e
-    
+
     @staticmethod
     async def trigger_enhanced_analysis_workflow(
         campaign_id: str, 
@@ -121,75 +121,118 @@ class CampaignService:
         product_name: str
     ):
         """
-        ENHANCED WORKFLOW: Background task that triggers the complete analysis workflow
-        This integrates with the enhanced intelligence routes we created
+        DIAGNOSTIC VERSION: Identifies exactly where the failure occurs
         """
         async with AsyncSessionLocal() as db:
             try:
-                logger.info(f"Starting ENHANCED analysis workflow for campaign {campaign_id}")
+                logger.info(f"DIAGNOSTIC: Starting analysis workflow for campaign {campaign_id}")
+                logger.info(f"DIAGNOSTIC: Parameters received:")
+                logger.info(f"  - campaign_id: {campaign_id} (type: {type(campaign_id)})")
+                logger.info(f"  - user_id: {user_id} (type: {type(user_id)})")
+                logger.info(f"  - company_id: {company_id} (type: {type(company_id)})")
+                logger.info(f"  - salespage_url: {salespage_url}")
+                logger.info(f"  - product_name: {product_name}")
                 
-                # Convert string IDs to UUID objects
+                # Step 1: Test UUID conversion
                 try:
                     campaign_uuid = uuid.UUID(campaign_id)
                     user_uuid = uuid.UUID(user_id) 
                     company_uuid = uuid.UUID(company_id)
-                    logger.info(f"UUID conversion successful for campaign {campaign_id}")
+                    logger.info(f"DIAGNOSTIC: UUID conversion successful")
                 except ValueError as uuid_error:
-                    logger.error(f"Invalid UUID format: {str(uuid_error)}")
+                    logger.error(f"DIAGNOSTIC: UUID conversion failed: {str(uuid_error)}")
                     return
                 
-                # FIXED: Get user using proper user_crud instead of campaign_crud
-                user = await user_crud.get(db=db, id=user_uuid)
-                
-                if not user:
-                    logger.error(f"User {user_id} not found for enhanced analysis")
-                    return
-                
-                # Get campaign using CRUD with access check
-                campaign = await campaign_crud.get_campaign_with_access_check(
-                    db=db,
-                    campaign_id=campaign_uuid,
-                    company_id=company_uuid
-                )
-                
-                if not campaign:
-                    logger.error(f"Campaign {campaign_id} not found for enhanced analysis")
-                    return
-                
-                # Update campaign to analyzing state
-                campaign.start_auto_analysis()
-                await campaign_crud.update(
-                    db=db,
-                    db_obj=campaign,
-                    obj_in={}
-                )
-                
-                # ENHANCED WORKFLOW: Call the enhanced intelligence API endpoint
+                # Step 2: Test database connection
                 try:
-                    # Import enhanced intelligence service
-                    from src.intelligence.handlers.intelligence_handler import IntelligenceHandler
+                    from sqlalchemy import text
+                    result = await db.execute(text("SELECT 1 as test"))
+                    test_row = result.fetchone()
+                    logger.info(f"DIAGNOSTIC: Database connection working: {test_row}")
+                except Exception as db_error:
+                    logger.error(f"DIAGNOSTIC: Database connection failed: {str(db_error)}")
+                    return
+                
+                # Step 3: Check if user_crud is available and working
+                try:
+                    logger.info(f"DIAGNOSTIC: Testing user_crud import...")
+                    from src.core.crud import user_crud
+                    logger.info(f"DIAGNOSTIC: user_crud imported successfully")
                     
-                    # Create intelligence handler
-                    handler = IntelligenceHandler(db, user)
+                    # Test if user_crud.get method exists
+                    if hasattr(user_crud, 'get'):
+                        logger.info(f"DIAGNOSTIC: user_crud.get method exists")
+                    else:
+                        logger.error(f"DIAGNOSTIC: user_crud.get method missing")
+                        return
+                        
+                except ImportError as import_error:
+                    logger.error(f"DIAGNOSTIC: user_crud import failed: {str(import_error)}")
+                    return
+                
+                # Step 4: Try to get user with detailed logging
+                try:
+                    logger.info(f"DIAGNOSTIC: Attempting to get user with ID: {user_uuid}")
+                    user = await user_crud.get(db=db, id=user_uuid)
                     
-                    # ENHANCED: Use the complete analyze-and-store workflow
-                    analysis_request = {
-                        "salespage_url": salespage_url,
-                        "product_name": product_name,
-                        "auto_enhance": True
-                    }
+                    if user:
+                        logger.info(f"DIAGNOSTIC: User found successfully!")
+                        logger.info(f"DIAGNOSTIC: User details: id={user.id}, email={getattr(user, 'email', 'N/A')}")
+                        logger.info(f"DIAGNOSTIC: User company_id: {getattr(user, 'company_id', 'N/A')}")
+                    else:
+                        logger.error(f"DIAGNOSTIC: User NOT FOUND for ID: {user_uuid}")
+                        
+                        # Let's check what users actually exist
+                        try:
+                            from sqlalchemy import text
+                            result = await db.execute(text("SELECT id, email FROM users LIMIT 5"))
+                            existing_users = result.fetchall()
+                            logger.error(f"DIAGNOSTIC: Existing users in database: {existing_users}")
+                        except Exception as query_error:
+                            logger.error(f"DIAGNOSTIC: Failed to query existing users: {query_error}")
+                        
+                        return
+                        
+                except Exception as user_lookup_error:
+                    logger.error(f"DIAGNOSTIC: User lookup failed with exception: {str(user_lookup_error)}")
+                    logger.error(f"DIAGNOSTIC: Exception type: {type(user_lookup_error)}")
+                    import traceback
+                    logger.error(f"DIAGNOSTIC: Traceback: {traceback.format_exc()}")
+                    return
+                
+                # Step 5: Test campaign lookup
+                try:
+                    logger.info(f"DIAGNOSTIC: Attempting to get campaign...")
+                    campaign = await campaign_crud.get_campaign_with_access_check(
+                        db=db,
+                        campaign_id=campaign_uuid,
+                        company_id=company_uuid
+                    )
                     
-                    # This would normally call the enhanced intelligence API, but since we're in background task,
-                    # we need to implement the workflow directly here
+                    if campaign:
+                        logger.info(f"DIAGNOSTIC: Campaign found: {campaign.id}")
+                    else:
+                        logger.error(f"DIAGNOSTIC: Campaign NOT FOUND for ID: {campaign_uuid}")
+                        return
+                        
+                except Exception as campaign_error:
+                    logger.error(f"DIAGNOSTIC: Campaign lookup failed: {str(campaign_error)}")
+                    return
+                
+                # Step 6: Test campaign update
+                try:
+                    logger.info(f"DIAGNOSTIC: Attempting to start auto analysis...")
+                    campaign.start_auto_analysis()
+                    await campaign_crud.update(db=db, db_obj=campaign, obj_in={})
+                    logger.info(f"DIAGNOSTIC: Campaign updated to analysis state successfully")
+                except Exception as update_error:
+                    logger.error(f"DIAGNOSTIC: Campaign update failed: {str(update_error)}")
+                    return
+                
+                # Step 7: Test intelligence creation (simplified)
+                try:
+                    logger.info(f"DIAGNOSTIC: Attempting to create intelligence record...")
                     
-                    # Step 1: Run analysis
-                    from src.intelligence.analyzers import EnhancedSalesPageAnalyzer
-                    analyzer = EnhancedSalesPageAnalyzer()
-                    analysis_result = await analyzer.analyze(salespage_url)
-                    
-                    logger.info(f"Analysis completed with confidence: {analysis_result.get('confidence_score', 0)}")
-                    
-                    # Step 2: Store intelligence in database
                     from src.models import IntelligenceSourceType, AnalysisStatus
                     from src.core.crud import intelligence_crud
                     from src.utils.json_utils import safe_json_dumps
@@ -200,106 +243,46 @@ class CampaignService:
                         "company_id": str(user.company_id),
                         "source_url": salespage_url,
                         "source_type": IntelligenceSourceType.SALES_PAGE,
-                        "source_title": analysis_result.get("page_title", f"{product_name} Analysis"),
+                        "source_title": f"{product_name} Test Analysis",
                         "analysis_status": AnalysisStatus.COMPLETED,
-                        "confidence_score": analysis_result.get("confidence_score", 0.0),
-                        "raw_content": analysis_result.get("raw_content", ""),
-                        
-                        # Core intelligence data
-                        "offer_intelligence": safe_json_dumps(analysis_result.get("offer_intelligence", {})),
-                        "psychology_intelligence": safe_json_dumps(analysis_result.get("psychology_intelligence", {})),
-                        "content_intelligence": safe_json_dumps(analysis_result.get("content_intelligence", {})),
-                        "competitive_intelligence": safe_json_dumps(analysis_result.get("competitive_intelligence", {})),
-                        "brand_intelligence": safe_json_dumps(analysis_result.get("brand_intelligence", {})),
-                        
-                        # Processing metadata
+                        "confidence_score": 0.8,
+                        "raw_content": f"Test analysis of {salespage_url}",
+                        "offer_intelligence": safe_json_dumps({"test": "data"}),
+                        "psychology_intelligence": safe_json_dumps({"test": "data"}),
+                        "content_intelligence": safe_json_dumps({"test": "data"}),
+                        "competitive_intelligence": safe_json_dumps({"test": "data"}),
+                        "brand_intelligence": safe_json_dumps({"test": "data"}),
                         "processing_metadata": safe_json_dumps({
-                            "analysis_method": analysis_result.get("analysis_method", "enhanced"),
-                            "analyzed_at": datetime.now(timezone.utc).isoformat(),
-                            "product_name_extracted": analysis_result.get("product_name", product_name),
-                            "auto_enhancement_requested": True,
-                            "workflow_integration": True,
-                            "background_task": True
+                            "analysis_method": "diagnostic",
+                            "analyzed_at": datetime.now(timezone.utc).isoformat()
                         })
                     }
                     
-                    # Create intelligence record
                     intelligence_record = await intelligence_crud.create(db=db, obj_in=intelligence_data)
-                    logger.info(f"Intelligence record created: {intelligence_record.id}")
+                    logger.info(f"DIAGNOSTIC: Intelligence record created successfully: {intelligence_record.id}")
                     
-                    # Step 3: Trigger auto-enhancement
-                    try:
-                        enhancement_preferences = {
-                            "enhance_scientific_backing": True,
-                            "boost_credibility": True,
-                            "competitive_analysis": True,
-                            "psychological_depth": "medium",
-                            "content_optimization": True,
-                            "auto_enhancement": True,
-                            "enhancement_source": "background_workflow"
-                        }
-                        
-                        # Perform amplification using handler
-                        result = await handler.amplify_intelligence_source(
-                            campaign_id=campaign_id,
-                            intelligence_id=str(intelligence_record.id),
-                            preferences=enhancement_preferences
-                        )
-                        
-                        if result.get("amplification_applied"):
-                            logger.info(f"Auto-enhancement completed successfully for {intelligence_record.id}")
-                            logger.info(f"AI categories populated: {result.get('ai_categories_populated', 0)}/5")
-                        else:
-                            logger.warning(f"Auto-enhancement failed for {intelligence_record.id}: {result.get('error', 'Unknown error')}")
-                    
-                    except Exception as e:
-                        logger.error(f"Auto-enhancement failed: {str(e)}")
-                        # Continue anyway with basic intelligence
-                    
-                    # Step 4: Complete campaign analysis
-                    analysis_summary = {
-                        "intelligence_id": str(intelligence_record.id),
-                        "confidence_score": intelligence_record.confidence_score,
-                        "product_name": product_name,
-                        "key_insights": {
-                            "offers_identified": len(analysis_result.get("offer_intelligence", {}).get("products", [])),
-                            "psychology_triggers": len(analysis_result.get("psychology_intelligence", {}).get("emotional_triggers", [])),
-                            "competitive_opportunities": len(analysis_result.get("competitive_intelligence", {}).get("opportunities", []))
-                        },
-                        "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
-                        "enhanced_workflow": True
-                    }
-                    
-                    # Complete campaign analysis
+                    # Complete the campaign
                     campaign.complete_auto_analysis(
                         intelligence_id=str(intelligence_record.id),
-                        confidence_score=intelligence_record.confidence_score,
-                        analysis_summary=analysis_summary
+                        confidence_score=0.8,
+                        analysis_summary={"test": "diagnostic analysis complete"}
                     )
                     
-                    # Final update
-                    await campaign_crud.update(
-                        db=db,
-                        db_obj=campaign,
-                        obj_in={}
-                    )
+                    await campaign_crud.update(db=db, db_obj=campaign, obj_in={})
                     
-                    logger.info(f"ENHANCED workflow completed successfully for campaign {campaign_id}")
+                    logger.info(f"DIAGNOSTIC: WORKFLOW COMPLETED SUCCESSFULLY for campaign {campaign_id}")
                     
-                except Exception as analysis_error:
-                    logger.error(f"Enhanced analysis failed: {str(analysis_error)}")
-                    campaign.fail_auto_analysis(str(analysis_error))
+                except Exception as intelligence_error:
+                    logger.error(f"DIAGNOSTIC: Intelligence creation failed: {str(intelligence_error)}")
+                    import traceback
+                    logger.error(f"DIAGNOSTIC: Intelligence error traceback: {traceback.format_exc()}")
+                    return
                     
-                    await campaign_crud.update(
-                        db=db,
-                        db_obj=campaign,
-                        obj_in={}
-                    )
-                
             except Exception as task_error:
-                logger.error(f"Enhanced analysis background task failed: {str(task_error)}")
+                logger.error(f"DIAGNOSTIC: Background task failed: {str(task_error)}")
+                import traceback
+                logger.error(f"DIAGNOSTIC: Task error traceback: {traceback.format_exc()}")
                 await db.rollback()
-    
     async def get_campaigns_by_company(
         self, 
         company_id: str, 
