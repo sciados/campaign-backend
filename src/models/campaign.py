@@ -3,7 +3,8 @@
 Campaign models - Enhanced for streamlined workflow with auto-analysis + Storage Integration
 🎯 NEW: Support for Campaign Creation → Auto-Analysis → Content Generation
 🔧 FIXED: Consistent timezone-aware datetime fields + duplicate table prevention
-📁 NEW: Storage file integration for user quota system - TEMPORARILY DISABLED
+🔧 FIXED: Added product_name field to match service expectations
+🔍 NEW: Storage file integration for user quota system - TEMPORARILY DISABLED
 """
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -55,6 +56,8 @@ class Campaign(BaseModel):
     # Basic Campaign Information
     title = Column(String(500), nullable=False)
     description = Column(Text)
+    # 🔧 FIXED: Added product_name field to match campaign service expectations
+    product_name = Column(String(500))  # Product or service name for the campaign
     keywords = Column(JSONB, default=[])
     target_audience = Column(JSONB, default={})
     
@@ -438,4 +441,4 @@ class Campaign(BaseModel):
         return "universal"
     
     def __repr__(self):
-        return f"<Campaign(id={self.id}, title='{self.title}', status='{self.status}', analysis_status='{self.auto_analysis_status}', storage={self.get_total_storage_used_mb()}MB)>"
+        return f"<Campaign(id={self.id}, title='{self.title}', product='{self.product_name}', status='{self.status}', analysis_status='{self.auto_analysis_status}', storage={self.get_total_storage_used_mb()}MB)>"

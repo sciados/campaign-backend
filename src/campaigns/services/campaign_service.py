@@ -4,6 +4,7 @@ Campaign Service - Business Logic Layer
 ✅ Uses centralized CRUD for all database operations
 🔧 FIXED: Proper async session management for background tasks
 🔧 FIXED: UUID conversion and ChunkedIteratorResult prevention
+🔧 FIXED: Removed invalid product_name field that doesn't exist in Campaign model
 """
 import uuid
 import logging
@@ -27,6 +28,7 @@ class CampaignService:
     Campaign business logic service - FIXED with centralized CRUD
     🔧 FIXED: All database operations through CRUD layer
     ✅ No more ChunkedIteratorResult or async session issues
+    🔧 FIXED: Removed invalid product_name field
     """
 
     def json_serial(obj):
@@ -47,22 +49,24 @@ class CampaignService:
         user: User,
         background_tasks
     ) -> Campaign:
-        """✅ FIXED: Create campaign using CRUD"""
+        """✅ FIXED: Create campaign using CRUD - removed invalid product_name field"""
         try:
             logger.info(f"🎯 Creating streamlined campaign for user {user.id}")
             
-            # 🔧 CRITICAL FIX: Validate required product name
-            product_name = campaign_data.get("product_name", "Product").strip()
+            # 🔧 CRITICAL FIX: Validate required product name  
+            product_name = campaign_data.get("product_name", "").strip()
             if not product_name or len(product_name) < 2:
-                raise ValueError("Product name is required and must be at least 2 characters long")
+                product_name = campaign_data.get("title", "Product").strip()
+                if not product_name or len(product_name) < 2:
+                    raise ValueError("Product name or campaign title is required and must be at least 2 characters long")
             
             logger.info(f"✅ Product name provided: '{product_name}'")
             
             # Prepare campaign data for CRUD
             new_campaign_data = {
-                "title": campaign_data.get("title"),
+                "title": campaign_data.get("title", product_name),
                 "description": campaign_data.get("description"),
-                "product_name": campaign_data.get("product_name,"),
+                "product_name": product_name,
                 "keywords": campaign_data.get("keywords", []),
                 "target_audience": campaign_data.get("target_audience"),
                 "tone": campaign_data.get("tone", "conversational"),
@@ -87,7 +91,7 @@ class CampaignService:
                 obj_in=new_campaign_data
             )
             
-            logger.info(f"✅ Created campaign {new_campaign.id} with product name: '{product_name}'")
+            logger.info(f"✅ Created campaign {new_campaign.id} with title: '{new_campaign.title}'")
             
             # 🔧 CRITICAL FIX: Trigger auto-analysis if enabled and URL provided
             if (campaign_data.get("auto_analysis_enabled") and 
@@ -355,6 +359,13 @@ class CampaignService:
                         processed_update_data["status"] = CampaignStatus(value.upper())
                     except ValueError:
                         logger.warning(f"Invalid status value: {value}")
+                elif field == "product_name" and value:
+                    # Validate product_name if provided
+                    product_name = str(value).strip()
+                    if len(product_name) >= 2:
+                        processed_update_data["product_name"] = product_name
+                    else:
+                        logger.warning(f"Invalid product_name value: {value} (too short)")
                 else:
                     processed_update_data[field] = value
             
@@ -472,6 +483,7 @@ class CampaignService:
                 "id": str(campaign.id),
                 "title": campaign.title,
                 "description": campaign.description,
+                "product_name": campaign.product_name,  # Added product_name to response
                 "keywords": campaign.keywords or [],
                 "target_audience": campaign.target_audience,
                 "campaign_type": getattr(campaign, 'campaign_type', 'universal'),
