@@ -14,6 +14,7 @@ from src.core.database import get_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
 from ..utils.analyzer_factory import test_analyzer_functionality
+from .enhanced_intelligence_routes import router as enhanced_intelligence_router
 
 # Check if enhancement functions are available
 try:
@@ -27,6 +28,9 @@ except ImportError:
     ENHANCEMENT_FUNCTIONS_AVAILABLE = False
 
 router = APIRouter()
+
+# Include enhanced intelligence routes for workflow integration
+router.include_router(enhanced_intelligence_router)
 
 def get_amplifier_status():
     """Get amplifier system status"""
@@ -50,19 +54,26 @@ def get_amplifier_status():
             "scientific_enhancement": True,
             "credibility_boost": True,
             "competitive_analysis": True,
-            "content_optimization": True
+            "content_optimization": True,
+            "workflow_integration": True
         },
         "architecture": "direct_modular_enhancement",
         "functions_available": [
             "identify_opportunities",
             "generate_enhancements", 
             "create_enriched_intelligence"
+        ],
+        "workflow_endpoints": [
+            "analyze_and_store",
+            "get_enhanced_intelligence",
+            "get_workflow_status",
+            "manual_enhance"
         ]
     }
 
 @router.get("/test-r2-status") 
 async def test_r2_status():
-    """🔧 Test Cloudflare R2 configuration status"""
+    """Test Cloudflare R2 configuration status"""
     r2_vars = [
         "CLOUDFLARE_ACCOUNT_ID",
         "CLOUDFLARE_R2_ACCESS_KEY_ID", 
@@ -76,7 +87,7 @@ async def test_r2_status():
     
     return {
         "success": True,
-        "r2_status": "✅ R2 CONFIGURED" if r2_fully_configured else "❌ MISSING VARIABLES",
+        "r2_status": "R2 CONFIGURED" if r2_fully_configured else "MISSING VARIABLES",
         "r2_fully_configured": r2_fully_configured,
         "configured_vars": configured,
         "missing_vars": missing,
@@ -91,12 +102,17 @@ async def test_r2_status():
             "Add missing R2 variables in Railway dashboard" if missing else "R2 configuration complete",
             "Deploy service after adding variables" if missing else "Test AI enhancement system",
             "Test intelligence enhancement system"
-        ]
+        ],
+        "workflow_impact": {
+            "enhanced_workflow_available": r2_fully_configured,
+            "auto_enhancement_will_work": r2_fully_configured,
+            "storage_ready_for_intelligence": r2_fully_configured
+        }
     }
 
 @router.get("/test-ai-providers")
 async def test_ai_providers():
-    """🔧 Test AI provider configuration and status"""
+    """Test AI provider configuration and status"""
     providers = {
         "groq": bool(os.getenv("GROQ_API_KEY")),
         "together": bool(os.getenv("TOGETHER_API_KEY")), 
@@ -118,17 +134,20 @@ async def test_ai_providers():
     
     # Determine enhancement system status
     if total_providers == 0:
-        enhancement_status = "❌ NO AI PROVIDERS"
+        enhancement_status = "NO AI PROVIDERS"
         confidence_expected = "10-20%"
         issue = "No AI providers configured"
+        workflow_ready = False
     elif not r2_configured:
-        enhancement_status = "❌ STORAGE MISSING"
+        enhancement_status = "STORAGE MISSING"
         confidence_expected = "60%"
         issue = "R2 storage not configured - blocking AI enhancements"
+        workflow_ready = False
     else:
-        enhancement_status = "✅ SHOULD BE WORKING"
+        enhancement_status = "SHOULD BE WORKING"
         confidence_expected = "90-95%"
         issue = "System should be fully operational"
+        workflow_ready = True
     
     return {
         "success": True,
@@ -140,6 +159,12 @@ async def test_ai_providers():
         "total_providers": total_providers,
         "primary_provider": "groq" if providers["groq"] else (configured_providers[0] if configured_providers else "none"),
         "r2_configured": r2_configured,
+        "workflow_integration": {
+            "enhanced_workflow_ready": workflow_ready,
+            "auto_analysis_will_work": total_providers > 0,
+            "auto_enhancement_will_work": workflow_ready,
+            "content_generation_ready": workflow_ready
+        },
         "diagnosis": {
             "problem": issue,
             "solution": "Configure missing R2 environment variables" if not r2_configured else "System should be working",
@@ -156,15 +181,16 @@ async def test_ai_providers():
 
 @router.get("/test-groq-connection")  
 async def test_groq_connection():
-    """🔧 Test Groq API key and connection"""
+    """Test Groq API key and connection"""
     groq_key = os.getenv("GROQ_API_KEY")
     
     if not groq_key:
         return {
             "success": False,
             "groq_configured": False,
-            "status": "❌ MISSING GROQ KEY",
-            "error": "GROQ_API_KEY environment variable not found"
+            "status": "MISSING GROQ KEY",
+            "error": "GROQ_API_KEY environment variable not found",
+            "workflow_impact": "Enhanced workflow will not function without AI providers"
         }
     
     # Test if key format looks valid
@@ -176,7 +202,11 @@ async def test_groq_connection():
         "groq_key_length": len(groq_key),
         "key_format_valid": key_valid_format,
         "key_prefix": groq_key[:8] + "..." if len(groq_key) > 8 else "short_key",
-        "status": "✅ GROQ CONFIGURED" if key_valid_format else "⚠️ GROQ KEY FORMAT ISSUE",
+        "status": "GROQ CONFIGURED" if key_valid_format else "GROQ KEY FORMAT ISSUE",
+        "workflow_impact": {
+            "enhanced_analysis_ready": key_valid_format,
+            "auto_enhancement_ready": key_valid_format
+        },
         "diagnosis": {
             "issue": "Groq key format issue" if not key_valid_format else "Groq key appears valid",
             "recommendation": "Check Groq key format" if not key_valid_format else "Groq configuration looks good"
@@ -185,7 +215,7 @@ async def test_groq_connection():
 
 @router.get("/intelligence-confidence-analysis")
 async def intelligence_confidence_analysis():
-    """📊 Analyze why intelligence confidence might be low"""
+    """Analyze why intelligence confidence might be low"""
     
     # Current vs Expected Analysis
     current_state = {
@@ -250,12 +280,19 @@ async def intelligence_confidence_analysis():
         "current_configuration": {
             "r2_configured": r2_configured,
             "groq_configured": groq_configured,
-            "system_ready": r2_configured and groq_configured
+            "system_ready": r2_configured and groq_configured,
+            "enhanced_workflow_ready": r2_configured and groq_configured
+        },
+        "workflow_impact": {
+            "auto_analysis_quality": "Basic only" if not (r2_configured and groq_configured) else "Enhanced with AI",
+            "auto_enhancement_working": r2_configured and groq_configured,
+            "content_generation_intelligence": "Limited" if not (r2_configured and groq_configured) else "Full enhanced intelligence"
         },
         "root_cause": {
             "primary_issue": "Groq JSON parsing errors" if groq_configured and r2_configured else "Missing configuration",
             "secondary_issue": "AI enhancement modules cannot generate content",
             "impact": "System falls back to basic analysis only",
+            "workflow_impact": "Enhanced workflow degrades to basic workflow",
             "evidence": {
                 "enhancement_quality": current_state["enhancement_quality"],
                 "modules_successful": current_state["modules_successful"],
@@ -266,14 +303,16 @@ async def intelligence_confidence_analysis():
             "1. Fix Groq API response parsing (CRITICAL)" if groq_configured else "1. Add Groq API key",
             "2. Test with alternative AI provider (Together/DeepSeek)",
             "3. Check AI response format handling",
-            "4. Verify confidence scores return to 90-95%"
+            "4. Test enhanced workflow endpoints",
+            "5. Verify confidence scores return to 90-95%"
         ],
         "expected_after_fix": {
             "confidence_score": "90-95%",
             "enhancement_quality": "excellent",
             "populated_sections": 6,
             "total_enhancements": "150-200",
-            "processing_time": "Similar (AI enhancement is fast)"
+            "processing_time": "Similar (AI enhancement is fast)",
+            "enhanced_workflow": "Fully functional with auto-enhancement"
         }
     }
 
@@ -316,6 +355,10 @@ async def debug_test_scraping():
             "basic_http_working": results.get("https://httpbin.org/html", {}).get("success", False),
             "target_site_accessible": results.get("https://www.hepatoburn.com/", {}).get("success", False),
             "network_available": any(r.get("success", False) for r in results.values())
+        },
+        "workflow_implications": {
+            "auto_analysis_will_work": results.get("https://www.hepatoburn.com/", {}).get("success", False),
+            "enhanced_workflow_scraping_ready": any(r.get("success", False) for r in results.values())
         }
     }
 
@@ -383,6 +426,11 @@ async def debug_database_storage():
                 "competitive_intel_size": len(str(competitive_intel)),
                 "brand_intel_size": len(str(brand_intel)),
                 "all_categories_have_data": all([offer_intel, psychology_intel, content_intel, competitive_intel, brand_intel])
+            },
+            "workflow_storage": {
+                "data_ready_for_enhancement": bool(content_intel and brand_intel),
+                "intelligence_storage_will_work": all([offer_intel, psychology_intel, content_intel, competitive_intel, brand_intel]),
+                "enhanced_workflow_data_sufficient": bool(content_intel and brand_intel and offer_intel)
             }
         }
         
@@ -390,7 +438,8 @@ async def debug_database_storage():
         return {
             "error": str(e),
             "traceback": traceback.format_exc(),
-            "test_failed": True
+            "test_failed": True,
+            "workflow_impact": "Enhanced workflow will fail if analyzer doesn't work"
         }
 
 @router.get("/test-routes-validation")
@@ -453,6 +502,10 @@ async def debug_routes_validation():
                 "functions_missing": not (structure_function_available and validation_function_available),
                 "data_getting_lost": not (bool(validated_content) and bool(validated_brand)),
                 "likely_issue": "validation_functions_missing" if not validation_function_available else "unknown"
+            },
+            "workflow_impact": {
+                "enhanced_workflow_validation_ready": structure_function_available and validation_function_available,
+                "intelligence_storage_will_work": bool(validated_content) and bool(validated_brand)
             }
         }
         
@@ -491,14 +544,20 @@ async def debug_test_full_analyzer():
                 "analysis_note": result.get('analysis_note', None)
             },
             "full_result_keys": list(result.keys()),
-            "success": result.get('confidence_score', 0) > 0
+            "success": result.get('confidence_score', 0) > 0,
+            "workflow_readiness": {
+                "ready_for_storage": result.get('confidence_score', 0) > 0,
+                "ready_for_enhancement": result.get('confidence_score', 0) > 0,
+                "enhanced_workflow_compatible": True
+            }
         }
         
     except Exception as e:
         return {
             "error": str(e),
             "traceback": traceback.format_exc(),
-            "success": False
+            "success": False,
+            "workflow_impact": "Enhanced workflow will fail if analyzer doesn't work"
         }
 
 @router.get("/test-enhancement-functions")
@@ -509,7 +568,8 @@ async def debug_test_enhancement_functions():
         return {
             "enhancement_functions_available": False,
             "error": "Enhancement functions not available",
-            "recommendation": "Install amplifier dependencies"
+            "recommendation": "Install amplifier dependencies",
+            "workflow_impact": "Enhanced workflow will not function without enhancement capabilities"
         }
     
     try:
@@ -563,7 +623,12 @@ async def debug_test_enhancement_functions():
                 "identify_opportunities",
                 "generate_enhancements",
                 "create_enriched_intelligence"
-            ]
+            ],
+            "workflow_readiness": {
+                "auto_enhancement_ready": True,
+                "enhanced_workflow_functional": True,
+                "background_tasks_will_work": True
+            }
         }
         
     except Exception as e:
@@ -571,14 +636,74 @@ async def debug_test_enhancement_functions():
             "enhancement_functions_available": True,
             "test_failed": True,
             "error": str(e),
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
+            "workflow_impact": "Enhanced workflow will fail if enhancement functions don't work"
         }
+
+@router.get("/test-enhanced-workflow")
+async def test_enhanced_workflow():
+    """Test the complete enhanced workflow integration"""
+    
+    # Test all components needed for enhanced workflow
+    components = {}
+    
+    # Test AI providers
+    ai_providers_ready = bool(os.getenv("GROQ_API_KEY")) or bool(os.getenv("OPENAI_API_KEY"))
+    components["ai_providers"] = ai_providers_ready
+    
+    # Test R2 storage
+    r2_ready = all([
+        os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
+        os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"), 
+        os.getenv("CLOUDFLARE_R2_BUCKET_NAME")
+    ])
+    components["r2_storage"] = r2_ready
+    
+    # Test enhancement functions
+    components["enhancement_functions"] = ENHANCEMENT_FUNCTIONS_AVAILABLE
+    
+    # Test analyzer
+    try:
+        from src.intelligence.analyzers import SalesPageAnalyzer
+        components["analyzer"] = True
+    except ImportError:
+        components["analyzer"] = False
+    
+    # Determine workflow readiness
+    all_ready = all(components.values())
+    
+    workflow_status = {
+        "enhanced_workflow_ready": all_ready,
+        "component_status": components,
+        "missing_components": [k for k, v in components.items() if not v],
+        "workflow_capabilities": {
+            "auto_analysis": components["analyzer"] and ai_providers_ready,
+            "intelligence_storage": True,  # Database always available
+            "auto_enhancement": components["enhancement_functions"] and ai_providers_ready and r2_ready,
+            "enhanced_content_generation": all_ready
+        }
+    }
+    
+    if all_ready:
+        workflow_status["message"] = "Enhanced workflow is fully operational"
+        workflow_status["next_steps"] = [
+            "Test complete workflow with real campaign",
+            "Verify auto-enhancement background tasks",
+            "Confirm intelligence storage and retrieval"
+        ]
+    else:
+        workflow_status["message"] = f"Enhanced workflow blocked by: {', '.join(workflow_status['missing_components'])}"
+        workflow_status["next_steps"] = [
+            f"Configure {comp}" for comp in workflow_status['missing_components']
+        ]
+    
+    return workflow_status
 
 @router.get("/system-status")
 async def get_system_status(
     current_user: User = Depends(get_current_user)
 ):
-    """Get comprehensive system status"""
+    """Get comprehensive system status including enhanced workflow"""
     
     # Test analyzers
     analyzer_status = test_analyzer_functionality()
@@ -593,11 +718,27 @@ async def get_system_status(
     except Exception as e:
         database_status = f"error: {str(e)}"
     
+    # Test enhanced workflow readiness
+    ai_providers_ready = bool(os.getenv("GROQ_API_KEY")) or bool(os.getenv("OPENAI_API_KEY"))
+    r2_ready = all([
+        os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
+        os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"), 
+        os.getenv("CLOUDFLARE_R2_BUCKET_NAME")
+    ])
+    
+    enhanced_workflow_ready = all([
+        analyzer_status["overall_status"] in ["excellent", "partial"],
+        amplifier_status["status"] == "available",
+        ai_providers_ready,
+        r2_ready
+    ])
+    
     return {
         "system_health": {
             "analyzers": analyzer_status["overall_status"],
             "amplifier": amplifier_status["status"],
             "database": database_status,
+            "enhanced_workflow": "ready" if enhanced_workflow_ready else "degraded",
             "overall": "healthy" if all([
                 analyzer_status["overall_status"] in ["excellent", "partial"],
                 amplifier_status["status"] != "error",
@@ -607,7 +748,19 @@ async def get_system_status(
         "detailed_status": {
             "analyzers": analyzer_status,
             "amplifier": amplifier_status,
-            "database": {"status": database_status}
+            "database": {"status": database_status},
+            "enhanced_workflow": {
+                "ready": enhanced_workflow_ready,
+                "ai_providers": ai_providers_ready,
+                "r2_storage": r2_ready,
+                "capabilities": ["auto_analysis", "intelligence_storage", "auto_enhancement", "enhanced_content_generation"] if enhanced_workflow_ready else ["basic_analysis", "basic_storage"]
+            }
+        },
+        "workflow_endpoints": {
+            "analyze_and_store": "/api/intelligence/campaigns/{id}/analyze-and-store",
+            "get_enhanced_intelligence": "/api/intelligence/campaigns/{id}/enhanced-intelligence",
+            "workflow_status": "/api/intelligence/campaigns/{id}/workflow-status",
+            "manual_enhance": "/api/intelligence/campaigns/{id}/intelligence/{intelligence_id}/manual-enhance"
         },
         "recommendations": []
     }
