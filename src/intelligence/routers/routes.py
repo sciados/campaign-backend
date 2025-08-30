@@ -762,7 +762,10 @@ async def get_system_status(
             "workflow_status": "/api/intelligence/campaigns/{id}/workflow-status",
             "manual_enhance": "/api/intelligence/campaigns/{id}/intelligence/{intelligence_id}/manual-enhance"
         },
-        "recommendations": []
+        "recommendations": [
+            "Configure missing R2 variables if enhanced workflow needed" if not r2_ready else "Enhanced workflow ready",
+            "Add AI provider keys if missing" if not ai_providers_ready else "AI providers configured"
+        ]
     }
 
 @router.get("/health")
@@ -771,5 +774,6 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "intelligence-module",
-        "version": "2.0.0-refactored"
+        "version": "2.0.0-enhanced-workflow",
+        "enhanced_workflow_available": True
     }
