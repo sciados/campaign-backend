@@ -2,7 +2,6 @@
 # Add this to your intelligence/utils/ directory
 
 import os
-from intelligence.analyzers import SalesPageAnalyzer
 import numpy as np
 from typing import List, Dict, Any, Optional
 import cohere
@@ -240,18 +239,30 @@ class IntelligenceRAGSystem:
         return "Analysis completed using fallback system - integrate with your existing analyzers.py"
 
 # Usage example for integration with existing CampaignForge system
-class EnhancedSalesPageAnalyzer(SalesPageAnalyzer):
-    """Enhanced analyzer with RAG capabilities"""
+class EnhancedSalesPageAnalyzer:
+    """Enhanced analyzer with RAG capabilities - NO CIRCULAR IMPORT"""
     
     def __init__(self):
-        super().__init__()
+        # Initialize RAG system without importing from analyzers
         self.rag_system = IntelligenceRAGSystem()
+        
+        # Lazy load the base analyzer to avoid circular imports
+        self._base_analyzer = None
+    
+    async def _get_base_analyzer(self):
+        """Lazy load base analyzer to avoid circular imports"""
+        if self._base_analyzer is None:
+            # Import only when needed to avoid circular dependency
+            from ..analyzers import SalesPageAnalyzer
+            self._base_analyzer = SalesPageAnalyzer()
+        return self._base_analyzer
     
     async def analyze_with_research_context(self, url: str, research_docs: List[str] = None) -> Dict[str, Any]:
         """Analyze sales page with additional research context"""
         
-        # Standard analysis first
-        base_analysis = await self.analyze(url)
+        # Get base analyzer and do standard analysis first
+        base_analyzer = await self._get_base_analyzer()
+        base_analysis = await base_analyzer.analyze(url)
         
         if research_docs:
             # Add research documents to RAG
