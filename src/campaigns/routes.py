@@ -78,17 +78,45 @@ else:
     logger.error(f"🚨 CRITICAL: CRUD router failed to load - Dashboard will not work: {crud_error}")
     
     # Add emergency fallback endpoints
+
     @router.get("")
     async def emergency_get_campaigns():
-        """Emergency fallback for campaigns list"""
+        """Emergency fallback for campaigns list - Fixed to match Pydantic schema"""
+        from datetime import datetime, timezone
+        current_time = datetime.now(timezone.utc)
+    
         return [
             {
                 "id": "emergency-fallback",
-                "name": "Emergency Fallback Campaign",
+                "title": "Emergency Fallback Campaign",  # Changed from 'name' to 'title'
                 "description": "CRUD router failed to load. Check logs for details.",
-                "status": "error",
-                "created_at": "2025-01-17T12:00:00Z",
-                "updated_at": "2025-01-17T12:00:00Z",
+                "keywords": [],
+                "target_audience": "System administrators",
+                "campaign_type": "universal", 
+                "status": "draft",  # Match schema format
+                "tone": "conversational",
+                "style": "modern",
+                "created_at": current_time,  # datetime object, not string
+                "updated_at": current_time,  # datetime object, not string
+            
+                # Auto-analysis fields matching schema
+                "salespage_url": None,
+                "auto_analysis_enabled": True,
+                "auto_analysis_status": "pending",
+                "analysis_confidence_score": 0.0,
+            
+                # Workflow fields matching schema  
+                "workflow_state": "basic_setup",
+                "completion_percentage": 0.0,
+                "sources_count": 0,
+                "intelligence_count": 0, 
+                "content_count": 0,
+                "total_steps": 2,
+            
+                # Demo field
+                "is_demo": False,
+            
+                # Debug info (this won't break schema since it's extra)
                 "error_details": crud_error
             }
         ]
