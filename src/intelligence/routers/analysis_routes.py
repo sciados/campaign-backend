@@ -147,6 +147,42 @@ async def analyze_url(
             detail=f"Analysis failed: {str(e)}"
         )
 
+@router.post("/campaigns/{campaign_id}/analyze-and-store")
+async def analyze_and_store_for_campaign(
+    campaign_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Analyze URL and store intelligence for a specific campaign"""
+    try:
+        salespage_url = request.get("salespage_url")
+        if not salespage_url:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="salespage_url is required"
+            )
+        
+        handler = AnalysisHandler(db, current_user)
+        result = await handler.analyze_url({
+            "url": salespage_url,
+            "campaign_id": campaign_id,
+            "analysis_type": "sales_page"
+        })
+        
+        return {
+            "success": True,
+            "campaign_id": campaign_id,
+            "intelligence_id": result.get("intelligence_id"),
+            "confidence_score": result.get("confidence_score", 0)
+        }
+    except Exception as e:
+        logger.error(f"Campaign analysis failed: {str(e)}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Analysis failed: {str(e)}"
+        )
+
 @router.get("/status")
 async def get_analysis_status(
     current_user: User = Depends(get_current_user)
