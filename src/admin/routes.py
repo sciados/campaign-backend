@@ -963,7 +963,7 @@ async def impersonate_user(
             )
         
         # Create impersonation token
-        from src.core.security import create_access_token
+        from src.auth.dependencies import create_access_token
         
         impersonation_token = create_access_token(data={
             "sub": str(user.id),

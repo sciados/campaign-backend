@@ -13,7 +13,7 @@ from src.core.database import get_async_db
 from src.models.user import User
 from src.models.intelligence import CampaignIntelligence, AnalysisStatus, IntelligenceSourceType
 from src.models.campaign import Campaign, AutoAnalysisStatus
-from src.core.security import get_current_user
+from src.auth.dependencies import get_current_user
 from src.intelligence.handlers.intelligence_handler import IntelligenceHandler
 from src.core.crud import intelligence_crud, campaign_crud
 from src.utils.json_utils import safe_json_dumps, safe_json_loads
