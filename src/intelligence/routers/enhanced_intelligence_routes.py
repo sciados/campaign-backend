@@ -189,6 +189,7 @@ async def analyze_and_store_intelligence(
         raise HTTPException(status_code=500, detail=f"Analysis and storage failed: {str(e)}")
 
 
+
 async def auto_enhance_intelligence_background(
     campaign_id: str,
     intelligence_id: str,
