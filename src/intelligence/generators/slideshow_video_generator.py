@@ -21,7 +21,7 @@ from src.storage.universal_dual_storage import UniversalDualStorageManager
 from src.storage.storage_tiers import StorageTier
 
 # ✅ DATABASE SESSION
-from src.core.database import get_db
+from src.core.database import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.base import EnumSerializerMixin

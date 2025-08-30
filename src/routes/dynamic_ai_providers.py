@@ -24,7 +24,7 @@ except ImportError:
     print("âš ï¸ AI Discovery database not available - using fallback")
     AI_DISCOVERY_DB_AVAILABLE = False
     # Fallback to regular database if AI Discovery DB not set up
-    from src.core.database import get_db as get_ai_discovery_db
+    from src.core.database import get_async_db as get_ai_discovery_db
 
 # âœ… FIXED: Create router (not import from campaigns)
 router = APIRouter(tags=["admin", "ai-providers"])

@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from ..core.database import get_db
+from ..core.database import get_async_db
 from ..core.security import get_current_user
 from ..models.user import User
 from ..models.user_social_profile import UserSocialProfile
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/user-social", tags=["user-social"])
 @router.get("/recommended-platforms")
 async def get_recommended_platforms(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_async_db)
 ):
     """Get recommended platforms for user's type"""
     if not current_user.user_type:
@@ -29,7 +29,7 @@ async def add_social_profile(
     followers: int = 0,
     engagement_rate: float = 0.0,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_async_db)
 ):
     """Add or update a social media profile"""
     
@@ -64,7 +64,7 @@ async def add_social_profile(
 @router.get("/profiles")
 async def get_user_social_profiles(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_async_db)
 ):
     """Get all social profiles for current user"""
     profiles = db.query(UserSocialProfile).filter(

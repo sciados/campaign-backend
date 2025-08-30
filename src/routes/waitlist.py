@@ -7,7 +7,7 @@ from sqlalchemy import text, func, desc
 from typing import List
 import logging
 
-from src.core.database import get_db
+from src.core.database import get_async_db
 from src.models.waitlist import Waitlist
 from src.schemas.waitlist import (
     WaitlistCreate, 
@@ -39,7 +39,7 @@ def get_client_ip(request: Request) -> str:
 async def join_waitlist(
     waitlist_data: WaitlistCreate,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_async_db)
 ):
     """Join the waitlist"""
     try:
@@ -102,7 +102,7 @@ async def join_waitlist(
         )
 
 @router.get("/stats", response_model=WaitlistStatsResponse)
-async def get_waitlist_stats(db: Session = Depends(get_db)):
+async def get_waitlist_stats(db: Session = Depends(get_async_db)):
     """Get waitlist statistics (for admin use)"""
     try:
         # Total signups
@@ -185,7 +185,7 @@ async def get_waitlist_stats(db: Session = Depends(get_db)):
         )
 
 @router.get("/export")
-async def export_waitlist(db: Session = Depends(get_db)):
+async def export_waitlist(db: Session = Depends(get_async_db)):
     """Export all emails for marketing campaigns"""
     try:
         entries = db.query(Waitlist).order_by(Waitlist.created_at.asc()).all()
@@ -214,7 +214,7 @@ async def export_waitlist(db: Session = Depends(get_db)):
         )
 
 @router.get("/check/{email}")
-async def check_email_status(email: str, db: Session = Depends(get_db)):
+async def check_email_status(email: str, db: Session = Depends(get_async_db)):
     """Check if an email is on the waitlist"""
     try:
         entry = db.query(Waitlist).filter(Waitlist.email == email.lower().strip()).first()
@@ -244,7 +244,7 @@ async def check_email_status(email: str, db: Session = Depends(get_db)):
 async def get_waitlist_entries(
     skip: int = 0, 
     limit: int = 100, 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_async_db)
 ):
     """Get paginated waitlist entries (admin only)"""
     try:

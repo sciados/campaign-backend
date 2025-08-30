@@ -20,7 +20,7 @@ import json
 import io
 from datetime import datetime, timezone
 
-from src.core.database import get_db
+from src.core.database import get_async_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
 from src.models import CampaignAsset
@@ -40,7 +40,7 @@ async def upload_document(
     tags: Optional[str] = Form(None),  # JSON string array
     metadata: Optional[str] = Form(None),  # JSON string
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Upload document with validation and dual storage"""
     
@@ -154,7 +154,7 @@ async def get_document(
     document_id: str,
     download: bool = Query(False, description="Download file instead of redirect"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Get document with automatic failover"""
     
@@ -221,7 +221,7 @@ async def get_document(
 async def get_document_info(
     document_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Get document information and metadata"""
     
@@ -293,7 +293,7 @@ async def get_document_info(
 async def get_document_preview(
     document_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Get document preview image"""
     
@@ -332,7 +332,7 @@ async def get_document_preview(
 async def regenerate_document_preview(
     document_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Regenerate document preview"""
     
@@ -444,7 +444,7 @@ async def search_documents(
     limit: int = Query(20, ge=1, le=100, description="Maximum results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Search documents by content and metadata"""
     
@@ -560,7 +560,7 @@ async def update_document_metadata(
     document_id: str,
     metadata_update: Dict[str, Any],
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Update document metadata, tags, and description"""
     
@@ -615,7 +615,7 @@ async def delete_document(
     document_id: str,
     delete_preview: bool = Query(True, description="Also delete preview image"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Delete document and optionally its preview"""
     
@@ -670,7 +670,7 @@ async def delete_document(
 async def get_document_stats(
     campaign_id: Optional[str] = Query(None, description="Filter by campaign"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Get document statistics"""
     

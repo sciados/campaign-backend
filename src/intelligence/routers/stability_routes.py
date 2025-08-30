@@ -16,7 +16,7 @@ import uuid
 import logging
 import base64
 
-from src.core.database import get_db
+from src.core.database import get_async_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
 from src.models.campaign import Campaign
@@ -53,7 +53,7 @@ except ImportError:
 async def generate_campaign_with_images(
     request_data: Dict[str, Any],
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Generate complete social media campaign with AI images using YOUR existing generators
@@ -281,7 +281,7 @@ async def generate_campaign_with_images(
 async def generate_single_image(
     request_data: Dict[str, Any],
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Generate a single AI image using YOUR StabilityAIGenerator"""
     
@@ -366,7 +366,7 @@ async def generate_single_image(
 async def generate_slideshow_video(
     request_data: Dict[str, Any],
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Generate slideshow video from campaign images"""
     
@@ -522,7 +522,7 @@ async def generate_slideshow_video(
 async def generate_single_ultra_cheap_image(
     request_data: Dict[str, Any],
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Generate single image with ultra-cheap providers"""
     
@@ -576,7 +576,7 @@ async def generate_single_ultra_cheap_image(
 async def generate_campaign_ultra_cheap_images(
     request_data: Dict[str, Any],
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Generate complete campaign with ultra-cheap images"""
     
@@ -689,7 +689,7 @@ async def test_stability_connection(
 async def download_campaign_package(
     campaign_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Download all campaign assets using YOUR CampaignAsset model"""
     
@@ -825,7 +825,7 @@ async def cost_calculator(
 async def get_campaign_analytics(
     campaign_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Get analytics for campaign generation"""
     
@@ -900,7 +900,7 @@ async def cleanup_campaign_assets(
     campaign_id: str,
     asset_types: Optional[str] = "images,videos",
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Clean up campaign assets (useful for testing and storage management)"""
     

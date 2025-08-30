@@ -7,7 +7,7 @@ import asyncio
 import aiohttp
 # from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
-from core.database import get_db
+from core.database import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, text
 from dataclasses import dataclass

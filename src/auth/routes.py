@@ -15,7 +15,7 @@ from sqlalchemy import select
 # Import password hashing and JWT functions from your security module
 from src.core.security import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY
 # Import your database session, User model, and Company model
-from src.core.database import get_db
+from src.core.database import get_async_db
 from src.models.user import User
 from src.models.company import Company
 
@@ -61,7 +61,7 @@ class UserLogin(BaseModel):
 # --- API Endpoints ---
 
 @router.post("/register", summary="Register a new user")
-def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
+def register_user(user_data: UserRegister, db: Session = Depends(get_async_db)):
     """
     Registers a new user with email and password, storing them directly in PostgreSQL.
     Automatically creates a new company for the first registered user.
@@ -152,7 +152,7 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
 @router.post("/token", response_model=Token, summary="Login and obtain access token (OAuth2 standard)")
 def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_async_db)
 ):
     """
     Authenticates a user and returns a JWT access token.
@@ -190,7 +190,7 @@ def login_for_access_token(
     }
 
 @router.post("/login", summary="Login an existing user (JSON body)")
-def login_user_json(user_login: UserLogin, db: Session = Depends(get_db)):
+def login_user_json(user_login: UserLogin, db: Session = Depends(get_async_db)):
     """
     Logs in an existing user and returns an access token, accepting JSON body.
     """
@@ -238,7 +238,7 @@ def login_user_json(user_login: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.get("/profile", summary="Get current user profile")
-def get_user_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_user_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_async_db)):
     """
     Get current user profile with company information.
     This endpoint can be used to validate tokens and get user data.

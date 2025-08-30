@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 import logging
 
 # Use existing auth functions
-from src.core.database import get_db
+from src.core.database import get_async_db
 from src.auth.dependencies import get_current_active_user
 from src.models import User, Company, GeneratedContent, Campaign
 
@@ -65,7 +65,7 @@ async def landing_page_status():
 
 @router.get("/landing-pages/")
 async def list_landing_pages(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     user_data: tuple = Depends(get_user_and_company),
     limit: int = 50,
     offset: int = 0
@@ -131,7 +131,7 @@ if GENERATOR_AVAILABLE:
     @router.post("/landing-pages/generate/")
     async def generate_landing_page(
         request_data: Dict[str, Any],
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = Depends(get_async_db),
         user_data: tuple = Depends(get_user_and_company)
     ):
         """Generate an AI-powered landing page from campaign intelligence"""
@@ -247,7 +247,7 @@ if ANALYTICS_AVAILABLE:
     async def track_analytics_event(
         content_id: str,
         event_data: Dict[str, Any],
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_async_db)
     ):
         """Track user interaction events on a landing page"""
         
@@ -305,7 +305,7 @@ if ANALYTICS_AVAILABLE:
     async def get_landing_page_analytics(
         content_id: str,
         time_window_hours: int = 24,
-        db: AsyncSession = Depends(get_db),
+        db: AsyncSession = Depends(get_async_db),
         user_data: tuple = Depends(get_user_and_company)
     ):
         """Get real-time analytics for a landing page"""
@@ -354,7 +354,7 @@ if ANALYTICS_AVAILABLE:
 @router.get("/landing-pages/{content_id}/")
 async def get_landing_page(
     content_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     user_data: tuple = Depends(get_user_and_company)
 ):
     """Get a specific landing page by ID"""

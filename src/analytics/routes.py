@@ -13,7 +13,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import logging
 
-from src.core.database import get_db
+from src.core.database import get_async_db
 from src.auth.dependencies import get_current_active_user
 from src.models import User, Company, GeneratedContent, Campaign
 from src.intelligence.generators.landing_page.analytics.tracker import AnalyticsTracker
@@ -35,7 +35,7 @@ router = APIRouter()
 # 🎯 CRUD MIGRATED: Top performing pages analytics
 @router.get("/analytics/top-performing/")
 async def get_top_performing_pages(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     user_data: tuple = Depends(get_current_active_user),
     limit: int = 10,
     time_window_days: int = 30
@@ -140,7 +140,7 @@ async def get_top_performing_pages(
 @router.get("/analytics/campaign/{campaign_id}/performance/")
 async def get_campaign_performance(
     campaign_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     user_data: tuple = Depends(get_current_active_user),
     time_window_days: int = 30
 ):
@@ -280,7 +280,7 @@ async def get_campaign_performance(
 @router.get("/analytics/funnel/{content_id}/")
 async def get_conversion_funnel(
     content_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     user_data: tuple = Depends(get_current_active_user),
     time_window_hours: int = 24
 ):
@@ -420,7 +420,7 @@ async def get_conversion_funnel(
 # 🎯 CRUD MIGRATED: Company analytics dashboard
 @router.get("/analytics/company/dashboard/")
 async def get_company_analytics_dashboard(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     user_data: tuple = Depends(get_current_active_user),
     time_window_days: int = 30
 ):
@@ -582,7 +582,7 @@ async def get_company_analytics_dashboard(
 # 🎯 NEW: CRUD health monitoring endpoint
 @router.get("/analytics/crud-health")
 async def get_analytics_crud_health(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     user_data: tuple = Depends(get_current_active_user)
 ):
     """Get CRUD integration health status for analytics routes"""
@@ -655,7 +655,7 @@ async def get_analytics_crud_health(
 # 🎯 NEW: Analytics performance metrics endpoint
 @router.get("/analytics/performance-metrics")
 async def get_analytics_performance_metrics(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     user_data: tuple = Depends(get_current_active_user)
 ):
     """Get performance metrics for analytics CRUD operations"""
@@ -719,7 +719,7 @@ async def get_analytics_performance_metrics(
 # 🎯 NEW: Final analytics CRUD verification endpoint
 @router.get("/analytics/final-crud-verification")
 async def final_analytics_crud_verification(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     user_data: tuple = Depends(get_current_active_user)
 ):
     """Final verification that analytics routes are fully CRUD migrated"""

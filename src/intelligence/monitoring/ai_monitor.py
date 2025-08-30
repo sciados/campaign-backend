@@ -124,7 +124,7 @@ class AIMonitorService:
             logger.warning(f"⚠️ Unsupported database URL format: {database_url[:20]}...")
             return None
     
-    async def _get_db_engine(self):
+    async def _get_async_db_engine(self):
         """🔧 FIXED: Lazy load async database engine with proper error handling"""
         if self._db_engine is None and self.db_url:
             try:
@@ -415,7 +415,7 @@ class AIMonitorService:
         """Get current optimal provider for content type (Complete Implementation)"""
         
         # Try database first if available
-        db_engine = await self._get_db_engine()
+        db_engine = await self._get_async_db_engine()
         if db_engine:
             try:
                 from sqlalchemy.ext.asyncio import AsyncSession
@@ -911,7 +911,7 @@ class AIMonitorService:
     # 🔧 FIXED: Database operations with proper async patterns
     async def _save_pricing_updates(self, pricing_updates: List[Dict]):
         """Save pricing updates to database (Fixed Async Implementation)"""
-        db_engine = await self._get_db_engine()
+        db_engine = await self._get_async_db_engine()
         if db_engine:
             try:
                 from sqlalchemy.ext.asyncio import AsyncSession
@@ -939,7 +939,7 @@ class AIMonitorService:
     
     async def _save_health_data(self, health_checks: List[Dict]):
         """Save health check data to database (Fixed Async Implementation)"""
-        db_engine = await self._get_db_engine()
+        db_engine = await self._get_async_db_engine()
         if db_engine:
             try:
                 from sqlalchemy.ext.asyncio import AsyncSession
@@ -963,7 +963,7 @@ class AIMonitorService:
     
     async def _save_performance_data(self, performance_results: List[Dict]):
         """Save performance benchmark data to database (Fixed Async Implementation)"""
-        db_engine = await self._get_db_engine()
+        db_engine = await self._get_async_db_engine()
         if db_engine:
             try:
                 from sqlalchemy.ext.asyncio import AsyncSession
@@ -988,7 +988,7 @@ class AIMonitorService:
     
     async def _save_optimization_recommendations(self, recommendations: List[OptimizationRecommendation]):
         """Save optimization recommendations to database (Fixed Async Implementation)"""
-        db_engine = await self._get_db_engine()
+        db_engine = await self._get_async_db_engine()
         if db_engine:
             try:
                 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1021,7 +1021,7 @@ class AIMonitorService:
     
     async def _update_active_routing(self, routing_updates: List[Dict]):
         """Update active routing decisions in database (Fixed Schema Implementation)"""
-        db_engine = await self._get_db_engine()
+        db_engine = await self._get_async_db_engine()
         if db_engine:
             try:
                 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1099,7 +1099,7 @@ class AIMonitorService:
                 metrics["recent_successes"] = metrics["recent_successes"][-100:]
             
             # Try to save to database (skip if table doesn't exist)
-            db_engine = await self._get_db_engine()
+            db_engine = await self._get_async_db_engine()
             if db_engine:
                 try:
                     from sqlalchemy.ext.asyncio import AsyncSession
@@ -1161,7 +1161,7 @@ class AIMonitorService:
                 metrics["recent_fallbacks"] = metrics["recent_fallbacks"][-50:]
             
             # Try to save to database (skip if table doesn't exist)
-            db_engine = await self._get_db_engine()
+            db_engine = await self._get_async_db_engine()
             if db_engine:
                 try:
                     from sqlalchemy.ext.asyncio import AsyncSession
@@ -1441,7 +1441,7 @@ if __name__ == "__main__":
             # Test database connection
             try:
                 monitor = await get_ai_monitor()
-                db_engine = await monitor._get_db_engine()
+                db_engine = await monitor._get_async_db_engine()
                 if db_engine:
                     print("✅ Database connection successful")
                     print(f"Database URL format: {'async' if monitor.db_url and 'asyncpg' in monitor.db_url else 'sync'}")

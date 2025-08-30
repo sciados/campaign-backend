@@ -544,7 +544,7 @@ async def get_migration_status(
         # Check all CRUD components
         migration_checks = {
             "database_session": {
-                "old_dependency": "get_db",
+                "old_dependency": "get_async_db",
                 "new_dependency": "get_async_db", 
                 "status": "migrated",
                 "async_optimized": True

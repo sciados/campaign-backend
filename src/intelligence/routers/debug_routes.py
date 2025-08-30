@@ -8,7 +8,7 @@ import traceback
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.database import get_db
+from src.core.database import get_async_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
 from ..utils.analyzer_factory import test_analyzer_functionality

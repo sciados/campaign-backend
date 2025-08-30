@@ -105,7 +105,7 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 # Database dependency functions
-def get_db():
+def get_async_db():
     """Synchronous database dependency for FastAPI"""
     db = SessionLocal()
     try:
@@ -307,7 +307,7 @@ __all__ = [
     'metadata',
     'SessionLocal',
     'AsyncSessionLocal',
-    'get_db',
+    'get_async_db',
     'get_async_db',
     'get_async_session',
     'create_tables_sync',
