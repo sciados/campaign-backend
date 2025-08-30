@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 import logging
 from datetime import datetime, timezone
 
-from src.core.database import get_db
+from src.core.database import get_async_db
 from src.models.user import User
 from src.models.intelligence import CampaignIntelligence, AnalysisStatus, IntelligenceSourceType
 from src.models.campaign import Campaign, AutoAnalysisStatus
@@ -23,7 +23,7 @@ from src.intelligence.analyzers import SalesPageAnalyzer, EnhancedSalesPageAnaly
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/intelligence", tags=["Enhanced Intelligence"])
+router = APIRouter(tags=["Enhanced Intelligence"])
 
 
 @router.post("/campaigns/{campaign_id}/analyze-and-store")
@@ -31,7 +31,7 @@ async def analyze_and_store_intelligence(
     campaign_id: str,
     analysis_request: Dict[str, Any],
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -243,7 +243,7 @@ async def auto_enhance_intelligence_background(
 @router.get("/campaigns/{campaign_id}/enhanced-intelligence")
 async def get_enhanced_intelligence(
     campaign_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -296,7 +296,7 @@ async def manual_enhance_intelligence(
     campaign_id: str,
     intelligence_id: str,
     enhancement_request: Optional[Dict[str, Any]] = None,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -339,7 +339,7 @@ async def manual_enhance_intelligence(
 @router.get("/campaigns/{campaign_id}/workflow-status")
 async def get_workflow_status(
     campaign_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
     """
