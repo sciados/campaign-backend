@@ -1,4 +1,4 @@
-# src/intelligence/handlers/analysis_handler.py - COMPLETE CRUD MIGRATION
+# src/intelligence/handlers/analysis_handler.py
 """
 Analysis Handler - Complete CRUD integration with zero ChunkedIteratorResult risk
 ✅ CRUD MIGRATION: All database operations now use centralized CRUD system
