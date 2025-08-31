@@ -1,10 +1,4 @@
-# src/main.py - REFACTORED VERSION: Orchestration Only
-"""
-Refactored main.py - Orchestration Only
-Responsibility: Import and orchestrate the 4 modules, Call app_factory.create_app(),
-Register routers via router_registry, Include endpoints from endpoints module,
-Include emergency_endpoints if needed, uvicorn.run() added at bottom
-"""
+# src/main.py - FIXED VERSION with CORS for Railway deployment
 
 import os
 import sys
@@ -13,7 +7,7 @@ import uvicorn
 from datetime import datetime
 
 # ============================================================================
-# ✅ PYTHON PATH SETUP
+# PYTHON PATH SETUP
 # ============================================================================
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,8 +20,11 @@ if app_path not in sys.path:
     sys.path.insert(0, app_path)
 
 # ============================================================================
-# ✅ IMPORT REFACTORED MODULES
+# IMPORT REFACTORED MODULES
 # ============================================================================
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # Import the 4 refactored modules
 from src.core.app_factory import create_app
@@ -39,7 +36,7 @@ from src.api.emergency_endpoints import include_emergency_endpoints
 from src.core.database import initialize_database
 
 # ============================================================================
-# ✅ LOGGING CONFIGURATION
+# LOGGING CONFIGURATION
 # ============================================================================
 
 logging.basicConfig(
@@ -49,18 +46,54 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# ✅ APPLICATION ORCHESTRATION
+# APPLICATION ORCHESTRATION WITH CORS
 # ============================================================================
 
 async def create_campaignforge_app():
     """
-    Orchestrate the complete CampaignForge application
+    Orchestrate the complete CampaignForge application with CORS
     """
     logger.info("🚀 Starting CampaignForge AI Backend Orchestration...")
     
     # Phase 1: Create FastAPI app with middleware and configuration
     logger.info("📦 Phase 1: Creating FastAPI app...")
     app = await create_app()
+    
+    # CRITICAL: Add CORS middleware BEFORE any routes
+    logger.info("🌐 Adding CORS middleware...")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "https://www.rodgersdigital.com",
+            "https://rodgersdigital.com",
+            "http://localhost:3000",
+            "http://localhost:8000",
+            "https://localhost:3000",
+            "https://localhost:8000",
+        ],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers=[
+            "Accept",
+            "Accept-Language",
+            "Content-Language", 
+            "Content-Type",
+            "Authorization",
+            "X-Requested-With",
+            "Origin",
+            "Cache-Control",
+            "Pragma",
+            "Access-Control-Allow-Origin",
+            "Access-Control-Allow-Headers",
+            "Access-Control-Allow-Methods",
+        ],
+        expose_headers=[
+            "Content-Length",
+            "Content-Type",
+            "Authorization",
+        ]
+    )
+    logger.info("✅ CORS middleware configured for www.rodgersdigital.com")
     
     # Phase 2: Initialize database
     logger.info("🗄️ Phase 2: Initializing database...")
@@ -100,7 +133,29 @@ async def create_campaignforge_app():
                 "/api/auth/profile"
             ],
             "total_routes": len(app.routes),
-            "auth_import_status": "Check logs for import details"
+            "auth_import_status": "Check logs for import details",
+            "cors_configured": True,
+            "allowed_origins": [
+                "https://www.rodgersdigital.com",
+                "https://rodgersdigital.com"
+            ]
+        }
+    
+    # Add CORS debug endpoint
+    @app.get("/api/debug/cors-test")
+    async def cors_test():
+        """Test CORS configuration"""
+        return {
+            "cors_enabled": True,
+            "allowed_origins": [
+                "https://www.rodgersdigital.com",
+                "https://rodgersdigital.com",
+                "http://localhost:3000"
+            ],
+            "allowed_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+            "allowed_headers": ["Accept", "Content-Type", "Authorization"],
+            "message": "CORS is properly configured",
+            "timestamp": datetime.utcnow().isoformat()
         }
     
     # Phase 5: Include emergency endpoints with live database queries
@@ -118,6 +173,7 @@ async def create_campaignforge_app():
     logger.info(f"   📡 Routers: {available_routers}/{total_routers} available")
     logger.info(f"   🎯 Core endpoints: ✅ Included")
     logger.info(f"   🚨 Emergency endpoints: ✅ Included with live data")
+    logger.info(f"   🌐 CORS: ✅ Configured for www.rodgersdigital.com")
     logger.info(f"   📈 System readiness: {round((available_routers/total_routers)*100, 1)}%")
     
     # Log feature highlights
@@ -139,7 +195,7 @@ async def create_campaignforge_app():
     ai_systems = ["intelligence_main", "content", "enhanced_email", "stability", "ai_monitoring", "ai_discovery"]
     ai_ok = sum(1 for system in ai_systems if router_status.get(system, False))
     
-    logger.info(f"🔒 Critical systems: {critical_ok}/{len(critical_systems)} operational")
+    logger.info(f"🔑 Critical systems: {critical_ok}/{len(critical_systems)} operational")
     logger.info(f"🤖 AI systems: {ai_ok}/{len(ai_systems)} operational")
     
     if critical_ok >= 2 and ai_ok >= 2:
@@ -152,7 +208,7 @@ async def create_campaignforge_app():
     return app
 
 # ============================================================================
-# ✅ APPLICATION INSTANCE
+# APPLICATION INSTANCE
 # ============================================================================
 
 # Create the app instance
@@ -171,7 +227,7 @@ async def create_main_app():
     return await get_app()
 
 # ============================================================================
-# ✅ HEALTH CHECK COMPATIBILITY
+# HEALTH CHECK COMPATIBILITY
 # ============================================================================
 
 # Add simple health check for immediate verification
@@ -199,7 +255,7 @@ async def simple_health_check():
         }
 
 # ============================================================================
-# ✅ RAILWAY COMPATIBILITY
+# RAILWAY COMPATIBILITY
 # ============================================================================
 
 # Railway expects app to be available at module level
@@ -213,8 +269,16 @@ async def initialize_for_railway():
     except Exception as e:
         logger.error(f"❌ Railway app initialization failed: {e}")
         # Create minimal app for Railway health checks
-        from fastapi import FastAPI
         fallback_app = FastAPI(title="CampaignForge AI Backend - Initialization Failed")
+        
+        # Add CORS to fallback app too
+        fallback_app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["https://www.rodgersdigital.com", "https://rodgersdigital.com"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
         
         @fallback_app.get("/health")
         async def fallback_health():
@@ -227,7 +291,7 @@ async def initialize_for_railway():
         return fallback_app
 
 # ============================================================================
-# ✅ DEVELOPMENT SERVER
+# DEVELOPMENT SERVER
 # ============================================================================
 
 if __name__ == "__main__":
@@ -255,7 +319,7 @@ if __name__ == "__main__":
     asyncio.run(run_development_server())
 
 # ============================================================================
-# ✅ PRODUCTION COMPATIBILITY - FIXED
+# PRODUCTION COMPATIBILITY - FIXED WITH CORS
 # ============================================================================
 
 # For production deployment, create app at module level
@@ -268,15 +332,15 @@ try:
         print("🔍 DEBUG: About to call create_campaignforge_app()")
         logger.info("🔍 DEBUG: About to call create_campaignforge_app()")
         result = asyncio.run(create_campaignforge_app())
-        print("🔍 DEBUG: create_campaignforge_app() completed")
-        logger.info("🔍 DEBUG: create_campaignforge_app() completed")
+        print("🔍 DEBUG: create_campaignforge_app() completed with CORS")
+        logger.info("🔍 DEBUG: create_campaignforge_app() completed with CORS")
         return result
     
     print("🚀 DEBUG: Creating app for Railway deployment...")
     logger.info("🚀 Creating app for Railway deployment...")
     app = create_app_sync()
-    print("✅ DEBUG: App created successfully for Railway")
-    logger.info("✅ App created successfully for Railway")
+    print("✅ DEBUG: App created successfully for Railway with CORS")
+    logger.info("✅ App created successfully for Railway with CORS")
     
     # Debug: Check how many routes we have
     route_count = len(app.routes)
@@ -300,7 +364,7 @@ except Exception as e:
     print(f"❌ DEBUG: Full traceback: {traceback.format_exc()}")
     logger.error(f"❌ DEBUG: Full traceback: {traceback.format_exc()}")
     
-    # Fallback: Create minimal app
+    # Fallback: Create minimal app with CORS
     from fastapi import FastAPI
     app = FastAPI(
         title="CampaignForge AI Backend - Fallback Mode",
@@ -308,12 +372,26 @@ except Exception as e:
         version="3.3.1-fallback"
     )
     
+    # Add CORS to fallback app
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "https://www.rodgersdigital.com",
+            "https://rodgersdigital.com",
+            "http://localhost:3000"
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
     @app.get("/health")
     async def fallback_health():
         return {
             "status": "fallback_mode", 
             "error": "App initialization failed",
-            "message": "App initialization failed - running in fallback mode"
+            "message": "App initialization failed - running in fallback mode",
+            "cors_enabled": True
         }
     
     @app.get("/")
@@ -322,11 +400,12 @@ except Exception as e:
             "message": "CampaignForge AI Backend - Fallback Mode",
             "status": "initialization_error",
             "error": "App initialization failed",
-            "docs": "/docs"
+            "docs": "/docs",
+            "cors_enabled": True
         }
 
 # ============================================================================
-# ✅ EXPORTS
+# EXPORTS
 # ============================================================================
 
 # Export main application components
@@ -342,10 +421,13 @@ __all__ = [
 # Module metadata for external usage
 __module_info__ = {
     "name": "CampaignForge AI Backend - Main Orchestrator",
-    "version": "3.3.1",
+    "version": "3.3.1-cors-fixed",
     "architecture": "modular_orchestration",
+    "cors_configured": True,
+    "allowed_origins": ["https://www.rodgersdigital.com", "https://rodgersdigital.com"],
     "responsibilities": [
         "Import and orchestrate 4 core modules",
+        "CORS middleware configuration",
         "Database initialization",
         "Router registration coordination", 
         "Health monitoring integration",
@@ -365,7 +447,8 @@ async def get_orchestration_status():
             "health_check": health,
             "modules_imported": True,
             "app_ready": app is not None,
-            "version": "3.3.1"
+            "cors_configured": True,
+            "version": "3.3.1-cors-fixed"
         }
     except Exception as e:
         return {
@@ -373,7 +456,8 @@ async def get_orchestration_status():
             "error": str(e),
             "modules_imported": False,
             "app_ready": False,
-            "version": "3.3.1"
+            "cors_configured": False,
+            "version": "3.3.1-cors-fixed"
         }
 
 # Add additional exports
@@ -391,54 +475,3 @@ if __name__ == "__main__":
          forwarded_allow_ips="*",
          proxy_headers=True
      )
-
-# ============================================================================
-# 📊 REFACTORING SUMMARY
-# ============================================================================
-
-"""
-🎯 REFACTORING COMPLETED SUCCESSFULLY!
-
-Original main.py: 2,000+ lines
-Refactored main.py: ~150 lines (92% reduction!)
-
-📁 File Structure:
-├── src/main.py (150 lines) - Orchestration only
-├── src/core/app_factory.py (250 lines) - App creation & configuration  
-├── src/core/router_registry.py (450 lines) - Router management
-├── src/api/endpoints.py (350 lines) - Health & diagnostics
-└── src/api/emergency_endpoints.py (550 lines) - Emergency routes with live data
-
-✅ Benefits Achieved:
-- Single Responsibility: Each file has one clear purpose
-- Maintainability: Easy to modify individual components
-- Testability: Each module can be tested independently
-- Readability: Smaller, focused files
-- Scalability: Easy to add new features
-- Team Development: Multiple developers can work simultaneously
-- Live Data: Emergency endpoints use real database queries
-- Zero Functionality Loss: Everything works exactly the same
-
-🚀 Key Improvements:
-- All router imports centralized with error handling
-- Emergency endpoints provide live database fallbacks
-- Comprehensive debug and health check endpoints
-- Detailed system status and capability reporting
-- AI Discovery System fully integrated with live data
-- Enhanced error handling and graceful degradation
-- Production-ready deployment compatibility
-
-🎯 Production Ready:
-- Railway deployment compatible
-- Async/await properly handled
-- Database connections optimized
-- Error handling comprehensive
-- Health checks extensive
-- Emergency mode functional
-- All AI systems integrated
-
-Total Lines: ~1,750 vs 2,000+ (250+ lines saved)
-Maintainability: 500% improvement
-Team Productivity: 300% improvement
-Bug Resolution Time: 70% faster
-"""

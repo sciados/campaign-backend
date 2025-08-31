@@ -1,4 +1,4 @@
-# src/auth/routes.py - FIXED VERSION with correct router configuration
+# src/auth/routes.py - FIXED VERSION with correct database dependencies
 
 import os
 import logging
@@ -12,10 +12,9 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select
 
-# Import password hashing and JWT functions from your security module
+# FIXED: Import the correct sync database dependency
+from src.core.database import get_db  # Changed from get_async_db to get_db
 from src.core.security import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY
-# Import your database session, User model, and Company model
-from src.core.database import get_async_db
 from src.models.user import User
 from src.models.company import Company
 
@@ -61,12 +60,13 @@ class UserLogin(BaseModel):
 # --- API Endpoints ---
 
 @router.post("/register", summary="Register a new user")
-def register_user(user_data: UserRegister, db: Session = Depends(get_async_db)):
+def register_user(user_data: UserRegister, db: Session = Depends(get_db)):  # FIXED: Use get_db
     """
     Registers a new user with email and password, storing them directly in PostgreSQL.
     Automatically creates a new company for the first registered user.
     """
-    existing_user = db.scalar(select(User).where(User.email == user_data.email))
+    # FIXED: Use sync database query
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         logger.warning(f"Registration attempt for existing email: {user_data.email}")
         raise HTTPException(
@@ -152,13 +152,14 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_async_db)):
 @router.post("/token", response_model=Token, summary="Login and obtain access token (OAuth2 standard)")
 def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_async_db)
+    db: Session = Depends(get_db)  # FIXED: Use get_db
 ):
     """
     Authenticates a user and returns a JWT access token.
     Uses standard OAuth2 password flow.
     """
-    user = db.scalar(select(User).where(User.email == form_data.username))
+    # FIXED: Use sync database query
+    user = db.query(User).filter(User.email == form_data.username).first()
 
     if not user or not verify_password(form_data.password, user.password_hash):
         logger.warning(f"Login attempt failed for email: {form_data.username}")
@@ -190,11 +191,12 @@ def login_for_access_token(
     }
 
 @router.post("/login", summary="Login an existing user (JSON body)")
-def login_user_json(user_login: UserLogin, db: Session = Depends(get_async_db)):
+def login_user_json(user_login: UserLogin, db: Session = Depends(get_db)):  # FIXED: Use get_db
     """
     Logs in an existing user and returns an access token, accepting JSON body.
     """
-    user = db.scalar(select(User).where(User.email == user_login.email))
+    # FIXED: Use sync database query - This should now work correctly
+    user = db.query(User).filter(User.email == user_login.email).first()
 
     if not user or not verify_password(user_login.password, user.password_hash):
         logger.warning(f"JSON login attempt failed for email: {user_login.email}")
@@ -210,7 +212,7 @@ def login_user_json(user_login: UserLogin, db: Session = Depends(get_async_db)):
         )
 
     # Get company information for response
-    company = db.scalar(select(Company).where(Company.id == user.company_id))
+    company = db.query(Company).filter(Company.id == user.company_id).first()
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -238,7 +240,7 @@ def login_user_json(user_login: UserLogin, db: Session = Depends(get_async_db)):
 
 
 @router.get("/profile", summary="Get current user profile")
-def get_user_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_async_db)):
+def get_user_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):  # FIXED: Use get_db
     """
     Get current user profile with company information.
     This endpoint can be used to validate tokens and get user data.
@@ -248,7 +250,7 @@ def get_user_profile(current_user: User = Depends(get_current_user), db: Session
         if hasattr(current_user, 'company') and current_user.company:
             company = current_user.company
         else:
-            company = db.scalar(select(Company).where(Company.id == current_user.company_id))
+            company = db.query(Company).filter(Company.id == current_user.company_id).first()
             if not company:
                 raise HTTPException(
                     status_code=http_status.HTTP_404_NOT_FOUND,

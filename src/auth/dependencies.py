@@ -1,19 +1,19 @@
 """
-FastAPI dependencies for authentication and database - ASYNC VERSION
-Standardized on async operations for consistency
+FastAPI dependencies for authentication and database - FIXED SYNC VERSION
+Changed to sync operations for consistency with routes.py
 """
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select
 from typing import Optional
 from uuid import UUID
 import structlog
 from datetime import datetime, timezone
 
-from src.core.database import get_async_db
+# FIXED: Changed to sync database dependency
+from src.core.database import get_db  # Changed from get_async_db to get_db
 from src.core.security import SECRET_KEY
 from src.models.user import User
 from jose import jwt, JWTError
@@ -21,11 +21,11 @@ from jose import jwt, JWTError
 logger = structlog.get_logger()
 security = HTTPBearer()
 
-async def get_current_user(
+def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_async_db)
+    db: Session = Depends(get_db)  # FIXED: Changed to Session and get_db
 ) -> User:
-    """Get current authenticated user"""
+    """Get current authenticated user - FIXED to use sync database operations"""
 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -50,13 +50,8 @@ async def get_current_user(
         except ValueError:
             raise credentials_exception
         
-        # Use async database operation
-        result = await db.execute(
-            select(User)
-            .where(User.id == user_id)
-            .options(selectinload(User.company))
-        )
-        user = result.scalar_one_or_none()
+        # FIXED: Use sync database operation
+        user = db.query(User).filter(User.id == user_id).options(selectinload(User.company)).first()
         
         if user is None or not user.is_active:
             raise credentials_exception
@@ -66,9 +61,9 @@ async def get_current_user(
             logger.warning(f"Token company_id mismatch for user {user_id}. Token: {company_id}, User DB: {user.company_id}")
             raise credentials_exception
 
-        # Update last active timestamp
+        # FIXED: Update last active timestamp using sync operation
         user.last_active_at = datetime.now(timezone.utc)
-        await db.commit()
+        db.commit()
 
         return user
 
@@ -88,8 +83,8 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
-    """Get current active user"""
+def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+    """Get current active user - FIXED to use sync"""
     if not current_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
@@ -97,8 +92,8 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
         )
     return current_user
 
-async def get_current_admin_user(current_user: User = Depends(get_current_active_user)) -> User:
-    """Get current admin user"""
+def get_current_admin_user(current_user: User = Depends(get_current_active_user)) -> User:
+    """Get current admin user - FIXED to use sync"""
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

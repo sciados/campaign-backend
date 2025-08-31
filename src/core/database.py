@@ -1,4 +1,4 @@
-# src/core/database.py - FIXED VERSION - No Circular Imports
+# src/core/database.py - FIXED VERSION - Proper async/sync separation
 
 import os
 import logging
@@ -104,8 +104,8 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False
 )
 
-# Database dependency functions
-def get_async_db():
+# FIXED: Properly named database dependency functions
+def get_db():
     """Synchronous database dependency for FastAPI"""
     db = SessionLocal()
     try:
@@ -299,7 +299,7 @@ def verify_database_drivers():
         logger.error(f"Driver verification failed: {e}")
         return False
 
-# Exports
+# FIXED: Proper exports with correct function names
 __all__ = [
     'engine',
     'async_engine', 
@@ -307,9 +307,11 @@ __all__ = [
     'metadata',
     'SessionLocal',
     'AsyncSessionLocal',
-    'get_async_db',
-    'get_async_db',
-    'get_async_session',
+    'get_db',                    # FIXED: Sync dependency
+    'get_async_db',             # Async dependency
+    'get_sync_db_session',      # Sync session (not dependency)
+    'get_async_db_session',     # Async session (not dependency)
+    'get_async_session',        # Backward compatibility
     'create_tables_sync',
     'create_tables_async',
     'test_connection',
