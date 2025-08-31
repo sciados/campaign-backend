@@ -318,8 +318,8 @@ class AnalysisHandler:
             
             # FIXED: CRUD MIGRATION - Use CRUD update method instead of direct db.commit()
             updated_campaign = await campaign_crud.update(
-                db=self.db,
-                id=campaign.id,
+               db=self.db,
+                db_obj=campaign,  # Pass the object instance
                 obj_in={
                     "auto_analysis_status": campaign.auto_analysis_status,
                     "auto_analysis_started_at": campaign.auto_analysis_started_at,
@@ -793,7 +793,7 @@ class AnalysisHandler:
             # FIXED: CRUD MIGRATION - Use campaign_crud.update instead of direct db.commit()
             updated_campaign = await campaign_crud.update(
                 db=self.db,
-                id=campaign.id,
+                db_obj=campaign,
                 obj_in={
                     "auto_analysis_status": campaign.auto_analysis_status,
                     "auto_analysis_completed_at": campaign.auto_analysis_completed_at,
@@ -876,7 +876,7 @@ class AnalysisHandler:
             # FIXED: CRUD MIGRATION - Use campaign_crud.update instead of direct db operations
             await campaign_crud.update(
                 db=self.db,
-                id=campaign.id,
+                db_obj=campaign,
                 obj_in={
                     "auto_analysis_status": campaign.auto_analysis_status,
                     "workflow_state": campaign.workflow_state,
