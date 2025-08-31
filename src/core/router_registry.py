@@ -184,6 +184,9 @@ def import_intelligence_routers():
         logging.error(f"Analysis router not available: {e}")
         print(f"Analysis router not available: {e}")
 
+    print(f"DEBUG: ANALYSIS_ROUTER_AVAILABLE = {ANALYSIS_ROUTER_AVAILABLE}")
+    print(f"DEBUG: analysis_router object = {analysis_router}")
+
     # Update system status flags
     INTELLIGENCE_ROUTERS_AVAILABLE = any([
         INTELLIGENCE_MAIN_ROUTER_AVAILABLE,
@@ -307,6 +310,9 @@ def register_all_routers(app: FastAPI):
         logging.info("Analysis router registered")
         print("Analysis router registered at /api/intelligence/analysis")
         routes_registered += 1
+
+    # Add this right before the analysis router registration:
+    print(f"DEBUG: About to check analysis router - ANALYSIS_ROUTER_AVAILABLE={ANALYSIS_ROUTER_AVAILABLE}, analysis_router={analysis_router}")
     
     # FIXED: Register user type routes with correct import
     try:
