@@ -643,7 +643,8 @@ class AnalysisHandler:
             
             updated_intelligence = await intelligence_crud.update(
                 db=self.db,
-                id=intelligence.id,
+                # id=intelligence.id,
+                db_obj=intelligence,
                 obj_in=update_data
             )
             
@@ -664,7 +665,8 @@ class AnalysisHandler:
             try:
                 await intelligence_crud.update(
                     db=self.db,
-                    id=intelligence.id,
+                    # id=intelligence.id,
+                    db_obj=intelligence,
                     obj_in={
                         "analysis_status": AnalysisStatus.FAILED,
                         "processing_metadata": serialize_metadata(error_metadata)
@@ -917,7 +919,8 @@ class AnalysisHandler:
             # FIXED: CRUD MIGRATION - Use intelligence_crud.update instead of direct db operations
             await intelligence_crud.update(
                 db=self.db,
-                id=intelligence.id,
+                # id=intelligence.id
+                db_obj=intelligence,
                 obj_in={
                     "analysis_status": AnalysisStatus.FAILED,
                     "processing_metadata": serialize_metadata(error_metadata)

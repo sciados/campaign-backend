@@ -32,7 +32,59 @@ class IntelligenceCRUD(BaseCRUD[CampaignIntelligence]):
     
     def __init__(self):
         super().__init__(CampaignIntelligence)
-    
+
+    # Add this method to your IntelligenceCRUD class in intelligence_crud.py
+    async def update(
+        self,
+        db: AsyncSession,
+        db_obj: CampaignIntelligence,
+        obj_in: Dict[str, Any]
+    ) -> CampaignIntelligence:        
+        try:
+            logger.info(f"🔧 Updating intelligence {db_obj.id} with data keys: {list(obj_in.keys())}")
+            
+            # Update fields on the object
+            for field, value in obj_in.items():
+                if hasattr(db_obj, field):
+                    setattr(db_obj, field, value)
+            
+            # Set updated timestamp
+            db_obj.updated_at = datetime.now(timezone.utc)
+            
+            # Commit changes
+            await db.commit()
+            await db.refresh(db_obj)
+            
+            logger.info(f"✅ Successfully updated intelligence {db_obj.id}")
+            return db_obj
+            
+        except Exception as e:
+            logger.error(f"❌ Error updating intelligence: {e}")
+            await db.rollback()
+            raise
+
+    # Alternative method if you prefer update by ID
+    async def update_by_id(
+        self,
+        db: AsyncSession,
+        intelligence_id: UUID,
+        obj_in: Dict[str, Any]
+    ) -> Optional[CampaignIntelligence]:
+        """
+        Update intelligence by ID - Alternative method
+        """
+        try:
+            # Get the object first
+            intelligence = await self.get(db=db, id=intelligence_id)
+            if not intelligence:
+                raise ValueError(f"Intelligence {intelligence_id} not found")
+            
+            # Use the main update method
+            return await self.update(db=db, db_obj=intelligence, obj_in=obj_in)
+            
+        except Exception as e:
+            logger.error(f"❌ Error updating intelligence by ID: {e}")
+            raise
     async def get_campaign_intelligence(
         self,
         db: AsyncSession,
