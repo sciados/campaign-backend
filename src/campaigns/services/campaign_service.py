@@ -38,6 +38,63 @@ class CampaignService:
     def __init__(self, db: AsyncSession):
         self.db = db
     
+    async def create_campaign(
+        self, 
+        campaign_data: Dict[str, Any], 
+        user: User,
+        background_tasks
+    ) -> Campaign:
+        """Create campaign with enhanced workflow integration"""
+        try:
+            logger.info(f"Creating streamlined campaign for user {user.id}")
+            
+            # Validate required product name  
+            product_name = campaign_data.get("product_name", "").strip()
+            if not product_name or len(product_name) < 2:
+                product_name = campaign_data.get("title", "Product").strip()
+                if not product_name or len(product_name) < 2:
+                    raise ValueError("Product name or campaign title is required and must be at least 2 characters long")
+            
+            logger.info(f"Product name provided: '{product_name}'")
+            
+            # Prepare campaign data for CRUD
+            new_campaign_data = {
+                "title": campaign_data.get("title", product_name),
+                "description": campaign_data.get("description"),
+                "product_name": product_name,
+                "keywords": campaign_data.get("keywords", []),
+                "target_audience": campaign_data.get("target_audience"),
+                "tone": campaign_data.get("tone", "conversational"),
+                "style": campaign_data.get("style", "modern"),
+                "user_id": user.id,
+                "company_id": user.company_id,
+                "status": CampaignStatus.DRAFT,
+                "settings": campaign_data.get("settings", {}),
+                
+                # Auto-analysis fields
+                "salespage_url": campaign_data.get("salespage_url"),
+                "auto_analysis_enabled": campaign_data.get("auto_analysis_enabled", True),
+                "content_types": campaign_data.get("content_types", ["email", "social_post", "ad_copy"]),
+                "content_tone": campaign_data.get("content_tone", "conversational"),
+                "content_style": campaign_data.get("content_style", "modern"),
+                "generate_content_after_analysis": campaign_data.get("generate_content_after_analysis", False)
+            }
+            
+            # Create campaign using CRUD
+            new_campaign = await campaign_crud.create(
+                db=self.db,
+                obj_in=new_campaign_data
+            )
+            
+            logger.info(f"Created campaign {new_campaign.id} with title: '{new_campaign.title}'")
+            
+            return new_campaign
+            
+        except Exception as e:
+            logger.error(f"Error creating campaign: {e}")
+            await self.db.rollback()
+            raise e
+
     @staticmethod
     async def trigger_enhanced_analysis_workflow(
         campaign_id: str, 
