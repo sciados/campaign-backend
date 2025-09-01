@@ -193,10 +193,10 @@ async def create_tables_async():
         return False
 
 # Database utility functions
-def test_connection():
+async def test_connection():
     """Test database connection"""
     try:
-        with engine.connect() as conn:
+        async with engine.connect() as conn:
             result = conn.execute(text("SELECT 1"))
             logger.info("Sync database connection test successful")
             return True

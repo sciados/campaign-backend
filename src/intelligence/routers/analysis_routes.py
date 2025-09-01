@@ -1,23 +1,27 @@
 """
 File: src/intelligence/routers/analysis_routes.py
-✅ CRUD VERIFIED: Analysis Routes with CRUD-enabled handlers
-✅ FIXED: Enhanced error handling and CRUD integration verification
-✅ FIXED: Proper database dependency and session management
+FIXED: Added missing enhanced-intelligence endpoint to resolve 404 error
+CRUD VERIFIED: Analysis Routes with CRUD-enabled handlers
+FIXED: Enhanced error handling and CRUD integration verification
+FIXED: Proper database dependency and session management
 """
 from fastapi import APIRouter, Depends, HTTPException, status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any
 import logging
 
-# ✅ CRUD VERIFIED: Use get_async_db for proper async session management
+# CRUD VERIFIED: Use get_async_db for proper async session management
 from src.core.database import get_async_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
 
-# ✅ CRUD-ENABLED: Import CRUD-migrated handler
+# CRUD-ENABLED: Import CRUD-migrated handler
 from ..handlers.analysis_handler import AnalysisHandler
 from ..schemas.requests import AnalyzeURLRequest
 from ..schemas.responses import AnalysisResponse
+
+# FIXED: Import intelligence_crud for enhanced intelligence endpoint
+from src.core.crud import intelligence_crud
 
 # Check credits availability
 try:
@@ -87,11 +91,11 @@ def get_amplifier_status():
 async def analyze_url(
     request: AnalyzeURLRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)  # ✅ CRUD VERIFIED: Proper async session
+    db: AsyncSession = Depends(get_async_db)  # CRUD VERIFIED: Proper async session
 ):
-    """✅ CRUD VERIFIED: Analyze competitor sales page with CRUD-enabled handler"""
+    """CRUD VERIFIED: Analyze competitor sales page with CRUD-enabled handler"""
     
-    # ✅ TEMPORARY: Disable credits completely for testing
+    # TEMPORARY: Disable credits completely for testing
     # if CREDITS_AVAILABLE:
     #     try:
     #         await check_and_consume_credits(
@@ -106,20 +110,20 @@ async def analyze_url(
     #             detail=f"Insufficient credits: {str(e)}"
     #         )
     
-    logger.info(f"🎯 Analysis request for URL: {request.url} (Campaign: {request.campaign_id})")
+    logger.info(f"Analysis request for URL: {request.url} (Campaign: {request.campaign_id})")
     
-    # ✅ CRUD-ENABLED: Create handler with CRUD-migrated operations
+    # CRUD-ENABLED: Create handler with CRUD-migrated operations
     handler = AnalysisHandler(db, current_user)
     
     try:
-        # ✅ CRUD VERIFIED: Handler uses complete CRUD integration
+        # CRUD VERIFIED: Handler uses complete CRUD integration
         result = await handler.analyze_url({
             "url": str(request.url),
             "campaign_id": request.campaign_id,
             "analysis_type": request.analysis_type
         })
         
-        # ✅ CRUD VERIFIED: Add metadata about CRUD usage
+        # CRUD VERIFIED: Add metadata about CRUD usage
         if isinstance(result, dict):
             result["crud_integration"] = {
                 "handler_crud_enabled": True,
@@ -128,11 +132,11 @@ async def analyze_url(
                 "session_management": "crud_handled"
             }
         
-        logger.info(f"✅ Analysis completed via CRUD for campaign {request.campaign_id}")
+        logger.info(f"Analysis completed via CRUD for campaign {request.campaign_id}")
         return AnalysisResponse(**result)
         
     except ValueError as e:
-        logger.error(f"❌ Analysis validation error: {str(e)}")
+        logger.error(f"Analysis validation error: {str(e)}")
         raise HTTPException(
             status_code=http_status.HTTP_404_NOT_FOUND,
             detail=str(e)
@@ -141,7 +145,7 @@ async def analyze_url(
         # Re-raise HTTP exceptions without modification
         raise
     except Exception as e:
-        logger.error(f"❌ Analysis system error: {str(e)}")
+        logger.error(f"Analysis system error: {str(e)}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis failed: {str(e)}"
@@ -183,11 +187,101 @@ async def analyze_and_store_for_campaign(
             detail=f"Analysis failed: {str(e)}"
         )
 
+@router.get("/campaigns/{campaign_id}/enhanced-intelligence")
+async def get_enhanced_intelligence(
+    campaign_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """FIXED: Get enhanced intelligence for a campaign - MISSING ENDPOINT ADDED"""
+    try:
+        logger.info(f"Getting enhanced intelligence for campaign {campaign_id}")
+        
+        # Get the campaign's intelligence using CRUD
+        intelligence_list = await intelligence_crud.get_campaign_intelligence(
+            db=db,
+            campaign_id=campaign_id,
+            company_id=current_user.company_id,
+            limit=10,  # Get top intelligence sources
+            include_content_stats=True
+        )
+        
+        if not intelligence_list:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"No intelligence found for campaign {campaign_id}"
+            )
+        
+        # Get the primary intelligence source
+        primary_intelligence = intelligence_list[0]
+        
+        # Calculate statistics
+        total_sources = len(intelligence_list)
+        total_content = 0
+        amplified_sources = 0
+        avg_confidence = 0
+        
+        for intel in intelligence_list:
+            if hasattr(intel, 'generated_content') and intel.generated_content:
+                total_content += len(intel.generated_content)
+            if intel.is_amplified():
+                amplified_sources += 1
+            avg_confidence += (intel.confidence_score or 0)
+        
+        avg_confidence = avg_confidence / total_sources if total_sources > 0 else 0
+        
+        response = {
+            "campaign_id": campaign_id,
+            "intelligence_ready": True,
+            "enhancement_applied": primary_intelligence.is_amplified(),
+            "confidence_score": primary_intelligence.confidence_score,
+            "intelligence_sources": [
+                {
+                    "id": str(intel.id),
+                    "source_title": intel.source_title,
+                    "source_url": intel.source_url,
+                    "confidence_score": intel.confidence_score,
+                    "is_amplified": intel.is_amplified(),
+                    "analysis_status": intel.analysis_status.value if hasattr(intel.analysis_status, 'value') else str(intel.analysis_status),
+                    "created_at": intel.created_at.isoformat() if intel.created_at else None
+                }
+                for intel in intelligence_list
+            ],
+            "statistics": {
+                "total_sources": total_sources,
+                "primary_confidence": primary_intelligence.confidence_score,
+                "average_confidence": round(avg_confidence, 3),
+                "amplified_sources": amplified_sources,
+                "amplification_rate": round((amplified_sources / total_sources * 100), 1) if total_sources > 0 else 0,
+                "total_content_generated": total_content,
+                "content_per_source": round(total_content / total_sources, 1) if total_sources > 0 else 0
+            },
+            "primary_source": {
+                "id": str(primary_intelligence.id),
+                "source_title": primary_intelligence.source_title,
+                "confidence_score": primary_intelligence.confidence_score,
+                "is_amplified": primary_intelligence.is_amplified(),
+                "intelligence_summary": primary_intelligence.get_all_intelligence()
+            }
+        }
+        
+        logger.info(f"Enhanced intelligence retrieved for campaign {campaign_id}: {total_sources} sources, confidence: {avg_confidence:.3f}")
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting enhanced intelligence: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get enhanced intelligence: {str(e)}"
+        )
+
 @router.get("/status")
 async def get_analysis_status(
     current_user: User = Depends(get_current_user)
 ):
-    """✅ CRUD VERIFIED: Get analysis system status with CRUD integration info"""
+    """CRUD VERIFIED: Get analysis system status with CRUD integration info"""
     try:
         from ..utils.analyzer_factory import test_analyzer_functionality, get_available_analyzers
         
@@ -227,7 +321,7 @@ async def get_analysis_status(
         }
         
     except Exception as e:
-        logger.error(f"❌ Error getting analysis status: {str(e)}")
+        logger.error(f"Error getting analysis status: {str(e)}")
         return {
             "analysis_system": {
                 "status": "error",
@@ -243,7 +337,7 @@ async def get_analysis_status(
 async def get_analysis_capabilities(
     current_user: User = Depends(get_current_user)
 ):
-    """✅ CRUD VERIFIED: Get detailed analysis capabilities with CRUD features"""
+    """CRUD VERIFIED: Get detailed analysis capabilities with CRUD features"""
     try:
         from ..utils.analyzer_factory import get_available_analyzers, get_analyzer_requirements
         
@@ -296,7 +390,7 @@ async def get_analysis_capabilities(
         }
         
     except Exception as e:
-        logger.error(f"❌ Error getting analysis capabilities: {str(e)}")
+        logger.error(f"Error getting analysis capabilities: {str(e)}")
         return {
             "error": str(e),
             "crud_capabilities": {
@@ -308,11 +402,11 @@ async def get_analysis_capabilities(
 @router.get("/health")
 async def get_analysis_health(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)  # ✅ CRUD VERIFIED: Proper async session
+    db: AsyncSession = Depends(get_async_db)  # CRUD VERIFIED: Proper async session
 ):
-    """✅ NEW: Get comprehensive analysis system health with CRUD verification"""
+    """NEW: Get comprehensive analysis system health with CRUD verification"""
     try:
-        logger.info(f"🔍 Analysis health check requested by user {current_user.id}")
+        logger.info(f"Analysis health check requested by user {current_user.id}")
         
         # Test CRUD-enabled handler initialization
         handler_test = {
@@ -321,7 +415,7 @@ async def get_analysis_health(
         }
         
         try:
-            # ✅ CRUD TEST: Initialize CRUD-enabled handler
+            # CRUD TEST: Initialize CRUD-enabled handler
             handler = AnalysisHandler(db, current_user)
             handler_test["status"] = "operational"
             handler_test["crud_enabled"] = True
@@ -407,11 +501,11 @@ async def get_analysis_health(
             }
         }
         
-        logger.info(f"✅ Analysis health check completed - Status: {overall_health}")
+        logger.info(f"Analysis health check completed - Status: {overall_health}")
         return health_report
         
     except Exception as e:
-        logger.error(f"❌ Analysis health check failed: {str(e)}")
+        logger.error(f"Analysis health check failed: {str(e)}")
         return {
             "overall_health": "error",
             "error": str(e),
@@ -425,11 +519,11 @@ async def get_analysis_health(
 @router.get("/crud-status")
 async def get_crud_status(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)  # ✅ CRUD VERIFIED: Proper async session
+    db: AsyncSession = Depends(get_async_db)  # CRUD VERIFIED: Proper async session
 ):
-    """✅ NEW: Get detailed CRUD integration status for analysis system"""
+    """NEW: Get detailed CRUD integration status for analysis system"""
     try:
-        logger.info(f"🔍 CRUD status check requested by user {current_user.id}")
+        logger.info(f"CRUD status check requested by user {current_user.id}")
         
         # Test CRUD system components
         crud_tests = {
@@ -549,11 +643,11 @@ async def get_crud_status(
             ]
         }
         
-        logger.info(f"✅ CRUD status check completed - Status: {overall_status}")
+        logger.info(f"CRUD status check completed - Status: {overall_status}")
         return crud_status
         
     except Exception as e:
-        logger.error(f"❌ CRUD status check failed: {str(e)}")
+        logger.error(f"CRUD status check failed: {str(e)}")
         return {
             "overall_status": "error",
             "error": str(e),
