@@ -121,168 +121,86 @@ class CampaignService:
         product_name: str
     ):
         """
-        DIAGNOSTIC VERSION: Identifies exactly where the failure occurs
+        PRODUCTION VERSION: Run real analysis workflow
+        FIXED: Removed diagnostic test code, now runs actual analysis
         """
         async with AsyncSessionLocal() as db:
             try:
-                logger.info(f"DIAGNOSTIC: Starting analysis workflow for campaign {campaign_id}")
-                logger.info(f"DIAGNOSTIC: Parameters received:")
-                logger.info(f"  - campaign_id: {campaign_id} (type: {type(campaign_id)})")
-                logger.info(f"  - user_id: {user_id} (type: {type(user_id)})")
-                logger.info(f"  - company_id: {company_id} (type: {type(company_id)})")
-                logger.info(f"  - salespage_url: {salespage_url}")
-                logger.info(f"  - product_name: {product_name}")
+                logger.info(f"Starting REAL analysis workflow for campaign {campaign_id}")
+                logger.info(f"Product name: '{product_name}' - URL: {salespage_url}")
                 
-                # Step 1: Test UUID conversion
+                # Convert string IDs to UUIDs
                 try:
                     campaign_uuid = uuid.UUID(campaign_id)
                     user_uuid = uuid.UUID(user_id) 
                     company_uuid = uuid.UUID(company_id)
-                    logger.info(f"DIAGNOSTIC: UUID conversion successful")
                 except ValueError as uuid_error:
-                    logger.error(f"DIAGNOSTIC: UUID conversion failed: {str(uuid_error)}")
+                    logger.error(f"Invalid UUID format: {str(uuid_error)}")
                     return
                 
-                # Step 2: Test database connection
+                # Get user for analysis handler
                 try:
-                    from sqlalchemy import text
-                    result = await db.execute(text("SELECT 1 as test"))
-                    test_row = result.fetchone()
-                    logger.info(f"DIAGNOSTIC: Database connection working: {test_row}")
-                except Exception as db_error:
-                    logger.error(f"DIAGNOSTIC: Database connection failed: {str(db_error)}")
-                    return
-                
-                # Step 3: Check if user_crud is available and working
-                try:
-                    logger.info(f"DIAGNOSTIC: Testing user_crud import...")
-                    from src.core.crud import user_crud
-                    logger.info(f"DIAGNOSTIC: user_crud imported successfully")
-                    
-                    # Test if user_crud.get method exists
-                    if hasattr(user_crud, 'get'):
-                        logger.info(f"DIAGNOSTIC: user_crud.get method exists")
-                    else:
-                        logger.error(f"DIAGNOSTIC: user_crud.get method missing")
-                        return
-                        
-                except ImportError as import_error:
-                    logger.error(f"DIAGNOSTIC: user_crud import failed: {str(import_error)}")
-                    return
-                
-                # Step 4: Try to get user with detailed logging
-                try:
-                    logger.info(f"DIAGNOSTIC: Attempting to get user with ID: {user_uuid}")
                     user = await user_crud.get(db=db, id=user_uuid)
-                    
-                    if user:
-                        logger.info(f"DIAGNOSTIC: User found successfully!")
-                        logger.info(f"DIAGNOSTIC: User details: id={user.id}, email={getattr(user, 'email', 'N/A')}")
-                        logger.info(f"DIAGNOSTIC: User company_id: {getattr(user, 'company_id', 'N/A')}")
-                    else:
-                        logger.error(f"DIAGNOSTIC: User NOT FOUND for ID: {user_uuid}")
-                        
-                        # Let's check what users actually exist
-                        try:
-                            from sqlalchemy import text
-                            result = await db.execute(text("SELECT id, email FROM users LIMIT 5"))
-                            existing_users = result.fetchall()
-                            logger.error(f"DIAGNOSTIC: Existing users in database: {existing_users}")
-                        except Exception as query_error:
-                            logger.error(f"DIAGNOSTIC: Failed to query existing users: {query_error}")
-                        
+                    if not user:
+                        logger.error(f"User not found: {user_uuid}")
                         return
-                        
-                except Exception as user_lookup_error:
-                    logger.error(f"DIAGNOSTIC: User lookup failed with exception: {str(user_lookup_error)}")
-                    logger.error(f"DIAGNOSTIC: Exception type: {type(user_lookup_error)}")
-                    import traceback
-                    logger.error(f"DIAGNOSTIC: Traceback: {traceback.format_exc()}")
+                    logger.info(f"User loaded: {user.email}")
+                except Exception as user_error:
+                    logger.error(f"User lookup failed: {str(user_error)}")
                     return
                 
-                # Step 5: Test campaign lookup
+                # Initialize analysis handler
                 try:
-                    logger.info(f"DIAGNOSTIC: Attempting to get campaign...")
-                    campaign = await campaign_crud.get_campaign_with_access_check(
-                        db=db,
-                        campaign_id=campaign_uuid,
-                        company_id=company_uuid
-                    )
-                    
-                    if campaign:
-                        logger.info(f"DIAGNOSTIC: Campaign found: {campaign.id}")
-                    else:
-                        logger.error(f"DIAGNOSTIC: Campaign NOT FOUND for ID: {campaign_uuid}")
-                        return
-                        
-                except Exception as campaign_error:
-                    logger.error(f"DIAGNOSTIC: Campaign lookup failed: {str(campaign_error)}")
+                    from src.intelligence.handlers.analysis_handler import AnalysisHandler
+                    handler = AnalysisHandler(db, user)
+                    logger.info("Analysis handler initialized successfully")
+                except Exception as handler_error:
+                    logger.error(f"Analysis handler initialization failed: {str(handler_error)}")
                     return
                 
-                # Step 6: Test campaign update
+                # Run REAL analysis
                 try:
-                    logger.info(f"DIAGNOSTIC: Attempting to start auto analysis...")
-                    campaign.start_auto_analysis()
-                    await campaign_crud.update(db=db, db_obj=campaign, obj_in={})
-                    logger.info(f"DIAGNOSTIC: Campaign updated to analysis state successfully")
-                except Exception as update_error:
-                    logger.error(f"DIAGNOSTIC: Campaign update failed: {str(update_error)}")
-                    return
-                
-                # Step 7: Test intelligence creation (simplified)
-                try:
-                    logger.info(f"DIAGNOSTIC: Attempting to create intelligence record...")
+                    logger.info(f"Running REAL analysis for URL: {salespage_url}")
                     
-                    from src.models import IntelligenceSourceType, AnalysisStatus
-                    from src.core.crud import intelligence_crud
-                    from src.utils.json_utils import safe_json_dumps
-                    
-                    intelligence_data = {
+                    analysis_request = {
+                        "url": salespage_url,
                         "campaign_id": campaign_id,
-                        "user_id": str(user.id),
-                        "company_id": str(user.company_id),
-                        "source_url": salespage_url,
-                        "source_type": IntelligenceSourceType.SALES_PAGE,
-                        "source_title": f"{product_name} Test Analysis",
-                        "analysis_status": AnalysisStatus.COMPLETED,
-                        "confidence_score": 0.8,
-                        "raw_content": f"Test analysis of {salespage_url}",
-                        "offer_intelligence": safe_json_dumps({"test": "data"}),
-                        "psychology_intelligence": safe_json_dumps({"test": "data"}),
-                        "content_intelligence": safe_json_dumps({"test": "data"}),
-                        "competitive_intelligence": safe_json_dumps({"test": "data"}),
-                        "brand_intelligence": safe_json_dumps({"test": "data"}),
-                        "processing_metadata": safe_json_dumps({
-                            "analysis_method": "diagnostic",
-                            "analyzed_at": datetime.now(timezone.utc).isoformat()
-                        })
+                        "analysis_type": "sales_page",
+                        "product_name": product_name  # FIXED: Pass product name to prevent re-extraction
                     }
                     
-                    intelligence_record = await intelligence_crud.create(db=db, obj_in=intelligence_data)
-                    logger.info(f"DIAGNOSTIC: Intelligence record created successfully: {intelligence_record.id}")
+                    result = await handler.analyze_url(analysis_request)
                     
-                    # Complete the campaign
-                    campaign.complete_auto_analysis(
-                        intelligence_id=str(intelligence_record.id),
-                        confidence_score=0.8,
-                        analysis_summary={"test": "diagnostic analysis complete"}
-                    )
+                    logger.info(f"REAL analysis completed successfully!")
+                    logger.info(f"Intelligence ID: {result.get('intelligence_id')}")
+                    logger.info(f"Confidence Score: {result.get('confidence_score')}")
+                    logger.info(f"Analysis Status: {result.get('analysis_status')}")
                     
-                    await campaign_crud.update(db=db, db_obj=campaign, obj_in={})
+                    # Check if content should be auto-generated
+                    if result.get('can_proceed_to_content'):
+                        logger.info("Analysis complete - ready for content generation")
                     
-                    logger.info(f"DIAGNOSTIC: WORKFLOW COMPLETED SUCCESSFULLY for campaign {campaign_id}")
+                except Exception as analysis_error:
+                    logger.error(f"REAL analysis failed: {str(analysis_error)}")
                     
-                except Exception as intelligence_error:
-                    logger.error(f"DIAGNOSTIC: Intelligence creation failed: {str(intelligence_error)}")
-                    import traceback
-                    logger.error(f"DIAGNOSTIC: Intelligence error traceback: {traceback.format_exc()}")
+                    # Update campaign to failed status
+                    try:
+                        campaign = await campaign_crud.get(db=db, id=campaign_uuid)
+                        if campaign:
+                            campaign.fail_auto_analysis(str(analysis_error))
+                            await campaign_crud.update(db=db, db_obj=campaign, obj_in={})
+                            logger.info("Campaign marked as failed")
+                    except Exception as fail_error:
+                        logger.error(f"Failed to mark campaign as failed: {str(fail_error)}")
+                    
                     return
                     
-            except Exception as task_error:
-                logger.error(f"DIAGNOSTIC: Background task failed: {str(task_error)}")
+            except Exception as workflow_error:
+                logger.error(f"Background analysis workflow failed: {str(workflow_error)}")
                 import traceback
-                logger.error(f"DIAGNOSTIC: Task error traceback: {traceback.format_exc()}")
+                logger.error(f"Workflow error traceback: {traceback.format_exc()}")
                 await db.rollback()
+
     async def get_campaigns_by_company(
         self, 
         company_id: str, 

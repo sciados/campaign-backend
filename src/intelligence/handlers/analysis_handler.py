@@ -390,7 +390,7 @@ class AnalysisHandler:
             }
     
     async def _perform_amplification(self, url: str, base_analysis: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform intelligence amplification if available"""
+        """Perform intelligence amplification if available - FIXED to pass extracted product name"""
         if not ENHANCEMENT_AVAILABLE:
             logger.info("Enhancement modules not available, using base analysis")
             base_analysis["amplification_metadata"] = {
@@ -406,12 +406,32 @@ class AnalysisHandler:
         try:
             logger.info("Starting intelligence amplification for streamlined workflow...")
             
+            # FIXED: Extract product name from base analysis to pass to amplification
+            extracted_product_name = None
+            
+            # Get product name from offer intelligence (first extraction)
+            offer_intel = base_analysis.get("offer_intelligence", {})
+            if offer_intel and offer_intel.get("products"):
+                products = offer_intel["products"]
+                if isinstance(products, list) and len(products) > 0:
+                    extracted_product_name = products[0]
+                    logger.info(f"Using product name from first extraction: '{extracted_product_name}'")
+            
+            # Fallback to page title if no product found
+            if not extracted_product_name:
+                extracted_product_name = base_analysis.get("page_title", "Unknown Product")
+                logger.warning(f"No product name in offer intelligence, using page title: '{extracted_product_name}'")
+            
+            # Add the extracted product name to base analysis for amplification
+            base_analysis["extracted_product_name"] = extracted_product_name
+            base_analysis["skip_product_extraction"] = True  # Tell amplification to skip re-extraction
+            
             # Get AI providers
             ai_providers = self._get_ai_providers_from_analyzer()
             provider_names = [p.get('name', 'unknown') for p in ai_providers]
             logger.info(f"AMPLIFICATION using providers: {provider_names}")
             
-            # Set up preferences
+            # Set up preferences with product name
             preferences = {
                 "enhance_scientific_backing": True,
                 "boost_credibility": True,
@@ -419,8 +439,12 @@ class AnalysisHandler:
                 "psychological_depth": "medium",
                 "content_optimization": True,
                 "cost_optimization": True,
-                "preferred_provider": provider_names[0] if provider_names else "groq"
+                "preferred_provider": provider_names[0] if provider_names else "groq",
+                "product_name": extracted_product_name,  # FIXED: Pass product name to prevent re-extraction
+                "skip_product_extraction": True  # FIXED: Explicitly tell system not to re-extract
             }
+            
+            logger.info(f"Amplification preferences set with product name: '{extracted_product_name}'")
             
             # STEP 1: Identify opportunities
             logger.info("Identifying enhancement opportunities...")
@@ -438,7 +462,8 @@ class AnalysisHandler:
             enhancements = await generate_enhancements(
                 base_intel=base_analysis,
                 opportunities=opportunities,
-                providers=ai_providers
+                providers=ai_providers,
+                product_name=extracted_product_name  # FIXED: Pass product name explicitly
             )
             
             enhancement_metadata = enhancements.get("enhancement_metadata", {})
@@ -453,6 +478,14 @@ class AnalysisHandler:
                 base_intel=base_analysis,
                 enhancements=enhancements
             )
+            
+            # FIXED: Ensure product name consistency in final result
+            if "offer_intelligence" in enriched_intelligence:
+                offer_intel = enriched_intelligence["offer_intelligence"]
+                if isinstance(offer_intel, dict):
+                    # Ensure the correct product name is preserved
+                    offer_intel["products"] = [extracted_product_name]
+                    logger.info(f"Product name preserved in final result: '{extracted_product_name}'")
             
             # Diagnose the amplification output
             diagnose_amplification_output(enriched_intelligence)
@@ -484,10 +517,15 @@ class AnalysisHandler:
                 "cost_tracking": cost_summary,
                 "estimated_cost_savings": cost_summary.get("estimated_savings", 0.0),
                 "cost_savings_percentage": cost_summary.get("savings_percentage", 0.0),
-                "workflow_type": "streamlined_2_step"
+                "workflow_type": "streamlined_2_step",
+                "product_name_source": "first_extraction",  # FIXED: Track that we used first extraction
+                "product_name_preserved": extracted_product_name,  # FIXED: Track the preserved name
+                "skip_reextraction": True  # FIXED: Document that we skipped re-extraction
             }
             
             logger.info(f"Streamlined amplification completed - Final confidence: {enriched_intelligence.get('confidence_score', 0.0):.2f}")
+            logger.info(f"Product name preserved throughout amplification: '{extracted_product_name}'")
+            
             return enriched_intelligence
             
         except Exception as amp_error:
@@ -497,7 +535,8 @@ class AnalysisHandler:
                 "amplification_error": str(amp_error),
                 "fallback_to_base": True,
                 "error_type": type(amp_error).__name__,
-                "workflow_type": "streamlined_2_step"
+                "workflow_type": "streamlined_2_step",
+                "product_name_preserved": extracted_product_name if 'extracted_product_name' in locals() else None
             }
             return base_analysis
     
