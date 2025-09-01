@@ -463,7 +463,7 @@ class AnalysisHandler:
                 base_intel=base_analysis,
                 opportunities=opportunities,
                 providers=ai_providers,
-                product_name=extracted_product_name  # FIXED: Pass product name explicitly
+                # product_name=extracted_product_name  # FIXED: Pass product name explicitly
             )
             
             enhancement_metadata = enhancements.get("enhancement_metadata", {})
