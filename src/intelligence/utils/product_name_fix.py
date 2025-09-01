@@ -689,14 +689,29 @@ def extract_company_name_from_intelligence(intelligence: Dict[str, Any]) -> str:
 
 def extract_product_name_from_intelligence(intelligence: Dict[str, Any]) -> str:
     """
-    FIXED Universal product name extraction for any sales page
+    FIXED Universal product name extraction - NOW CHECKS PRE-EXTRACTED NAME
     
     This function now correctly handles:
+    - Pre-extracted product names from analysis handler
+    - Skip re-extraction when flag is set
     - AquaSculpt and similar compound products
-    - getproductnow.com URL patterns
     - AI hallucination filtering
-    - Prioritized extraction strategies
     """
+    
+    # FIXED: Check if product name already extracted and re-extraction should be skipped
+    if intelligence.get("skip_product_extraction") and intelligence.get("extracted_product_name"):
+        extracted_name = intelligence["extracted_product_name"]
+        logger.info(f"🎯 Using pre-extracted product name: '{extracted_name}' (skipping re-extraction)")
+        return extracted_name
+    
+    # FIXED: Also check if a valid product name already exists in the intelligence
+    existing_name = intelligence.get("extracted_product_name")
+    if existing_name and len(existing_name) > 2 and existing_name != "Product":
+        logger.info(f"🎯 Using existing product name: '{existing_name}' (found in intelligence)")
+        return existing_name
+    
+    # If no pre-extracted name or skip flag not set, run full extraction
+    logger.info("🔍 Starting FIXED universal product name extraction...")
     return _universal_extractor.extract_product_name(intelligence)
 
 def substitute_product_placeholders(content: str, product_name: str, company_name: str = None) -> str:
