@@ -203,6 +203,10 @@ class SalesPageAnalyzer:
                     
                     logger.info(f"Extracted {len(clean_text)} characters of clean text")
                     
+                    # CRITICAL: Ensure we have actual content, not error messages
+                    if len(clean_text) < 100 or "error" in clean_text.lower()[:200]:
+                        logger.error(f"Suspicious content detected for {url}: {clean_text[:200]}")
+                    
                     return {
                         "title": title_text,
                         "content": clean_text,
@@ -211,16 +215,24 @@ class SalesPageAnalyzer:
                     }
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
-            # Return minimal content to allow analysis to continue
+            # Return error content but still try to extract product name from URL
+            product_from_url = self._extract_product_name_from_url(url)
+            error_content = f"Error fetching content from {url}: {str(e)}"
+            
             return {
-                "title": "Error fetching page",
-                "content": f"Unable to fetch content from {url}: {str(e)}",
+                "title": product_from_url or "Error fetching page",
+                "content": error_content,
                 "html": "",
                 "url": url
             }
     
     async def _extract_product_name(self, page_content: Dict[str, str]) -> str:
-        """Extract product name using advanced product extractor"""
+        """Extract product name using advanced product extractor with URL fallback"""
+        
+        # First try URL extraction (most reliable for clear product URLs)
+        url_extracted_name = self._extract_product_name_from_url(page_content["url"])
+        if url_extracted_name:
+            return url_extracted_name
         
         try:
             product_name = self.product_extractor.extract_product_name(
@@ -281,6 +293,36 @@ class SalesPageAnalyzer:
         
         logger.warning("Could not extract product name, using 'Product'")
         return "Product"
+    
+    def _extract_product_name_from_url(self, url: str) -> Optional[str]:
+        """Extract product name directly from URL as fallback"""
+        
+        try:
+            # Extract domain and path components
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            
+            # Check domain for product name (e.g., hepatoburn.com -> Hepatoburn)
+            domain_parts = parsed.netloc.split('.')
+            for part in domain_parts:
+                if len(part) > 4 and part.lower() not in ['www', 'com', 'net', 'org']:
+                    # Capitalize first letter
+                    product_name = part.capitalize()
+                    logger.info(f"Extracted product name from domain: '{product_name}'")
+                    return product_name
+            
+            # Check path components
+            path_parts = parsed.path.strip('/').split('/')
+            for part in path_parts:
+                if len(part) > 4 and part.isalpha():
+                    product_name = part.capitalize()
+                    logger.info(f"Extracted product name from path: '{product_name}'")
+                    return product_name
+                    
+        except Exception as e:
+            logger.error(f"URL parsing failed: {e}")
+        
+        return None
     
     async def _extract_content_structure(self, page_content: Dict[str, str]) -> Dict[str, Any]:
         """PRICING-FREE content structure extraction - MATCHES REQUIREMENTS"""
@@ -1649,6 +1691,7 @@ def create_analyzer(analyzer_type: str = "standard") -> Any:
     
     analyzer_types = {
         "standard": SalesPageAnalyzer,
+        "web": WebAnalyzer,  # Proper WebAnalyzer class
         "enhanced": EnhancedSalesPageAnalyzer,
         "competitive": CompetitiveAnalyzer,
         "document": DocumentAnalyzer,
@@ -1806,9 +1849,35 @@ def test_pricing_removal() -> Dict[str, Any]:
     }
 
 
+class WebAnalyzer:
+    """Analyze general websites and web content with RAG enhancement"""
+    
+    def __init__(self):
+        self.sales_page_analyzer = SalesPageAnalyzer()
+        logger.info("WebAnalyzer initialized with SalesPageAnalyzer backend")
+    
+    async def analyze(self, url: str, research_docs: List[str] = None) -> Dict[str, Any]:
+        """Analyze general website content with optional research context"""
+        
+        try:
+            # Use enhanced analysis if research docs provided
+            if research_docs and self.sales_page_analyzer.rag_system:
+                return await self.sales_page_analyzer.analyze_with_research_context(url, research_docs)
+            else:
+                # Delegate to sales page analyzer
+                return await self.sales_page_analyzer.analyze(url)
+        except Exception as e:
+            logger.error(f"WebAnalyzer failed: {e}")
+            return self.sales_page_analyzer._error_fallback_analysis(url, str(e))
+
+
+# Add WebAnalyzer alias for backward compatibility
+# WebAnalyzer = SalesPageAnalyzer  # Remove this line since we have the proper class now
+
 # Export all public classes and functions
 __all__ = [
     'SalesPageAnalyzer',
+    'WebAnalyzer',  # Add this for compatibility
     'EnhancedSalesPageAnalyzer',
     'DocumentAnalyzer', 
     'CompetitiveAnalyzer',
