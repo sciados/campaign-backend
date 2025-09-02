@@ -103,6 +103,7 @@ except ImportError:
         return None
 
 
+# New optimized database storage class
 class OptimizedDatabaseStorage:
     """Handles storage to the new optimized database schema"""
     
@@ -186,6 +187,7 @@ class OptimizedDatabaseStorage:
             
             # Store market intelligence
             comp_intel = intelligence.get("competitive_intelligence", {})
+            psych_intel = intelligence.get("psychology_intelligence", {})
             await conn.execute("""
                 INSERT INTO market_data 
                 (intelligence_id, category, positioning, competitive_advantages, target_audience)
@@ -195,7 +197,7 @@ class OptimizedDatabaseStorage:
                 comp_intel.get("market_category", ""),
                 comp_intel.get("market_positioning", ""),
                 comp_intel.get("competitive_advantages", []),
-                intelligence.get("psychology_intelligence", {}).get("target_audience", "")
+                psych_intel.get("target_audience", "")
             )
             
             # Store research links if autonomous RAG was used
@@ -215,10 +217,20 @@ class OptimizedDatabaseStorage:
         
         try:
             research_chunks = rag_data.get("research_chunks_found", 0)
-            if research_chunks > 0:
-                # For now, store metadata about research enhancement
-                # In full implementation, you'd store actual research links
-                logger.info(f"Analysis {analysis_id} enhanced with {research_chunks} research chunks")
+            research_ids = rag_data.get("research_ids", [])
+            
+            # Store research links with relevance scores
+            for i, research_id in enumerate(research_ids[:5]):  # Limit to top 5
+                relevance_score = 0.8 - (i * 0.1)  # Decreasing relevance
+                
+                await conn.execute("""
+                    INSERT INTO intelligence_research (intelligence_id, research_id, relevance_score)
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT (intelligence_id, research_id) DO UPDATE SET
+                        relevance_score = EXCLUDED.relevance_score
+                """, analysis_id, research_id, relevance_score)
+            
+            logger.info(f"Analysis {analysis_id} linked to {len(research_ids)} research documents")
         except Exception as e:
             logger.error(f"Failed to store research links: {e}")
     
@@ -234,9 +246,11 @@ class OptimizedDatabaseStorage:
             content_hash = hashlib.sha256(content.encode()).hexdigest()
             
             await conn.execute("""
-                INSERT INTO knowledge_base (id, content_hash, content, research_type, metadata, created_at)
+                INSERT INTO knowledge_base (id, content_hash, content, research_type, source_metadata, created_at)
                 VALUES ($1, $2, $3, $4, $5, NOW())
-                ON CONFLICT (content_hash) DO NOTHING
+                ON CONFLICT (content_hash) DO UPDATE SET
+                    source_metadata = EXCLUDED.source_metadata
+                RETURNING id
             """, research_id, content_hash, content, research_type, json.dumps(metadata or {}))
             
             return research_id
@@ -244,7 +258,105 @@ class OptimizedDatabaseStorage:
         except Exception as e:
             logger.error(f"Failed to store research knowledge: {e}")
             return str(uuid.uuid4())
-
+    
+    async def retrieve_intelligence_by_id(self, intelligence_id: str) -> Dict[str, Any]:
+        """Retrieve complete intelligence analysis by ID"""
+        
+        try:
+            conn = await self._get_connection()
+            if not conn:
+                return {}
+            
+            # Get core intelligence
+            core_row = await conn.fetchrow("""
+                SELECT * FROM intelligence_core WHERE id = $1
+            """, intelligence_id)
+            
+            if not core_row:
+                return {}
+            
+            # Get product data
+            product_row = await conn.fetchrow("""
+                SELECT * FROM product_data WHERE intelligence_id = $1
+            """, intelligence_id)
+            
+            # Get market data  
+            market_row = await conn.fetchrow("""
+                SELECT * FROM market_data WHERE intelligence_id = $1
+            """, intelligence_id)
+            
+            # Get linked research
+            research_rows = await conn.fetch("""
+                SELECT kb.*, ir.relevance_score
+                FROM knowledge_base kb
+                JOIN intelligence_research ir ON kb.id = ir.research_id
+                WHERE ir.intelligence_id = $1
+                ORDER BY ir.relevance_score DESC
+            """, intelligence_id)
+            
+            # Reconstruct intelligence object
+            intelligence = {
+                "analysis_id": intelligence_id,
+                "product_name": core_row["product_name"],
+                "source_url": core_row["source_url"],
+                "confidence_score": core_row["confidence_score"],
+                "analysis_method": core_row["analysis_method"],
+                "created_at": core_row["created_at"].isoformat(),
+                "offer_intelligence": {
+                    "key_features": product_row["features"] if product_row else [],
+                    "primary_benefits": product_row["benefits"] if product_row else [],
+                    "ingredients_list": product_row["ingredients"] if product_row else [],
+                    "target_conditions": product_row["conditions"] if product_row else [],
+                    "usage_instructions": product_row["usage_instructions"] if product_row else []
+                },
+                "competitive_intelligence": {
+                    "market_category": market_row["category"] if market_row else "",
+                    "market_positioning": market_row["positioning"] if market_row else "",
+                    "competitive_advantages": market_row["competitive_advantages"] if market_row else []
+                },
+                "psychology_intelligence": {
+                    "target_audience": market_row["target_audience"] if market_row else ""
+                },
+                "research_links": [
+                    {
+                        "research_id": row["id"],
+                        "content": row["content"][:200] + "...",
+                        "research_type": row["research_type"],
+                        "relevance_score": row["relevance_score"]
+                    }
+                    for row in research_rows
+                ]
+            }
+            
+            return intelligence
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve intelligence {intelligence_id}: {e}")
+            return {}
+    
+    async def search_intelligence_by_product(self, product_name: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Search intelligence by product name"""
+        
+        try:
+            conn = await self._get_connection()
+            if not conn:
+                return []
+            
+            rows = await conn.fetch("""
+                SELECT ic.*, pd.features, pd.benefits, md.category
+                FROM intelligence_core ic
+                LEFT JOIN product_data pd ON ic.id = pd.intelligence_id
+                LEFT JOIN market_data md ON ic.id = md.intelligence_id
+                WHERE ic.product_name ILIKE $1
+                ORDER BY ic.created_at DESC
+                LIMIT $2
+            """, f"%{product_name}%", limit)
+            
+            return [dict(row) for row in rows]
+            
+        except Exception as e:
+            logger.error(f"Failed to search intelligence: {e}")
+            return []
 
 class SalesPageAnalyzer:
     """Main analyzer with complete pricing removal, autonomous RAG, and optimized storage"""
@@ -1013,21 +1125,92 @@ class SalesPageAnalyzer:
         except Exception as e:
             logger.error(f"Failed to generate autonomous research queries: {e}")
             return []
-    
+        
+    def _extract_clean_condition(self, condition_text: str) -> str:
+        """Extract clean health condition name"""
+        # Remove common marketing language
+        clean_text = condition_text.lower()
+
+        # Remove marketing words
+        marketing_words = ["support", "help", "improve", "enhance", "boost", "promote"]
+        for word in marketing_words:
+            clean_text = re.sub(r'\b' + word + r'\b', '', clean_text)
+
+        # Clean up and take meaningful terms
+        clean_text = re.sub(r'[^\w\s]', '', clean_text).strip()
+        words = clean_text.split()[:3]  # Max 3 words
+        return " ".join(words) if words else ""
+
+    def _analyze_content_themes(self, content: str) -> List[str]:
+        """Analyze content for research themes"""
+        themes = []
+        content_lower = content.lower()
+
+        # Health themes
+        health_themes = {
+            "liver health": ["liver", "hepatic", "detox"],
+            "weight management": ["weight", "fat", "slim", "obesity"],
+            "energy support": ["energy", "fatigue", "vitality"],
+            "digestive health": ["digest", "gut", "intestinal"],
+            "immune support": ["immune", "immunity", "defense"],
+            "cardiovascular": ["heart", "cardio", "blood pressure"],
+            "cognitive function": ["brain", "memory", "focus"]
+        }
+
+        for theme, keywords in health_themes.items():
+            if any(keyword in content_lower for keyword in keywords):
+                themes.append(theme)
+
+        return themes[:3]  # Return top 3 themes
+
+    def _score_research_queries(self, queries: List[str], product_name: str) -> List[Dict[str, Any]]:
+        """Score and rank research queries by potential value"""
+        scored_queries = []
+
+        for query in queries:
+            score = 0
+            query_lower = query.lower()
+
+            # Product name relevance (high value)
+            if product_name.lower() in query_lower:
+                score += 3
+
+            # Research quality indicators
+            if "clinical" in query_lower or "studies" in query_lower:
+                score += 2
+            if "research" in query_lower or "analysis" in query_lower:
+                score += 1
+            if "meta" in query_lower or "systematic" in query_lower:
+                score += 2
+
+            # Market relevance
+            if "market" in query_lower or "trends" in query_lower:
+                score += 1
+
+            scored_queries.append({
+                "query": query,
+                "score": score,
+                "length": len(query.split())
+            })
+
+        # Sort by score descending, then by reasonable length
+        scored_queries.sort(key=lambda x: (x["score"], -abs(x["length"] - 6)), reverse=True)
+        return scored_queries
+
     def _extract_health_terms(self, text: str) -> str:
         """Extract key health terms from benefit text"""
-        
+
         health_keywords = [
             "liver", "metabolism", "energy", "weight", "detox", "digest",
             "immune", "heart", "brain", "joint", "muscle", "bone", "skin",
             "blood", "cholesterol", "glucose", "insulin", "antioxidant"
         ]
-        
+
         text_lower = text.lower()
         found_terms = [term for term in health_keywords if term in text_lower]
-        
+
         return " ".join(found_terms[:2]) if found_terms else ""
-    
+
     def _extract_ingredient_name(self, ingredient_text: str) -> str:
         """Extract clean ingredient name for research"""
         
@@ -1256,26 +1439,220 @@ Respond with detailed product intelligence using "{product_name}" throughout."""
         return parsed_data
     
     def _merge_rag_intelligence(self, base_intel: Dict[str, Any], rag_intel: Dict[str, Any]) -> Dict[str, Any]:
-        """Merge RAG intelligence into base intelligence"""
-        
+        """Merge RAG intelligence into base intelligence - ENHANCED VERSION"""
+    
         # Add RAG insights to competitive intelligence
         if rag_intel.get('intelligence_analysis'):
             base_intel["competitive_intelligence"]["rag_insights"] = rag_intel['intelligence_analysis']
         
-        # Add RAG metadata
+        # Parse RAG insights for specific enhancements
+        rag_text = rag_intel['intelligence_analysis'].lower()
+        
+        # Enhance competitive advantages from RAG
+        if "advantage" in rag_text or "benefit" in rag_text:
+            rag_advantages = self._extract_advantages_from_rag(rag_intel['intelligence_analysis'])
+            if rag_advantages:
+                existing_advantages = base_intel["competitive_intelligence"].get("competitive_advantages", [])
+                base_intel["competitive_intelligence"]["competitive_advantages"] = existing_advantages + rag_advantages
+        
+        # Enhance market positioning from RAG
+        if "market" in rag_text or "position" in rag_text:
+            rag_positioning = self._extract_positioning_from_rag(rag_intel['intelligence_analysis'])
+            if rag_positioning:
+                base_intel["competitive_intelligence"]["rag_market_positioning"] = rag_positioning
+    
+        # Store research document IDs for database linking
+        research_ids = rag_intel.get('source_document_ids', [])
+        if research_ids:
+            base_intel["autonomous_rag"]["research_ids"] = research_ids
+    
+        # Add RAG metadata with enhanced details
         base_intel["rag_enhancement"] = {
             "enhanced": True,
             "confidence_score": rag_intel.get('confidence_score', 0.0),
             "source_documents": rag_intel.get('source_documents', []),
             "research_depth": rag_intel.get('research_depth', 0),
-            "provider_used": rag_intel.get('provider_used', 'unknown')
+            "provider_used": rag_intel.get('provider_used', 'unknown'),
+            "research_categories": rag_intel.get('research_categories', []),
+            "enhancement_timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    
+        return base_intel
+
+    def _extract_advantages_from_rag(self, rag_text: str) -> List[str]:
+        """Extract competitive advantages from RAG analysis"""
+    
+        advantages = []
+        advantage_patterns = [
+            r'(?:advantage|benefit|superior)[:\s]+([^.\n]{20,100})',
+            r'(?:better than|outperforms|exceeds)[:\s]+([^.\n]{20,100})',
+            r'(?:unique|exclusive|proprietary)[:\s]+([^.\n]{20,100})'
+        ]
+    
+        for pattern in advantage_patterns:
+            matches = re.findall(pattern, rag_text, re.IGNORECASE)
+            for match in matches:
+                if not self._contains_pricing_info(match):
+                    advantages.append(f"RAG Research: {match.strip()}")
+    
+        return advantages[:3]  # Limit to top 3
+
+    def _extract_positioning_from_rag(self, rag_text: str) -> str:
+        """Extract market positioning insights from RAG"""
+    
+        positioning_patterns = [
+            r'(?:positioned as|positioned in|market position)[:\s]+([^.\n]{20,100})',
+            r'(?:competes in|targets|focuses on)[:\s]+([^.\n]{20,100})',
+            r'(?:market segment|category|niche)[:\s]+([^.\n]{20,100})'
+        ]
+    
+        for pattern in positioning_patterns:
+            matches = re.findall(pattern, rag_text, re.IGNORECASE)
+            if matches and not self._contains_pricing_info(matches[0]):
+                return f"RAG Analysis: {matches[0].strip()}"
+    
+        return ""
+
+    # 2. Enhanced autonomous research query generation
+    async def _generate_autonomous_research_queries_enhanced(
+        self, 
+        intelligence: Dict[str, Any], 
+        structured_content: Dict[str, Any], 
+        product_name: str
+    ) -> List[str]:
+        """Enhanced autonomous research query generation with better targeting"""
+        
+        queries = []
+        
+        try:
+            # Extract key elements from intelligence for research
+            offer_intel = intelligence.get("offer_intelligence", {})
+            competitive_intel = intelligence.get("competitive_intelligence", {})
+            
+            # 1. Product-specific research queries with variants
+            if product_name and product_name != "Product":
+                base_queries = [
+                    f"{product_name} clinical studies efficacy",
+                    f"{product_name} competitor analysis market share",
+                    f"{product_name} ingredient safety research",
+                    f"{product_name} user reviews satisfaction study",
+                    f"{product_name} market positioning analysis"
+                ]
+                queries.extend(base_queries)
+            
+            # 2. Benefit-based research with health focus
+            benefits = offer_intel.get("primary_benefits", [])
+            for benefit in benefits[:2]:  # Top 2 benefits
+                if len(benefit) > 15:  # Meaningful benefit
+                    # Extract health terms more intelligently
+                    health_focus = self._extract_health_focus_advanced(benefit)
+                    if health_focus:
+                        queries.append(f"{health_focus} clinical research meta analysis")
+                        queries.append(f"{health_focus} treatment efficacy studies")
+            
+            # 3. Ingredient research with scientific focus
+            ingredients = offer_intel.get("ingredients_list", [])
+            for ingredient in ingredients[:2]:  # Top 2 ingredients
+                if len(ingredient) > 8:
+                    clean_ingredient = self._extract_ingredient_name_advanced(ingredient)
+                    if clean_ingredient:
+                        queries.append(f"{clean_ingredient} pharmacology research")
+                        queries.append(f"{clean_ingredient} bioavailability studies")
+            
+            # 4. Market category with competitive intelligence
+            market_category = competitive_intel.get("market_category", "")
+            if market_category:
+                queries.extend([
+                    f"{market_category} market size growth trends",
+                    f"{market_category} consumer behavior research",
+                    f"{market_category} regulatory compliance studies"
+                ])
+            
+            # 5. Condition-specific research
+            conditions = offer_intel.get("target_conditions", [])
+            for condition in conditions[:2]:  # Top 2 conditions
+                if len(condition) > 5:
+                    clean_condition = self._extract_clean_condition(condition)
+                    if clean_condition:
+                        queries.append(f"{clean_condition} treatment research systematic review")
+            
+            # 6. Advanced content analysis for research opportunities
+            content_themes = self._analyze_content_themes(structured_content.get("content", ""))
+            for theme in content_themes[:2]:
+                if theme:
+                    queries.append(f"{theme} research evidence base")
+            
+            # Remove duplicates and limit to best queries
+            unique_queries = []
+            seen = set()
+            for query in queries:
+                query_lower = query.lower()
+                if query_lower not in seen and len(query) > 10:
+                    unique_queries.append(query)
+                    seen.add(query_lower)
+            
+            # Score and rank queries by potential value
+            scored_queries = self._score_research_queries(unique_queries, product_name)
+            
+            # Return top 6 queries
+            final_queries = [q["query"] for q in scored_queries[:6]]
+            
+            logger.info(f"Generated {len(final_queries)} high-value research queries")
+            return final_queries
+            
+        except Exception as e:
+            logger.error(f"Enhanced research query generation failed: {e}")
+            return self._generate_autonomous_research_queries(intelligence, structured_content, product_name)
+
+    def _extract_health_focus_advanced(self, benefit_text: str) -> str:
+        """Advanced health focus extraction"""
+        
+        # More comprehensive health term mapping
+        health_patterns = {
+            "liver health": ["liver", "hepatic", "detox", "cleanse"],
+            "cardiovascular health": ["heart", "cardio", "blood pressure", "circulation"],
+            "metabolic health": ["metabolism", "metabolic", "energy", "fat burning"],
+            "digestive health": ["digest", "gut", "stomach", "intestinal"],
+            "immune support": ["immune", "immunity", "defense", "resistance"],
+            "cognitive function": ["brain", "memory", "focus", "mental clarity"],
+            "joint health": ["joint", "arthritis", "mobility", "flexibility"],
+            "weight management": ["weight", "slim", "fat", "obesity"]
         }
         
-        return base_intel
+        benefit_lower = benefit_text.lower()
+        
+        # Find the most specific health focus
+        for health_focus, keywords in health_patterns.items():
+            if any(keyword in benefit_lower for keyword in keywords):
+                return health_focus
+        
+        return ""
+
+    def _extract_ingredient_name_advanced(self, ingredient_text: str) -> str:
+        """Advanced ingredient name extraction"""
     
+        # Clean up common supplement language
+        clean_text = ingredient_text.lower()
+    
+        # Remove common words
+        remove_words = [
+            "contains", "with", "made", "extract", "supplement", "natural", 
+            "organic", "pure", "premium", "high", "potency", "mg", "grams"
+        ]
+    
+        for word in remove_words:
+            clean_text = re.sub(r'\b' + word + r'\b', '', clean_text)
+    
+        # Remove punctuation and clean up
+        clean_text = re.sub(r'[^\w\s]', '', clean_text).strip()
+    
+        # Take first meaningful word(s)
+        words = clean_text.split()[:3]  # Max 3 words
+        return " ".join(words) if words else ""
+
+    # 2. Fix the _calculate_confidence_score method signature
     def _calculate_confidence_score(self, intelligence: Dict[str, Any], structured_content: Dict[str, Any]) -> float:
         """Calculate realistic confidence score based on data richness"""
-
         score = 0.3  # Base score
 
         # Offer intelligence scoring (max 0.2)
@@ -1348,11 +1725,11 @@ Respond with detailed product intelligence using "{product_name}" throughout."""
         categories_populated = sum(
             1
             for category in [
-                intelligence.get("offer_intelligence", {}),
-                intelligence.get("psychology_intelligence", {}),
-                intelligence.get("content_intelligence", {}),
-                intelligence.get("competitive_intelligence", {}),
-                intelligence.get("brand_intelligence", {}),
+            intelligence.get("offer_intelligence", {}),
+            intelligence.get("psychology_intelligence", {}),
+            intelligence.get("content_intelligence", {}),
+            intelligence.get("competitive_intelligence", {}),
+            intelligence.get("brand_intelligence", {}),
             ]
             if category
         )
