@@ -17,7 +17,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """Add missing JSONB columns to campaign_intelligence table"""
+    """Add missing JSONB columns to campaign intelligence table"""
     
     # Check if columns exist before adding them
     conn = op.get_bind()
@@ -26,7 +26,7 @@ def upgrade() -> None:
     result = conn.execute(sa.text("""
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'campaign_intelligence' 
+        WHERE table_name = 'intelligence_core' 
         AND table_schema = 'public'
     """))
     existing_columns = {row[0] for row in result}
@@ -50,7 +50,7 @@ def upgrade() -> None:
         if column_name not in existing_columns:
             print(f"Adding column: {column_name}")
             op.execute(sa.text(f"""
-                ALTER TABLE campaign_intelligence 
+                ALTER TABLE intelligence_core 
                 ADD COLUMN {column_name} JSONB DEFAULT '{{}}'::jsonb
             """))
         else:
@@ -58,7 +58,7 @@ def upgrade() -> None:
     
     # Update any existing NULL values to empty JSON objects
     op.execute(sa.text("""
-        UPDATE campaign_intelligence 
+        UPDATE intelligence_core 
         SET 
             offer_intelligence = COALESCE(offer_intelligence, '{}'::jsonb),
             psychology_intelligence = COALESCE(psychology_intelligence, '{}'::jsonb),
@@ -105,6 +105,6 @@ def downgrade() -> None:
     
     for column_name in columns_to_remove:
         try:
-            op.drop_column('campaign_intelligence', column_name)
+            op.drop_column('intelligence_core', column_name)
         except Exception as e:
             print(f"Could not drop column {column_name}: {e}")

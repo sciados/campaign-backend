@@ -22,6 +22,7 @@ from .base_generator import BaseGenerator
 
 # ✅ PHASE 2.2: Import CRUD infrastructure
 from src.core.crud.intelligence_crud import IntelligenceCRUD
+from src.intelligence.analyzers import OptimizedDatabaseStorage
 
 # ✅ PHASE 2.2: Import storage system
 from src.storage.universal_dual_storage import get_storage_manager
@@ -128,8 +129,8 @@ class SocialMediaGenerator(BaseGenerator):
         campaign_theme = preferences.get("theme", "product_benefits")
         
         # Extract intelligence with enum serialization
-        campaign_intelligence = self._extract_campaign_intelligence(intelligence_data)
-        campaign_intelligence["product_name"] = actual_product_name
+        intelligence_core = self._extract_intelligence_core(intelligence_data)
+        intelligence_core["product_name"] = actual_product_name
         
         try:
             # Generate content for each platform
@@ -140,7 +141,7 @@ class SocialMediaGenerator(BaseGenerator):
                 try:
                     platform_content, platform_costs = await self._generate_platform_content(
                         platform, 
-                        campaign_intelligence, 
+                        intelligence_core, 
                         content_count, 
                         campaign_theme
                     )
@@ -148,7 +149,7 @@ class SocialMediaGenerator(BaseGenerator):
                     total_costs.extend(platform_costs)
                 except Exception as e:
                     logger.error(f"Platform generation failed for {platform}: {str(e)}")
-                    campaign_content[platform] = self._generate_fallback_platform_content(platform, campaign_intelligence)
+                    campaign_content[platform] = self._generate_fallback_platform_content(platform, intelligence_core)
                     total_costs.append({"cost": 0, "fallback": True})
             
             # ✅ PHASE 2.2: Apply product name fixes to all content
@@ -183,7 +184,7 @@ class SocialMediaGenerator(BaseGenerator):
             return self._create_enhanced_response(
                 content={
                     "platforms": fixed_campaign_content,
-                    "campaign_intelligence": campaign_intelligence,
+                    "intelligence_core": intelligence_core,
                     "total_pieces": sum(len(content["posts"]) for content in fixed_campaign_content.values()),
                     "ready_to_publish": True,
                     "product_name_used": actual_product_name,
@@ -635,45 +636,67 @@ class SocialMediaGenerator(BaseGenerator):
         except Exception as e:
             logger.error(f"❌ Failed to store social content: {str(e)}")
             return {"success": False, "error": str(e)}
+
+async def _create_intelligence_record(
+    self, 
+    campaign_id: str, 
+    content: Dict, 
+    product_name: str, 
+    platforms: List[str],
+    db
+) -> None:
+    """Create intelligence record using new normalized schema"""
     
-    async def _create_intelligence_record(
-        self, 
-        campaign_id: str, 
-        content: Dict, 
-        product_name: str, 
-        platforms: List[str],
-        db
-    ) -> None:
-        """✅ PHASE 2.2: Create intelligence record using CRUD"""
+    try:        
+        storage = OptimizedDatabaseStorage()
         
-        try:
-            intelligence_data = {
-                "source_type": "social_media_generation",
-                "source_url": f"generated://social_media/{campaign_id}",
-                "content_intelligence": {
-                    "platforms_generated": platforms,
-                    "total_posts": sum(len(platform_data.get("posts", [])) for platform_data in content.values()),
-                    "product_name_used": product_name,
-                    "generation_method": "ultra_cheap_ai"
-                },
-                "confidence_score": 95.0,
-                "processing_metadata": {
-                    "generator": "social_media_generator",
-                    "version": "phase_2.2",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
+        # Extract content insights for new schema
+        total_posts = sum(len(platform_data.get("posts", [])) for platform_data in content.values())
+        
+        intelligence_data = {
+            "product_name": product_name,
+            "source_url": f"generated://social_media/{campaign_id}",
+            "confidence_score": 95.0,
+            "analysis_method": "social_media_generation",
+            "offer_intelligence": {
+                "key_features": [
+                    f"Social media content for {platform}" for platform in platforms
+                ],
+                "primary_benefits": [
+                    f"Engagement-optimized {platform} posts" for platform in platforms[:3]
+                ],
+                "value_propositions": [f"{product_name} social media presence"]
+            },
+            "competitive_intelligence": {
+                "market_category": "social_media_marketing",
+                "market_positioning": f"{product_name} social media strategy",
+                "competitive_advantages": [
+                    f"Platform-optimized content for {platform}" for platform in platforms
+                ]
+            },
+            "psychology_intelligence": {
+                "target_audience": f"{product_name} social media audience",
+                "emotional_triggers": ["engagement", "social_proof", "community"]
+            },
+            "content_intelligence": {
+                "content_type": "social_media_campaign",
+                "platforms_generated": platforms,
+                "total_posts": total_posts,
+                "engagement_elements": ["hashtags", "captions", "visual_content"]
+            },
+            "brand_intelligence": {
+                "brand_voice": "social_media_optimized",
+                "messaging_style": "engagement_focused",
+                "brand_positioning": f"{product_name} social media brand"
             }
-            
-            await self.intelligence_crud.create(
-                db=db,
-                obj_in=intelligence_data,
-                campaign_id=campaign_id
-            )
-            
-            logger.info(f"✅ Intelligence record created for social media generation")
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to create intelligence record: {str(e)}")
+        }
+        
+        # Store using new normalized schema
+        analysis_id = await storage.store_intelligence_analysis(intelligence_data)
+        logger.info(f"Intelligence record created for social media: {analysis_id}")
+        
+    except Exception as e:
+        logger.error(f"Failed to create intelligence record: {str(e)}")
     
     # ============================================================================
     # PROMPT CREATION METHODS
@@ -876,7 +899,7 @@ class SocialMediaGenerator(BaseGenerator):
         
         return hashtags[:limit]
     
-    def _extract_campaign_intelligence(self, intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_intelligence_core(self, intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract key intelligence for social media campaigns with enum serialization"""
         
         # Extract actual product name

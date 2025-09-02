@@ -78,7 +78,7 @@ class AffiliateOptimizedCache:
                     AVG(confidence_score) as avg_confidence,
                     MAX(created_at) as last_analyzed,
                     EXTRACT(DAYS FROM (NOW() - MIN(created_at))) as days_since_first
-                FROM campaign_intelligence 
+                FROM intelligence_core 
                 WHERE analysis_status = 'COMPLETED'
                 AND created_at >= NOW() - INTERVAL '90 days'
                 GROUP BY source_url
@@ -124,7 +124,7 @@ class AffiliateOptimizedCache:
                     COUNT(DISTINCT user_id) as unique_users,
                     COUNT(DISTINCT company_id) as unique_companies,
                     AVG(confidence_score) as avg_confidence
-                FROM campaign_intelligence
+                FROM intelligence_core
                 WHERE created_at >= NOW() - INTERVAL '30 days'
                 AND analysis_status = 'COMPLETED'
             """)
@@ -204,7 +204,7 @@ class AffiliateOptimizedCache:
                     COUNT(*) as total_promotions,
                     AVG(confidence_score) as avg_quality,
                     MAX(created_at) as last_promotion
-                FROM campaign_intelligence
+                FROM intelligence_core
                 WHERE created_at >= NOW() - INTERVAL '30 days'
                 AND analysis_status = 'COMPLETED'
                 AND source_title IS NOT NULL
@@ -249,7 +249,7 @@ class AffiliateOptimizedCache:
                     COUNT(DISTINCT user_id) as potential_users,
                     COUNT(*) as similar_analyses,
                     AVG(confidence_score) as expected_quality
-                FROM campaign_intelligence
+                FROM intelligence_core
                 WHERE source_url LIKE :domain_pattern
                 AND created_at >= NOW() - INTERVAL '90 days'
                 AND analysis_status = 'COMPLETED'

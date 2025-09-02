@@ -126,8 +126,8 @@ class CampaignAngleGenerator(BaseGenerator):
         
         try:
             # Extract campaign intelligence with enum serialization
-            campaign_intelligence = self._extract_campaign_intelligence(intelligence_data)
-            campaign_intelligence["product_name"] = actual_product_name
+            intelligence_core = self._extract_intelligence_core(intelligence_data)
+            intelligence_core["product_name"] = actual_product_name
             
             # Generate strategic angles
             generated_angles = []
@@ -136,7 +136,7 @@ class CampaignAngleGenerator(BaseGenerator):
             for i, angle_config in enumerate(self.marketing_angles[:angle_count]):
                 try:
                     angle_result = await self._generate_single_angle(
-                        angle_config, campaign_intelligence, content_type, i + 1
+                        angle_config, intelligence_core, content_type, i + 1
                     )
                     
                     if angle_result["success"]:
@@ -144,12 +144,12 @@ class CampaignAngleGenerator(BaseGenerator):
                         total_cost += angle_result["cost"]
                     else:
                         # Add fallback angle
-                        fallback_angle = self._generate_fallback_angle(angle_config, campaign_intelligence, i + 1)
+                        fallback_angle = self._generate_fallback_angle(angle_config, intelligence_core, i + 1)
                         generated_angles.append(fallback_angle)
                     
                 except Exception as e:
                     logger.error(f"Angle generation failed for {angle_config['name']}: {str(e)}")
-                    fallback_angle = self._generate_fallback_angle(angle_config, campaign_intelligence, i + 1)
+                    fallback_angle = self._generate_fallback_angle(angle_config, intelligence_core, i + 1)
                     generated_angles.append(fallback_angle)
             
             # ✅ PHASE 2.3: Apply product name fixes to all angles
@@ -184,7 +184,7 @@ class CampaignAngleGenerator(BaseGenerator):
                 content={
                     "angles": fixed_angles,
                     "total_angles": len(fixed_angles),
-                    "campaign_intelligence": campaign_intelligence,
+                    "intelligence_core": intelligence_core,
                     "angle_diversity": "high",
                     "product_name_used": actual_product_name,
                     "placeholders_fixed": True,
@@ -216,16 +216,16 @@ class CampaignAngleGenerator(BaseGenerator):
     async def _generate_single_angle(
         self,
         angle_config: Dict[str, Any],
-        campaign_intelligence: Dict[str, Any],
+        intelligence_core: Dict[str, Any],
         content_type: str,
         angle_number: int
     ) -> Dict[str, Any]:
         """Generate a single campaign angle using proven AI patterns"""
         
-        actual_product_name = campaign_intelligence["product_name"]
+        actual_product_name = intelligence_core["product_name"]
         
         # Create angle-specific prompt
-        prompt = self._create_angle_prompt(angle_config, campaign_intelligence, content_type, angle_number)
+        prompt = self._create_angle_prompt(angle_config, intelligence_core, content_type, angle_number)
         
         # Generate using dynamic AI system
         ai_result = await self._generate_with_dynamic_ai(
@@ -258,14 +258,14 @@ class CampaignAngleGenerator(BaseGenerator):
     def _create_angle_prompt(
         self, 
         angle_config: Dict[str, Any], 
-        campaign_intelligence: Dict[str, Any], 
+        intelligence_core: Dict[str, Any], 
         content_type: str,
         angle_number: int
     ) -> str:
         """Create angle-specific generation prompt with product name enforcement"""
         
-        actual_product_name = campaign_intelligence["product_name"]
-        key_benefits = campaign_intelligence.get("key_benefits", [])
+        actual_product_name = intelligence_core["product_name"]
+        key_benefits = intelligence_core.get("key_benefits", [])
         emotional_triggers = angle_config["emotional_triggers"]
         
         return f"""
@@ -485,48 +485,62 @@ class CampaignAngleGenerator(BaseGenerator):
         content_type: str,
         db
     ) -> None:
-        """✅ PHASE 2.3: Create intelligence record using CRUD"""
-        
+        """Create intelligence record using new normalized schema"""
+    
         try:
+            from src.intelligence.analyzers import OptimizedDatabaseStorage
+            storage = OptimizedDatabaseStorage()
+        
+            # Create intelligence data for new schema
             intelligence_data = {
-                "source_type": "campaign_angle_generation",
+                "product_name": product_name,
                 "source_url": f"generated://campaign_angles/{campaign_id}",
+                "confidence_score": 95.0,
+                "analysis_method": "campaign_angle_generation",
+                "offer_intelligence": {
+                    "key_features": [angle.get("messaging", "") for angle in angles[:3]],
+                    "primary_benefits": [angle.get("benefits", "") for angle in angles[:3]],
+                    "value_propositions": [angle.get("headline", "") for angle in angles]
+                },
+                "competitive_intelligence": {
+                    "market_category": "campaign_angles",
+                    "market_positioning": f"{product_name} strategic positioning",
+                    "competitive_advantages": [angle.get("angle_name", "") for angle in angles]
+                },
+                "psychology_intelligence": {
+                    "target_audience": f"{product_name} target audience",
+                    "emotional_triggers": [
+                        trigger for angle in angles 
+                        for trigger in angle.get("emotional_triggers", [])
+                    ][:10]
+                },
                 "content_intelligence": {
                     "content_type": "campaign_angles",
-                    "angles_generated": len(angles),
-                    "angle_types": [angle.get("angle_name") for angle in angles],
-                    "product_name_used": product_name,
-                    "generation_method": "ultra_cheap_ai"
+                    "total_angles": len(angles),
+                    "angle_types": [angle.get("angle_name") for angle in angles]
                 },
-                "confidence_score": 95.0,
-                "processing_metadata": {
-                    "generator": "campaign_angle_generator",
-                    "version": "phase_2.3",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "angle_count": len(angles)
+                "brand_intelligence": {
+                    "messaging_approaches": [angle.get("approach", "") for angle in angles],
+                    "brand_positioning": f"{product_name} brand strategy"
                 }
             }
-            
-            await self.intelligence_crud.create(
-                db=db,
-                obj_in=intelligence_data,
-                campaign_id=campaign_id
-            )
-            
-            logger.info(f"✅ Intelligence record created for campaign angle generation")
-            
+        
+            # Store using new normalized schema
+            analysis_id = await storage.store_intelligence_analysis(intelligence_data)
+            logger.info(f"Intelligence record created: {analysis_id}")
+        
         except Exception as e:
-            logger.error(f"❌ Failed to create intelligence record: {str(e)}")
+            logger.error(f"Failed to create intelligence record: {str(e)}")
     
     def _generate_fallback_angle(
         self, 
         angle_config: Dict[str, Any], 
-        campaign_intelligence: Dict[str, Any], 
+        intelligence_core: Dict[str, Any], 
         angle_number: int
     ) -> Dict[str, Any]:
         """Generate fallback angle when AI generation fails"""
         
-        actual_product_name = campaign_intelligence["product_name"]
+        actual_product_name = intelligence_core["product_name"]
         
         fallback_angle = {
             "angle_number": angle_number,
@@ -548,7 +562,7 @@ class CampaignAngleGenerator(BaseGenerator):
         
         return fallback_angle
     
-    def _extract_campaign_intelligence(self, intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_intelligence_core(self, intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract campaign intelligence with enum serialization"""
         
         actual_product_name = extract_product_name_from_intelligence(intelligence_data)

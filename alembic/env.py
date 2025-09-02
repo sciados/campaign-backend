@@ -17,8 +17,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 metadata = MetaData()
 
 # Define just the intelligence table that we need to migrate
-campaign_intelligence = Table(
-    'campaign_intelligence',
+intelligence_core = Table(
+    'intelligence_core',
     metadata,
     Column('id', UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()),
     Column('created_at', DateTime(timezone=True), server_default=func.now()),

@@ -246,30 +246,64 @@ class AutomatedNicheMonitor:
         """Filter out products that have already been analyzed recently"""
         try:
             new_products = []
-            
+        
             for product in products:
                 url = product["url"]
-                
-                # Check if URL was analyzed in last 7 days
+            
+                # UPDATED: Check new intelligence_core table
                 query = """
-                    SELECT id FROM campaign_intelligence 
+                    SELECT id FROM intelligence_core 
                     WHERE source_url = :url 
                     AND created_at >= NOW() - INTERVAL '7 days'
                     LIMIT 1
                 """
-                
+            
                 result = await self.db.execute(query, {"url": url})
-                
+            
                 if not result.fetchone():
                     new_products.append(product)
                 else:
-                    logger.debug(f"⏭️ Skipping recently analyzed: {url}")
-            
+                    logger.debug(f"⭐ Skipping recently analyzed: {url}")
+        
             return new_products
-            
+        
         except Exception as e:
-            logger.error(f"❌ Error filtering new products: {str(e)}")
+            logger.error(f"⚠ Error filtering new products: {str(e)}")
             return products  # Return all if filtering fails
+
+# Additional helper method for the class
+async def get_niche_analysis_stats(self, niche_name: str) -> Dict[str, Any]:
+    """Get analysis statistics for a specific niche using new schema"""
+    try:
+        # Query new tables for niche performance
+        query = """
+            SELECT 
+                COUNT(*) as total_analyses,
+                COUNT(DISTINCT ic.source_url) as unique_urls,
+                AVG(ic.confidence_score) as avg_confidence
+            FROM intelligence_core ic
+            JOIN market_data md ON ic.id = md.intelligence_id
+            WHERE md.category ILIKE :niche_pattern
+            AND ic.created_at >= NOW() - INTERVAL '30 days'
+        """
+        
+        result = await self.db.execute(query, {"niche_pattern": f"%{niche_name}%"})
+        row = result.fetchone()
+        
+        if row:
+            return {
+                "niche": niche_name,
+                "total_analyses": row.total_analyses or 0,
+                "unique_urls": row.unique_urls or 0,
+                "avg_confidence": round(row.avg_confidence or 0, 2),
+                "cache_hit_rate": ((row.total_analyses - row.unique_urls) / max(row.total_analyses, 1)) * 100
+            }
+        else:
+            return {"niche": niche_name, "total_analyses": 0, "unique_urls": 0}
+            
+    except Exception as e:
+        logger.error(f"Error getting niche stats: {str(e)}")
+        return {"niche": niche_name, "error": str(e)}
     
     async def _queue_product_for_analysis(self, product: Dict[str, Any], niche_name: str, priority_score: int) -> bool:
         """Queue a discovered product for proactive analysis"""
