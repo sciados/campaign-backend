@@ -1,0 +1,14 @@
+FullName
+--------
+C:\Users\shaun\OneDrive\Documents\GitHub\ai-discovery-service\src\__init__.py
+C:\Users\shaun\OneDrive\Documents\GitHub\ai-discovery-service\src\api\__init__.py
+C:\Users\shaun\OneDrive\Documents\GitHub\ai-discovery-service\src\api\ai_tools_routes.py
+C:\Users\shaun\OneDrive\Documents\GitHub\ai-discovery-service\src\api\routes.py
+C:\Users\shaun\OneDrive\Documents\GitHub\ai-discovery-service\src\database\connection.py
+C:\Users\shaun\OneDrive\Documents\GitHub\ai-discovery-service\src\database\init_db.py
+C:\Users\shaun\OneDrive\Documents\GitHub\ai-discovery-service\src\database\models.py
+C:\Users\shaun\OneDrive\Documents\GitHub\ai-discovery-service\src\main.py
+C:\Users\shaun\OneDrive\Documents\GitHub\ai-discovery-service\src\models\ai_tools_registry.py
+C:\Users\shaun\OneDrive\Documents\GitHub\ai-discovery-service\src\services\ai_tools_api.py
+C:\Users\shaun\OneDrive\Documents\GitHub\ai-discovery-service\src\services\ai_tools_monitor.py
+C:\Users\shaun\OneDrive\Documents\GitHub\ai-discovery-service\src\services\ai_tools_seeder.py
