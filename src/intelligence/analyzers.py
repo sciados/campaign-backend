@@ -1695,7 +1695,8 @@ def create_analyzer(analyzer_type: str = "standard") -> Any:
         "enhanced": EnhancedSalesPageAnalyzer,
         "competitive": CompetitiveAnalyzer,
         "document": DocumentAnalyzer,
-        "batch": BatchAnalysisManager
+        "batch": BatchAnalysisManager,
+        "vsl": VSLAnalyzer
     }
     
     if analyzer_type not in analyzer_types:
@@ -1849,6 +1850,67 @@ def test_pricing_removal() -> Dict[str, Any]:
     }
 
 
+class VSLAnalyzer:
+    """VSL analyzer with pricing removal and RAG integration"""
+    
+    def __init__(self):
+        # Initialize RAG system if available for transcript analysis
+        try:
+            self.rag_system = IntelligenceRAGSystem()
+            self.has_rag = True
+            logger.info("RAG system initialized for VSL analysis")
+        except Exception as e:
+            self.rag_system = None
+            self.has_rag = False
+            logger.warning(f"RAG system not available for VSL: {e}")
+    
+    async def detect_vsl(self, url: str) -> Dict[str, Any]:
+        """Detect VSL content - NO PRICING"""
+        
+        return {
+            "has_video": True,
+            "video_length_estimate": "Unknown",
+            "video_type": "unknown", 
+            "transcript_available": False,
+            "key_video_elements": ["Video content analysis requires additional tools"],
+            "pricing_analysis_disabled": True,
+            "rag_available": self.has_rag
+        }
+    
+    async def analyze_vsl(self, url: str, campaign_id: str, extract_transcript: bool = True, context_docs: List[str] = None) -> Dict[str, Any]:
+        """Analyze VSL content with optional research context - NO PRICING"""
+        
+        base_analysis = {
+            "transcript_id": f"vsl_{uuid.uuid4().hex[:8]}",
+            "video_url": url,
+            "transcript_text": "VSL analysis requires video processing tools",
+            "key_moments": [],
+            "psychological_hooks": ["Video analysis not yet implemented"],
+            "offer_mentions": [],  # NO PRICING - focus on product mentions
+            "call_to_actions": [],
+            "campaign_id": campaign_id,
+            "pricing_analysis_disabled": True,
+            "rag_enhanced": False
+        }
+        
+        # Add RAG enhancement if available and context provided
+        if self.has_rag and context_docs:
+            try:
+                # Add context documents for VSL analysis
+                for i, doc_content in enumerate(context_docs):
+                    doc_id = f"vsl_context_{i}_{uuid.uuid4().hex[:8]}"
+                    await self.rag_system.add_research_document(doc_id, doc_content)
+                
+                # Enhanced with actual transcript analysis context
+                base_analysis["rag_enhanced"] = True
+                base_analysis["research_context_available"] = len(context_docs)
+                
+            except Exception as e:
+                logger.error(f"RAG enhancement for VSL analysis failed: {e}")
+        
+        return base_analysis
+
+
 class WebAnalyzer:
     """Analyze general websites and web content with RAG enhancement"""
     
@@ -1877,7 +1939,8 @@ class WebAnalyzer:
 # Export all public classes and functions
 __all__ = [
     'SalesPageAnalyzer',
-    'WebAnalyzer',  # Add this for compatibility
+    'WebAnalyzer',
+    'VSLAnalyzer',
     'EnhancedSalesPageAnalyzer',
     'DocumentAnalyzer', 
     'CompetitiveAnalyzer',
