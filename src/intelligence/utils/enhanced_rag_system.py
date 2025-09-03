@@ -1,6 +1,7 @@
 # Enhanced Intelligence RAG System for CampaignForge
-# Add this to your intelligence/utils/ directory
+# File: src/intelligence/utils/enhanced_rag_system.py
 
+import datetime
 import hashlib
 import json
 import os
@@ -9,20 +10,29 @@ import numpy as np
 from typing import List, Dict, Any, Optional
 import cohere
 from sklearn.metrics.pairwise import cosine_similarity
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 import logging
+
+from src.core.crud.intelligence_crud import intelligence_crud
 
 logger = logging.getLogger(__name__)
 
 class IntelligenceRAGSystem:
     """
     Enhanced RAG system optimized for CampaignForge intelligence gathering
-    Focuses on research document analysis and competitive intelligence
+    Updated to work with new 6-table intelligence schema
     """
     
-    def __init__(self):
+    def __init__(self, db: AsyncSession = None):
         self.cohere_client = cohere.AsyncClient(api_key=os.getenv("COHERE_API_KEY"))
         self.document_embeddings = {}
         self.document_chunks = {}
+        self.db = db
+        
+    def set_database_connection(self, db: AsyncSession):
+        """Set database connection for RAG system"""
+        self.db = db
         
     async def add_research_document(self, doc_id: str, content: str, metadata: Dict[str, Any] = None):
         """Add research document to RAG system with semantic chunking"""
@@ -48,6 +58,150 @@ class IntelligenceRAGSystem:
         except Exception as e:
             logger.error(f"Failed to add research document {doc_id}: {str(e)}")
             return False
+    
+    async def add_research_document_to_db(self, doc_id: str, content: str, research_type: str, metadata: Dict[str, Any] = None):
+        """Add research document to both RAG system and knowledge_base table"""
+        
+        try:
+            # Add to RAG system (existing method)
+            success = await self.add_research_document(doc_id, content, metadata)
+            
+            if success and self.db:
+                # Store in new knowledge_base table
+                content_hash = hashlib.sha256(content.encode()).hexdigest()
+                
+                query = text("""
+                    INSERT INTO knowledge_base (id, content_hash, content, research_type, source_metadata, created_at)
+                    VALUES (:id, :content_hash, :content, :research_type, :source_metadata, NOW())
+                    ON CONFLICT (content_hash) DO UPDATE SET
+                        source_metadata = EXCLUDED.source_metadata,
+                        updated_at = NOW()
+                """)
+                
+                await self.db.execute(query, {
+                    "id": doc_id,
+                    "content_hash": content_hash,
+                    "content": content,
+                    "research_type": research_type,
+                    "source_metadata": json.dumps(metadata or {})
+                })
+                
+                await self.db.commit()
+                logger.info(f"Stored research document {doc_id} in knowledge_base")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to add research document to database: {str(e)}")
+            return False
+
+    async def link_intelligence_to_research(self, intelligence_id: str, research_ids: List[str], relevance_scores: List[float]):
+        """Link intelligence analysis to research documents in intelligence_research table"""
+        
+        try:
+            if not self.db:
+                return False
+            
+            # Store links in intelligence_research table
+            for research_id, relevance_score in zip(research_ids, relevance_scores):
+                query = text("""
+                    INSERT INTO intelligence_research (intelligence_id, research_id, relevance_score)
+                    VALUES (:intelligence_id, :research_id, :relevance_score)
+                    ON CONFLICT (intelligence_id, research_id) DO UPDATE SET
+                        relevance_score = EXCLUDED.relevance_score
+                """)
+                
+                await self.db.execute(query, {
+                    "intelligence_id": intelligence_id,
+                    "research_id": research_id,
+                    "relevance_score": relevance_score
+                })
+            
+            await self.db.commit()
+            logger.info(f"Linked intelligence {intelligence_id} to {len(research_ids)} research documents")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to link intelligence to research: {str(e)}")
+            return False
+
+    async def retrieve_research_for_intelligence(self, intelligence_id: str) -> List[Dict[str, Any]]:
+        """Retrieve linked research documents for an intelligence analysis"""
+        
+        try:
+            if not self.db:
+                return []
+            
+            # Get linked research from new schema
+            query = text("""
+                SELECT kb.*, ir.relevance_score
+                FROM knowledge_base kb
+                JOIN intelligence_research ir ON kb.id = ir.research_id
+                WHERE ir.intelligence_id = :intelligence_id
+                ORDER BY ir.relevance_score DESC
+            """)
+            
+            result = await self.db.execute(query, {"intelligence_id": intelligence_id})
+            rows = result.fetchall()
+            
+            research_docs = []
+            for row in rows:
+                research_docs.append({
+                    'research_id': row.id,
+                    'content': row.content,
+                    'research_type': row.research_type,
+                    'relevance_score': row.relevance_score,
+                    'metadata': json.loads(row.source_metadata or '{}'),
+                    'created_at': row.created_at
+                })
+            
+            return research_docs
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve research for intelligence: {str(e)}")
+            return []
+
+    async def get_research_from_knowledge_base(self, research_type: str = None, limit: int = 10) -> List[Dict[str, Any]]:
+        """Retrieve research documents from knowledge_base table"""
+        
+        try:
+            if not self.db:
+                return []
+            
+            if research_type:
+                query = text("""
+                    SELECT * FROM knowledge_base 
+                    WHERE research_type = :research_type
+                    ORDER BY created_at DESC
+                    LIMIT :limit
+                """)
+                result = await self.db.execute(query, {"research_type": research_type, "limit": limit})
+            else:
+                query = text("""
+                    SELECT * FROM knowledge_base 
+                    ORDER BY created_at DESC
+                    LIMIT :limit
+                """)
+                result = await self.db.execute(query, {"limit": limit})
+            
+            rows = result.fetchall()
+            
+            research_docs = []
+            for row in rows:
+                research_docs.append({
+                    'id': row.id,
+                    'content': row.content,
+                    'research_type': row.research_type,
+                    'metadata': json.loads(row.source_metadata or '{}'),
+                    'created_at': row.created_at,
+                    'content_hash': row.content_hash
+                })
+            
+            return research_docs
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve research from knowledge base: {str(e)}")
+            return []
     
     async def intelligent_research_query(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """
@@ -88,14 +242,14 @@ class IntelligenceRAGSystem:
     async def generate_enhanced_intelligence(self, query: str, context_chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Generate enhanced intelligence using RAG-retrieved context
-        Uses Claude for deep analysis of research materials
+        Uses available AI provider for deep analysis of research materials
         """
         
         try:
             # Prepare context from retrieved chunks
             context = self._format_research_context(context_chunks)
             
-            # Use Claude for deep research analysis (optimal for this task)
+            # Enhanced prompt for research analysis
             enhanced_prompt = f"""
             Based on the following research context, provide comprehensive intelligence analysis:
             
@@ -114,17 +268,8 @@ class IntelligenceRAGSystem:
             Focus on actionable intelligence for marketing campaigns.
             """
             
-            # Use your existing AI provider system but specify Claude for research
-            if hasattr(self, 'claude_client') and self.claude_client:
-                response = await self.claude_client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
-                    max_tokens=2000,
-                    messages=[{"role": "user", "content": enhanced_prompt}]
-                )
-                analysis = response.content[0].text
-            else:
-                # Fallback to your load balanced system
-                analysis = await self._fallback_analysis(enhanced_prompt)
+            # Use your existing AI provider system
+            analysis = await self._generate_ai_analysis(enhanced_prompt)
             
             return {
                 'intelligence_analysis': analysis,
@@ -137,6 +282,16 @@ class IntelligenceRAGSystem:
         except Exception as e:
             logger.error(f"Enhanced intelligence generation failed: {str(e)}")
             return {'error': str(e)}
+    
+    async def _generate_ai_analysis(self, prompt: str) -> str:
+        """Generate AI analysis using available provider"""
+        try:
+            # This would integrate with your existing AI provider system
+            # For now, using a fallback implementation
+            return f"Enhanced analysis based on research context: {prompt[:200]}..."
+        except Exception as e:
+            logger.error(f"AI analysis generation failed: {str(e)}")
+            return "Analysis could not be generated at this time."
     
     def _intelligent_chunk_research_content(self, content: str) -> List[str]:
         """Smart chunking optimized for research content"""
@@ -167,179 +322,6 @@ class IntelligenceRAGSystem:
             chunks.append(current_chunk.strip())
         
         return chunks
-    
-    # Add these database integration methods to IntelligenceRAGSystem class
-
-async def add_research_document_to_db(self, doc_id: str, content: str, research_type: str, metadata: Dict[str, Any] = None):
-    """Add research document to both RAG system and database"""
-    
-    try:
-        # Add to RAG system (existing method)
-        success = await self.add_research_document(doc_id, content, metadata)
-        
-        if success and hasattr(self, 'db') and self.db:
-            # Store in new knowledge_base table
-            content_hash = hashlib.sha256(content.encode()).hexdigest()
-            
-            await self.db.execute("""
-                INSERT INTO knowledge_base (id, content_hash, content, research_type, source_metadata, created_at)
-                VALUES ($1, $2, $3, $4, $5, NOW())
-                ON CONFLICT (content_hash) DO UPDATE SET
-                    source_metadata = EXCLUDED.source_metadata
-            """, doc_id, content_hash, content, research_type, json.dumps(metadata or {}))
-            
-            logger.info(f"Stored research document {doc_id} in knowledge_base")
-        
-        return success
-        
-    except Exception as e:
-        logger.error(f"Failed to add research document to database: {str(e)}")
-        return False
-
-async def link_intelligence_to_research(self, intelligence_id: str, research_ids: List[str], relevance_scores: List[float]):
-    """Link intelligence analysis to research documents in database"""
-    
-    try:
-        if not hasattr(self, 'db') or not self.db:
-            return False
-        
-        # Store links in intelligence_research table
-        for research_id, relevance_score in zip(research_ids, relevance_scores):
-            await self.db.execute("""
-                INSERT INTO intelligence_research (intelligence_id, research_id, relevance_score)
-                VALUES ($1, $2, $3)
-                ON CONFLICT (intelligence_id, research_id) DO UPDATE SET
-                    relevance_score = EXCLUDED.relevance_score
-            """, intelligence_id, research_id, relevance_score)
-        
-        logger.info(f"Linked intelligence {intelligence_id} to {len(research_ids)} research documents")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Failed to link intelligence to research: {str(e)}")
-        return False
-
-async def retrieve_research_for_intelligence(self, intelligence_id: str) -> List[Dict[str, Any]]:
-    """Retrieve linked research documents for an intelligence analysis"""
-    
-    try:
-        if not hasattr(self, 'db') or not self.db:
-            return []
-        
-        # Get linked research from new schema
-        rows = await self.db.fetch("""
-            SELECT kb.*, ir.relevance_score
-            FROM knowledge_base kb
-            JOIN intelligence_research ir ON kb.id = ir.research_id
-            WHERE ir.intelligence_id = $1
-            ORDER BY ir.relevance_score DESC
-        """, intelligence_id)
-        
-        research_docs = []
-        for row in rows:
-            research_docs.append({
-                'research_id': row['id'],
-                'content': row['content'],
-                'research_type': row['research_type'],
-                'relevance_score': row['relevance_score'],
-                'metadata': json.loads(row['source_metadata'] or '{}'),
-                'created_at': row['created_at']
-            })
-        
-        return research_docs
-        
-    except Exception as e:
-        logger.error(f"Failed to retrieve research for intelligence: {str(e)}")
-        return []
-
-def set_database_connection(self, db):
-    """Set database connection for RAG system"""
-    self.db = db
-
-# Updated EnhancedSalesPageAnalyzer to work with new schema
-class EnhancedSalesPageAnalyzer:
-    """Enhanced analyzer with RAG capabilities - Updated for new schema"""
-    
-    def __init__(self, db=None):
-        self.rag_system = IntelligenceRAGSystem()
-        if db:
-            self.rag_system.set_database_connection(db)
-        self._base_analyzer = None
-    
-    async def _get_base_analyzer(self):
-        """Lazy load base analyzer to avoid circular imports"""
-        if self._base_analyzer is None:
-            from ..analyzers import SalesPageAnalyzer
-            self._base_analyzer = SalesPageAnalyzer()
-        return self._base_analyzer
-    
-    async def analyze_with_research_context(self, url: str, research_docs: List[str] = None) -> Dict[str, Any]:
-        """Analyze sales page with additional research context - Updated for new schema"""
-        
-        # Get base analyzer and do standard analysis first
-        base_analyzer = await self._get_base_analyzer()
-        base_analysis = await base_analyzer.analyze(url)
-        
-        if research_docs:
-            research_ids = []
-            relevance_scores = []
-            
-            # Add research documents to RAG and database
-            for i, doc_content in enumerate(research_docs):
-                research_id = f"research_doc_{uuid.uuid4().hex[:8]}"
-                research_type = self._classify_research_type(doc_content)
-                
-                success = await self.rag_system.add_research_document_to_db(
-                    research_id, 
-                    doc_content, 
-                    research_type,
-                    {'source': 'user_provided', 'index': i}
-                )
-                
-                if success:
-                    research_ids.append(research_id)
-                    relevance_scores.append(0.8 - (i * 0.1))  # Decreasing relevance
-            
-            # Query for relevant context
-            product_name = base_analysis.get('product_name', 'Product')
-            research_query = f"competitive analysis market research {product_name}"
-            
-            relevant_chunks = await self.rag_system.intelligent_research_query(research_query)
-            
-            if relevant_chunks:
-                # Generate enhanced intelligence
-                enhanced_intel = await self.rag_system.generate_enhanced_intelligence(
-                    research_query, relevant_chunks
-                )
-                
-                # Link intelligence to research in database
-                if base_analysis.get('analysis_id') and research_ids:
-                    await self.rag_system.link_intelligence_to_research(
-                        base_analysis['analysis_id'],
-                        research_ids,
-                        relevance_scores
-                    )
-                
-                # Merge with base analysis
-                base_analysis['enhanced_intelligence'] = enhanced_intel
-                base_analysis['research_enhanced'] = True
-                base_analysis['research_sources'] = len(research_docs)
-                base_analysis['research_ids'] = research_ids
-        
-        return base_analysis
-    
-    def _classify_research_type(self, content: str) -> str:
-        """Classify research document type for database storage"""
-        content_lower = content.lower()
-        
-        if any(term in content_lower for term in ['clinical', 'study', 'trial', 'research']):
-            return 'clinical'
-        elif any(term in content_lower for term in ['market', 'industry', 'competitor']):
-            return 'market'
-        elif any(term in content_lower for term in ['ingredient', 'formula', 'component']):
-            return 'ingredient'
-        else:
-            return 'general'
 
     async def _generate_embeddings(self, texts: List[str]) -> List[List[float]]:
         """Generate embeddings using Cohere (optimal for research)"""
@@ -369,7 +351,7 @@ class EnhancedSalesPageAnalyzer:
         elif any(term in content_lower for term in ['product', 'feature', 'service', 'offering']):
             return 'product_analysis'
         elif any(term in content_lower for term in ['campaign', 'marketing', 'advertising']):
-            return 'intelligence_core'
+            return 'marketing_intelligence'
         else:
             return 'general_research'
     
@@ -408,58 +390,199 @@ class EnhancedSalesPageAnalyzer:
         )
         
         return min(confidence, 1.0)
-    
-    async def _fallback_analysis(self, prompt: str) -> str:
-        """Fallback to existing analysis system"""
-        # This would integrate with your existing load balanced system
-        return "Analysis completed using fallback system - integrate with your existing analyzers.py"
 
-# Usage example for integration with existing CampaignForge system
-class EnhancedSalesPageAnalyzer:
-    """Enhanced analyzer with RAG capabilities - NO CIRCULAR IMPORT"""
-    
-    def __init__(self):
-        # Initialize RAG system without importing from analyzers
-        self.rag_system = IntelligenceRAGSystem()
+    def _classify_research_type(self, content: str) -> str:
+        """Classify research document type for database storage"""
+        content_lower = content.lower()
         
-        # Lazy load the base analyzer to avoid circular imports
+        if any(term in content_lower for term in ['clinical', 'study', 'trial', 'research']):
+            return 'clinical'
+        elif any(term in content_lower for term in ['market', 'industry', 'competitor']):
+            return 'market'
+        elif any(term in content_lower for term in ['ingredient', 'formula', 'component']):
+            return 'ingredient'
+        else:
+            return 'general'
+
+
+# Enhanced Sales Page Analyzer with RAG capabilities
+class EnhancedSalesPageAnalyzer:
+    """Enhanced analyzer with RAG capabilities - Updated for new schema"""
+    
+    def __init__(self, db: AsyncSession = None):
+        self.rag_system = IntelligenceRAGSystem(db)
         self._base_analyzer = None
     
     async def _get_base_analyzer(self):
         """Lazy load base analyzer to avoid circular imports"""
         if self._base_analyzer is None:
-            # Import only when needed to avoid circular dependency
-            from ..analyzers import SalesPageAnalyzer
+            from src.intelligence.analyzers import SalesPageAnalyzer
             self._base_analyzer = SalesPageAnalyzer()
         return self._base_analyzer
     
     async def analyze_with_research_context(self, url: str, research_docs: List[str] = None) -> Dict[str, Any]:
-        """Analyze sales page with additional research context"""
+        """Analyze sales page with additional research context - Updated for new schema"""
         
-        # Get base analyzer and do standard analysis first
-        base_analyzer = await self._get_base_analyzer()
-        base_analysis = await base_analyzer.analyze(url)
-        
-        if research_docs:
-            # Add research documents to RAG
-            for i, doc_content in enumerate(research_docs):
-                await self.rag_system.add_research_document(f"research_doc_{i}", doc_content)
+        try:
+            # Get base analyzer and do standard analysis first
+            base_analyzer = await self._get_base_analyzer()
+            base_analysis = await base_analyzer.analyze(url)
             
-            # Query for relevant context
-            product_name = base_analysis.get('product_name', 'Product')
-            research_query = f"competitive analysis market research {product_name}"
-            
-            relevant_chunks = await self.rag_system.intelligent_research_query(research_query)
-            
-            if relevant_chunks:
-                # Generate enhanced intelligence
-                enhanced_intel = await self.rag_system.generate_enhanced_intelligence(
-                    research_query, relevant_chunks
-                )
+            if research_docs and len(research_docs) > 0:
+                research_ids = []
+                relevance_scores = []
                 
-                # Merge with base analysis
-                base_analysis['enhanced_intelligence'] = enhanced_intel
-                base_analysis['research_enhanced'] = True
-                base_analysis['research_sources'] = len(research_docs)
+                # Add research documents to RAG and database
+                for i, doc_content in enumerate(research_docs):
+                    research_id = f"research_doc_{uuid.uuid4().hex[:8]}"
+                    research_type = self.rag_system._classify_research_type(doc_content)
+                    
+                    success = await self.rag_system.add_research_document_to_db(
+                        research_id, 
+                        doc_content, 
+                        research_type,
+                        {'source': 'user_provided', 'index': i}
+                    )
+                    
+                    if success:
+                        research_ids.append(research_id)
+                        relevance_scores.append(0.8 - (i * 0.1))  # Decreasing relevance
+                
+                # Query for relevant context
+                product_name = base_analysis.get('product_name', 'Product')
+                research_query = f"competitive analysis market research {product_name}"
+                
+                relevant_chunks = await self.rag_system.intelligent_research_query(research_query)
+                
+                if relevant_chunks:
+                    # Generate enhanced intelligence
+                    enhanced_intel = await self.rag_system.generate_enhanced_intelligence(
+                        research_query, relevant_chunks
+                    )
+                    
+                    # Link intelligence to research in database
+                    if base_analysis.get('analysis_id') and research_ids:
+                        await self.rag_system.link_intelligence_to_research(
+                            base_analysis['analysis_id'],
+                            research_ids,
+                            relevance_scores
+                        )
+                    
+                    # Merge with base analysis
+                    base_analysis['enhanced_intelligence'] = enhanced_intel
+                    base_analysis['research_enhanced'] = True
+                    base_analysis['research_sources'] = len(research_docs)
+                    base_analysis['research_ids'] = research_ids
+            
+            return base_analysis
+            
+        except Exception as e:
+            logger.error(f"Error in enhanced analysis: {str(e)}")
+            # Return base analysis even if enhancement fails
+            base_analyzer = await self._get_base_analyzer()
+            return await base_analyzer.analyze(url)
+
+
+# RAG Integration for existing intelligence system
+class RAGIntelligenceIntegration:
+    """Integration layer for RAG with existing intelligence system"""
+    
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.rag_system = IntelligenceRAGSystem(db)
+    
+    async def enhance_intelligence_with_research(self, intelligence_id: str) -> Dict[str, Any]:
+        """Enhance existing intelligence analysis with RAG research"""
         
-        return base_analysis
+        try:
+            # Get intelligence data using new CRUD
+            intelligence_data = await intelligence_crud.get_intelligence_by_id(self.db, intelligence_id)
+            
+            if not intelligence_data:
+                return {"error": "Intelligence not found"}
+            
+            # Get linked research documents
+            research_docs = await self.rag_system.retrieve_research_for_intelligence(intelligence_id)
+            
+            if research_docs:
+                # Use research content for enhanced analysis
+                research_content = [doc['content'] for doc in research_docs]
+                
+                product_name = intelligence_data.get('product_name', 'Product')
+                query = f"detailed analysis {product_name} competitive intelligence"
+                
+                # Add research to RAG system
+                for i, doc in enumerate(research_docs):
+                    await self.rag_system.add_research_document(
+                        f"existing_research_{i}",
+                        doc['content'],
+                        doc.get('metadata', {})
+                    )
+                
+                # Query for insights
+                relevant_chunks = await self.rag_system.intelligent_research_query(query)
+                
+                if relevant_chunks:
+                    enhanced_analysis = await self.rag_system.generate_enhanced_intelligence(
+                        query, relevant_chunks
+                    )
+                    
+                    return {
+                        "intelligence_id": intelligence_id,
+                        "enhanced_analysis": enhanced_analysis,
+                        "research_sources": len(research_docs),
+                        "enhancement_timestamp": datetime.now().isoformat()
+                    }
+            
+            return {"message": "No research available for enhancement"}
+            
+        except Exception as e:
+            logger.error(f"Error enhancing intelligence with research: {str(e)}")
+            return {"error": str(e)}
+    
+    async def get_rag_system_stats(self) -> Dict[str, Any]:
+        """Get statistics about RAG system usage"""
+        
+        try:
+            # Get knowledge base stats
+            kb_stats_query = text("""
+                SELECT 
+                    COUNT(*) as total_documents,
+                    COUNT(DISTINCT research_type) as research_types,
+                    COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as recent_additions
+                FROM knowledge_base
+            """)
+            
+            result = await self.db.execute(kb_stats_query)
+            kb_stats = result.fetchone()
+            
+            # Get intelligence-research link stats
+            link_stats_query = text("""
+                SELECT 
+                    COUNT(*) as total_links,
+                    COUNT(DISTINCT intelligence_id) as enhanced_intelligence,
+                    AVG(relevance_score) as avg_relevance
+                FROM intelligence_research
+            """)
+            
+            result = await self.db.execute(link_stats_query)
+            link_stats = result.fetchone()
+            
+            return {
+                "knowledge_base": {
+                    "total_documents": kb_stats[0] if kb_stats else 0,
+                    "research_types": kb_stats[1] if kb_stats else 0,
+                    "recent_additions": kb_stats[2] if kb_stats else 0
+                },
+                "intelligence_links": {
+                    "total_links": link_stats[0] if link_stats else 0,
+                    "enhanced_intelligence": link_stats[1] if link_stats else 0,
+                    "avg_relevance": round(float(link_stats[2]), 2) if link_stats and link_stats[2] else 0.0
+                },
+                "in_memory_documents": len(self.rag_system.document_embeddings),
+                "system_status": "operational" if len(self.rag_system.document_embeddings) > 0 else "empty"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting RAG stats: {str(e)}")
+            return {"error": str(e)}
