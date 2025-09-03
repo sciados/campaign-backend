@@ -15,7 +15,7 @@ from fastapi import HTTPException
 
 from src.models.user import User
 from src.models.campaign import Campaign
-from src.models.intelligence import CampaignIntelligence, GeneratedContent
+from src.core.crud.intelligence_crud import intelligence_crud, GeneratedContent
 
 # 🚀 CRUD MIGRATION: Import centralized CRUD system
 from src.core.crud import campaign_crud, intelligence_crud

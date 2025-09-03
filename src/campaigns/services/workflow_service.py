@@ -18,7 +18,7 @@ from src.core.crud import campaign_crud, intelligence_crud
 
 from src.models import Campaign
 from src.models.campaign import CampaignWorkflowState, AutoAnalysisStatus
-from src.models.intelligence import CampaignIntelligence
+from src.core.crud.intelligence_crud import intelligence_crud
 from src.campaigns.schemas.workflow_schemas import WorkflowProgressData
 from src.utils.demo_campaign_seeder import is_demo_campaign
 

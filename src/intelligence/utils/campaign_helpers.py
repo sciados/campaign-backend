@@ -12,7 +12,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.campaign import Campaign
-from src.models.intelligence import CampaignIntelligence, GeneratedContent
+from src.core.crud.intelligence_crud import intelligence_crud, GeneratedContent
 
 # 🔧 CRUD IMPORTS - Using proven CRUD patterns
 from src.core.crud.campaign_crud import CampaignCRUD

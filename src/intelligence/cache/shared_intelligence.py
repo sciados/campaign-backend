@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func, text
 from sqlalchemy.orm import selectinload
 
-from src.models.intelligence import CampaignIntelligence, AnalysisStatus
+from src.core.crud.intelligence_crud import intelligence_crud, AnalysisStatus
 from src.models.campaign import Campaign
 
 logger = logging.getLogger(__name__)

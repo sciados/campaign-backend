@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.crud import campaign_crud, intelligence_crud
 
 from src.models import Campaign, User
-from src.models.intelligence import CampaignIntelligence
+from src.core.crud.intelligence_crud import intelligence_crud
 
 logger = logging.getLogger(__name__)
 

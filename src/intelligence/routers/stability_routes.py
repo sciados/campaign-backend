@@ -20,7 +20,7 @@ from src.core.database import get_async_db
 from src.auth.dependencies import get_current_user
 from src.models.user import User
 from src.models.campaign import Campaign
-from src.models.intelligence import CampaignIntelligence, GeneratedContent
+from src.core.crud.intelligence_crud import intelligence_crud, GeneratedContent
 from src.models.campaign_assets import CampaignAsset, AssetType
 from src.storage.universal_dual_storage import get_storage_manager
 

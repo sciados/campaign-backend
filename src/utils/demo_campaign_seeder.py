@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from src.models.campaign import Campaign, AutoAnalysisStatus, CampaignStatus, CampaignWorkflowState
-from src.models.intelligence import CampaignIntelligence, GeneratedContent, IntelligenceSourceType, AnalysisStatus
+from src.core.crud.intelligence_crud import intelligence_crud, GeneratedContent, IntelligenceSourceType, AnalysisStatus
 
 import logging
 

@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from src.core.database import get_async_db
 from src.models.user import User
-from src.models.intelligence import CampaignIntelligence, AnalysisStatus, IntelligenceSourceType
+from src.core.crud.intelligence_crud import intelligence_crud, AnalysisStatus, IntelligenceSourceType
 from src.models.campaign import Campaign, AutoAnalysisStatus
 from src.auth.dependencies import get_current_user
 from src.intelligence.handlers.intelligence_handler import IntelligenceHandler
