@@ -63,7 +63,7 @@ class EnumSerializerMixin:
     
     def _serialize_intelligence_source(self, source) -> Dict[str, Any]:
         """
-        Serialize a complete CampaignIntelligence object with all JSONB fields
+        Serialize a complete IntelligenceSourceType object with all JSONB fields
         """
         if not source:
             return {}

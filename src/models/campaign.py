@@ -121,7 +121,7 @@ class Campaign(BaseModel):
     content_generated = Column(Integer, default=0)
     
     # 🆕 NEW: Analysis-specific data storage
-    analysis_intelligence_id = Column(UUID(as_uuid=True))  # Link to CampaignIntelligence record
+    analysis_intelligence_id = Column(UUID(as_uuid=True))  # Link to IntelligenceSourceType record
     analysis_confidence_score = Column(Float, default=0.0)
     analysis_summary = Column(JSONB, default={})  # Key insights for content generation
     
@@ -156,7 +156,7 @@ class Campaign(BaseModel):
     company = relationship("Company", back_populates="campaigns")
     
     # Intelligence and content relationships
-    intelligence_sources = relationship("CampaignIntelligence", back_populates="campaign", cascade="all, delete-orphan")
+    intelligence_sources = relationship("IntelligenceSourceType", back_populates="campaign", cascade="all, delete-orphan")
     generated_content = relationship("GeneratedContent", back_populates="campaign", cascade="all, delete-orphan")
     smart_urls = relationship("SmartURL", back_populates="campaign", cascade="all, delete-orphan")
     

@@ -18,7 +18,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.user import User
 from src.models.campaign import Campaign, AutoAnalysisStatus, CampaignStatus, CampaignWorkflowState
 from src.models.intelligence import (
-    CampaignIntelligence,
     IntelligenceSourceType,
     AnalysisStatus
 )
@@ -336,7 +335,7 @@ class AnalysisHandler:
             logger.error(f"Exception args: {e.args}")
             raise ValueError(f"Campaign update failed: {str(e)}")
     
-    async def _create_intelligence_record(self, url: str, campaign_id: str, analysis_type: str) -> CampaignIntelligence:
+    async def _create_intelligence_record(self, url: str, campaign_id: str, analysis_type: str) -> IntelligenceSourceType:
         """Create initial intelligence record - FIXED CRUD MIGRATED"""
         try:
             logger.info(f"Creating intelligence record for: {url}")
@@ -625,7 +624,7 @@ class AnalysisHandler:
         
         return providers
     
-    async def _store_analysis_results(self, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]):
+    async def _store_analysis_results(self, intelligence: IntelligenceSourceType, analysis_result: Dict[str, Any]):
         """Store analysis results using centralized JSON utilities - FIXED CRUD MIGRATED"""
         try:
             enhanced_analysis = analysis_result
@@ -810,7 +809,7 @@ class AnalysisHandler:
         else:
             return {"value": str(data) if data is not None else ""}
     
-    async def _complete_campaign_analysis(self, campaign: Campaign, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]):
+    async def _complete_campaign_analysis(self, campaign: Campaign, intelligence: IntelligenceSourceType, analysis_result: Dict[str, Any]):
         """Complete campaign analysis and prepare for content generation - FIXED CRUD MIGRATED"""
         try:
             logger.info(f"Completing campaign analysis for {campaign.id}")
@@ -945,7 +944,7 @@ class AnalysisHandler:
         except Exception as counter_error:
             logger.warning(f"Streamlined counter update failed (non-critical): {str(counter_error)}")
     
-    async def _handle_analysis_failure(self, intelligence: CampaignIntelligence, error: Exception):
+    async def _handle_analysis_failure(self, intelligence: IntelligenceSourceType, error: Exception):
         """Handle analysis failure in streamlined workflow - FIXED CRUD MIGRATED"""
         try:
             error_metadata = {
@@ -968,7 +967,7 @@ class AnalysisHandler:
         except Exception as update_error:
             logger.error(f"Failed to update failure metadata via CRUD: {str(update_error)}")
     
-    def _prepare_streamlined_response(self, campaign: Campaign, intelligence: CampaignIntelligence, analysis_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _prepare_streamlined_response(self, campaign: Campaign, intelligence: IntelligenceSourceType, analysis_result: Dict[str, Any]) -> Dict[str, Any]:
         """Prepare successful streamlined analysis response"""
         # Extract competitive opportunities
         competitive_intel = analysis_result.get("competitive_intelligence", {})
@@ -1037,7 +1036,7 @@ class AnalysisHandler:
             }
         }
     
-    def _prepare_failure_response(self, intelligence: CampaignIntelligence, error: Exception) -> Dict[str, Any]:
+    def _prepare_failure_response(self, intelligence: IntelligenceSourceType, error: Exception) -> Dict[str, Any]:
         """Prepare failure response for streamlined workflow"""
         return {
             "intelligence_id": str(intelligence.id),

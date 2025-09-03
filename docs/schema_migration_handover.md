@@ -38,7 +38,7 @@ scraped_content (url_hash, url, content, title, scraped_at)
 
 ### Updated New Models (src/models/intelligence.py)
 
-- `IntelligenceCore` - Replaces `CampaignIntelligence`
+- `IntelligenceCore` - Replaces `IntelligenceSourceType`
 - `ProductData` - Product-specific arrays
 - `MarketData` - Market and psychology data
 - `KnowledgeBase` - Centralized research
@@ -82,7 +82,7 @@ scraped_content (url_hash, url, content, title, scraped_at)
 
 ```python
 # Direct campaign_intelligence queries
-query = select(CampaignIntelligence).where(CampaignIntelligence.campaign_id == campaign_id)
+query = select(IntelligenceSourceType).where(IntelligenceSourceType.campaign_id == campaign_id)
 ```
 
 **NEW:**
@@ -153,7 +153,7 @@ cache_key = f"product_intel_{product_name}_{url_hash}"
 ### Monitor Files (niche_monitor.py, sales_page_monitor.py)
 
 1. Replace direct table inserts with intelligence CRUD methods
-2. Use `intelligence_crud.create_intelligence()` instead of creating `CampaignIntelligence`
+2. Use `intelligence_crud.create_intelligence()` instead of creating `IntelligenceSourceType`
 3. Update query filters from campaign_id to product_name or time-based
 
 **Example:**

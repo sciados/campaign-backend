@@ -169,7 +169,7 @@ try:
     NEW_INTELLIGENCE_SCHEMA_AVAILABLE = True
     
     # LEGACY COMPATIBILITY: Set old model names to None
-    CampaignIntelligence = None  # REMOVED - use IntelligenceCore instead
+    IntelligenceSourceType = None  # REMOVED - use IntelligenceCore instead
     SmartURL = None  # REMOVED
     
     logger.info("🚀 New optimized intelligence schema loaded (90% storage reduction)")
@@ -183,7 +183,7 @@ except ImportError as e:
     # Try to import legacy models as fallback
     try:
         from .intelligence import (
-            CampaignIntelligence,
+            IntelligenceSourceType,
             GeneratedContent,
             SmartURL,
             IntelligenceSourceType,
@@ -203,7 +203,7 @@ except ImportError as e:
     except ImportError as legacy_error:
         logger.error(f"❌ No intelligence models available: {legacy_error}")
         # Set all to None
-        CampaignIntelligence = None
+        IntelligenceSourceType = None
         GeneratedContent = None
         SmartURL = None
         IntelligenceSourceType = None
@@ -244,7 +244,7 @@ def get_available_models():
         'campaign_models': Campaign is not None,
         'asset_models': CampaignAsset is not None,
         'intelligence_models_new': IntelligenceCore is not None,
-        'intelligence_models_legacy': CampaignIntelligence is not None,
+        'intelligence_models_legacy': IntelligenceSourceType is not None,
         'new_schema_active': NEW_INTELLIGENCE_SCHEMA_AVAILABLE,
         'waitlist_models': Waitlist is not None
     }
@@ -345,13 +345,13 @@ if NEW_INTELLIGENCE_SCHEMA_AVAILABLE:
 else:
     # Export legacy models as fallback
     _intelligence_exports = [
-        'CampaignIntelligence',
+        'IntelligenceSourceType',
         'GeneratedContent', 
         'SmartURL',
         'IntelligenceSourceType',
         'AnalysisStatus',
         'AnalysisRequest',
-    ] if CampaignIntelligence is not None else []
+    ] if IntelligenceSourceType is not None else []
 
 _waitlist_exports = ['Waitlist'] if Waitlist is not None else []
 
@@ -448,7 +448,7 @@ def get_intelligence_model_class():
     if NEW_INTELLIGENCE_SCHEMA_AVAILABLE:
         return IntelligenceCore
     else:
-        return CampaignIntelligence
+        return IntelligenceSourceType
 
 def get_intelligence_schema_version() -> str:
     """Get current intelligence schema version"""

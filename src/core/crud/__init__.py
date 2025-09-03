@@ -124,9 +124,9 @@ AFTER (centralized CRUD):
     )
 
 BEFORE (complex query building):
-    query = select(CampaignIntelligence)
-    query = query.where(CampaignIntelligence.campaign_id == campaign_id)
-    query = query.order_by(desc(CampaignIntelligence.confidence_score))
+    query = select(IntelligenceSourceType)
+    query = query.where(IntelligenceSourceType.campaign_id == campaign_id)
+    query = query.order_by(desc(IntelligenceSourceType.confidence_score))
     result = await db.execute(query)
     intelligence = result.scalars().all()
 

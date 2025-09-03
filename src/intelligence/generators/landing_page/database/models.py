@@ -241,7 +241,7 @@ __all__ = [
     'Company',
     'User', 
     'Campaign',
-    'IntelligenceCore',        # NEW - replaces CampaignIntelligence
+    'IntelligenceCore',        # NEW - replaces IntelligenceSourceType
     'ProductData',             # NEW - normalized product data
     'MarketData',              # NEW - normalized market data  
     'KnowledgeBase',           # NEW - centralized research

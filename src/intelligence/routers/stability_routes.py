@@ -97,11 +97,11 @@ async def generate_campaign_with_images(
             )
     
     try:
-        # 1. Get campaign intelligence data using YOUR CampaignIntelligence model
-        intelligence_query = select(CampaignIntelligence).where(
+        # 1. Get campaign intelligence data using YOUR IntelligenceSourceType model
+        intelligence_query = select(IntelligenceSourceType).where(
             and_(
-                CampaignIntelligence.campaign_id == campaign_id,
-                CampaignIntelligence.user_id == current_user.id
+                IntelligenceSourceType.campaign_id == campaign_id,
+                IntelligenceSourceType.user_id == current_user.id
             )
         )
         intelligence_result = await db.execute(intelligence_query)
@@ -397,10 +397,10 @@ async def generate_slideshow_video(
     
     try:
         # 1. Get campaign intelligence data
-        intelligence_query = select(CampaignIntelligence).where(
+        intelligence_query = select(IntelligenceSourceType).where(
             and_(
-                CampaignIntelligence.campaign_id == campaign_id,
-                CampaignIntelligence.user_id == current_user.id
+                IntelligenceSourceType.campaign_id == campaign_id,
+                IntelligenceSourceType.user_id == current_user.id
             )
         )
         intelligence_result = await db.execute(intelligence_query)
@@ -594,10 +594,10 @@ async def generate_campaign_ultra_cheap_images(
             raise HTTPException(status_code=400, detail="campaign_id is required")
         
         # Get intelligence data from database
-        intelligence_query = select(CampaignIntelligence).where(
+        intelligence_query = select(IntelligenceSourceType).where(
             and_(
-                CampaignIntelligence.campaign_id == campaign_id,
-                CampaignIntelligence.user_id == current_user.id
+                IntelligenceSourceType.campaign_id == campaign_id,
+                IntelligenceSourceType.user_id == current_user.id
             )
         )
         intelligence_result = await db.execute(intelligence_query)

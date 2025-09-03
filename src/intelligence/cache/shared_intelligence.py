@@ -439,7 +439,7 @@ class AnalysisHandler:
     
     def _prepare_analysis_response_with_cache_info(
         self, 
-        intelligence: CampaignIntelligence, 
+        intelligence: IntelligenceSourceType, 
         analysis_result: Dict[str, Any],
         cache_hit: bool = False
     ) -> Dict[str, Any]:

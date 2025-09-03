@@ -86,7 +86,7 @@ class User(BaseModel):
     campaigns = relationship("Campaign", back_populates="user", cascade="all, delete-orphan")
     
     # Intelligence relationships (existing)
-    intelligence_sources = relationship("CampaignIntelligence", back_populates="user")
+    intelligence_sources = relationship("IntelligenceSourceType", back_populates="user")
     generated_content = relationship("GeneratedContent", back_populates="user")
     smart_urls = relationship("SmartURL", back_populates="user")
     

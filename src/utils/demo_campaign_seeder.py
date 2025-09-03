@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from src.models.campaign import Campaign, AutoAnalysisStatus, CampaignStatus, CampaignWorkflowState
-from src.core.crud.intelligence_crud import intelligence_crud, GeneratedContent, IntelligenceSourceType, AnalysisStatus
-
+from src.core.crud.intelligence_crud import intelligence_crud, GeneratedContent, AnalysisStatus
+from src.models.intelligence import IntelligenceSourceType
 import logging
 
 from src.utils.json_utils import safe_json_dumps
@@ -162,10 +162,10 @@ class DemoCampaignSeeder:
             await self.db.rollback()
             raise e
     
-    async def _create_demo_intelligence(self, campaign_id: uuid.UUID, user_id: uuid.UUID, company_id: uuid.UUID) -> CampaignIntelligence:
+    async def _create_demo_intelligence(self, campaign_id: uuid.UUID, user_id: uuid.UUID, company_id: uuid.UUID) -> IntelligenceSourceType:
         """Create demo intelligence analysis results"""
         
-        demo_intelligence = CampaignIntelligence(
+        demo_intelligence = IntelligenceSourceType(
             id=uuid.uuid4(),
             campaign_id=campaign_id,
             user_id=user_id,

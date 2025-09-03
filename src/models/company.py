@@ -79,7 +79,7 @@ class Company(BaseModel, EnumSerializerMixin):
     invitations = relationship("CompanyInvitation", back_populates="company")
     
     # Intelligence relationships
-    intelligence_sources = relationship("CampaignIntelligence", back_populates="company")
+    intelligence_sources = relationship("IntelligenceSourceType", back_populates="company")
     generated_content = relationship("GeneratedContent", back_populates="company")
     smart_urls = relationship("SmartURL", back_populates="company")
     
