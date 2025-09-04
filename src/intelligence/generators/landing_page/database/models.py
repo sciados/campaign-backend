@@ -230,7 +230,7 @@ class ProactiveAnalysisQueue(Base):
     url = Column(Text, unique=True, nullable=False)
     priority = Column(Integer, nullable=False)
     source = Column(String(50), nullable=False)
-    metadata = Column(JSONB, default={})
+    analysis_metadata = Column(JSONB, default={})
     status = Column(String(20), default='pending')
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

@@ -183,8 +183,7 @@ try:
         # UTILITY FUNCTIONS
         create_intelligence_from_analysis,
         create_product_data_from_analysis,
-        create_market_data_from_analysis,
-        migrate_legacy_intelligence
+        create_market_data_from_analysis
     )
     logger.debug("✅ NEW optimized intelligence models imported successfully")
     
