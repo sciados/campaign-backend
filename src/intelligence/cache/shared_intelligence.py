@@ -1,4 +1,4 @@
-# Shared Intelligence Cache System
+# Shared Intelligence Cache System - FIXED FOR NEW SCHEMA
 # File: src/intelligence/cache/shared_intelligence.py
 
 import logging
@@ -7,17 +7,17 @@ import json
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 import uuid
-from models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func, text
 from sqlalchemy.orm import selectinload
 
-from src.core.crud.intelligence_crud import intelligence_crud, AnalysisStatus
+# FIXED IMPORTS - Use new schema models
+from src.models.intelligence import IntelligenceCore, AnalysisStatus  # FIXED: Use IntelligenceCore instead of CampaignIntelligence
+from src.models.user import User
 from src.models.campaign import Campaign
+from src.core.crud.intelligence_crud import intelligence_crud
 
 logger = logging.getLogger(__name__)
-
-# Updated SharedIntelligenceCache class for new database schema
 
 class SharedIntelligenceCache:
     """
@@ -74,7 +74,7 @@ class SharedIntelligenceCache:
             
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.cache_duration_days)
             
-            result = await self.db.execute(query, {
+            result = await self.db.execute(text(query), {
                 "url": url,
                 "min_confidence": self.min_confidence_threshold,
                 "cutoff_date": cutoff_date
@@ -152,12 +152,12 @@ class SharedIntelligenceCache:
                 LIMIT 5
             """
             
-            result = await self.db.execute(query, {"intelligence_id": intelligence_id})
+            result = await self.db.execute(text(query), {"intelligence_id": intelligence_id})
             rows = result.fetchall()
             
             return [
                 {
-                    "research_id": row.id,
+                    "research_id": str(row.id),
                     "research_type": row.research_type,
                     "relevance_score": row.relevance_score,
                     "preview": row.content_preview + "..."
@@ -182,59 +182,22 @@ class SharedIntelligenceCache:
         Using new normalized schema
         """
         try:
-            # Generate new analysis ID
-            new_analysis_id = str(uuid.uuid4())
-            
-            # Store in intelligence_core
-            await self.db.execute("""
-                INSERT INTO intelligence_core 
-                (id, product_name, source_url, confidence_score, analysis_method, created_at)
-                VALUES ($1, $2, $3, $4, $5, NOW())
-            """, 
-                new_analysis_id,
-                cached_data["product_name"],
-                cached_data["source_url"],
-                cached_data["confidence_score"],
-                f"shared_cache_from_{source_intelligence_id}"
-            )
-            
-            # Store in product_data if available
-            offer_intel = cached_data.get("offer_intelligence", {})
-            if offer_intel:
-                await self.db.execute("""
-                    INSERT INTO product_data 
-                    (intelligence_id, features, benefits, ingredients, conditions, usage_instructions)
-                    VALUES ($1, $2, $3, $4, $5, $6)
-                """,
-                    new_analysis_id,
-                    offer_intel.get("key_features", []),
-                    offer_intel.get("primary_benefits", []),
-                    offer_intel.get("ingredients_list", []),
-                    offer_intel.get("target_conditions", []),
-                    offer_intel.get("usage_instructions", [])
-                )
-            
-            # Store in market_data if available
-            comp_intel = cached_data.get("competitive_intelligence", {})
-            psych_intel = cached_data.get("psychology_intelligence", {})
-            if comp_intel or psych_intel:
-                await self.db.execute("""
-                    INSERT INTO market_data 
-                    (intelligence_id, category, positioning, competitive_advantages, target_audience)
-                    VALUES ($1, $2, $3, $4, $5)
-                """,
-                    new_analysis_id,
-                    comp_intel.get("market_category", ""),
-                    comp_intel.get("market_positioning", ""),
-                    comp_intel.get("competitive_advantages", []),
-                    psych_intel.get("target_audience", "")
-                )
+            # Use the intelligence_crud to create the intelligence
+            analysis_data = {
+                "product_name": cached_data["product_name"],
+                "source_url": cached_data["source_url"],
+                "confidence_score": cached_data["confidence_score"],
+                "analysis_method": f"shared_cache_from_{source_intelligence_id}",
+                "offer_intelligence": cached_data.get("offer_intelligence", {}),
+                "competitive_intelligence": cached_data.get("competitive_intelligence", {}),
+                "psychology_intelligence": cached_data.get("psychology_intelligence", {})
+            }
             
             # Copy research links if they exist
             if cached_data.get("research_links"):
-                await self._copy_research_links(source_intelligence_id, new_analysis_id)
+                analysis_data["research_links"] = cached_data["research_links"]
             
-            await self.db.commit()
+            new_analysis_id = await intelligence_crud.create_intelligence(self.db, analysis_data)
             
             logger.info(f"Created user intelligence reference: {new_analysis_id}")
             logger.info(f"Cost savings: 90%+ (used cached analysis)")
@@ -246,25 +209,12 @@ class SharedIntelligenceCache:
             await self.db.rollback()
             raise
     
-    async def _copy_research_links(self, source_intelligence_id: str, new_intelligence_id: str):
-        """Copy research links from source to new intelligence"""
-        try:
-            await self.db.execute("""
-                INSERT INTO intelligence_research (intelligence_id, research_id, relevance_score)
-                SELECT $1, research_id, relevance_score
-                FROM intelligence_research 
-                WHERE intelligence_id = $2
-            """, new_intelligence_id, source_intelligence_id)
-            
-        except Exception as e:
-            logger.error(f"Error copying research links: {str(e)}")
-    
     async def get_cache_statistics(self) -> Dict[str, Any]:
         """Get statistics about cache usage and savings using new schema"""
         try:
             # Total intelligence records
             total_query = "SELECT COUNT(*) FROM intelligence_core"
-            total_result = await self.db.execute(total_query)
+            total_result = await self.db.execute(text(total_query))
             total_analyses = total_result.scalar()
             
             # Cached/shared analyses (those with shared_cache in analysis_method)
@@ -272,12 +222,12 @@ class SharedIntelligenceCache:
                 SELECT COUNT(*) FROM intelligence_core 
                 WHERE analysis_method LIKE '%shared_cache%'
             """
-            cached_result = await self.db.execute(cached_query)
+            cached_result = await self.db.execute(text(cached_query))
             cached_analyses = cached_result.scalar()
             
             # Unique URLs analyzed
             unique_urls_query = "SELECT COUNT(DISTINCT source_url) FROM intelligence_core"
-            unique_result = await self.db.execute(unique_urls_query)
+            unique_result = await self.db.execute(text(unique_urls_query))
             unique_urls = unique_result.scalar()
             
             # Calculate savings
@@ -321,7 +271,7 @@ class SharedIntelligenceCache:
                 WHERE id IN (SELECT id FROM old_unreferenced)
             """
             
-            result = await self.db.execute(cleanup_query, {
+            result = await self.db.execute(text(cleanup_query), {
                 "cutoff_date": cutoff_date,
                 "min_confidence": self.min_confidence_threshold,
                 "recent_cutoff": datetime.now(timezone.utc) - timedelta(days=7)
@@ -338,8 +288,9 @@ class SharedIntelligenceCache:
             logger.error(f"Error cleaning up cache: {str(e)}")
             await self.db.rollback()
             return 0
+
 class AnalysisHandler:
-    """Analysis Handler with shared intelligence caching"""
+    """Analysis Handler with shared intelligence caching - FIXED"""
     
     def __init__(self, db: AsyncSession, user: User):
         self.db = db
@@ -348,7 +299,7 @@ class AnalysisHandler:
     
     async def analyze_url_with_cache(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-         URL analysis with shared intelligence caching
+        URL analysis with shared intelligence caching
         Main business logic with cache-first approach
         """
         url = str(request_data.get('url'))
@@ -372,8 +323,8 @@ class AnalysisHandler:
                 # Create user-specific intelligence record referencing cached data
                 user_intelligence_id = await self.shared_cache.create_user_intelligence_reference(
                     user_campaign_id=campaign_id,
-                    user_id=self.user.id,
-                    company_id=self.user.company_id,
+                    user_id=str(self.user.id),
+                    company_id=str(self.user.company_id),
                     source_intelligence_id=cached_intelligence["source_intelligence_id"],
                     cached_data=cached_intelligence
                 )
@@ -409,16 +360,23 @@ class AnalysisHandler:
         # STEP 2: CACHE MISS - Perform new analysis
         logger.info("🔍 CACHE MISS: Performing new intelligence analysis...")
         
-        # Create intelligence record
-        intelligence = await self._create_intelligence_record(url, campaign_id, analysis_type)
-        
+        # Create intelligence record using new schema
         try:
+            analysis_data = {
+                "product_name": f"Analysis for {url}",
+                "source_url": url,
+                "confidence_score": 0.0,  # Will be updated after analysis
+                "analysis_method": "fresh_analysis"
+            }
+            
+            intelligence_id = await intelligence_crud.create_intelligence(self.db, analysis_data)
+            
             # Perform full analysis (base + amplification)
             base_analysis_result = await self._perform_base_analysis(url, analysis_type)
             final_analysis_result = await self._perform_amplification(url, base_analysis_result)
             
-            # Store results
-            await self._store_analysis_results(intelligence, final_analysis_result)
+            # Update intelligence with results
+            await intelligence_crud.update_intelligence(self.db, intelligence_id, final_analysis_result)
             
             # Update campaign counters
             await self._update_campaign_counters(campaign_id)
@@ -427,25 +385,32 @@ class AnalysisHandler:
             
             # Prepare response
             return self._prepare_analysis_response_with_cache_info(
-                intelligence, 
+                intelligence_id, 
                 final_analysis_result, 
                 cache_hit=False
             )
             
         except Exception as e:
             logger.error(f"❌ Analysis failed for {url}: {str(e)}")
-            await self._handle_analysis_failure(intelligence, e)
-            return self._prepare_failure_response(intelligence, e)
+            return self._prepare_failure_response(url, e)
     
     def _prepare_analysis_response_with_cache_info(
         self, 
-        intelligence: IntelligenceSourceType, 
+        intelligence_id: str,  # FIXED: Use intelligence_id string instead of CampaignIntelligence object
         analysis_result: Dict[str, Any],
         cache_hit: bool = False
     ) -> Dict[str, Any]:
-        """Prepare analysis response with cache information"""
+        """Prepare analysis response with cache information - FIXED"""
         
-        base_response = self._prepare_analysis_response(intelligence, analysis_result)
+        base_response = {
+            "intelligence_id": intelligence_id,
+            "analysis_status": "completed",
+            "confidence_score": analysis_result.get("confidence_score", 0.0),
+            "offer_intelligence": analysis_result.get("offer_intelligence", {}),
+            "psychology_intelligence": analysis_result.get("psychology_intelligence", {}),
+            "competitive_opportunities": analysis_result.get("competitive_intelligence", {}),
+            "campaign_suggestions": []
+        }
         
         # Add cache information
         base_response["cache_info"] = {
@@ -461,11 +426,98 @@ class AnalysisHandler:
             base_response["campaign_suggestions"].append("✅ Fresh analysis created (available for future users)")
         
         return base_response
-
+    
+    async def _verify_campaign_access(self, campaign_id: str) -> Campaign:
+        """Verify user has access to campaign"""
+        try:
+            result = await self.db.execute(
+                select(Campaign).where(
+                    and_(
+                        Campaign.id == campaign_id,
+                        Campaign.user_id == self.user.id
+                    )
+                )
+            )
+            campaign = result.scalar_one_or_none()
+            
+            if not campaign:
+                raise ValueError(f"Campaign {campaign_id} not found or access denied")
+            
+            return campaign
+            
+        except Exception as e:
+            logger.error(f"Campaign access verification failed: {e}")
+            raise
+    
+    async def _update_campaign_counters(self, campaign_id: str):
+        """Update campaign analysis counters"""
+        try:
+            await self.db.execute(
+                text("""
+                    UPDATE campaigns 
+                    SET analysis_count = COALESCE(analysis_count, 0) + 1,
+                        last_analysis_at = NOW()
+                    WHERE id = :campaign_id
+                """),
+                {"campaign_id": campaign_id}
+            )
+            await self.db.commit()
+            
+        except Exception as e:
+            logger.error(f"Error updating campaign counters: {e}")
+    
+    def _extract_competitive_opportunities(self, intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract competitive opportunities from intelligence data"""
+        competitive_intel = intelligence_data.get("competitive_intelligence", {})
+        
+        return {
+            "market_gaps": competitive_intel.get("competitive_advantages", []),
+            "positioning_opportunities": [competitive_intel.get("market_positioning", "")],
+            "differentiation_factors": competitive_intel.get("competitive_advantages", [])
+        }
+    
+    async def _perform_base_analysis(self, url: str, analysis_type: str) -> Dict[str, Any]:
+        """Placeholder for base analysis logic"""
+        # This would contain the actual analysis logic
+        return {
+            "product_name": f"Product from {url}",
+            "confidence_score": 0.8,
+            "offer_intelligence": {
+                "key_features": ["Feature 1", "Feature 2"],
+                "primary_benefits": ["Benefit 1", "Benefit 2"]
+            },
+            "competitive_intelligence": {
+                "market_category": "Health & Wellness",
+                "competitive_advantages": ["Advantage 1"]
+            },
+            "psychology_intelligence": {
+                "target_audience": "Health-conscious consumers"
+            }
+        }
+    
+    async def _perform_amplification(self, url: str, base_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Placeholder for amplification logic"""
+        # This would enhance the base analysis
+        base_result["analysis_method"] = "base_plus_amplification"
+        base_result["confidence_score"] = min(base_result["confidence_score"] + 0.1, 1.0)
+        return base_result
+    
+    def _prepare_failure_response(self, url: str, error: Exception) -> Dict[str, Any]:
+        """Prepare failure response"""
+        return {
+            "intelligence_id": None,
+            "analysis_status": "failed",
+            "error": str(error),
+            "url": url,
+            "cache_info": {
+                "cache_hit": False,
+                "analysis_method": "failed",
+                "available_for_sharing": False,
+                "cost_efficiency": "none"
+            }
+        }
 
 # Cache Management Commands
-# File: src/intelligence/cache/cache_manager.py
-
 class CacheManager:
     """Manage shared intelligence cache operations"""
     

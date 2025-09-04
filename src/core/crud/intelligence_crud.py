@@ -1,4 +1,4 @@
-# src/core/crud/intelligence_crud.py - STREAMLINED FOR TESTING ENVIRONMENT
+# src/core/crud/intelligence_crud.py - FIXED IMPORTS AND EXPORTS
 """
 Intelligence CRUD Operations - STREAMLINED for testing with temporary data
 Handles operations across 6 normalized tables without user/company complexity
@@ -13,9 +13,9 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, func, text
 from sqlalchemy.orm import selectinload
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
-# Import new optimized schema models
+# Import new optimized schema models - FIXED IMPORTS
 from src.models.intelligence import (
     IntelligenceCore,
     ProductData, 
@@ -23,7 +23,8 @@ from src.models.intelligence import (
     KnowledgeBase,
     IntelligenceResearch,
     ScrapedContent,
-    GeneratedContent
+    GeneratedContent,
+    AnalysisStatus  # FIXED: Import from models, not from this file
 )
 
 # Import base CRUD pattern
@@ -319,7 +320,7 @@ class IntelligenceCRUD:
         Get recent intelligence analysis
         """
         try:
-            cutoff_date = datetime.now(timezone.utc) - timezone.timedelta(days=days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
             
             query = select(IntelligenceCore).where(
                 IntelligenceCore.created_at >= cutoff_date
@@ -743,7 +744,12 @@ class IntelligenceCRUD:
             
             # Create research link
             await db.execute(
-                select(IntelligenceResearch).insert().values(**link_data)
+                text("""
+                    INSERT INTO intelligence_research (intelligence_id, research_id, relevance_score)
+                    VALUES (:intelligence_id, :research_id, :relevance_score)
+                    ON CONFLICT (intelligence_id, research_id) DO NOTHING
+                """),
+                link_data
             )
             await db.commit()
             
@@ -1149,8 +1155,12 @@ class IntelligenceCRUD:
             await db.rollback()
 
 
+# ============================================================================
+# EXPORT ONLY THE CRUD INSTANCE - NOT THE CLASS OR MODELS
+# ============================================================================
+
 # Create the global instance
 intelligence_crud = IntelligenceCRUD()
 
-# Export for backward compatibility
-IntelligenceCRUD = IntelligenceCRUD
+# FIXED: Only export the instance, not the class or enums
+# This prevents other modules from trying to import AnalysisStatus from here

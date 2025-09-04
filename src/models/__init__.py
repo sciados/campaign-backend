@@ -1,7 +1,8 @@
-# src/models/__init__.py - UPDATED FOR NEW OPTIMIZED SCHEMA
+# src/models/__init__.py - FIXED IMPORTS FOR NEW OPTIMIZED SCHEMA
 """
 Central model imports and exports with proper dependency order
 Updated to include new optimized 6-table intelligence schema
+FIXED: Removed duplicate imports and circular references
 """
 
 import logging
@@ -132,8 +133,30 @@ except Exception as e:
         get_allowed_extensions = None
 
 # ============================================================================
-# PHASE 6: Import NEW OPTIMIZED INTELLIGENCE MODELS
+# PHASE 6: Import NEW OPTIMIZED INTELLIGENCE MODELS (FIXED)
 # ============================================================================
+
+# Initialize variables to track what's available
+NEW_INTELLIGENCE_SCHEMA_AVAILABLE = False
+LEGACY_INTELLIGENCE_AVAILABLE = False
+
+# Initialize all intelligence-related variables to None first
+IntelligenceCore = None
+ProductData = None
+MarketData = None
+KnowledgeBase = None
+IntelligenceResearch = None
+ScrapedContent = None
+GeneratedContent = None
+IntelligenceSourceType = None
+AnalysisStatus = None
+AnalysisRequest = None
+IntelligenceResponse = None
+create_intelligence_from_analysis = None
+create_product_data_from_analysis = None
+create_market_data_from_analysis = None
+migrate_legacy_intelligence = None
+SmartURL = None
 
 try:
     # NEW: Import optimized 6-table schema models
@@ -149,7 +172,7 @@ try:
         # UPDATED MODEL
         GeneratedContent,
         
-        # ENUMS AND TYPES
+        # ENUMS AND TYPES (FIXED: Only import once)
         IntelligenceSourceType,
         AnalysisStatus,
         
@@ -168,53 +191,40 @@ try:
     # Mark new schema as available
     NEW_INTELLIGENCE_SCHEMA_AVAILABLE = True
     
-    # LEGACY COMPATIBILITY: Set old model names to None
-    IntelligenceSourceType = None  # REMOVED - use IntelligenceCore instead
-    SmartURL = None  # REMOVED
-    
     logger.info("🚀 New optimized intelligence schema loaded (90% storage reduction)")
     
 except ImportError as e:
     logger.warning(f"⚠️ NEW intelligence models not available: {e}")
-    logger.warning("📦 Falling back to legacy intelligence models if available")
+    logger.warning("📦 Will attempt to import individual components")
     
-    NEW_INTELLIGENCE_SCHEMA_AVAILABLE = False
-    
-    # Try to import legacy models as fallback
+    # Try to import individual components that might be available
     try:
-        from .intelligence import (
-            IntelligenceSourceType,
-            GeneratedContent,
-            SmartURL,
-            IntelligenceSourceType,
-            AnalysisStatus,
-            AnalysisRequest
-        )
-        logger.debug("⚠️ Legacy intelligence models imported as fallback")
-        
-        # Set new model names to None
-        IntelligenceCore = None
-        ProductData = None
-        MarketData = None
-        KnowledgeBase = None
-        IntelligenceResearch = None
-        ScrapedContent = None
-        
-    except ImportError as legacy_error:
-        logger.error(f"❌ No intelligence models available: {legacy_error}")
-        # Set all to None
-        IntelligenceSourceType = None
+        from .intelligence import GeneratedContent
+        logger.debug("✅ GeneratedContent imported successfully")
+    except ImportError:
+        logger.warning("⚠️ GeneratedContent not available")
         GeneratedContent = None
-        SmartURL = None
-        IntelligenceSourceType = None
+    
+    try:
+        from .intelligence import AnalysisStatus
+        logger.debug("✅ AnalysisStatus imported successfully")
+    except ImportError:
+        logger.warning("⚠️ AnalysisStatus not available")
         AnalysisStatus = None
+    
+    try:
+        from .intelligence import AnalysisRequest
+        logger.debug("✅ AnalysisRequest imported successfully")
+    except ImportError:
+        logger.warning("⚠️ AnalysisRequest not available")
         AnalysisRequest = None
-        IntelligenceCore = None
-        ProductData = None
-        MarketData = None
-        KnowledgeBase = None
-        IntelligenceResearch = None
-        ScrapedContent = None
+    
+    # Check if we have any legacy models
+    if GeneratedContent is not None or AnalysisStatus is not None:
+        LEGACY_INTELLIGENCE_AVAILABLE = True
+        logger.info("⚠️ Some intelligence components available (partial import)")
+    else:
+        logger.error("❌ No intelligence models available")
 
 # ============================================================================
 # PHASE 7: Import waitlist model (minimal dependencies)
@@ -228,7 +238,7 @@ except ImportError as e:
     Waitlist = None
 
 # ============================================================================
-# ENHANCED EXPORTS WITH NEW SCHEMA SUPPORT
+# ENHANCED EXPORTS WITH NEW SCHEMA SUPPORT (FIXED)
 # ============================================================================
 
 def get_available_models():
@@ -243,8 +253,8 @@ def get_available_models():
         'user_models': User is not None,
         'campaign_models': Campaign is not None,
         'asset_models': CampaignAsset is not None,
-        'intelligence_models_new': IntelligenceCore is not None,
-        'intelligence_models_legacy': IntelligenceSourceType is not None,
+        'intelligence_models_new': NEW_INTELLIGENCE_SCHEMA_AVAILABLE,
+        'intelligence_models_legacy': LEGACY_INTELLIGENCE_AVAILABLE,
         'new_schema_active': NEW_INTELLIGENCE_SCHEMA_AVAILABLE,
         'waitlist_models': Waitlist is not None
     }
@@ -268,13 +278,21 @@ def get_intelligence_schema_info():
             "storage_reduction": "90%",
             "status": "active"
         }
+    elif LEGACY_INTELLIGENCE_AVAILABLE:
+        return {
+            "schema_type": "partial_legacy",
+            "version": "campaign_intelligence_partial",
+            "tables": ["generated_content"],
+            "storage_reduction": "0%",
+            "status": "partial_fallback"
+        }
     else:
         return {
-            "schema_type": "legacy_flat",
-            "version": "campaign_intelligence",
-            "tables": ["campaign_intelligence", "generated_content"],
+            "schema_type": "none",
+            "version": "unavailable",
+            "tables": [],
             "storage_reduction": "0%",
-            "status": "fallback"
+            "status": "error"
         }
 
 # Base exports (always available)
@@ -317,7 +335,9 @@ _asset_exports = [
     'get_allowed_extensions',
 ] if CampaignAsset is not None else []
 
-# NEW: Conditional intelligence exports based on which schema is available
+# FIXED: Conditional intelligence exports based on what's actually available
+_intelligence_exports = []
+
 if NEW_INTELLIGENCE_SCHEMA_AVAILABLE:
     # Export new optimized schema models
     _intelligence_exports = [
@@ -328,9 +348,9 @@ if NEW_INTELLIGENCE_SCHEMA_AVAILABLE:
         'KnowledgeBase',
         'IntelligenceResearch',
         'ScrapedContent',
-        'GeneratedContent',
         
-        # Enums and types
+        # Common models
+        'GeneratedContent',
         'IntelligenceSourceType',
         'AnalysisStatus',
         'AnalysisRequest',
@@ -343,15 +363,17 @@ if NEW_INTELLIGENCE_SCHEMA_AVAILABLE:
         'migrate_legacy_intelligence'
     ]
 else:
-    # Export legacy models as fallback
-    _intelligence_exports = [
-        'IntelligenceSourceType',
-        'GeneratedContent', 
-        'SmartURL',
-        'IntelligenceSourceType',
-        'AnalysisStatus',
-        'AnalysisRequest',
-    ] if IntelligenceSourceType is not None else []
+    # Export only what's available from partial imports
+    if GeneratedContent is not None:
+        _intelligence_exports.append('GeneratedContent')
+    if AnalysisStatus is not None:
+        _intelligence_exports.append('AnalysisStatus')
+    if AnalysisRequest is not None:
+        _intelligence_exports.append('AnalysisRequest')
+    if IntelligenceSourceType is not None:
+        _intelligence_exports.append('IntelligenceSourceType')
+    if SmartURL is not None:
+        _intelligence_exports.append('SmartURL')
 
 _waitlist_exports = ['Waitlist'] if Waitlist is not None else []
 
@@ -394,15 +416,16 @@ def log_model_status():
     logger.info(f"  ✅ Campaign models: {'Available' if available['campaign_models'] else 'Failed'}")
     logger.info(f"  ✅ Asset models: {'Available' if available['asset_models'] else 'Failed'}")
     
-    # NEW: Detailed intelligence schema logging
+    # FIXED: Better intelligence schema logging
     if available['new_schema_active']:
         logger.info(f"  🚀 Intelligence models: NEW OPTIMIZED SCHEMA")
         logger.info(f"     Schema: {schema_info['schema_type']}")
         logger.info(f"     Tables: {len(schema_info['tables'])}")
         logger.info(f"     Storage reduction: {schema_info['storage_reduction']}")
     elif available['intelligence_models_legacy']:
-        logger.info(f"  ⚠️ Intelligence models: LEGACY FALLBACK")
+        logger.info(f"  ⚠️ Intelligence models: PARTIAL COMPONENTS")
         logger.info(f"     Schema: {schema_info['schema_type']}")
+        logger.info(f"     Available exports: {len(_intelligence_exports)}")
     else:
         logger.error(f"  ❌ Intelligence models: NONE AVAILABLE")
     
@@ -426,6 +449,8 @@ def log_model_status():
     if available['new_schema_active']:
         logger.info("🎉 NEW OPTIMIZED INTELLIGENCE SCHEMA ACTIVE")
         logger.info("    90% storage reduction achieved through normalization")
+    elif available['intelligence_models_legacy']:
+        logger.warning("⚠️ PARTIAL INTELLIGENCE MODELS - Some functionality limited")
 
 # Log status when module is imported
 try:
@@ -436,7 +461,7 @@ except Exception as e:
     pass
 
 # ============================================================================
-# COMPATIBILITY AND MIGRATION HELPERS
+# COMPATIBILITY AND MIGRATION HELPERS (FIXED)
 # ============================================================================
 
 def is_new_intelligence_schema_available() -> bool:
@@ -448,17 +473,32 @@ def get_intelligence_model_class():
     if NEW_INTELLIGENCE_SCHEMA_AVAILABLE:
         return IntelligenceCore
     else:
-        return IntelligenceSourceType
+        return None  # No fallback available in this case
 
 def get_intelligence_schema_version() -> str:
     """Get current intelligence schema version"""
-    return "optimized_normalized" if NEW_INTELLIGENCE_SCHEMA_AVAILABLE else "legacy_flat"
+    if NEW_INTELLIGENCE_SCHEMA_AVAILABLE:
+        return "optimized_normalized"
+    elif LEGACY_INTELLIGENCE_AVAILABLE:
+        return "partial_legacy"
+    else:
+        return "unavailable"
+
+def has_analysis_status() -> bool:
+    """Check if AnalysisStatus enum is available"""
+    return AnalysisStatus is not None
+
+def has_generated_content() -> bool:
+    """Check if GeneratedContent model is available"""
+    return GeneratedContent is not None
 
 # Add these to exports
 _utility_exports.extend([
     'is_new_intelligence_schema_available',
     'get_intelligence_model_class', 
-    'get_intelligence_schema_version'
+    'get_intelligence_schema_version',
+    'has_analysis_status',
+    'has_generated_content'
 ])
 
 # Update __all__ with new utilities
