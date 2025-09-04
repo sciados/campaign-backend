@@ -439,6 +439,7 @@ def create_market_data_from_analysis(intelligence_id: str, analysis_data: Dict[s
     return market_data
 
 # Export all models for easy imports
+
 __all__ = [
     # New optimized schema models
     'IntelligenceCore',
