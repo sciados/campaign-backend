@@ -59,42 +59,6 @@ async def create_campaignforge_app():
     logger.info("📦 Phase 1: Creating FastAPI app...")
     app = await create_app()
     
-    # CRITICAL: Add CORS middleware BEFORE any routes
-    logger.info("🌐 Adding CORS middleware...")
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[
-            "https://www.rodgersdigital.com",
-            "https://rodgersdigital.com",
-            "http://localhost:3000",
-            "http://localhost:8000",
-            "https://localhost:3000",
-            "https://localhost:8000",
-        ],
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        allow_headers=[
-            "Accept",
-            "Accept-Language",
-            "Content-Language", 
-            "Content-Type",
-            "Authorization",
-            "X-Requested-With",
-            "Origin",
-            "Cache-Control",
-            "Pragma",
-            "Access-Control-Allow-Origin",
-            "Access-Control-Allow-Headers",
-            "Access-Control-Allow-Methods",
-        ],
-        expose_headers=[
-            "Content-Length",
-            "Content-Type",
-            "Authorization",
-        ]
-    )
-    logger.info("✅ CORS middleware configured for www.rodgersdigital.com")
-    
     # Phase 2: Initialize database
     logger.info("🗄️ Phase 2: Initializing database...")
     db_initialized = initialize_database()
