@@ -49,15 +49,6 @@ except ImportError as e:
     logger.warning(f"⚠️ Blog post generator import failed: {e}")
     BLOG_POST_GENERATOR_AVAILABLE = False
 
-# Landing Page Generator
-try:
-    from .landing_page.core.generator import LandingPageGenerator as LandingPageGenerator
-    LANDING_PAGE_GENERATOR_AVAILABLE = True
-    logger.info("✅ Landing page generator imported successfully")
-except ImportError as e:
-    logger.warning(f"⚠️ Landing page generator import failed: {e}")
-    LANDING_PAGE_GENERATOR_AVAILABLE = False
-
 # Video Script Generator
 try:
     from .video_script_generator import VideoScriptGenerator
@@ -124,9 +115,6 @@ if SOCIAL_MEDIA_GENERATOR_AVAILABLE:
 
 if BLOG_POST_GENERATOR_AVAILABLE:
     __all__.append("BlogPostGenerator")
-
-if LANDING_PAGE_GENERATOR_AVAILABLE:
-    __all__.append("LandingPageGenerator")
 
 if VIDEO_SCRIPT_GENERATOR_AVAILABLE:
     __all__.append("VideoScriptGenerator")
@@ -275,7 +263,6 @@ def get_available_generators() -> dict:
         "ad_copy": AD_COPY_GENERATOR_AVAILABLE,
         "social_media": SOCIAL_MEDIA_GENERATOR_AVAILABLE,
         "blog_post": BLOG_POST_GENERATOR_AVAILABLE,
-        "landing_page": LANDING_PAGE_GENERATOR_AVAILABLE,
         "video_script": VIDEO_SCRIPT_GENERATOR_AVAILABLE,
         "campaign_angles": CAMPAIGN_ANGLE_GENERATOR_AVAILABLE,
         "ultra_cheap_image": ULTRA_CHEAP_IMAGE_GENERATOR_AVAILABLE,
@@ -314,7 +301,6 @@ available_count = sum([
     AD_COPY_GENERATOR_AVAILABLE, 
     SOCIAL_MEDIA_GENERATOR_AVAILABLE,
     BLOG_POST_GENERATOR_AVAILABLE,
-    LANDING_PAGE_GENERATOR_AVAILABLE,
     VIDEO_SCRIPT_GENERATOR_AVAILABLE,
     CAMPAIGN_ANGLE_GENERATOR_AVAILABLE,
     ULTRA_CHEAP_IMAGE_GENERATOR_AVAILABLE,
