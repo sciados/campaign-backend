@@ -1,6 +1,7 @@
 # src/models/base.py - Permanent base models and utilities
 """
 Base models and utilities for all model classes
+UPDATED: Added JoinTableBase for tables that don't need their own id column
 """
 
 import json
@@ -20,6 +21,11 @@ class BaseModel(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class JoinTableBase(Base):
+    """Base model for join/relationship tables that don't need their own id"""
+    __abstract__ = True
+    # No id column - uses foreign keys as primary keys
 
 class EnumSerializerMixin:
     """Mixin for proper enum field serialization"""
