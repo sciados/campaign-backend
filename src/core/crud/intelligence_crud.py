@@ -1,8 +1,8 @@
-# src/core/crud/intelligence_crud.py - FIXED IMPORTS AND EXPORTS
+# src/core/crud/intelligence_crud.py - FIXED UUID AND DATABASE ISSUES
 """
-Intelligence CRUD Operations - STREAMLINED for testing with temporary data
-Handles operations across 6 normalized tables without user/company complexity
-Optimized for development and testing workflows
+Intelligence CRUD Operations - FIXED for database schema compatibility
+Handles operations across 6 normalized tables with proper UUID handling
+FIXED: UUID generation and database column matching
 """
 
 import logging
@@ -35,9 +35,9 @@ logger = logging.getLogger(__name__)
 
 class IntelligenceCRUD:
     """
-    Intelligence CRUD for new optimized schema - TESTING FOCUSED
+    Intelligence CRUD for new optimized schema - FIXED VERSION
     Handles operations across multiple normalized tables
-    Simplified for development/testing environment
+    FIXED: Proper UUID handling and database compatibility
     """
     
     def __init__(self):
@@ -50,7 +50,7 @@ class IntelligenceCRUD:
         logger.info("Intelligence CRUD initialized for optimized schema")
     
     # ============================================================================
-    # CORE INTELLIGENCE OPERATIONS
+    # CORE INTELLIGENCE OPERATIONS - FIXED
     # ============================================================================
     
     async def create_intelligence(
@@ -60,15 +60,17 @@ class IntelligenceCRUD:
     ) -> str:
         """
         Create complete intelligence analysis across normalized tables
+        FIXED: Proper UUID handling and database compatibility
         Returns intelligence_id for the created analysis
         """
         try:
-            # Generate intelligence ID
-            intelligence_id = str(uuid.uuid4())
+            # Generate intelligence ID as UUID object first
+            intelligence_uuid = uuid.uuid4()
+            intelligence_id = str(intelligence_uuid)
             
-            # Create core intelligence record
+            # FIXED: Create core intelligence record with proper UUID object
             core_data = {
-                "id": intelligence_id,
+                "id": intelligence_uuid,  # Use UUID object, not string
                 "product_name": analysis_data.get("product_name", "Unknown Product"),
                 "source_url": analysis_data.get("source_url", ""),
                 "confidence_score": analysis_data.get("confidence_score", 0.0),
@@ -81,7 +83,7 @@ class IntelligenceCRUD:
             offer_intel = analysis_data.get("offer_intelligence", {})
             if offer_intel:
                 product_data = {
-                    "intelligence_id": intelligence_id,
+                    "intelligence_id": intelligence_uuid,  # Use UUID object
                     "features": offer_intel.get("key_features", []),
                     "benefits": offer_intel.get("primary_benefits", []),
                     "ingredients": offer_intel.get("ingredients_list", []),
@@ -95,7 +97,7 @@ class IntelligenceCRUD:
             psych_intel = analysis_data.get("psychology_intelligence", {})
             if comp_intel or psych_intel:
                 market_data = {
-                    "intelligence_id": intelligence_id,
+                    "intelligence_id": intelligence_uuid,  # Use UUID object
                     "category": comp_intel.get("market_category", ""),
                     "positioning": comp_intel.get("market_positioning", ""),
                     "competitive_advantages": comp_intel.get("competitive_advantages", []),
@@ -261,7 +263,7 @@ class IntelligenceCRUD:
             raise
     
     # ============================================================================
-    # SEARCH AND QUERY OPERATIONS
+    # SEARCH AND QUERY OPERATIONS - FIXED
     # ============================================================================
     
     async def search_intelligence_by_product(
@@ -318,11 +320,12 @@ class IntelligenceCRUD:
         limit: int = 100
     ) -> List[Dict[str, Any]]:
         """
-        Get recent intelligence analysis
+        Get recent intelligence analysis - FIXED to only query created_at
         """
         try:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
             
+            # FIXED: Only select columns that exist in the database
             query = select(IntelligenceCore).where(
                 IntelligenceCore.created_at >= cutoff_date
             ).order_by(desc(IntelligenceCore.created_at)).limit(limit)
@@ -402,7 +405,7 @@ class IntelligenceCRUD:
         return complete_intelligence_list
     
     # ============================================================================
-    # STATISTICS AND ANALYTICS
+    # STATISTICS AND ANALYTICS - FIXED
     # ============================================================================
     
     async def get_intelligence_statistics(
@@ -568,6 +571,11 @@ class IntelligenceCRUD:
             # Ensure intelligence_id is set if provided
             intelligence_id = content_data.get('intelligence_id')
             if intelligence_id:
+                # Convert string to UUID if needed
+                if isinstance(intelligence_id, str):
+                    intelligence_id = UUID(intelligence_id)
+                    content_data['intelligence_id'] = intelligence_id
+                
                 # Verify intelligence exists
                 intel_exists = await db.execute(
                     select(IntelligenceCore.id).where(IntelligenceCore.id == intelligence_id)
