@@ -3,6 +3,7 @@
 Enhanced User model with multi-user type system for existing CampaignForge database
 🎭 Adds user type functionality while preserving all existing relationships
 🔧 FIXED: Correct string handling and removed enum dependencies
+🔧 FIXED: Removed problematic intelligence relationships for new schema
 """
 
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -81,15 +82,17 @@ class User(BaseModel):
     total_intelligence_generated = Column(Integer, default=0)
     total_content_generated = Column(Integer, default=0)
     
-    # 🔧 ALL EXISTING RELATIONSHIPS (preserved exactly as-is)
+    # 🔧 ALL EXISTING RELATIONSHIPS (preserved exactly as-is, FIXED for new schema)
     company = relationship("Company", back_populates="users")
     campaigns = relationship("Campaign", back_populates="user", cascade="all, delete-orphan")
     
-    # Intelligence relationships (existing)
-    # Link to new intelligence core schema
-    intelligence_core = relationship("IntelligenceCore", foreign_keys="IntelligenceCore.user_id")
+    # FIXED: Updated relationships for new intelligence schema
+    # Only keep GeneratedContent if it has user_id column
     generated_content = relationship("GeneratedContent", foreign_keys="GeneratedContent.user_id")
-    smart_urls = relationship("SmartURL", back_populates="user")
+    
+    # REMOVED: These relationships referenced non-existent columns
+    # intelligence_sources = relationship("IntelligenceSourceType", back_populates="user")  # REMOVED - IntelligenceSourceType is now an enum
+    # smart_urls = relationship("SmartURL", back_populates="user")  # REMOVED - SmartURL doesn't exist
     
     # Company membership relationships (existing)
     company_memberships = relationship(
@@ -119,6 +122,20 @@ class User(BaseModel):
     
     # Storage relationship (existing)
     storage_usage = relationship("UserStorageUsage", back_populates="user", cascade="all, delete-orphan")
+    
+    # 🆕 NEW: Method to get user's intelligence through campaigns (correct approach for new schema)
+    def get_intelligence_data(self, db_session):
+        """Get user's intelligence data through campaigns (new schema approach)"""
+        from sqlalchemy.orm import selectinload
+        try:
+            campaigns_with_intelligence = db_session.query(type(self.campaigns[0]))\
+                .filter_by(user_id=self.id)\
+                .filter(type(self.campaigns[0]).analysis_intelligence_id.isnot(None))\
+                .options(selectinload('intelligence_data'))\
+                .all()
+            return campaigns_with_intelligence
+        except (IndexError, AttributeError):
+            return []
     
     # 🆕 NEW: Multi-User Type Methods (FIXED to use strings)
     
