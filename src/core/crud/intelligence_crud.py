@@ -137,6 +137,7 @@ class IntelligenceCRUD:
                 selectinload(IntelligenceCore.research_links)
             ).where(IntelligenceCore.id == intelligence_id)
             
+            
             if include_content_stats:
                 query = query.options(selectinload(IntelligenceCore.generated_content))
             

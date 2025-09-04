@@ -1,4 +1,5 @@
 # src/core/crud/base_crud.py
+
 """
 Centralized CRUD Operations - Base Repository Pattern
 🏗️ Single source of truth for all database operations
@@ -10,7 +11,7 @@ from typing import Generic, TypeVar, Type, List, Optional, Dict, Any, Union
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, and_, or_, desc, asc
-from sqlalchemy.orm import selectinload
+# from sqlalchemy.orm import selectinload
 import logging
 
 from src.models.base import BaseModel
