@@ -88,7 +88,7 @@ class User(BaseModel):
     
     # FIXED: Updated relationships for new intelligence schema
     # Only keep GeneratedContent if it has user_id column
-    generated_content = relationship("GeneratedContent", foreign_keys="GeneratedContent.user_id")
+    generated_content = relationship("GeneratedContent", back_populates="user")
     
     # REMOVED: These relationships referenced non-existent columns
     # intelligence_sources = relationship("IntelligenceSourceType", back_populates="user")  # REMOVED - IntelligenceSourceType is now an enum

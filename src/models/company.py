@@ -80,7 +80,7 @@ class Company(BaseModel, EnumSerializerMixin):
     invitations = relationship("CompanyInvitation", back_populates="company")
     
     # FIXED: Only keep GeneratedContent if it has company_id column
-    generated_content = relationship("GeneratedContent", foreign_keys="GeneratedContent.company_id")
+    generated_content = relationship("GeneratedContent", back_populates="company")
     
     # REMOVED: These relationships referenced non-existent columns in new schema
     # intelligence_sources = relationship("IntelligenceCore", foreign_keys="IntelligenceCore.company_id")  # REMOVED - no company_id in IntelligenceCore
