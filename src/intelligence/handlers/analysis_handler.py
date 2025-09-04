@@ -337,8 +337,142 @@ class AnalysisHandler:
             }
             return base_analysis
             
-        # Amplification logic here (same as before)
-        return base_analysis
+        try:
+            logger.info("Starting intelligence amplification for streamlined workflow...")
+            
+            # FIXED: Extract product name from base analysis to pass to amplification
+            extracted_product_name = None
+            
+            # Get product name from offer intelligence (first extraction)
+            offer_intel = base_analysis.get("offer_intelligence", {})
+            if offer_intel and offer_intel.get("products"):
+                products = offer_intel["products"]
+                if isinstance(products, list) and len(products) > 0:
+                    extracted_product_name = products[0]
+                    logger.info(f"Using product name from first extraction: '{extracted_product_name}'")
+            
+            # Fallback to page title if no product found
+            if not extracted_product_name:
+                extracted_product_name = base_analysis.get("page_title", "Unknown Product")
+                logger.warning(f"No product name in offer intelligence, using page title: '{extracted_product_name}'")
+            
+            # Add the extracted product name to base analysis for amplification
+            base_analysis["extracted_product_name"] = extracted_product_name
+            base_analysis["skip_product_extraction"] = True  # Tell amplification to skip re-extraction
+            
+            # Get AI providers
+            ai_providers = self._get_ai_providers_from_analyzer()
+            provider_names = [p.get('name', 'unknown') for p in ai_providers]
+            logger.info(f"AMPLIFICATION using providers: {provider_names}")
+            
+            # Set up preferences with product name
+            preferences = {
+                "enhance_scientific_backing": True,
+                "boost_credibility": True,
+                "competitive_analysis": True,
+                "psychological_depth": "medium",
+                "content_optimization": True,
+                "cost_optimization": True,
+                "preferred_provider": provider_names[0] if provider_names else "groq",
+                "product_name": extracted_product_name,  # FIXED: Pass product name to prevent re-extraction
+                "skip_product_extraction": True  # FIXED: Explicitly tell system not to re-extract
+            }
+            
+            logger.info(f"Amplification preferences set with product name: '{extracted_product_name}'")
+            
+            # STEP 1: Identify opportunities
+            logger.info("Identifying enhancement opportunities...")
+            opportunities = await identify_opportunities(
+                base_intel=base_analysis,
+                preferences=preferences,
+                providers=ai_providers
+            )
+            
+            opportunities_count = opportunities.get("opportunity_metadata", {}).get("total_opportunities", 0)
+            logger.info(f"Identified {opportunities_count} enhancement opportunities")
+            
+            # STEP 2: Generate enhancements
+            logger.info("Generating AI-powered enhancements...")
+            enhancements = await generate_enhancements(
+                base_intel=base_analysis,
+                opportunities=opportunities,
+                providers=ai_providers,
+                # product_name=extracted_product_name  # FIXED: Pass product name explicitly
+            )
+            
+            enhancement_metadata = enhancements.get("enhancement_metadata", {})
+            total_enhancements = enhancement_metadata.get("total_enhancements", 0)
+            confidence_boost = enhancement_metadata.get("confidence_boost", 0.0)
+            
+            logger.info(f"Generated {total_enhancements} enhancements with {confidence_boost:.1%} confidence boost")
+            
+            # STEP 3: Create enriched intelligence
+            logger.info("Creating enriched intelligence...")
+            enriched_intelligence = create_enriched_intelligence(
+                base_intel=base_analysis,
+                enhancements=enhancements
+            )
+            
+            # FIXED: Ensure product name consistency in final result
+            if "offer_intelligence" in enriched_intelligence:
+                offer_intel = enriched_intelligence["offer_intelligence"]
+                if isinstance(offer_intel, dict):
+                    # Ensure the correct product name is preserved
+                    offer_intel["products"] = [extracted_product_name]
+                    logger.info(f"Product name preserved in final result: '{extracted_product_name}'")
+            
+            # Diagnose the amplification output
+            diagnose_amplification_output(enriched_intelligence)
+            
+            # Add amplification metadata
+            try:
+                from src.intelligence.utils.tiered_ai_provider import get_cost_summary
+                cost_summary = get_cost_summary()
+            except:
+                cost_summary = {"error": "Cost tracking not available"}
+            
+            enriched_intelligence["amplification_metadata"] = {
+                "amplification_applied": True,
+                "amplification_method": "streamlined_workflow_enhancement",
+                "opportunities_identified": opportunities_count,
+                "total_enhancements": total_enhancements,
+                "confidence_boost": confidence_boost,
+                "base_confidence": base_analysis.get("confidence_score", 0.0),
+                "amplified_confidence": enriched_intelligence.get("confidence_score", 0.0),
+                "credibility_score": enhancement_metadata.get("credibility_score", 0.0),
+                "enhancement_quality": enhancement_metadata.get("enhancement_quality", "unknown"),
+                "modules_successful": enhancement_metadata.get("modules_successful", []),
+                "scientific_enhancements": len(enhancements.get("scientific_validation", {})) if enhancements.get("scientific_validation") else 0,
+                "system_architecture": "streamlined_modular_enhancement",
+                "amplification_timestamp": datetime.now(timezone.utc),
+                "ultra_cheap_optimization_applied": True,
+                "primary_provider_used": provider_names[0] if provider_names else "unknown",
+                "provider_priority": provider_names,
+                "cost_tracking": cost_summary,
+                "estimated_cost_savings": cost_summary.get("estimated_savings", 0.0),
+                "cost_savings_percentage": cost_summary.get("savings_percentage", 0.0),
+                "workflow_type": "streamlined_2_step",
+                "product_name_source": "first_extraction",  # FIXED: Track that we used first extraction
+                "product_name_preserved": extracted_product_name,  # FIXED: Track the preserved name
+                "skip_reextraction": True  # FIXED: Document that we skipped re-extraction
+            }
+            
+            logger.info(f"Streamlined amplification completed - Final confidence: {enriched_intelligence.get('confidence_score', 0.0):.2f}")
+            logger.info(f"Product name preserved throughout amplification: '{extracted_product_name}'")
+            
+            return enriched_intelligence
+            
+        except Exception as amp_error:
+            logger.warning(f"Amplification failed, using base analysis: {str(amp_error)}")
+            base_analysis["amplification_metadata"] = {
+                "amplification_applied": False,
+                "amplification_error": str(amp_error),
+                "fallback_to_base": True,
+                "error_type": type(amp_error).__name__,
+                "workflow_type": "streamlined_2_step",
+                "product_name_preserved": extracted_product_name if 'extracted_product_name' in locals() else None
+            }
+            return base_analysis
     
     async def _store_analysis_results(self, intelligence_id: str, analysis_result: Dict[str, Any]):
         """Store analysis results using NEW SCHEMA via intelligence_crud"""
