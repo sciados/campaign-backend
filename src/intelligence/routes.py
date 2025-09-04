@@ -58,7 +58,7 @@ router.include_router(
 
 router.include_router(
     enhanced_intelligence_routes.router,
-    prefix="/campaigns",
+    prefix="",
     tags=["intelligence-campaigns"]
 )
 
