@@ -471,33 +471,24 @@ class AnalysisHandler:
             return base_analysis
     
     async def _store_analysis_results(self, intelligence_id: str, analysis_result: Dict[str, Any]):
-        """Store analysis results using NEW SCHEMA - only store compatible fields"""
+        """Store analysis results using NEW SCHEMA - store complete data"""
         try:
             logger.info(f"DEBUG: About to store analysis results...")
-            logger.info(f"Storing analysis results for intelligence {intelligence_id}")
-            
-            # FIXED: Only update fields that exist in new intelligence_core schema
-            update_data = {
-                "confidence_score": analysis_result.get("confidence_score", 0.0)
-                # Note: Full analysis data is stored in the normalized related tables
-                # The CRUD system handles this automatically
-            }
-            
-            logger.info(f"Updating intelligence with: {update_data}")
-            
+            logger.info(f"Storing complete analysis results for intelligence {intelligence_id}")
+        
+            # Pass the COMPLETE analysis result to populate normalized tables
             await intelligence_crud.update_intelligence(
                 db=self.db,
                 intelligence_id=uuid.UUID(intelligence_id),
-                update_data=update_data
+                update_data=analysis_result  # Pass full analysis, not just confidence
             )
-            
-            logger.info("Analysis results stored successfully via NEW SCHEMA")
+        
+            logger.info("Complete analysis results stored successfully via NEW SCHEMA")
             logger.info(f"DEBUG: Storage completed successfully")
-            
+        
         except Exception as storage_error:
             logger.error(f"Storage error: {str(storage_error)}")
             logger.error(f"Intelligence ID: {intelligence_id}")
-            logger.error(f"Update data: {update_data}")
             import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
             raise storage_error
