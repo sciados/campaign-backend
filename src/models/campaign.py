@@ -5,6 +5,7 @@ Campaign models - Enhanced for streamlined workflow with auto-analysis + Storage
 🔧 FIXED: Consistent timezone-aware datetime fields + duplicate table prevention
 🔧 FIXED: Added product_name field to match service expectations
 🔧 FIXED: Updated intelligence relationships for new schema
+🔧 FIXED: Added proper foreign key constraint for analysis_intelligence_id
 📁 NEW: Storage file integration for user quota system - TEMPORARILY DISABLED
 """
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
@@ -122,7 +123,8 @@ class Campaign(BaseModel):
     content_generated = Column(Integer, default=0)
     
     # 🆕 NEW: Analysis-specific data storage
-    analysis_intelligence_id = Column(UUID(as_uuid=True))  # Link to IntelligenceCore record
+    # 🔧 FIXED: Added proper foreign key constraint to match database schema
+    analysis_intelligence_id = Column(UUID(as_uuid=True), ForeignKey("intelligence_core.id", ondelete="SET NULL"), nullable=True)
     analysis_confidence_score = Column(Float, default=0.0)
     analysis_summary = Column(JSONB, default={})  # Key insights for content generation
     
@@ -159,23 +161,12 @@ class Campaign(BaseModel):
     # FIXED: Updated intelligence relationships for new schema
     generated_content = relationship("GeneratedContent", back_populates="campaign", cascade="all, delete-orphan")
     
+    # 🔧 NEW: Relationship to shared intelligence
+    intelligence_data = relationship("IntelligenceCore", foreign_keys=[analysis_intelligence_id])
+    
     # REMOVED: Problematic relationships that don't exist in new schema:
     # intelligence_sources = relationship("IntelligenceSourceType", ...) - IntelligenceSourceType is an enum, not a table
     # smart_urls = relationship("SmartURL", ...) - SmartURL doesn't exist in new schema
-    
-    # NEW: Method to access intelligence through analysis_intelligence_id
-    def get_intelligence_source(self, db_session):
-        """Get the IntelligenceCore record for this campaign's analysis"""
-        if not self.analysis_intelligence_id:
-            return None
-        
-        try:
-            from .intelligence import IntelligenceCore
-            return db_session.query(IntelligenceCore).filter(
-                IntelligenceCore.id == self.analysis_intelligence_id
-            ).first()
-        except ImportError:
-            return None
     
     # 🆕 NEW: Storage integration for user quota system - TEMPORARILY DISABLED TO FIX REGISTRATION
     storage_files = relationship("UserStorageUsage", back_populates="campaign", cascade="all, delete-orphan")
@@ -193,6 +184,20 @@ class Campaign(BaseModel):
             }
         
         super().__init__(**kwargs)
+    
+    # 🔧 UPDATED: Simplified intelligence access method
+    def get_intelligence_source(self, db_session):
+        """Get the IntelligenceCore record for this campaign's analysis"""
+        if not self.analysis_intelligence_id:
+            return None
+        
+        try:
+            from .intelligence import IntelligenceCore
+            return db_session.query(IntelligenceCore).filter(
+                IntelligenceCore.id == self.analysis_intelligence_id
+            ).first()
+        except ImportError:
+            return None
     
     # 🆕 NEW: Auto-analysis workflow methods with FIXED timezone handling
     def start_auto_analysis(self):

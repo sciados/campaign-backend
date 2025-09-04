@@ -1,10 +1,11 @@
+# src/intelligence/utils/campaign_helpers.py
 """
-File: src/intelligence/utils/campaign_helpers.py - CRUD MIGRATED VERSION
-Campaign Helpers - CRUD MIGRATED VERSION
-🎯 All database operations now use CRUD patterns
-✅ Eliminates raw SQL queries and text() commands
-✅ Consistent with successful high-priority file migrations
-✅ Maintains all existing functionality while improving reliability
+File: src/intelligence/utils/campaign_helpers.py - FIXED FOR NEW ARCHITECTURE
+Campaign Helpers - FIXED FOR NEW SHARED INTELLIGENCE ARCHITECTURE
+🎯 Updated for shared intelligence architecture where campaigns link to intelligence
+✅ Eliminates the campaign_id filtering error from intelligence_crud.count()
+✅ Intelligence is now shared across users via URL, campaigns reference via analysis_intelligence_id
+✅ Maintains all existing functionality while fixing database schema issues
 """
 import logging
 from datetime import datetime, timezone
@@ -27,52 +28,49 @@ generated_content_crud = BaseCRUD(GeneratedContent)
 logger = logging.getLogger(__name__)
 
 
-# 🎯 CRUD MIGRATED: Update campaign counters
+# 🎯 FIXED: Update campaign counters for new shared intelligence architecture
 async def update_campaign_counters(campaign_id: str, db: AsyncSession) -> bool:
     """
-    Update campaign counters with CRUD operations - CRUD VERSION
-    🔧 Uses CRUD operations instead of raw SQL for better reliability
+    Update campaign counters - FIXED for new shared intelligence architecture
+    🔧 Intelligence is now shared via URL, campaigns link via analysis_intelligence_id
     """
     try:
         logger.info(f"🔄 Updating campaign counters for campaign: {campaign_id}")
         
-        # ✅ CRUD MIGRATION: Get campaign using CRUD
+        # ✅ Get campaign using CRUD
         campaign = await campaign_crud.get(db=db, id=campaign_id)
         
         if not campaign:
             logger.warning(f"⚠️ Campaign not found: {campaign_id}")
             return False
         
-        # ✅ CRUD MIGRATION: Count intelligence sources using CRUD
-        total_intelligence = await intelligence_crud.count(
-            db=db,
-            filters={"campaign_id": campaign_id}
-        )
+        # ✅ FIXED: Intelligence count based on analysis_intelligence_id reference
+        intelligence_count = 1 if campaign.analysis_intelligence_id else 0
         
-        # ✅ CRUD MIGRATION: Count completed intelligence using CRUD with filtering
-        all_intelligence = await intelligence_crud.get_multi(
-            db=db,
-            filters={"campaign_id": campaign_id},
-            limit=10000  # Get all for status filtering
-        )
+        # ✅ FIXED: Check if intelligence analysis is completed
+        completed_intelligence = 0
+        if campaign.analysis_intelligence_id:
+            try:
+                intelligence = await intelligence_crud.get_intelligence_by_id(
+                    db, campaign.analysis_intelligence_id
+                )
+                if intelligence and intelligence.get("confidence_score", 0) > 0.5:
+                    completed_intelligence = 1
+                    logger.info(f"✅ Intelligence completed with confidence: {intelligence.get('confidence_score', 0)}")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not verify intelligence completion: {e}")
         
-        # Filter completed intelligence in Python
-        completed_intelligence = len([
-            intel for intel in all_intelligence 
-            if intel.analysis_status and str(intel.analysis_status).upper() == 'COMPLETED'
-        ])
-        
-        # ✅ CRUD MIGRATION: Count generated content using CRUD
+        # ✅ Count generated content using CRUD (this still works with campaign_id)
         total_content = await generated_content_crud.count(
             db=db,
             filters={"campaign_id": campaign_id}
         )
         
-        # ✅ CRUD MIGRATION: Update campaign using CRUD
+        # ✅ Update campaign using CRUD
         update_data = {
-            "sources_count": total_intelligence,
+            "sources_count": intelligence_count,
             "intelligence_extracted": completed_intelligence,
-            "intelligence_count": total_intelligence,
+            "intelligence_count": intelligence_count,
             "content_generated": total_content,
             "generated_content_count": total_content,
             "updated_at": datetime.now(timezone.utc)
@@ -85,15 +83,15 @@ async def update_campaign_counters(campaign_id: str, db: AsyncSession) -> bool:
         )
         
         if updated_campaign:
-            logger.info(f"✅ CRUD campaign counters updated successfully")
-            logger.info(f"📊 Stats: {total_intelligence} intelligence, {completed_intelligence} completed, {total_content} content")
+            logger.info(f"✅ Campaign counters updated successfully")
+            logger.info(f"📊 Stats: {intelligence_count} intelligence, {completed_intelligence} completed, {total_content} content")
             return True
         else:
             logger.warning(f"⚠️ Campaign update failed")
             return False
             
     except Exception as e:
-        logger.error(f"❌ CRUD campaign counter update failed: {str(e)}")
+        logger.error(f"❌ Campaign counter update failed: {str(e)}")
         logger.error(f"❌ Error type: {type(e).__name__}")
         
         # Return False but don't raise - this is non-critical
