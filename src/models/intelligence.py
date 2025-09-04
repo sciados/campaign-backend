@@ -57,13 +57,14 @@ class IntelligenceCore(BaseModel, EnumSerializerMixin):
     """Core intelligence table - replaces campaign intelligence"""
     __tablename__ = "intelligence_core"
     
-    # Core fields
+    # Core fields - matches BaseModel pattern with updated_at
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     product_name = Column(Text, nullable=False)
     source_url = Column(Text, nullable=False)
     confidence_score = Column(Float)
     analysis_method = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships to normalized data
     product_data = relationship("ProductData", back_populates="intelligence_core", uselist=False, cascade="all, delete-orphan")
@@ -322,7 +323,6 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
     intelligence_id = Column(UUID(as_uuid=True), ForeignKey("intelligence_core.id", ondelete="SET NULL"))
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    # updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # RELATIONSHIPS - PROPERLY DEFINED with back_populates
     user = relationship("User", back_populates="generated_content")
