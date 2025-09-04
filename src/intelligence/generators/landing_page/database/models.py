@@ -2,6 +2,7 @@
 """
 SQLAlchemy models for the NEW optimized database schema.
 Replaces the old flat campaign intelligence table with normalized structure.
+FIXED: Added missing landing page models to resolve import errors.
 """
 
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text, DECIMAL, Date, ForeignKey, Float
@@ -59,7 +60,7 @@ class User(Base):
     
     # Relationships
     company = relationship("Company", back_populates="users")
-    campaigns = relationship("Campaign", back_populates="user")
+    campaigns = relationship("Campaign", back_populates="campaigns")
 
 class Campaign(Base):
     __tablename__ = "campaigns"
@@ -153,7 +154,7 @@ class KnowledgeBase(Base):
     __tablename__ = "knowledge_base"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    content_hash = Column(Text, unique=True, nullable=False)  # Added missing field
+    content_hash = Column(Text, unique=True, nullable=False)
     content = Column(Text, nullable=False)
     research_type = Column(Text)  # 'clinical', 'market', 'ingredient'
     source_metadata = Column(JSONB)
@@ -230,10 +231,47 @@ class ProactiveAnalysisQueue(Base):
     url = Column(Text, unique=True, nullable=False)
     priority = Column(Integer, nullable=False)
     source = Column(String(50), nullable=False)
-    analysis_metadata = Column(JSONB, default={})
+    analysis_metadata = Column(JSONB, default={})  # FIXED: renamed from 'metadata'
     status = Column(String(20), default='pending')
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+# ADDED: Missing landing page models to fix import errors
+class LandingPageComponent(Base):
+    """Landing page components - added to fix import errors"""
+    __tablename__ = "landing_page_components"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100))
+    component_type = Column(String(50))
+    content = Column(Text)
+    styles = Column(JSONB, default={})
+    settings = Column(JSONB, default={})
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class LandingPageAnalytics(Base):
+    """Landing page analytics - added to fix import errors"""
+    __tablename__ = "landing_page_analytics"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    page_id = Column(String(100))
+    event_type = Column(String(50))
+    event_data = Column(JSONB, default={})
+    visitor_id = Column(String(100))
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+class ConversionEvent(Base):
+    """Conversion events - added to fix import errors"""
+    __tablename__ = "conversion_events"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_type = Column(String(50), nullable=False)
+    event_name = Column(String(100))
+    conversion_value = Column(Float)
+    visitor_id = Column(String(100))
+    page_id = Column(String(100))
+    event_data = Column(JSONB, default={})
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 # Export models
 __all__ = [
@@ -248,5 +286,8 @@ __all__ = [
     'IntelligenceResearch',    # NEW - research links
     'ScrapedContent',          # NEW - content cache
     'GeneratedContent',        # UPDATED - links to new schema
-    'ProactiveAnalysisQueue'   # EXISTING - separate table
+    'ProactiveAnalysisQueue',  # EXISTING - separate table
+    'LandingPageComponent',    # ADDED - fix import errors
+    'LandingPageAnalytics',    # ADDED - fix import errors
+    'ConversionEvent'          # ADDED - fix import errors
 ]
