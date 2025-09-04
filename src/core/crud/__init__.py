@@ -13,7 +13,7 @@ from .user_crud import UserCRUD, user_crud
 
 # ✅ NEW: Import UserStorageCRUD
 try:
-    from .user_storage_crud import UserStorageCRUD, user_storage_crud
+    from .user_storage_crud import user_storage_crud
     USER_STORAGE_CRUD_AVAILABLE = True
 except ImportError as e:
     # Fallback if user_storage_crud is not available yet

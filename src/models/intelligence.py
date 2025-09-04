@@ -2,6 +2,7 @@
 """
 Intelligence models - COMPLETELY REWRITTEN for new optimized database schema
 FIXED: Added missing ForeignKey constraints and proper relationships
+FIXED: ProductData and MarketData no longer inherit BaseModel to match database schema
 """
 import json
 import uuid
@@ -16,15 +17,20 @@ from typing import List, Optional, Dict, Any, Literal
 
 # FIXED: Consistent imports with proper paths
 try:
-    from .base import BaseModel, EnumSerializerMixin
+    from .base import BaseModel, EnumSerializerMixin, JoinTableBase
 except ImportError:
     # Fallback for different import structures
     try:
-        from src.models.base import BaseModel, EnumSerializerMixin
+        from src.models.base import BaseModel, EnumSerializerMixin, JoinTableBase
     except ImportError:
         # Basic fallback
         from sqlalchemy.ext.declarative import declarative_base
         BaseModel = declarative_base()
+        
+        class JoinTableBase(BaseModel):
+            """Base model for join/relationship tables that don't need their own id"""
+            __abstract__ = True
+            # No id column - uses foreign keys as primary keys
         
         class EnumSerializerMixin:
             def _serialize_enum_field(self, field_value):
@@ -191,10 +197,12 @@ class IntelligenceCore(BaseModel, EnumSerializerMixin):
             "content_success_rate": round((published_count / total_content * 100), 1) if total_content > 0 else 0.0
         }
 
-class ProductData(BaseModel, EnumSerializerMixin):
+# FIXED: ProductData now inherits from JoinTableBase instead of BaseModel
+class ProductData(JoinTableBase, EnumSerializerMixin):
     """Focused product data - normalized from offer_intelligence"""
     __tablename__ = "product_data"
     
+    # Primary key is intelligence_id (no separate id column)
     intelligence_id = Column(UUID(as_uuid=True), ForeignKey("intelligence_core.id"), primary_key=True)
     features = Column(ARRAY(Text))
     benefits = Column(ARRAY(Text))
@@ -215,10 +223,12 @@ class ProductData(BaseModel, EnumSerializerMixin):
             "usage_instructions": self.usage_instructions or []
         }
 
-class MarketData(BaseModel, EnumSerializerMixin):
+# FIXED: MarketData now inherits from JoinTableBase instead of BaseModel
+class MarketData(JoinTableBase, EnumSerializerMixin):
     """Market insights - normalized from competitive_intelligence and psychology_intelligence"""
     __tablename__ = "market_data"
     
+    # Primary key is intelligence_id (no separate id column)
     intelligence_id = Column(UUID(as_uuid=True), ForeignKey("intelligence_core.id"), primary_key=True)
     category = Column(Text)
     positioning = Column(Text)
@@ -261,7 +271,8 @@ class KnowledgeBase(BaseModel, EnumSerializerMixin):
             return ""
         return self.content[:length] + "..." if len(self.content) > length else self.content
 
-class IntelligenceResearch(BaseModel, EnumSerializerMixin):
+# FIXED: IntelligenceResearch now inherits from JoinTableBase (composite primary key table)
+class IntelligenceResearch(JoinTableBase, EnumSerializerMixin):
     """Link intelligence to research"""
     __tablename__ = "intelligence_research"
     
@@ -273,7 +284,8 @@ class IntelligenceResearch(BaseModel, EnumSerializerMixin):
     intelligence = relationship("IntelligenceCore", back_populates="research_links")
     research = relationship("KnowledgeBase", back_populates="intelligence_links")
 
-class ScrapedContent(BaseModel, EnumSerializerMixin):
+# FIXED: ScrapedContent should use url_hash as primary key, not inherit BaseModel
+class ScrapedContent(JoinTableBase, EnumSerializerMixin):
     """Content cache (deduplicated)"""
     __tablename__ = "scraped_content"
     
