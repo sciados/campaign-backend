@@ -267,10 +267,10 @@ async def get_enhanced_intelligence(
         
         # FIXED: Use intelligence_crud to get intelligence by ID
         intelligence_data = await intelligence_crud.get_intelligence_by_id(
-            db=db,
-            intelligence_id=uuid.UUID(campaign.analysis_intelligence_id),
-            include_content_stats=True
-        )
+        db=db,
+        intelligence_id=campaign.analysis_intelligence_id,  # Don't convert, it's already a UUID
+        include_content_stats=True
+    )
         
         if not intelligence_data:
             raise HTTPException(status_code=404, detail="Intelligence data not found")
@@ -329,7 +329,7 @@ async def manual_enhance_intelligence(
         # Get intelligence data using NEW SCHEMA
         intelligence_data = await intelligence_crud.get_intelligence_by_id(
             db=db,
-            intelligence_id=uuid.UUID(intelligence_id)
+            intelligence_id=intelligence_id
         )
         
         if not intelligence_data:
@@ -399,7 +399,7 @@ async def get_workflow_status(
             try:
                 intelligence_data = await intelligence_crud.get_intelligence_by_id(
                     db=db,
-                    intelligence_id=uuid.UUID(campaign.analysis_intelligence_id),
+                    intelligence_id=campaign.analysis_intelligence_id,
                     include_content_stats=True
                 )
             except Exception as e:
