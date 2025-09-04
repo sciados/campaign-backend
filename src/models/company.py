@@ -79,8 +79,8 @@ class Company(BaseModel, EnumSerializerMixin):
     invitations = relationship("CompanyInvitation", back_populates="company")
     
     # Intelligence relationships
-    intelligence_sources = relationship("IntelligenceSourceType", back_populates="company")
-    generated_content = relationship("GeneratedContent", back_populates="company")
+    intelligence_sources = relationship("IntelligenceCore", foreign_keys="IntelligenceCore.company_id")
+    generated_content = relationship("GeneratedContent", foreign_keys="GeneratedContent.company_id")
     smart_urls = relationship("SmartURL", back_populates="company")
     
     def get_branding_settings(self) -> dict:
@@ -93,6 +93,19 @@ class Company(BaseModel, EnumSerializerMixin):
     def get_company_settings(self) -> dict:
         """Get company settings with proper enum serialization"""
         return self._serialize_enum_field(self.settings)
+    
+    # Company's intelligence accessed through campaigns
+def get_company_intelligence(self, db_session):
+    """Get all intelligence for this company via campaigns"""
+    from sqlalchemy import select
+    from .campaign import Campaign
+    from .intelligence import IntelligenceCore
+    
+    return db_session.execute(
+        select(IntelligenceCore)
+        .join(Campaign)
+        .where(Campaign.company_id == self.id)
+    ).scalars().all()
 
 class CompanyMembership(BaseModel, EnumSerializerMixin):
     """Company membership model for team collaboration"""
