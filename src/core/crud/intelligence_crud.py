@@ -10,6 +10,7 @@ import hashlib
 import json
 from typing import List, Optional, Dict, Any
 from uuid import UUID
+import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, func, text
 from sqlalchemy.orm import selectinload
@@ -63,7 +64,7 @@ class IntelligenceCRUD:
         """
         try:
             # Generate intelligence ID
-            intelligence_id = str(UUID())
+            intelligence_id = str(uuid.uuid4())
             
             # Create core intelligence record
             core_data = {

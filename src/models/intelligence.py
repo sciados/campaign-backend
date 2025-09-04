@@ -322,7 +322,7 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
     intelligence_id = Column(UUID(as_uuid=True), ForeignKey("intelligence_core.id", ondelete="SET NULL"))
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    # updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # RELATIONSHIPS - PROPERLY DEFINED with back_populates
     user = relationship("User", back_populates="generated_content")
