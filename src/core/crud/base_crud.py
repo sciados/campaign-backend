@@ -177,7 +177,12 @@ class BaseCRUD(Generic[ModelType]):
             await db.commit()
             await db.refresh(db_obj)
             
-            logger.info(f"✅ Created {self.model_name}: {db_obj.id}")
+            # Handle models that don't have an 'id' attribute
+            if hasattr(db_obj, 'id'):
+                logger.info(f"✅ Created {self.model_name}: {db_obj.id}")
+            else:
+                # For models like ProductData that use composite/foreign keys as primary key
+                logger.info(f"✅ Created {self.model_name}: {type(db_obj).__name__}")
             return db_obj
             
         except Exception as e:

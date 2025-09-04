@@ -131,7 +131,11 @@ class IntelligenceCRUD:
         """
         try:
             # Get core intelligence with relationships
-            query = select(IntelligenceCore).where(IntelligenceCore.id == intelligence_id)
+            query = select(IntelligenceCore).options(
+                selectinload(IntelligenceCore.product_data),
+                selectinload(IntelligenceCore.market_data),
+                selectinload(IntelligenceCore.research_links)
+            ).where(IntelligenceCore.id == intelligence_id)
             
             if include_content_stats:
                 query = query.options(selectinload(IntelligenceCore.generated_content))
