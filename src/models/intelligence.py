@@ -1,7 +1,7 @@
-# src/models/intelligence.py - FIXED SCHEMA ISSUES
+# src/models/intelligence.py - FIXED WITH PROPER FOREIGN KEYS
 """
 Intelligence models - COMPLETELY REWRITTEN for new optimized database schema
-FIXED: Import issues, relationship definitions, and CRUD compatibility
+FIXED: Added missing ForeignKey constraints and proper relationships
 """
 import json
 import uuid
@@ -284,7 +284,7 @@ class ScrapedContent(BaseModel, EnumSerializerMixin):
 
 class GeneratedContent(BaseModel, EnumSerializerMixin):
     """
-    Generated content - FIXED for new intelligence schema
+    Generated content - FIXED with proper foreign key constraints
     """
     __tablename__ = "generated_content"
     
@@ -313,18 +313,21 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
     performance_score = Column(Float)
     view_count = Column(Integer, default=0)
     
-    # FOREIGN KEYS - FIXED for new schema compatibility
-    campaign_id = Column(UUID(as_uuid=True))  # FIXED: Removed ForeignKey to avoid circular imports
-    user_id = Column(UUID(as_uuid=True), nullable=False)  # FIXED: Removed ForeignKey
-    company_id = Column(UUID(as_uuid=True))  # FIXED: Removed ForeignKey
+    # FOREIGN KEYS - FIXED with proper foreign key constraints
+    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"))
     
-    # FIXED: Link to new intelligence schema
+    # Link to new intelligence schema
     intelligence_id = Column(UUID(as_uuid=True), ForeignKey("intelligence_core.id"), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
-    # RELATIONSHIPS - FIXED to avoid circular imports
+    # RELATIONSHIPS - PROPERLY DEFINED with back_populates
+    user = relationship("User", back_populates="generated_content")
+    company = relationship("Company", back_populates="generated_content")
+    campaign = relationship("Campaign", back_populates="generated_content")
     intelligence_source = relationship("IntelligenceCore", back_populates="generated_content")
     
     def get_generation_metadata(self) -> Dict[str, Any]:
