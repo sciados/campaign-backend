@@ -1,10 +1,11 @@
-# src/models/campaign.py - FIXED TO PREVENT DUPLICATE TABLE DEFINITION
+# src/models/campaign.py - FIXED INTELLIGENCE RELATIONSHIPS
 """
 Campaign models - Enhanced for streamlined workflow with auto-analysis + Storage Integration
 🎯 NEW: Support for Campaign Creation → Auto-Analysis → Content Generation
 🔧 FIXED: Consistent timezone-aware datetime fields + duplicate table prevention
 🔧 FIXED: Added product_name field to match service expectations
-🔍 NEW: Storage file integration for user quota system - TEMPORARILY DISABLED
+🔧 FIXED: Updated intelligence relationships for new schema
+📁 NEW: Storage file integration for user quota system - TEMPORARILY DISABLED
 """
 from sqlalchemy import Column, String, Text, Enum, ForeignKey, Integer, Float, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -121,7 +122,7 @@ class Campaign(BaseModel):
     content_generated = Column(Integer, default=0)
     
     # 🆕 NEW: Analysis-specific data storage
-    analysis_intelligence_id = Column(UUID(as_uuid=True))  # Link to IntelligenceSourceType record
+    analysis_intelligence_id = Column(UUID(as_uuid=True))  # Link to IntelligenceCore record
     analysis_confidence_score = Column(Float, default=0.0)
     analysis_summary = Column(JSONB, default={})  # Key insights for content generation
     
@@ -155,10 +156,26 @@ class Campaign(BaseModel):
     user = relationship("User", back_populates="campaigns")
     company = relationship("Company", back_populates="campaigns")
     
-    # Intelligence and content relationships
-    intelligence_sources = relationship("IntelligenceSourceType", back_populates="campaign", cascade="all, delete-orphan")
+    # FIXED: Updated intelligence relationships for new schema
     generated_content = relationship("GeneratedContent", back_populates="campaign", cascade="all, delete-orphan")
-    smart_urls = relationship("SmartURL", back_populates="campaign", cascade="all, delete-orphan")
+    
+    # REMOVED: Problematic relationships that don't exist in new schema:
+    # intelligence_sources = relationship("IntelligenceSourceType", ...) - IntelligenceSourceType is an enum, not a table
+    # smart_urls = relationship("SmartURL", ...) - SmartURL doesn't exist in new schema
+    
+    # NEW: Method to access intelligence through analysis_intelligence_id
+    def get_intelligence_source(self, db_session):
+        """Get the IntelligenceCore record for this campaign's analysis"""
+        if not self.analysis_intelligence_id:
+            return None
+        
+        try:
+            from .intelligence import IntelligenceCore
+            return db_session.query(IntelligenceCore).filter(
+                IntelligenceCore.id == self.analysis_intelligence_id
+            ).first()
+        except ImportError:
+            return None
     
     # 🆕 NEW: Storage integration for user quota system - TEMPORARILY DISABLED TO FIX REGISTRATION
     storage_files = relationship("UserStorageUsage", back_populates="campaign", cascade="all, delete-orphan")

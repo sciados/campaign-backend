@@ -313,13 +313,13 @@ class GeneratedContent(BaseModel, EnumSerializerMixin):
     performance_score = Column(Float)
     view_count = Column(Integer, default=0)
     
-    # FOREIGN KEYS - FIXED with proper foreign key constraints
-    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"))
+    # FOREIGN KEYS - FIXED to match database_models.py exactly
+    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"))
     
     # Link to new intelligence schema
-    intelligence_id = Column(UUID(as_uuid=True), ForeignKey("intelligence_core.id"), nullable=True)
+    intelligence_id = Column(UUID(as_uuid=True), ForeignKey("intelligence_core.id", ondelete="SET NULL"))
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
