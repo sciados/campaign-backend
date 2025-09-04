@@ -39,10 +39,10 @@ class IntelligenceHandler(EnumSerializerMixin):
     
     async def get_campaign_intelligence(self, campaign_id: str) -> Dict[str, Any]:
         """
-        Get intelligence for a campaign - ADAPTED FOR NEW SCHEMA
-        Since new schema doesn't have campaign_id, returns recent intelligence instead
+        Get intelligence for a campaign - FIXED FOR NEW SHARED ARCHITECTURE
+        Now uses the campaign's analysis_intelligence_id to get the specific linked intelligence
         """
-        logger.info(f"Getting intelligence data (campaign context: {campaign_id})")
+        logger.info(f"Getting intelligence data for campaign: {campaign_id}")
         
         try:
             # Verify campaign access (still needed for permissions)
@@ -57,11 +57,11 @@ class IntelligenceHandler(EnumSerializerMixin):
             
             logger.info(f"Campaign access verified: {campaign.title}")
             
-            # NEW: Get recent intelligence instead of campaign-specific
-            intelligence_sources = await self._get_intelligence_sources(campaign_id)
+            # NEW: Get intelligence via campaign's analysis_intelligence_id
+            intelligence_sources = await self._get_intelligence_sources(campaign)
             
-            # NEW: Get generated content (simplified)
-            generated_content = await self._get_generated_content()
+            # Get generated content (still works with campaign_id)
+            generated_content = await self._get_generated_content(campaign_id)
             
             # Build response adapted for new schema
             return self._build_intelligence_response(
@@ -74,35 +74,65 @@ class IntelligenceHandler(EnumSerializerMixin):
             logger.error(f"Critical error in get_campaign_intelligence: {str(e)}")
             return self._build_fallback_response(campaign_id)
     
-    async def _get_intelligence_sources(self, campaign_id: str) -> List[Dict[str, Any]]:
-        """Get intelligence sources - UPDATED FOR NEW SCHEMA"""
+    async def _get_intelligence_sources(self, campaign: Campaign) -> List[Dict[str, Any]]:
+        """Get intelligence sources for specific campaign - FIXED FOR NEW ARCHITECTURE"""
         try:
-            # NEW: Search by recent intelligence since no campaign_id in new schema
-            intelligence_sources = await intelligence_crud.get_recent_intelligence(
+            # Check if campaign has linked intelligence
+            if not campaign.analysis_intelligence_id:
+                logger.info(f"Campaign {campaign.id} has no linked intelligence")
+                return []
+            
+            # Get the specific intelligence record linked to this campaign
+            intelligence_data = await intelligence_crud.get_intelligence_by_id(
                 db=self.db,
-                days=30,  # Get intelligence from last 30 days
-                limit=50
+                intelligence_id=campaign.analysis_intelligence_id,
+                include_content_stats=True
             )
             
-            logger.info(f"Retrieved {len(intelligence_sources)} recent intelligence sources")
-            return intelligence_sources
+            if not intelligence_data:
+                logger.warning(f"Intelligence {campaign.analysis_intelligence_id} not found for campaign {campaign.id}")
+                return []
+            
+            logger.info(f"Retrieved linked intelligence for campaign: {intelligence_data.get('analysis_id', 'unknown')}")
+            return [intelligence_data]  # Single intelligence source per campaign
             
         except Exception as e:
-            logger.error(f"Error getting intelligence sources: {str(e)}")
+            logger.error(f"Error getting intelligence sources for campaign: {str(e)}")
             return []
 
-    async def _get_generated_content(self) -> List[Dict[str, Any]]:
-        """Get generated content - SIMPLIFIED FOR NEW SCHEMA"""
+    async def _get_generated_content(self, campaign_id: str) -> List[Dict[str, Any]]:
+        """Get generated content for campaign - UPDATED"""
         try:
-            # NEW: Get recent content since no campaign-specific queries
-            # This would need to be implemented in the CRUD if content has campaign_id
-            logger.info("Generated content retrieval simplified for new schema")
-            return []  # Simplified for now
+            # This still works with campaign_id since content belongs to campaigns
+            from src.core.crud.base_crud import BaseCRUD
+            from src.core.crud.intelligence_crud import GeneratedContent
+            
+            content_crud = BaseCRUD(GeneratedContent)
+            content_items = await content_crud.get_multi(
+                db=self.db,
+                filters={"campaign_id": campaign_id},
+                limit=100
+            )
+            
+            # Convert to dictionary format
+            formatted_content = []
+            for item in content_items:
+                formatted_content.append({
+                    "id": str(item.id),
+                    "content_type": item.content_type,
+                    "title": item.content_title,
+                    "content": item.content_body,
+                    "created_at": item.created_at.isoformat() if item.created_at else None,
+                    "is_published": item.is_published,
+                    "user_rating": item.user_rating
+                })
+            
+            logger.info(f"Retrieved {len(formatted_content)} content items for campaign")
+            return formatted_content
             
         except Exception as e:
             logger.error(f"Error getting generated content: {str(e)}")
             return []
-
     def _build_intelligence_response(
         self, 
         campaign_id: str, 
