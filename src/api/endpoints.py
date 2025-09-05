@@ -8,7 +8,7 @@ ENHANCED: AI Category support and Dynamic Analysis features
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import FastAPI
 from src.core.router_registry import get_router_status
 
@@ -147,7 +147,7 @@ def include_health_endpoints(app: FastAPI):
         
         return {
             "status": "operational",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "3.3.1-dynamic-ai",  # 🆕 Updated version
             "system_health": {
                 "overall_status": "healthy",

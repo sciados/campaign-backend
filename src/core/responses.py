@@ -6,7 +6,7 @@
 Response utilities for standardized API responses
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 import logging
 
@@ -29,7 +29,7 @@ class ResponseBuilder:
             "data": data,
             "error": None,
             "error_code": None,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "request_id": request_id or str(uuid.uuid4())
         }
     
@@ -50,7 +50,7 @@ class ResponseBuilder:
             "data": data,
             "error": error,
             "error_code": error_code or f"HTTP_{status_code}",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "request_id": request_id or str(uuid.uuid4()),
             "error_details": {
                 "error_type": error_code or "UnknownError",
@@ -58,7 +58,7 @@ class ResponseBuilder:
                 "suggestions": suggestions or [],
                 "debug_info": {
                     "status_code": status_code,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             }
         }

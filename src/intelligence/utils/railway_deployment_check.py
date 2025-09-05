@@ -7,7 +7,7 @@ Quick verification script for ultra-cheap AI system on Railway
 import logging
 import sys
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Railway-compatible logging
 logging.basicConfig(

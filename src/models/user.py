@@ -9,7 +9,7 @@ Enhanced User model with multi-user type system for existing CampaignForge datab
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy import Column, String, Boolean, ForeignKey, Text, Integer, DateTime
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone, time
+from datetime import datetime, timezone
 import enum
 
 # Import from your existing base module

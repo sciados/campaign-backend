@@ -66,7 +66,7 @@ def include_emergency_ai_category_endpoints(app: FastAPI):
                     "status": "operational",
                     "database_connected": True,
                     "categories": categories,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "message": "✅ AI categories retrieved with live database"
                 }
 
@@ -77,7 +77,7 @@ def include_emergency_ai_category_endpoints(app: FastAPI):
                 "status": "error",
                 "error": str(e),
                 "database_connected": False,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
 # ============================================================================
@@ -108,7 +108,7 @@ def include_emergency_campaign_endpoints(app: FastAPI):
                     "status": "operational",
                     "database_connected": True,
                     "total_campaigns": campaign_count,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "message": "✅ Campaign system operational with live database"
                 }
             else:
@@ -126,7 +126,7 @@ def include_emergency_campaign_endpoints(app: FastAPI):
                 "status": "error",
                 "error": str(e),
                 "database_connected": False,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
     @app.get("/api/campaigns/emergency-list", tags=["emergency-campaigns"])
@@ -168,7 +168,7 @@ def include_emergency_campaign_endpoints(app: FastAPI):
                     "total_count": len(campaigns_data),
                     "data_source": "live_database",
                     "message": "✅ Live campaigns from database",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             else:
                 raise Exception("Database connection failed")
@@ -191,7 +191,7 @@ def include_emergency_campaign_endpoints(app: FastAPI):
                 "total_count": 1,
                 "data_source": "emergency_mock",
                 "message": "⚠️ Database unavailable - using mock campaign data",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
 # ============================================================================
@@ -240,7 +240,7 @@ def include_emergency_dashboard_endpoints(app: FastAPI):
                     },
                     "data_source": "live_database",
                     "message": "✅ Live dashboard stats from database",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             else:
                 raise Exception("Database connection failed")
@@ -263,7 +263,7 @@ def include_emergency_dashboard_endpoints(app: FastAPI):
                 },
                 "data_source": "emergency_mock",
                 "message": "⚠️ Database unavailable - using mock dashboard data",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
 # ============================================================================
@@ -303,7 +303,7 @@ def include_emergency_content_endpoints(app: FastAPI):
                     },
                     "ai_service_used": True,
                     "data_source": "live_ai_generation",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
 
             except Exception as ai_error:
@@ -333,7 +333,7 @@ def include_emergency_content_endpoints(app: FastAPI):
                 "ai_service_used": False,
                 "data_source": "emergency_template",
                 "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
     @app.get("/api/intelligence/content/emergency-health", tags=["emergency-content"])
@@ -355,7 +355,7 @@ def include_emergency_content_endpoints(app: FastAPI):
                 "provider_name": provider.provider_name,
                 "test_response": test_response[:50] + "..." if test_response else "No response",
                 "message": "✅ Content generation services operational",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
         except Exception as e:
@@ -366,7 +366,7 @@ def include_emergency_content_endpoints(app: FastAPI):
                 "ai_services_available": False,
                 "error": str(e),
                 "message": "⚠️ Content generation services unavailable - template mode active",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
 # ============================================================================
@@ -439,7 +439,7 @@ def include_emergency_endpoints(app: FastAPI):
             "ai_services_available": subsystems["content"],
             "critical_systems_ok": subsystems["database"],
             "message": f"✅ {operational_count}/{total_systems} emergency systems operational",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
     logger.info("✅ Emergency endpoints included with live database query capabilities")

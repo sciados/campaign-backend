@@ -4,7 +4,7 @@ import os
 import sys
 import logging
 import uvicorn
-from datetime import datetime
+from datetime import datetime, timezone
 
 # ============================================================================
 # PYTHON PATH SETUP
@@ -119,7 +119,7 @@ async def create_campaignforge_app():
             "allowed_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
             "allowed_headers": ["Accept", "Content-Type", "Authorization"],
             "message": "CORS is properly configured",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     
     # Phase 5: Include emergency endpoints with live database queries
@@ -209,13 +209,13 @@ async def simple_health_check():
             "status": "healthy" if db_ok and config_ok else "degraded",
             "database": "✅" if db_ok else "❌",
             "config": "✅" if config_ok else "❌",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     except Exception as e:
         return {
             "status": "error",
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
 # ============================================================================

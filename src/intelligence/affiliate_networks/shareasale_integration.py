@@ -15,7 +15,7 @@ import hmac
 import time
 import logging
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 
 logger = logging.getLogger(__name__)
