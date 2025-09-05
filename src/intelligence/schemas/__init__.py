@@ -1,30 +1,29 @@
+# =====================================
 # File: src/intelligence/schemas/__init__.py
+# =====================================
+
 """
-Intelligence Schemas Package
+Pydantic schemas for Intelligence Engine API validation.
+
+Provides request/response schemas for API endpoints.
 """
 
-from .requests import (
-    AnalyzeURLRequest,
-    GenerateContentRequest,
-    UpdateContentRequest,
-    AmplificationRequest,
-    ExportRequest
-)
-from .responses import (
-    AnalysisResponse,
-    ContentGenerationResponse,
-    CampaignIntelligenceResponse,
-    SystemStatusResponse
+from ..models.intelligence_models import (
+    IntelligenceRequest,
+    IntelligenceResponse,
+    AnalysisResult,
+    ProductInfo,
+    MarketInfo,
+    ResearchInfo,
+    AnalysisMethod
 )
 
 __all__ = [
-    "AnalyzeURLRequest",
-    "GenerateContentRequest", 
-    "UpdateContentRequest",
-    "AmplificationRequest",
-    "ExportRequest",
-    "AnalysisResponse",
-    "ContentGenerationResponse",
-    "CampaignIntelligenceResponse", 
-    "SystemStatusResponse"
+    "IntelligenceRequest",
+    "IntelligenceResponse", 
+    "AnalysisResult",
+    "ProductInfo",
+    "MarketInfo",
+    "ResearchInfo",
+    "AnalysisMethod",
 ]
