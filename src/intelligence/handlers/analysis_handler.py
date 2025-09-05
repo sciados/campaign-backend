@@ -7,6 +7,7 @@ FIXED: Removed analysis_method field that doesn't exist in new schema
 FIXED: Single class definition with all methods properly organized
 """
 import asyncio
+import datetime
 import time
 import uuid
 import logging
@@ -399,26 +400,30 @@ class AnalysisHandler:
 
     async def _store_analysis_results(self, intelligence_id: str, analysis_result: Dict[str, Any]):
         logger.info("STORAGE DEBUG: Starting storage operation")
-        storage_start = time.time()
+        storage_start = datetime.now()
     
         try:
             data_size = len(str(analysis_result))
-            logger.info(f"STORAGE DEBUG: Data size to store: {data_size} characters")
-        
+            logger.info(f"STORAGE DEBUG: Data size to store: {data_size} characters")        
+            logger.info(f"STORAGE DEBUG: Analysis result keys: {list(analysis_result.keys())}")
+
+            if "offer_intelligence" in analysis_result:
+                logger.info(f"STORAGE DEBUG: Offer intelligence keys: {list(analysis_result['offer_intelligence'].keys())}")
+
             await intelligence_crud.update_intelligence(
                 db=self.db,
                 intelligence_id=uuid.UUID(intelligence_id),
                 update_data=analysis_result
             )
         
-            storage_time = time.time() - storage_start
+            storage_time = (datetime.now() - storage_start).total_seconds()
             logger.info(f"STORAGE DEBUG: Completed in {storage_time:.2f}s")
         
             if storage_time > 30:
                 logger.error(f"SLOW STORAGE: Database update took {storage_time:.2f}s - this is too slow!")
             
         except Exception as e:
-            storage_time = time.time() - storage_start
+            storage_time = (datetime.now() - storage_start).total_seconds()
             logger.error(f"STORAGE DEBUG: Failed after {storage_time:.2f}s - {str(e)}")
             raise
     
