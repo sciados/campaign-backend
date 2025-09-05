@@ -496,6 +496,7 @@ class AnalysisHandler:
         }
     
     async def _perform_amplification(self, url: str, base_result: Dict[str, Any]) -> Dict[str, Any]:
+        logger.info("=== AMPLIFICATION CALLED FROM SHARED_INTELLIGENCE.PY ===")
         """Placeholder for amplification logic"""
         # This would enhance the base analysis
         base_result["analysis_method"] = "base_plus_amplification"
