@@ -168,29 +168,29 @@ class IntelligenceCRUD:
         try:
             # Time core update
             if any(field in update_data for field in ["product_name", "source_url", "confidence_score"]):
-                core_start = time.time()
+                core_start = datetime.now()
                 # ... core update logic ...
-                logger.info(f"CRUD DEBUG: Core update took {time.time() - core_start:.2f}s")
+                logger.info(f"CRUD DEBUG: Core update took {(datetime.now() - core_start).total_seconds():.2f}s")
         
             # Time product data update
             offer_intel = update_data.get("offer_intelligence")
             if offer_intel:
-                product_start = time.time()
+                product_start = datetime.now()
                 # ... product update logic ...
-                logger.info(f"CRUD DEBUG: Product update took {time.time() - product_start:.2f}s")
+                logger.info(f"CRUD DEBUG: Product update took {(datetime.now() - product_start).total_seconds():.2f}s")
         
             # Time market data update
             comp_intel = update_data.get("competitive_intelligence")
             psych_intel = update_data.get("psychology_intelligence")
             if comp_intel or psych_intel:
-                market_start = time.time()
+                market_start = datetime.now()
                 # ... market update logic ...
-                logger.info(f"CRUD DEBUG: Market update took {time.time() - market_start:.2f}s")
+                logger.info(f"CRUD DEBUG: Market update took {(datetime.now() - market_start).total_seconds():.2f}s")
         
             # Time the expensive reconstruction
-            reconstruct_start = time.time()
+            reconstruct_start = datetime.now()
             result = await self.get_intelligence_by_id(db, intelligence_id)
-            reconstruct_time = time.time() - reconstruct_start
+            reconstruct_time = (datetime.now() - reconstruct_start).total_seconds()
             logger.info(f"CRUD DEBUG: Data reconstruction took {reconstruct_time:.2f}s")
         
             total_crud_time = (datetime.now() - crud_start).total_seconds()
