@@ -7,13 +7,12 @@ FIXED: Removed analysis_method field that doesn't exist in new schema
 FIXED: Single class definition with all methods properly organized
 """
 import asyncio
-import datetime
-import time
+# import time
 import uuid
 import logging
 import traceback
 # import time
-# from datetime import time
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -608,7 +607,7 @@ class AnalysisHandler:
 
     async def debug_storage_only(self, url: str = "https://debug-test.com"):
         """Debug method to test just storage operations"""
-        from datetime import datetime
+        # from datetime import datetime
 
         logger.info("=== STORAGE DEBUG TEST START ===")
 
