@@ -102,3 +102,12 @@ imageio>=2.31.0
 
 # MoviePy (optional - only if using advanced video processing)
 # moviepy>=1.0.3
+# Core Infrastructure Dependencies
+psutil>=5.9.0
+validators>=0.20.0
+slowapi>=0.1.9
+
+sentry-sdk[fastapi]>=1.32.0
+pyjwt>=2.8.0
+python-json-logger>=2.0.0
+redis>=4.5.0

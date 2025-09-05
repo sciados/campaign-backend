@@ -1,0 +1,135 @@
+# =====================================
+# File: src/core/shared/responses.py
+# =====================================
+
+"""
+Standardized API response models for CampaignForge.
+
+Provides consistent response structures across all API endpoints
+with proper typing and serialization.
+"""
+
+from typing import Any, Dict, List, Optional, Generic, TypeVar
+from pydantic import BaseModel, Field
+from datetime import datetime
+
+T = TypeVar('T')
+
+
+class StandardResponse(BaseModel, Generic[T]):
+    """
+    Standard API response format for all CampaignForge endpoints.
+    
+    Provides consistent structure with success status, data,
+    and optional metadata.
+    """
+    
+    success: bool = Field(..., description="Whether the operation was successful")
+    data: Optional[T] = Field(None, description="Response data")
+    message: Optional[str] = Field(None, description="Human-readable message")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Response timestamp")
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
+class SuccessResponse(StandardResponse[T]):
+    """Success response with data."""
+    
+    success: bool = Field(True, const=True)
+    
+    def __init__(self, data: T, message: Optional[str] = None, **kwargs):
+        super().__init__(data=data, message=message, **kwargs)
+
+
+class ErrorResponse(StandardResponse[None]):
+    """Error response with error details."""
+    
+    success: bool = Field(False, const=True)
+    error_code: str = Field(..., description="Machine-readable error code")
+    details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
+    
+    def __init__(
+        self, 
+        message: str, 
+        error_code: str = "GENERAL_ERROR",
+        details: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ):
+        super().__init__(
+            data=None,
+            message=message,
+            error_code=error_code,
+            details=details,
+            **kwargs
+        )
+
+
+class PaginatedResponse(StandardResponse[List[T]]):
+    """Paginated response for list endpoints."""
+    
+    total: int = Field(..., description="Total number of items")
+    page: int = Field(..., description="Current page number")
+    size: int = Field(..., description="Number of items per page")
+    pages: int = Field(..., description="Total number of pages")
+    has_next: bool = Field(..., description="Whether there are more pages")
+    has_previous: bool = Field(..., description="Whether there are previous pages")
+    
+    def __init__(
+        self,
+        data: List[T],
+        total: int,
+        page: int,
+        size: int,
+        message: Optional[str] = None,
+        **kwargs
+    ):
+        pages = (total + size - 1) // size if size > 0 else 0
+        has_next = page < pages
+        has_previous = page > 1
+        
+        super().__init__(
+            data=data,
+            message=message,
+            total=total,
+            page=page,
+            size=size,
+            pages=pages,
+            has_next=has_next,
+            has_previous=has_previous,
+            **kwargs
+        )
+
+
+# Response factory functions for common use cases
+def success_response(data: T, message: Optional[str] = None) -> SuccessResponse[T]:
+    """Create a success response."""
+    return SuccessResponse(data=data, message=message)
+
+
+def error_response(
+    message: str,
+    error_code: str = "GENERAL_ERROR",
+    details: Optional[Dict[str, Any]] = None
+) -> ErrorResponse:
+    """Create an error response."""
+    return ErrorResponse(message=message, error_code=error_code, details=details)
+
+
+def paginated_response(
+    data: List[T],
+    total: int,
+    page: int,
+    size: int,
+    message: Optional[str] = None
+) -> PaginatedResponse[T]:
+    """Create a paginated response."""
+    return PaginatedResponse(
+        data=data,
+        total=total,
+        page=page,
+        size=size,
+        message=message
+    )
