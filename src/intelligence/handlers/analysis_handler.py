@@ -4,13 +4,14 @@ Analysis Handler - Complete CRUD integration with NEW OPTIMIZED SCHEMA
 FIXED: Updated to use IntelligenceCore with correct field names
 FIXED: All database operations now use new normalized schema via intelligence_crud
 FIXED: Removed analysis_method field that doesn't exist in new schema
+FIXED: Single class definition with all methods properly organized
 """
-# src/intelligence/handlers/analysis_handler.py - FIXED IMPORTS
 import asyncio
 import uuid
 import logging
 import traceback
-from datetime import datetime, time, timezone
+import time
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -331,7 +332,7 @@ class AnalysisHandler:
             }
     
     def _get_ai_providers_from_analyzer(self) -> List[Dict[str, Any]]:
-        """Get AI providers for amplification - MISSING METHOD ADDED"""
+        """Get AI providers for amplification"""
         try:
             from ..utils.tiered_ai_provider import get_tiered_ai_provider, ServiceTier
             provider_manager = get_tiered_ai_provider(ServiceTier.free)
@@ -351,7 +352,6 @@ class AnalysisHandler:
 
     async def _perform_amplification(self, url: str, base_analysis: Dict[str, Any]) -> Dict[str, Any]:
         logger.info("=== AMPLIFICATION DEBUG START ===")
-        import time  # Ensure time is imported
         total_start = time.time()
 
         try:
@@ -421,6 +421,7 @@ class AnalysisHandler:
                 "workflow_type": "streamlined_2_step"
             }
             return base_analysis
+
     async def _store_analysis_results(self, intelligence_id: str, analysis_result: Dict[str, Any]):
         logger.info("STORAGE DEBUG: Starting storage operation")
         storage_start = time.time()
@@ -588,7 +589,6 @@ class AnalysisHandler:
             "next_step": "retry_analysis"
         }
 
-    # Debug method for testing database compatibility
     async def debug_new_schema_compatibility(self):
         """Debug method to test new schema compatibility"""
         try:
@@ -625,18 +625,9 @@ class AnalysisHandler:
             import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
             return False
-        
-    # In src/intelligence/handlers/analysis_handler.py
-# Add this method to the AnalysisHandler class, right after the existing methods:
-
-class AnalysisHandler:
-    # ... existing methods ...
 
     async def debug_storage_only(self, url: str = "https://debug-test.com"):
-        """
-        Debug method to test just storage operations
-        Add this to your existing AnalysisHandler class
-        """
+        """Debug method to test just storage operations"""
         logger.info("=== STORAGE DEBUG TEST START ===")
         
         try:
