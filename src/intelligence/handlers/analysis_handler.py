@@ -631,30 +631,30 @@ class AnalysisHandler:
 
     async def debug_storage_only(self, url: str = "https://debug-test.com"):
         """Debug method to test just storage operations"""
-        import time as time_module  # Local import avoids global conflicts
-    
+        from datetime import datetime
+
         logger.info("=== STORAGE DEBUG TEST START ===")
-    
+
         try:
             # Test 1: Create intelligence record
-            create_start = time_module.time()
+            create_start = datetime.now()
             intelligence_id = await self._create_intelligence_record(url, "debug_test", "sales_page")
-            create_time = time_module.time() - create_start
+            create_time = (datetime.now() - create_start).total_seconds()
             logger.info(f"STORAGE DEBUG: Create took {create_time:.2f}s - ID: {intelligence_id}")
-        
+
             # Test 2: Minimal update
-            minimal_start = time_module.time()
+            minimal_start = datetime.now()
             minimal_data = {"confidence_score": 0.8}
             await intelligence_crud.update_intelligence(
                 db=self.db,
                 intelligence_id=uuid.UUID(intelligence_id),
                 update_data=minimal_data
             )
-            minimal_time = time_module.time() - minimal_start
+            minimal_time = (datetime.now() - minimal_start).total_seconds()
             logger.info(f"STORAGE DEBUG: Minimal update took {minimal_time:.2f}s")
-        
+
             # Test 3: Complex update
-            complex_start = time_module.time()
+            complex_start = datetime.now()
             complex_data = {
                 "confidence_score": 0.9,
                 "offer_intelligence": {
@@ -669,12 +669,12 @@ class AnalysisHandler:
                 intelligence_id=uuid.UUID(intelligence_id),
                 update_data=complex_data
             )
-            complex_time = time_module.time() - complex_start
+            complex_time = (datetime.now() - complex_start).total_seconds()
             logger.info(f"STORAGE DEBUG: Complex update took {complex_time:.2f}s")
-        
+
             total_time = create_time + minimal_time + complex_time
             logger.info(f"=== STORAGE DEBUG COMPLETE: {total_time:.2f}s total ===")
-        
+
             return {
                 "status": "success",
                 "create_time": create_time,
@@ -683,7 +683,7 @@ class AnalysisHandler:
                 "total_time": total_time,
                 "intelligence_id": intelligence_id
             }
-        
+
         except Exception as e:
             logger.error(f"STORAGE DEBUG FAILED: {str(e)}")
             import traceback
