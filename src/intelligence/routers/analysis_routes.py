@@ -430,7 +430,7 @@ async def get_analysis_health(
 async def debug_storage_performance(
     url: str = "https://debug-test.com",
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Debug endpoint to test storage performance"""
     
