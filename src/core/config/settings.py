@@ -1,7 +1,3 @@
-# =====================================
-# File: src/core/config/settings.py
-# =====================================
-
 """
 Main application settings for CampaignForge Railway deployment.
 
@@ -9,7 +5,8 @@ Manages all environment variables with proper typing, validation,
 and Railway-specific configurations.
 """
 
-from pydantic import BaseSettings, validator
+from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import Optional, List
 import os
 from functools import lru_cache
@@ -24,7 +21,7 @@ class Settings(BaseSettings):
     
     # ===== APPLICATION =====
     APP_NAME: str = "CampaignForge"
-    APP_VERSION: str = "1.0.0"
+    APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
     ENVIRONMENT: str = "production"
     API_BASE_URL: str
@@ -86,15 +83,17 @@ class Settings(BaseSettings):
     AI_DISCOVERY_DATABASE_URL: str
     AI_DISCOVERY_SERVICE_URL: str
     
-    @validator("ALLOWED_ORIGINS")
+    @field_validator("ALLOWED_ORIGINS")
+    @classmethod
     def parse_cors_origins(cls, v: str) -> List[str]:
         """Parse CORS origins from comma-separated string."""
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
         return v
     
-    @validator("DATABASE_URL_ASYNC")
-    def validate_async_db_url(cls, v: str, values: dict) -> str:
+    @field_validator("DATABASE_URL_ASYNC")
+    @classmethod
+    def validate_async_db_url(cls, v: str, values=None) -> str:
         """Ensure async database URL uses asyncpg driver."""
         if not v.startswith("postgresql+asyncpg://"):
             # Convert standard PostgreSQL URL to async format
@@ -104,10 +103,11 @@ class Settings(BaseSettings):
                 raise ValueError("DATABASE_URL_ASYNC must be a PostgreSQL URL")
         return v
     
-    @validator("DEBUG")
-    def set_debug_mode(cls, v: bool, values: dict) -> bool:
+    @field_validator("DEBUG")
+    @classmethod
+    def set_debug_mode(cls, v: bool, values=None) -> bool:
         """Set debug mode based on environment."""
-        env = values.get("ENVIRONMENT", "production")
+        env = os.getenv("ENVIRONMENT", "production")
         if env in ["development", "dev", "local"]:
             return True
         return v
