@@ -435,7 +435,8 @@ async def debug_storage_performance(
     """Debug endpoint to test storage performance"""
     
     try:
-        handler = AnalysisHandler(db=db, user=current_user)
+        # Fix: Pass required arguments to AnalysisHandler
+        handler = AnalysisHandler(db=db, user=current_user)  # Add db= and user=
         result = await handler.debug_storage_only(url)
         return result
     except Exception as e:
