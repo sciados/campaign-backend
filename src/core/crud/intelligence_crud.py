@@ -163,7 +163,7 @@ class IntelligenceCRUD:
     
     async def update_intelligence(self, db: AsyncSession, intelligence_id: UUID, update_data: Dict[str, Any]):
         logger.info(f"CRUD DEBUG: Starting update for {intelligence_id}")
-        crud_start = time.time()
+        crud_start = datetime.now()
     
         try:
             # Time core update
@@ -193,7 +193,7 @@ class IntelligenceCRUD:
             reconstruct_time = time.time() - reconstruct_start
             logger.info(f"CRUD DEBUG: Data reconstruction took {reconstruct_time:.2f}s")
         
-            total_crud_time = time.time() - crud_start
+            total_crud_time = (datetime.now() - crud_start).total_seconds()
             logger.info(f"CRUD DEBUG: Total CRUD operation took {total_crud_time:.2f}s")
         
             if total_crud_time > 45:
@@ -202,7 +202,7 @@ class IntelligenceCRUD:
             return result
         
         except Exception as e:
-            crud_time = time.time() - crud_start
+            crud_time = (datetime.now() - crud_start).total_seconds()
             logger.error(f"CRUD DEBUG: Failed after {crud_time:.2f}s - {str(e)}")
             raise
     
