@@ -1,7 +1,3 @@
-# =====================================
-# File: src/core/shared/responses.py
-# =====================================
-
 """
 Standardized API response models for CampaignForge.
 
@@ -9,7 +5,7 @@ Provides consistent response structures across all API endpoints
 with proper typing and serialization.
 """
 
-from typing import Any, Dict, List, Optional, Generic, TypeVar
+from typing import Any, Dict, List, Optional, Generic, TypeVar, Literal
 from pydantic import BaseModel, Field
 from datetime import datetime
 
@@ -38,16 +34,16 @@ class StandardResponse(BaseModel, Generic[T]):
 class SuccessResponse(StandardResponse[T]):
     """Success response with data."""
     
-    success: bool = Field(True, const=True)
+    success: Literal[True] = Field(True, description="Success status")
     
     def __init__(self, data: T, message: Optional[str] = None, **kwargs):
-        super().__init__(data=data, message=message, **kwargs)
+        super().__init__(success=True, data=data, message=message, **kwargs)
 
 
 class ErrorResponse(StandardResponse[None]):
     """Error response with error details."""
     
-    success: bool = Field(False, const=True)
+    success: Literal[False] = Field(False, description="Error status")
     error_code: str = Field(..., description="Machine-readable error code")
     details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
     
@@ -59,6 +55,7 @@ class ErrorResponse(StandardResponse[None]):
         **kwargs
     ):
         super().__init__(
+            success=False,
             data=None,
             message=message,
             error_code=error_code,
@@ -91,6 +88,7 @@ class PaginatedResponse(StandardResponse[List[T]]):
         has_previous = page > 1
         
         super().__init__(
+            success=True,
             data=data,
             message=message,
             total=total,
