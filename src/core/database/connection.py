@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 import logging
+from sqlalchemy import text
 from typing import Generator, AsyncGenerator
 
 from ..config import settings
@@ -110,11 +111,11 @@ async def test_database_connection() -> bool:
     try:
         # Test sync connection
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
         
         # Test async connection
         async with async_engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
             
         logger.info("Database connection test successful")
         return True
