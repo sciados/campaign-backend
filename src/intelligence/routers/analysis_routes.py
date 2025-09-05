@@ -426,6 +426,22 @@ async def get_analysis_health(
             }
         }
 
+@router.post("/debug-storage")
+async def debug_storage_performance(
+    url: str = "https://debug-test.com",
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Debug endpoint to test storage performance"""
+    
+    try:
+        handler = AnalysisHandler(db=db, user=current_user)
+        result = await handler.debug_storage_only(url)
+        return result
+    except Exception as e:
+        logger.error(f"Debug storage endpoint failed: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
 @router.get("/crud-status")
 async def get_crud_status(
     current_user: User = Depends(get_current_user),

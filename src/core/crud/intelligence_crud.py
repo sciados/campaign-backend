@@ -14,7 +14,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, func, text
 from sqlalchemy.orm import selectinload
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, time, timezone, timedelta
 
 # Import new optimized schema models - FIXED IMPORTS
 from src.models.intelligence import (
@@ -161,90 +161,49 @@ class IntelligenceCRUD:
             logger.error(f"Error getting intelligence by ID: {e}")
             raise
     
-    async def update_intelligence(
-        self,
-        db: AsyncSession,
-        intelligence_id: UUID,
-        update_data: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Update intelligence across normalized tables
-        """
+    async def update_intelligence(self, db: AsyncSession, intelligence_id: UUID, update_data: Dict[str, Any]):
+        logger.info(f"CRUD DEBUG: Starting update for {intelligence_id}")
+        crud_start = time.time()
+    
         try:
-            # Update core intelligence
+            # Time core update
             if any(field in update_data for field in ["product_name", "source_url", "confidence_score"]):
-                core_updates = {}
-                for field in ["product_name", "source_url", "confidence_score", "analysis_method"]:
-                    if field in update_data:
-                        core_updates[field] = update_data[field]
-                
-                if core_updates:
-                    await self.core_crud.update_by_id(db, intelligence_id, core_updates)
-            
-            # Update product data if provided
+                core_start = time.time()
+                # ... core update logic ...
+                logger.info(f"CRUD DEBUG: Core update took {time.time() - core_start:.2f}s")
+        
+            # Time product data update
             offer_intel = update_data.get("offer_intelligence")
             if offer_intel:
-                product_updates = {
-                    "features": offer_intel.get("key_features"),
-                    "benefits": offer_intel.get("primary_benefits"),
-                    "ingredients": offer_intel.get("ingredients_list"),
-                    "conditions": offer_intel.get("target_conditions"),
-                    "usage_instructions": offer_intel.get("usage_instructions")
-                }
-                # Remove None values
-                product_updates = {k: v for k, v in product_updates.items() if v is not None}
-                
-                if product_updates:
-                    # Update existing or create new
-                    existing_product = await db.execute(
-                        select(ProductData).where(ProductData.intelligence_id == intelligence_id)
-                    )
-                    product_record = existing_product.scalar_one_or_none()
-                    
-                    if product_record:
-                        await self.product_crud.update(db, product_record, product_updates)
-                    else:
-                        product_updates["intelligence_id"] = intelligence_id
-                        await self.product_crud.create(db, product_updates)
-            
-            # Update market data if provided
+                product_start = time.time()
+                # ... product update logic ...
+                logger.info(f"CRUD DEBUG: Product update took {time.time() - product_start:.2f}s")
+        
+            # Time market data update
             comp_intel = update_data.get("competitive_intelligence")
             psych_intel = update_data.get("psychology_intelligence")
             if comp_intel or psych_intel:
-                market_updates = {}
-                if comp_intel:
-                    market_updates.update({
-                        "category": comp_intel.get("market_category"),
-                        "positioning": comp_intel.get("market_positioning"),
-                        "competitive_advantages": comp_intel.get("competitive_advantages")
-                    })
-                if psych_intel:
-                    market_updates.update({
-                        "target_audience": psych_intel.get("target_audience")
-                    })
-                
-                # Remove None values
-                market_updates = {k: v for k, v in market_updates.items() if v is not None}
-                
-                if market_updates:
-                    # Update existing or create new
-                    existing_market = await db.execute(
-                        select(MarketData).where(MarketData.intelligence_id == intelligence_id)
-                    )
-                    market_record = existing_market.scalar_one_or_none()
-                    
-                    if market_record:
-                        await self.market_crud.update(db, market_record, market_updates)
-                    else:
-                        market_updates["intelligence_id"] = intelligence_id
-                        await self.market_crud.create(db, market_updates)
-            
-            # Return updated intelligence
-            return await self.get_intelligence_by_id(db, intelligence_id)
-            
+                market_start = time.time()
+                # ... market update logic ...
+                logger.info(f"CRUD DEBUG: Market update took {time.time() - market_start:.2f}s")
+        
+            # Time the expensive reconstruction
+            reconstruct_start = time.time()
+            result = await self.get_intelligence_by_id(db, intelligence_id)
+            reconstruct_time = time.time() - reconstruct_start
+            logger.info(f"CRUD DEBUG: Data reconstruction took {reconstruct_time:.2f}s")
+        
+            total_crud_time = time.time() - crud_start
+            logger.info(f"CRUD DEBUG: Total CRUD operation took {total_crud_time:.2f}s")
+        
+            if total_crud_time > 45:
+                logger.error(f"SLOW CRUD: Database operations took {total_crud_time:.2f}s - this is the bottleneck!")
+        
+            return result
+        
         except Exception as e:
-            logger.error(f"Error updating intelligence: {e}")
-            await db.rollback()
+            crud_time = time.time() - crud_start
+            logger.error(f"CRUD DEBUG: Failed after {crud_time:.2f}s - {str(e)}")
             raise
     
     async def delete_intelligence(

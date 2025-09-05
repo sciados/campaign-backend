@@ -10,7 +10,7 @@ import asyncio
 import uuid
 import logging
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -350,105 +350,56 @@ class AnalysisHandler:
             }]
 
     async def _perform_amplification(self, url: str, base_analysis: Dict[str, Any]) -> Dict[str, Any]:
-        """SIMPLIFIED: Perform intelligence amplification with better error handling and timeouts"""
-        if not ENHANCEMENT_AVAILABLE:
-            logger.info("Enhancement modules not available, using base analysis")
-            base_analysis["amplification_metadata"] = {
-                "amplification_applied": False,
-                "amplification_available": False,
-                "amplification_error": "Enhancement modules not installed",
-                "note": "Install amplifier dependencies for enhanced analysis",
-                "fallback_to_base": True,
-                "workflow_type": "streamlined_2_step"
-            }
-            return base_analysis
-        
+        logger.info("=== AMPLIFICATION DEBUG START ===")
+        import time  # Ensure time is imported
+        total_start = time.time()
+
         try:
-            logger.info("DEBUG: Starting amplification...")
-            logger.info("Starting SIMPLIFIED intelligence amplification...")
-            
-            # Get AI providers with timeout protection
-            try:
-                logger.info("DEBUG: Getting AI providers...")
-                ai_providers = self._get_ai_providers_from_analyzer()
-                if not ai_providers or not any(p.get("available", False) for p in ai_providers):
-                    raise Exception("No available AI providers for enhancement")
-                logger.info(f"Using {len(ai_providers)} AI providers for amplification")
-            except Exception as provider_error:
-                logger.warning(f"AI provider setup failed: {provider_error}")
-                raise Exception(f"Cannot initialize AI providers: {provider_error}")
-            
-            # Simplified preferences
-            preferences = {
-                "enhance_scientific_backing": True,
-                "boost_credibility": True,
-                "cost_optimization": True
-            }
-            
-            # STEP 1: Identify opportunities with timeout
-            logger.info("DEBUG: Step 1 - Identifying opportunities...")
-            logger.info("Step 1: Identifying enhancement opportunities...")
+            # Log each step with precise timing
+            logger.info("STEP 1: Getting AI providers...")
+            step_start = time.time()
+            ai_providers = self._get_ai_providers_from_analyzer()
+            logger.info(f"STEP 1 COMPLETE: {time.time() - step_start:.2f}s - Found {len(ai_providers)} providers")
+
+            logger.info("STEP 2: Identifying opportunities...")
+            step_start = time.time()
+            # Use empty preferences if not defined
+            preferences = {}
             opportunities = await asyncio.wait_for(
-                identify_opportunities(
-                    base_intel=base_analysis,
-                    preferences=preferences,
-                    providers=ai_providers
-                ),
-                timeout=60  # 60 second timeout
+                identify_opportunities(base_intel=base_analysis, preferences=preferences, providers=ai_providers),
+                timeout=60
             )
-            
-            opportunities_count = opportunities.get("opportunity_metadata", {}).get("total_opportunities", 0)
-            logger.info(f"Identified {opportunities_count} opportunities")
-            logger.info(f"DEBUG: Opportunities completed")
-            
-            # STEP 2: Generate enhancements with timeout
-            logger.info("DEBUG: Step 2 - Generating enhancements...")
-            logger.info("Step 2: Generating enhancements...")
+            logger.info(f"STEP 2 COMPLETE: {time.time() - step_start:.2f}s")
+
+            logger.info("STEP 3: Generating enhancements (THIS IS WHERE TIMEOUT LIKELY OCCURS)...")
+            step_start = time.time()
             enhancements = await asyncio.wait_for(
-                generate_enhancements(
-                    base_intel=base_analysis,
-                    opportunities=opportunities,
-                    providers=ai_providers
-                ),
-                timeout=180  # 3 minute timeout for AI generation
+                generate_enhancements(base_intel=base_analysis, opportunities=opportunities, providers=ai_providers),
+                timeout=300  # Increase timeout and log it
             )
-            
-            enhancement_metadata = enhancements.get("enhancement_metadata", {})
-            total_enhancements = enhancement_metadata.get("total_enhancements", 0)
-            logger.info(f"Generated {total_enhancements} enhancements")
-            logger.info(f"DEBUG: Enhancements completed")
-            
-            # STEP 3: Create enriched intelligence with timeout
-            logger.info("DEBUG: Step 3 - Creating enriched intelligence...")
-            logger.info("Step 3: Creating enriched intelligence...")
+            enhancement_time = time.time() - step_start
+            logger.info(f"STEP 3 COMPLETE: {enhancement_time:.2f}s")
+
+            # Check if we're close to timeout
+            if enhancement_time > 240:
+                logger.error(f"TIMEOUT WARNING: Enhancement took {enhancement_time:.2f}s - very close to timeout!")
+
+            logger.info("STEP 4: Creating enriched intelligence...")
+            step_start = time.time()
             enriched_intelligence = await asyncio.wait_for(
-                create_enriched_intelligence(
-                    base_intel=base_analysis,
-                    enhancements=enhancements
-                ),
-                timeout=30  # 30 second timeout
+                create_enriched_intelligence(base_intel=base_analysis, enhancements=enhancements),
+                timeout=30
             )
-            
-            # Add success metadata
-            enriched_intelligence["amplification_metadata"] = {
-                "amplification_applied": True,
-                "amplification_method": "simplified_streamlined",
-                "opportunities_identified": opportunities_count,
-                "total_enhancements": total_enhancements,
-                "confidence_boost": enhancement_metadata.get("confidence_boost", 0.0),
-                "workflow_type": "streamlined_2_step",
-                "amplification_timestamp": datetime.now(timezone.utc).isoformat(),
-                "success": True
-            }
-            
-            final_confidence = enriched_intelligence.get("confidence_score", 0.0)
-            logger.info(f"Amplification completed successfully - Final confidence: {final_confidence:.2f}")
-            logger.info(f"DEBUG: Amplification completed successfully")
-            
+            logger.info(f"STEP 4 COMPLETE: {time.time() - step_start:.2f}s")
+
+            total_time = time.time() - total_start
+            logger.info(f"=== AMPLIFICATION DEBUG END: {total_time:.2f}s total ===")
+
             return enriched_intelligence
-            
-        except asyncio.TimeoutError:
-            logger.error("Amplification timed out - using base analysis")
+
+        except asyncio.TimeoutError as e:
+            timeout_time = time.time() - total_start
+            logger.error(f"TIMEOUT DEBUG: Failed after {timeout_time:.2f}s - {str(e)}")
             base_analysis["amplification_metadata"] = {
                 "amplification_applied": False,
                 "amplification_error": "Amplification timed out",
@@ -457,9 +408,10 @@ class AnalysisHandler:
                 "timeout": True
             }
             return base_analysis
-            
+
         except Exception as amp_error:
-            logger.error(f"Amplification failed: {str(amp_error)}")
+            error_time = time.time() - total_start
+            logger.error(f"Amplification failed after {error_time:.2f}s: {str(amp_error)}")
             logger.error(f"DEBUG: Amplification failed with error: {str(amp_error)}")
             base_analysis["amplification_metadata"] = {
                 "amplification_applied": False,
@@ -469,29 +421,30 @@ class AnalysisHandler:
                 "workflow_type": "streamlined_2_step"
             }
             return base_analysis
-    
     async def _store_analysis_results(self, intelligence_id: str, analysis_result: Dict[str, Any]):
-        """Store analysis results using NEW SCHEMA - store complete data"""
+        logger.info("STORAGE DEBUG: Starting storage operation")
+        storage_start = time.time()
+    
         try:
-            logger.info(f"DEBUG: About to store analysis results...")
-            logger.info(f"Storing complete analysis results for intelligence {intelligence_id}")
+            data_size = len(str(analysis_result))
+            logger.info(f"STORAGE DEBUG: Data size to store: {data_size} characters")
         
-            # Pass the COMPLETE analysis result to populate normalized tables
             await intelligence_crud.update_intelligence(
                 db=self.db,
                 intelligence_id=uuid.UUID(intelligence_id),
-                update_data=analysis_result  # Pass full analysis, not just confidence
+                update_data=analysis_result
             )
         
-            logger.info("Complete analysis results stored successfully via NEW SCHEMA")
-            logger.info(f"DEBUG: Storage completed successfully")
+            storage_time = time.time() - storage_start
+            logger.info(f"STORAGE DEBUG: Completed in {storage_time:.2f}s")
         
-        except Exception as storage_error:
-            logger.error(f"Storage error: {str(storage_error)}")
-            logger.error(f"Intelligence ID: {intelligence_id}")
-            import traceback
-            logger.error(f"Full traceback: {traceback.format_exc()}")
-            raise storage_error
+            if storage_time > 30:
+                logger.error(f"SLOW STORAGE: Database update took {storage_time:.2f}s - this is too slow!")
+            
+        except Exception as e:
+            storage_time = time.time() - storage_start
+            logger.error(f"STORAGE DEBUG: Failed after {storage_time:.2f}s - {str(e)}")
+            raise
     
     async def _complete_campaign_analysis(self, campaign: Campaign, intelligence_id: str, analysis_result: Dict[str, Any]):
         """Complete campaign analysis - FIXED FOR NEW SCHEMA"""
@@ -672,3 +625,77 @@ class AnalysisHandler:
             import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
             return False
+        
+    # In src/intelligence/handlers/analysis_handler.py
+# Add this method to the AnalysisHandler class, right after the existing methods:
+
+class AnalysisHandler:
+    # ... existing methods ...
+
+    async def debug_storage_only(self, url: str = "https://debug-test.com"):
+        """
+        Debug method to test just storage operations
+        Add this to your existing AnalysisHandler class
+        """
+        logger.info("=== STORAGE DEBUG TEST START ===")
+        
+        try:
+            # Test 1: Create intelligence record
+            create_start = time.time()
+            intelligence_id = await self._create_intelligence_record(url, "debug_test", "sales_page")
+            create_time = time.time() - create_start
+            logger.info(f"STORAGE DEBUG: Create took {create_time:.2f}s - ID: {intelligence_id}")
+            
+            # Test 2: Minimal update
+            minimal_start = time.time()
+            minimal_data = {"confidence_score": 0.8}
+            await intelligence_crud.update_intelligence(
+                db=self.db,
+                intelligence_id=uuid.UUID(intelligence_id),
+                update_data=minimal_data
+            )
+            minimal_time = time.time() - minimal_start
+            logger.info(f"STORAGE DEBUG: Minimal update took {minimal_time:.2f}s")
+            
+            # Test 3: Complex update (this might be the slow part)
+            complex_start = time.time()
+            complex_data = {
+                "confidence_score": 0.9,
+                "offer_intelligence": {
+                    "key_features": ["test1", "test2"],
+                    "primary_benefits": ["benefit1", "benefit2"]
+                },
+                "competitive_intelligence": {"market_category": "test"},
+                "psychology_intelligence": {"target_audience": "test audience"}
+            }
+            await intelligence_crud.update_intelligence(
+                db=self.db,
+                intelligence_id=uuid.UUID(intelligence_id),
+                update_data=complex_data
+            )
+            complex_time = time.time() - complex_start
+            logger.info(f"STORAGE DEBUG: Complex update took {complex_time:.2f}s")
+            
+            # Identify bottlenecks
+            if complex_time > 30:
+                logger.error(f"BOTTLENECK FOUND: Complex storage takes {complex_time:.2f}s")
+            if minimal_time > 10:
+                logger.error(f"BOTTLENECK FOUND: Even minimal storage takes {minimal_time:.2f}s")
+            
+            total_time = create_time + minimal_time + complex_time
+            logger.info(f"=== STORAGE DEBUG COMPLETE: {total_time:.2f}s total ===")
+            
+            return {
+                "status": "success",
+                "create_time": create_time,
+                "minimal_update_time": minimal_time,
+                "complex_update_time": complex_time,
+                "total_time": total_time,
+                "intelligence_id": intelligence_id
+            }
+            
+        except Exception as e:
+            logger.error(f"STORAGE DEBUG FAILED: {str(e)}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            return {"status": "failed", "error": str(e)}

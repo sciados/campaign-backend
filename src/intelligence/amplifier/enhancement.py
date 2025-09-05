@@ -424,74 +424,42 @@ async def generate_enhancements(base_intel: Dict, opportunities: Dict, providers
         total_enhancements = 0
         mock_data_detected = []
         
-        # Execute each enhancer sequentially (existing system)
+        # In the generate_enhancements function:
         for i, (module_name, enhancer, result_key, intelligence_type) in enumerate(enhancement_queue, 1):
             if not enhancer:
-                logger.warning(f"⚠️ {module_name}: Enhancer not available, skipping")
-                failed_modules.append(module_name)
-                continue
-            
-            try:
-                logger.info(f"🔄 Running enhancer {i}/{len(enhancement_queue)}: {module_name}")
-                start_time = time.time()
-                
-                # Run single enhancer with appropriate method (existing system)
-                if module_name == "scientific":
-                    result = await enhancer.generate_scientific_intelligence(product_data, base_intel)
-                elif module_name == "credibility":
-                    result = await enhancer.generate_credibility_intelligence(product_data, base_intel)
-                elif module_name == "content":
-                    result = await enhancer.generate_content_intelligence(product_data, base_intel)
-                elif module_name == "emotional":
-                    result = await enhancer.generate_emotional_transformation_intelligence(product_data, base_intel)
-                elif module_name == "authority":
-                    result = await enhancer.generate_scientific_authority_intelligence(product_data, base_intel)
-                elif module_name == "market":
-                    result = await enhancer.generate_market_intelligence(product_data, base_intel)
-                else:
-                    logger.error(f"❌ Unknown enhancer type: {module_name}")
-                    continue
-                
-                # 🔥 CRITICAL: Clean and validate results to eliminate mock data
-                if result and isinstance(result, dict):
-                    # Clean the result to remove any mock data
-                    cleaned_result = _clean_enhancement_data(result, module_name)
-                    
-                    if cleaned_result and _is_valid_enhancement(cleaned_result, module_name):
-                        enhancements[result_key] = cleaned_result
-                        successful_modules.append(module_name)
-                        
-                        # Count enhancements in this result
-                        enhancement_count = _count_enhancements_in_result(cleaned_result)
-                        total_enhancements += enhancement_count
-                        
-                        execution_time = time.time() - start_time
-                        logger.info(f"✅ {module_name}: Completed in {execution_time:.1f}s ({enhancement_count} real enhancements)")
-                        
-                        # Log sample data for verification (real data only)
-                        if isinstance(cleaned_result, dict) and cleaned_result:
-                            sample_key = list(cleaned_result.keys())[0]
-                            sample_data = cleaned_result[sample_key]
-                            logger.info(f"   📊 Sample real data: {sample_key} = {str(sample_data)[:80]}...")
-                    else:
-                        logger.warning(f"⚠️ {module_name}: Result contained only mock data, discarded")
-                        failed_modules.append(module_name)
-                        
-                        # Track mock data detection
-                        if result:
-                            contamination = _detect_mock_data_contamination({result_key: result})
-                            mock_data_detected.extend(contamination)
-                else:
-                    logger.warning(f"⚠️ {module_name}: No valid results returned")
-                    failed_modules.append(module_name)
-                
-                # Small delay between modules
-                await asyncio.sleep(2)
-                
-            except Exception as e:
-                logger.error(f"❌ Enhancement module {i} ({module_name}) failed: {str(e)}")
-                failed_modules.append(module_name)
-                continue
+                logger.warning(f"ENHANCER DEBUG: {module_name} not available")
+            continue
+    
+        try:
+            logger.info(f"ENHANCER DEBUG: Starting {module_name} ({i}/{len(enhancement_queue)})")
+            enhancer_start = time.time()
+        
+            # Run the enhancer with detailed timing
+            if module_name == "scientific":
+                result = await enhancer.generate_scientific_intelligence(product_data, base_intel)
+            elif module_name == "credibility":
+                result = await enhancer.generate_credibility_intelligence(product_data, base_intel)
+            # ... etc
+        
+            enhancer_time = time.time() - enhancer_start
+            logger.info(f"ENHANCER DEBUG: {module_name} completed in {enhancer_time:.2f}s")
+        
+            # Check for slow enhancers
+            if enhancer_time > 60:
+                logger.error(f"SLOW ENHANCER: {module_name} took {enhancer_time:.2f}s - this is too slow!")
+        
+            # Log result size
+            result_size = len(str(result)) if result else 0
+            logger.info(f"ENHANCER DEBUG: {module_name} result size: {result_size} characters")
+        
+            # Process result...
+        
+            await asyncio.sleep(3)  # Add longer pause
+        
+        except Exception as e:
+            enhancer_time = time.time() - enhancer_start
+            logger.error(f"ENHANCER DEBUG: {module_name} failed after {enhancer_time:.2f}s - {str(e)}")
+            failed_modules.append(module_name)
         
         # Calculate enhancement metadata
         confidence_boost = _calculate_confidence_boost(enhancements, base_intel)
