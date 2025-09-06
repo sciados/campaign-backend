@@ -41,21 +41,10 @@ router = APIRouter(prefix="/api/auth", tags=["authentication"])
 # DATABASE DEPENDENCY - Compatible with your session manager
 # ============================================================================
 
-async def get_async_db_session() -> AsyncSession:
-    """
-    FastAPI dependency to get async database session.
-    Compatible with your existing AsyncSessionManager.
-    """
+async def get_async_db_session():
+    """FastAPI dependency to get async database session."""
     async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        except Exception as e:
-            logger.error(f"Database session error: {e}")
-            await session.rollback()
-            raise
-        finally:
-            # Session cleanup is handled by the context manager
-            pass
+        yield session
 
 # ============================================================================
 # AUTHENTICATION ENDPOINTS
