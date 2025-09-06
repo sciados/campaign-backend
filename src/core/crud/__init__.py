@@ -8,7 +8,7 @@ Centralized CRUD exports - UPDATED with Storage CRUD
 
 from .base_crud import BaseCRUD
 from .campaign_crud import CampaignCRUD
-from .intelligence_crud import IntelligenceCRUD
+# from .intelligence_crud import IntelligenceCRUD
 from .user_crud import user_crud
 
 # ✅ NEW: Import UserStorageCRUD
@@ -24,7 +24,7 @@ except ImportError as e:
 
 # Global CRUD instances - ready to use anywhere
 campaign_crud = CampaignCRUD()
-intelligence_crud = IntelligenceCRUD()
+# intelligence_crud = IntelligenceCRUD()
 
 # ✅ Export list with conditional user_storage_crud
 if USER_STORAGE_CRUD_AVAILABLE:
@@ -34,7 +34,7 @@ if USER_STORAGE_CRUD_AVAILABLE:
         "IntelligenceCRUD",
         "UserStorageCRUD",
         "campaign_crud",
-        "intelligence_crud",
+#        "intelligence_crud",
         "user_storage_crud",
         "user_crud"
     ]
@@ -42,7 +42,7 @@ else:
     __all__ = [
         "BaseCRUD",
         "CampaignCRUD", 
-        "IntelligenceCRUD",
+#        "IntelligenceCRUD",
         "campaign_crud",
         "intelligence_crud",
         "user_crud"
@@ -180,7 +180,7 @@ def get_available_crud_instances():
     """Get dictionary of available CRUD instances"""
     available = {
         "campaign_crud": campaign_crud,
-        "intelligence_crud": intelligence_crud
+        # "intelligence_crud": intelligence_crud
     }
     
     if USER_STORAGE_CRUD_AVAILABLE:
@@ -193,12 +193,12 @@ def check_crud_system_status():
     return {
         "base_crud_available": BaseCRUD is not None,
         "campaign_crud_available": campaign_crud is not None,
-        "intelligence_crud_available": intelligence_crud is not None,
+        # "intelligence_crud_available": intelligence_crud is not None,
         "user_storage_crud_available": USER_STORAGE_CRUD_AVAILABLE,
         "total_crud_classes": len(__all__),
         "system_ready": all([
             BaseCRUD is not None,
             campaign_crud is not None,
-            intelligence_crud is not None
+        #    intelligence_crud is not None
         ])
     }
