@@ -9,7 +9,7 @@ Centralized CRUD exports - UPDATED with Storage CRUD
 from .base_crud import BaseCRUD
 from .campaign_crud import CampaignCRUD
 from .intelligence_crud import IntelligenceCRUD
-from .user_crud import UserCRUD, user_crud
+from .user_crud import user_crud
 
 # ✅ NEW: Import UserStorageCRUD
 try:
@@ -36,7 +36,6 @@ if USER_STORAGE_CRUD_AVAILABLE:
         "campaign_crud",
         "intelligence_crud",
         "user_storage_crud",
-        "UserCRUD",
         "user_crud"
     ]
 else:
