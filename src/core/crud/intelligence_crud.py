@@ -16,7 +16,7 @@ from sqlalchemy import select, and_, desc
 from sqlalchemy.orm import selectinload
 import logging
 
-from src.models.intelligence import CampaignIntelligence, GeneratedContent
+from src.intelligence.models.intelligence_models import CampaignIntelligence, GeneratedContent
 from .base_crud import BaseCRUD
 from datetime import datetime, timezone
 
