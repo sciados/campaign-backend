@@ -105,7 +105,7 @@ class UserCRUD(BaseCRUD[User]):
     ) -> Optional[User]:
         """Get user by ID with optional company info"""
         try:
-            query = select(User).where(User.id == str(user_id))
+            query = select(User).where(User.id == user_id)
             
             if include_company:
                 query = query.options(selectinload(User.company))
