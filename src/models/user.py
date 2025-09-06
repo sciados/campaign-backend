@@ -1,4 +1,5 @@
 # File: src/models/user.py
+
 # User and Company models to match existing database tables
 
 from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Text
