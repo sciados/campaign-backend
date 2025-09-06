@@ -35,6 +35,9 @@ from src.core.health import get_health_status
 # Intelligence Engine (Session 2)
 from src.intelligence.intelligence_module import intelligence_module
 
+# Authentication Routes (NEW)
+from src.api.routes.auth import get_auth_router
+
 # ============================================================================
 # LOGGING CONFIGURATION
 # ============================================================================
@@ -90,6 +93,15 @@ async def create_campaignforge_app() -> FastAPI:
     else:
         logger.error("Intelligence Engine module initialization failed")
     
+    # Initialize Authentication module (NEW)
+    logger.info("Phase 3.1: Initializing Authentication...")
+    try:
+        auth_router = get_auth_router()
+        app.include_router(auth_router)
+        logger.info("Authentication routes registered successfully")
+    except Exception as e:
+        logger.error(f"Failed to register authentication routes: {e}")
+    
     # Phase 4: Add core health endpoints
     logger.info("Phase 4: Adding core endpoints...")
     
@@ -102,7 +114,8 @@ async def create_campaignforge_app() -> FastAPI:
                 "status": health_status["status"],
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "modules": {
-                    "intelligence": "healthy" if intelligence_initialized else "unhealthy"
+                    "intelligence": "healthy" if intelligence_initialized else "unhealthy",
+                    "authentication": "healthy"  # Auth doesn't need async init
                 },
                 "details": health_status
             }
@@ -123,10 +136,19 @@ async def create_campaignforge_app() -> FastAPI:
             "architecture": "modular",
             "modules": {
                 "core": "active",
-                "intelligence": "active" if intelligence_initialized else "inactive"
+                "intelligence": "active" if intelligence_initialized else "inactive",
+                "authentication": "active"
             },
             "docs": "/docs",
-            "health": "/health"
+            "health": "/health",
+            "auth_endpoints": [
+                "/api/auth/login",
+                "/api/auth/register", 
+                "/api/auth/profile",
+                "/api/auth/dashboard-route",
+                "/api/auth/logout",
+                "/api/auth/me"
+            ]
         }
     
     @app.get("/api/modules/status")
@@ -142,10 +164,22 @@ async def create_campaignforge_app() -> FastAPI:
                         "status": intelligence_health["status"],
                         "version": intelligence_module.version,
                         "metrics": intelligence_metrics
+                    },
+                    "authentication": {
+                        "status": "healthy",
+                        "version": "1.0.0",
+                        "endpoints": [
+                            "/api/auth/login",
+                            "/api/auth/register", 
+                            "/api/auth/profile",
+                            "/api/auth/dashboard-route",
+                            "/api/auth/logout",
+                            "/api/auth/me"
+                        ]
                     }
                 },
-                "total_modules": 1,
-                "healthy_modules": 1 if intelligence_health["status"] == "healthy" else 0
+                "total_modules": 2,
+                "healthy_modules": 2 if intelligence_health["status"] == "healthy" else 1
             }
         except Exception as e:
             logger.error(f"Module status check failed: {e}")
@@ -166,6 +200,7 @@ async def create_campaignforge_app() -> FastAPI:
     logger.info("CampaignForge Modular Backend initialization complete!")
     logger.info(f"Database: {'Connected' if db_connected else 'Issues detected'}")
     logger.info(f"Intelligence Engine: {'Active' if intelligence_initialized else 'Failed'}")
+    logger.info(f"Authentication: Active")
     logger.info(f"Total routes: {len(app.routes)}")
     
     return app
