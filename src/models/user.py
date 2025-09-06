@@ -10,8 +10,14 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 import bcrypt
 import uuid
+import enum
 
 from src.core.database.models import Base, TimestampMixin
+
+class UserTypeEnum(str, enum.Enum):
+    AFFILIATE_MARKETER = "affiliate_marketer"
+    CONTENT_CREATOR = "content_creator"
+    BUSINESS_OWNER = "business_owner"
 
 class Company(Base, TimestampMixin):
     """Company model matching existing database table"""
@@ -45,8 +51,8 @@ class User(Base, TimestampMixin):
     
     # User type and role
     role = Column(String(50), default="user")  # user, admin
-    user_type = Column(String(50), nullable=True)  # affiliate_marketer, content_creator, business_owner
-    
+    user_type = Column(enum(UserTypeEnum, name='usertype'), nullable=True)
+
     # Account status
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
