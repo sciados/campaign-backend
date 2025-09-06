@@ -37,6 +37,7 @@ from src.intelligence.intelligence_module import intelligence_module
 
 # Authentication Routes (NEW)
 from src.api.routes.auth import get_auth_router
+app.include_router(get_auth_router())
 
 # ============================================================================
 # LOGGING CONFIGURATION
