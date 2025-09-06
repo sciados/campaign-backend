@@ -30,6 +30,7 @@ class Company(Base, TimestampMixin):
     
     # Relationships
     users = relationship("User", back_populates="company")
+    campaigns = relationship("Campaign", back_populates="company")  # Added missing relationship
 
 class User(Base, TimestampMixin):
     """User model matching existing database table"""
@@ -72,6 +73,7 @@ class User(Base, TimestampMixin):
     
     # Relationships
     company = relationship("Company", back_populates="users")
+    campaigns = relationship("Campaign", back_populates="user")  # Added missing relationship
     
     def verify_password(self, password: str) -> bool:
         """Verify a password against the stored hash"""
