@@ -21,9 +21,8 @@ from src.models.user_storage import UserStorageUsage  # Only the model class
 from src.models.user import User
 from src.models.campaign import Campaign
 
-import structlog
-
-logger = structlog.get_logger()
+import logging
+logger = logging.getLogger(__name__)
 
 # ✅ FIXED: Use only the model type parameter, not the Pydantic schemas
 class UserStorageCRUD(BaseCRUD[UserStorageUsage]):
