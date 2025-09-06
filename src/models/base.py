@@ -11,9 +11,30 @@ from sqlalchemy import Column, String, DateTime, Boolean
 from sqlalchemy.sql import func
 from datetime import datetime, timezone
 import uuid
+import json
 
 # Import the actual Base from your database setup
 from src.core.database.models import Base
+
+
+class EnumSerializerMixin:
+    """
+    Mixin to help serialize SQLAlchemy Enum fields to JSON.
+    """
+    
+    def to_dict(self):
+        """Convert model instance to dictionary with enum serialization."""
+        result = {}
+        for column in self.__table__.columns:
+            value = getattr(self, column.name)
+            # Handle enum fields
+            if hasattr(value, 'value'):
+                result[column.name] = value.value
+            elif isinstance(value, datetime):
+                result[column.name] = value.isoformat()
+            else:
+                result[column.name] = value
+        return result
 
 
 class BaseModel(Base):
@@ -46,4 +67,4 @@ class BaseModel(Base):
 
 
 # Export the Base as well for direct SQLAlchemy usage
-__all__ = ["BaseModel", "Base"]
+__all__ = ["BaseModel", "Base", "EnumSerializerMixin"]
