@@ -14,8 +14,8 @@ from datetime import datetime, timedelta, timezone
 from jose import jwt
 import logging
 
-# Import existing infrastructure
-from src.core.database.session import get_async_db_session
+# Import existing infrastructure - FIXED IMPORTS
+from src.core.database.connection import AsyncSessionLocal  # Direct import from connection
 from src.core.crud.user_crud import user_crud
 from src.core.middleware.auth_middleware import AuthMiddleware, security
 from src.core.shared.responses import StandardResponse
@@ -36,6 +36,26 @@ logger = logging.getLogger(__name__)
 
 # Create router following your modular pattern
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
+
+# ============================================================================
+# DATABASE DEPENDENCY - Compatible with your session manager
+# ============================================================================
+
+async def get_async_db_session() -> AsyncSession:
+    """
+    FastAPI dependency to get async database session.
+    Compatible with your existing AsyncSessionManager.
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        except Exception as e:
+            logger.error(f"Database session error: {e}")
+            await session.rollback()
+            raise
+        finally:
+            # Session cleanup is handled by the context manager
+            pass
 
 # ============================================================================
 # AUTHENTICATION ENDPOINTS
