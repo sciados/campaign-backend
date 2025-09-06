@@ -6,6 +6,7 @@ from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, T
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Enum
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 import bcrypt
@@ -51,7 +52,7 @@ class User(Base, TimestampMixin):
     
     # User type and role
     role = Column(String(50), default="user")  # user, admin
-    user_type = Column(enum(UserTypeEnum, name='usertype'), nullable=True)
+    user_type = Column(Enum(UserTypeEnum, name='usertype'), nullable=True)
 
     # Account status
     is_active = Column(Boolean, default=True)
