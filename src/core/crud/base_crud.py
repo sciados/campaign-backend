@@ -14,7 +14,7 @@ from sqlalchemy import select, update, delete, and_, or_, desc, asc
 # from sqlalchemy.orm import selectinload
 import logging
 
-from src.models.base import BaseModel
+from src.core.database.base import BaseModel
 
 logger = logging.getLogger(__name__)
 
