@@ -5,6 +5,7 @@
 from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 import bcrypt
@@ -16,7 +17,7 @@ class Company(Base, TimestampMixin):
     """Company model matching existing database table"""
     __tablename__ = "companies"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_name = Column(String(255), nullable=False)
     company_slug = Column(String(255), unique=True, nullable=False)
     industry = Column(String(100), nullable=True)
@@ -37,7 +38,7 @@ class User(Base, TimestampMixin):
     """User model matching existing database table"""
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
     full_name = Column(String(255), nullable=False)
     hashed_password = Column(String(255), nullable=False)
@@ -51,7 +52,7 @@ class User(Base, TimestampMixin):
     is_verified = Column(Boolean, default=False)
     
     # Company relationship
-    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
     
     # Profile information
     avatar_url = Column(String(500), nullable=True)
