@@ -2,7 +2,7 @@
 
 """
 Centralized CRUD Operations - Base Repository Pattern
-🏗️ Single source of truth for all database operations
+🗃️ Single source of truth for all database operations
 ✅ Consistent async handling across all services
 ✅ Unified error handling and logging
 """
@@ -14,11 +14,13 @@ from sqlalchemy import select, update, delete, and_, or_, desc, asc
 # from sqlalchemy.orm import selectinload
 import logging
 
-from src.core.database.base import BaseModel
+# Import the declarative base type properly
+from sqlalchemy.ext.declarative import DeclarativeMeta
 
 logger = logging.getLogger(__name__)
 
-ModelType = TypeVar("ModelType", bound=BaseModel)
+# Use proper typing for SQLAlchemy models
+ModelType = TypeVar("ModelType")
 
 class BaseCRUD(Generic[ModelType]):
     """
