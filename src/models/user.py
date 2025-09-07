@@ -52,7 +52,10 @@ class User(Base, TimestampMixin):
     
     # User type and role
     role = Column(String(50), default="user")  # user, admin
-    user_type = Column(Enum(UserTypeEnum, name='usertype'), nullable=True)
+    # user_type = Column(Enum(UserTypeEnum, name='usertype'), nullable=True)
+    user_type = Column(Enum('affiliate_marketer', 'content_creator', 'business_owner', name='usertype'),
+    nullable=True
+)
 
     # Account status
     is_active = Column(Boolean, default=True)
