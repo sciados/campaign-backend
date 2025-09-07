@@ -20,6 +20,7 @@ from src.core.crud.user_crud import user_crud
 from src.core.middleware.auth_middleware import AuthMiddleware, security
 from src.core.shared.responses import StandardResponse
 from src.core.config.settings import settings
+from src.core.database.connection import get_async_db
 
 # Import schemas and models
 from src.schemas.auth import (
@@ -41,10 +42,10 @@ router = APIRouter(prefix="/api/auth", tags=["authentication"])
 # DATABASE DEPENDENCY - Compatible with your session manager
 # ============================================================================
 
-async def get_async_db_session():
-    """FastAPI dependency to get async database session."""
-    async with AsyncSessionLocal() as session:
-        yield session
+# async def get_async_db():
+#    """FastAPI dependency to get async database session."""
+#    async with AsyncSessionLocal() as session:
+#        yield session
 
 # ============================================================================
 # AUTHENTICATION ENDPOINTS
@@ -53,7 +54,7 @@ async def get_async_db_session():
 @router.post("/login", response_model=StandardResponse[LoginResponse])
 async def login(
     request: LoginRequest,
-    db: AsyncSession = Depends(get_async_db_session)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     User login endpoint - integrates with existing UserCRUD and models
@@ -139,7 +140,7 @@ async def login(
 @router.post("/register", response_model=StandardResponse[dict])
 async def register(
     request: RegisterRequest,
-    db: AsyncSession = Depends(get_async_db_session)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     User registration endpoint - integrates with existing UserCRUD and models
@@ -203,7 +204,7 @@ async def register(
 @router.get("/profile", response_model=StandardResponse[UserProfile])
 async def get_user_profile(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_async_db_session)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get current user profile - uses existing auth middleware
@@ -263,7 +264,7 @@ async def get_user_profile(
 @router.get("/dashboard-route", response_model=StandardResponse[DashboardRouteResponse])
 async def get_dashboard_route(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_async_db_session)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get appropriate dashboard route for user - integrates with user types
@@ -344,7 +345,7 @@ async def logout(
 @router.get("/me", response_model=StandardResponse[dict])
 async def get_current_user_info(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_async_db_session)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get current user information including usage stats

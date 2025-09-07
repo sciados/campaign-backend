@@ -46,12 +46,12 @@ SessionLocal = sessionmaker(
     bind=engine
 )
 
-AsyncSessionLocal = sessionmaker(
-    class_=AsyncSession,
-    autocommit=False,
-    autoflush=False,
-    bind=async_engine
-)
+# AsyncSessionLocal = sessionmaker(
+#    class_=AsyncSession,
+#    autocommit=False,
+#    autoflush=False,
+#    bind=async_engine
+# )
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -71,6 +71,9 @@ def get_db() -> Generator[Session, None, None]:
     finally:
         db.close()
 
+def get_async_session():
+    """Factory function to create async sessions"""
+    return AsyncSession(async_engine)
 
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     """
@@ -79,15 +82,15 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     Yields:
         AsyncSession: SQLAlchemy async database session
     """
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        except Exception as e:
-            logger.error(f"Async database session error: {e}")
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+    session = get_async_session()
+    try:
+        yield session
+    except Exception as e:
+        logger.error(f"Async database session error: {e}")
+        await session.rollback()
+        raise
+    finally:
+        await session.close()
 
 
 @event.listens_for(engine, "connect")
