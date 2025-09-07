@@ -108,11 +108,25 @@ class User(Base, TimestampMixin):
         """Set and hash a new password"""
         self.hashed_password = self.hash_password(password)
     
-    def set_user_type(self, user_type: str, type_data: Optional[Dict[str, Any]] = None) -> None:
+    def set_user_type(self, user_type: UserTypeEnum, type_data: Optional[Dict[str, Any]] = None) -> None:
         """Set user type and handle type-specific data"""
-        self.user_type = user_type
+    
+        # Accept either enum or string
+        if isinstance(user_type, UserTypeEnum):
+            self.user_type = user_type.value
+        elif isinstance(user_type, str):
+            # Validate string against enum values
+            try:
+                enum_value = UserTypeEnum(user_type)
+                self.user_type = enum_value.value
+            except ValueError:
+                valid_values = [e.value for e in UserTypeEnum]
+                raise ValueError(f"Invalid user_type: {user_type}. Must be one of: {valid_values}")
+        else:
+            raise TypeError(f"user_type must be UserTypeEnum or str, got {type(user_type)}")
+    
         self.updated_at = datetime.now(timezone.utc)
-        
+    
         # Handle type-specific logic if needed
         if type_data:
             # Store type-specific data in bio or other fields as needed
