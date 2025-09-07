@@ -9,7 +9,7 @@ Provides authentication, CORS, rate limiting, and error handling
 middleware for the FastAPI application.
 """
 
-from .auth_middleware import AuthMiddleware
+from ...users.middleware.auth_middleware import AuthMiddleware
 from .cors_middleware import setup_cors
 from .rate_limiting import RateLimitMiddleware
 from .error_handling import ErrorHandlingMiddleware

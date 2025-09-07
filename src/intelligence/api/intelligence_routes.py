@@ -15,7 +15,7 @@ from typing import List, Optional
 import logging
 
 from src.core.database import get_async_db
-from src.core.middleware.auth_middleware import AuthMiddleware
+from users.middleware.auth_middleware import AuthMiddleware
 from src.core.shared.responses import SuccessResponse, PaginatedResponse
 from src.core.shared.exceptions import CampaignForgeException
 from ..models.intelligence_models import IntelligenceRequest, IntelligenceResponse, AnalysisResult, AnalysisMethod

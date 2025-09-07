@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, func
 import logging
 
-from src.models.campaign import Campaign, CampaignStatus, CampaignWorkflowState, AutoAnalysisStatus
+from src.users.models import Campaign, CampaignStatus, CampaignWorkflowState, AutoAnalysisStatus
 from .base_crud import BaseCRUD
 
 logger = logging.getLogger(__name__)

@@ -15,8 +15,8 @@ from jose import JWTError, jwt
 from typing import Optional
 import logging
 
-from ..config import settings
-from ..shared.exceptions import AuthenticationError
+from ...core.config import settings
+from ...core.shared.exceptions import AuthenticationError
 
 logger = logging.getLogger(__name__)
 
