@@ -1,8 +1,8 @@
 # src/users/dashboard/dashboard_service.py
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
-from ..models.user import User
-from ..services.user_service import UserService
+from src.users.models.user import User
+from src.users.services.user_service import UserService
 
 class DashboardService:
     def __init__(self, db: Session):

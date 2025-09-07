@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 import logging
 import json
 
-from ..models.user import User, Company, UserTypeEnum, UserRoleEnum, SubscriptionTierEnum
+from src.users.models.user import User, Company, UserTypeEnum, UserRoleEnum, SubscriptionTierEnum
 from src.core.shared.exceptions import UserNotFoundError, UserAlreadyExistsError
 
 logger = logging.getLogger(__name__)

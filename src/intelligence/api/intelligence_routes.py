@@ -15,11 +15,11 @@ from typing import List, Optional
 import logging
 
 from src.core.database import get_async_db
-from users.middleware.auth_middleware import AuthMiddleware
+from src.users.middleware.auth_middleware import AuthMiddleware
 from src.core.shared.responses import SuccessResponse, PaginatedResponse
 from src.core.shared.exceptions import CampaignForgeException
-from ..models.intelligence_models import IntelligenceRequest, IntelligenceResponse, AnalysisResult, AnalysisMethod
-from ..services.intelligence_service import IntelligenceService
+from src.intelligence.models.intelligence_models import IntelligenceRequest, IntelligenceResponse, AnalysisResult, AnalysisMethod
+from src.intelligence.services.intelligence_service import IntelligenceService
 
 logger = logging.getLogger(__name__)
 

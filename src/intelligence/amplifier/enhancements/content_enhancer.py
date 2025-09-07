@@ -11,9 +11,9 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
 import json
 
-from ...utils.ai_throttle import safe_ai_call
+from src.intelligence.utils.ai_throttle import safe_ai_call
 # 🔥 ADD THESE IMPORTS
-from ...utils.product_name_fix import (
+from src.intelligence.utils.product_name_fix import (
     extract_product_name_from_intelligence,
     extract_company_name_from_intelligence,
     substitute_placeholders_in_data,

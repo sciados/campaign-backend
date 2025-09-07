@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-from ..models.user import User
-from ..schemas.auth import UserLogin, TokenResponse
+from src.users.models.user import User
+from src.users.schemas.auth import UserLogin, TokenResponse
 from src.core.config.settings import get_settings
 
 settings = get_settings()

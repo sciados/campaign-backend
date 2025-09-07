@@ -10,6 +10,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     && rm -rf /var/tmp/*
 
 # Set working directory
+ENV PYTHONPATH=/app/src:/app
 WORKDIR /app
 
 # Create non-root user early for security

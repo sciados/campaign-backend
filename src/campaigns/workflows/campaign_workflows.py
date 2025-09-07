@@ -8,9 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 import asyncio
 
-from ..models.campaign import Campaign, CampaignWorkflowStateEnum, CampaignTypeEnum
-from ..services.workflow_service import WorkflowService
-from ..schemas.workflow import WorkflowProgress, WorkflowAction
+from src.campaigns.models.campaign import Campaign, CampaignWorkflowStateEnum, CampaignTypeEnum
+from src.campaigns.services.workflow_service import WorkflowService
+from src.campaigns.schemas.workflow import WorkflowProgress, WorkflowAction
 
 logger = logging.getLogger(__name__)
 

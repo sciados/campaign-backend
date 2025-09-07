@@ -16,7 +16,7 @@ import time
 from typing import Dict, List
 import logging
 
-from ..config import deployment_config
+from src.core.config import deployment_config
 
 logger = logging.getLogger(__name__)
 

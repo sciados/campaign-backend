@@ -2,9 +2,9 @@
 
 """User Services"""
 
-from .user_service import UserService
-from .auth_service import AuthService
-from .user_storage_crud import UserStorageCRUD
+from src.users.services.user_service import UserService
+from src.users.services.auth_service import AuthService
+from src.users.services.user_storage_crud import UserStorageCRUD
 
 __all__ = [
     "UserService",

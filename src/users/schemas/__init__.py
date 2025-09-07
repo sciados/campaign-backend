@@ -2,7 +2,7 @@
 
 """User Schemas"""
 
-from .user import (
+from src.users.schemas.user import (
     UserCreate,
     UserUpdate,
     UserResponse,
@@ -13,7 +13,7 @@ from .user import (
     CompanyResponse
 )
 
-from .auth import (
+from src.users.auth import (
     LoginRequest,
     LoginResponse,
     RegisterRequest,

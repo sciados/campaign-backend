@@ -16,10 +16,10 @@ from sqlalchemy.orm import selectinload, joinedload
 from src.utils.json_utils import safe_json_dumps, safe_json_loads
 
 # ✅ FIXED: Import only what we need for CRUD
-from ...core.crud.base_crud import BaseCRUD
+from src.core.crud.base_crud import BaseCRUD
 from users.models.user_storage import UserStorageUsage  # Only the model class
 from src.users.models.user import User
-from src.models.campaign import Campaign
+from src.campaigns.models.campaign import Campaign
 
 import logging
 logger = logging.getLogger(__name__)

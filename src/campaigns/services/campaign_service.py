@@ -8,7 +8,7 @@ from sqlalchemy import select, and_, or_, desc, func, text
 from sqlalchemy.orm import selectinload
 import logging
 
-from ..models.campaign import Campaign, CampaignStatusEnum, CampaignTypeEnum
+from src.campaigns.models.campaign import Campaign, CampaignStatusEnum, CampaignTypeEnum
 from src.core.shared.exceptions import CampaignNotFoundError
 
 logger = logging.getLogger(__name__)

@@ -17,7 +17,7 @@ import logging
 from sqlalchemy import text
 from typing import Generator, AsyncGenerator
 
-from ..config import settings
+from src.core.config import settings
 
 logger = logging.getLogger(__name__)
 

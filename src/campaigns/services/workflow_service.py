@@ -8,11 +8,11 @@ from sqlalchemy import select, and_, desc, func
 import logging
 import asyncio
 
-from ..schemas.workflow import (
+from src.campaigns.schemas.workflow import (
     WorkflowStateEnum, WorkflowProgress, WorkflowStepResult,
     WorkflowAction, WorkflowAnalytics, WorkflowNotification
 )
-from ..models.campaign import Campaign, CampaignWorkflowStateEnum
+from src.campaigns.models.campaign import Campaign, CampaignWorkflowStateEnum
 
 logger = logging.getLogger(__name__)
 

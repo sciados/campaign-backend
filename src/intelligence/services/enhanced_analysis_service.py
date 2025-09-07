@@ -24,11 +24,11 @@ import time
 from src.core.config import ai_provider_config
 from src.core.shared.decorators import retry_on_failure, log_execution_time
 from src.core.shared.exceptions import ServiceUnavailableError, ValidationError
-from ..models.intelligence_models import AnalysisResult, AnalysisMethod, ProductInfo, MarketInfo, ResearchInfo
-from ..repositories.enhanced_intelligence_repository import EnhancedIntelligenceRepository
-from ..repositories.research_repository import ResearchRepository
-from ..analysis.analyzers import ContentAnalyzer
-from ..analysis.enhanced_handler import EnhancedAnalysisHandler
+from src.intelligence.models.intelligence_models import AnalysisResult, AnalysisMethod, ProductInfo, MarketInfo, ResearchInfo
+from src.intelligence.repositories.enhanced_intelligence_repository import EnhancedIntelligenceRepository
+from src.intelligence.repositories.research_repository import ResearchRepository
+from src.intelligence.analysis.analyzers import ContentAnalyzer
+from src.intelligence.analysis.enhanced_handler import EnhancedAnalysisHandler
 
 logger = logging.getLogger(__name__)
 

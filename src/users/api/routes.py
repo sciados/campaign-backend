@@ -4,10 +4,10 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 
-from ..services.user_service import UserService
-from ..services.auth_service import AuthService
-from ..schemas.auth import UserLogin, UserRegister, TokenResponse
-from ..schemas.user import UserResponse, UserUpdate, UserDashboardPreferences
+from src.users.services.user_service import UserService
+from src.users.services.auth_service import AuthService
+from src.users.schemas.auth import UserLogin, UserRegister, TokenResponse
+from src.users.schemas.user import UserResponse, UserUpdate, UserDashboardPreferences
 from src.core.database.connection import get_db
 from src.core.shared.responses import success_response, error_response
 

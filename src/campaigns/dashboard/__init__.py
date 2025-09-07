@@ -2,7 +2,7 @@
 
 """Campaign Dashboard"""
 
-from .campaign_dashboard import CampaignDashboardService
+from src.campaigns.dashboard.campaign_dashboard import CampaignDashboardService
 
 __all__ = [
     "CampaignDashboardService"

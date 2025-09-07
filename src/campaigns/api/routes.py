@@ -4,8 +4,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict, Any, Optional
 
-from ..services.campaign_service import CampaignService
-from ..schemas.campaign import (
+from src.campaigns.services.campaign_service import CampaignService
+from src.campaigns.schemas.campaign import (
     CampaignCreate, CampaignUpdate, CampaignResponse, 
     CampaignListResponse, CampaignStatsResponse
 )

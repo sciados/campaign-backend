@@ -16,7 +16,7 @@ from .campaign_crud import CampaignCRUD
 
 # ✅ NEW: Import UserStorageCRUD
 try:
-    from ...users.services.user_storage_crud import user_storage_crud
+    from src.users.services.user_storage_crud import user_storage_crud
     USER_STORAGE_CRUD_AVAILABLE = True
 except ImportError as e:
     # Fallback if user_storage_crud is not available yet

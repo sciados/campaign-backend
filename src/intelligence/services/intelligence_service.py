@@ -17,14 +17,14 @@ import logging
 from src.core.interfaces.service_interfaces import ServiceInterface
 from src.core.shared.decorators import log_execution_time, cache_result
 from src.core.shared.exceptions import NotFoundError, ValidationError
-from ..models.intelligence_models import (
+from src.intelligence.models.intelligence_models import (
     IntelligenceRequest, 
     IntelligenceResponse, 
     AnalysisResult,
     AnalysisMethod
 )
-from ..repositories.intelligence_repository import IntelligenceRepository
-from .analysis_service import AnalysisService
+from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
+from src.intelligence.services.analysis_service import AnalysisService
 
 logger = logging.getLogger(__name__)
 
@@ -212,7 +212,7 @@ class IntelligenceService:
         session: AsyncSession
     ) -> AnalysisResult:
         """Build AnalysisResult from database intelligence record."""
-        from ..models.intelligence_models import ProductInfo, MarketInfo, ResearchInfo
+        from src.intelligence.models.intelligence_models import ProductInfo, MarketInfo, ResearchInfo
         
         # Extract product info
         product_info = ProductInfo()

@@ -5,19 +5,26 @@ import sys
 import logging
 import uvicorn
 from datetime import datetime, timezone
+from pathlib import Path
 
 # ============================================================================
 # PYTHON PATH SETUP
 # ============================================================================
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Add both app root and src to Python path
+app_root = Path(__file__).parent.parent
+src_root = Path(__file__).parent
+
 src_path = os.path.join(current_dir)
 app_path = os.path.dirname(current_dir)
 
 if src_path not in sys.path:
-    sys.path.insert(0, src_path)
+    sys.path.insert(0, str(src_root))
+
 if app_path not in sys.path:
-    sys.path.insert(0, app_path)
+    sys.path.insert(0, str(app_root))
 
 # ============================================================================
 # MODULAR IMPORTS

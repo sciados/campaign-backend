@@ -16,8 +16,8 @@ from starlette.responses import Response
 import logging
 from typing import Union
 
-from ..shared.exceptions import CampaignForgeException
-from ..shared.responses import ErrorResponse
+from src.core.shared.exceptions import CampaignForgeException
+from src.core.shared.responses import ErrorResponse
 
 logger = logging.getLogger(__name__)
 

@@ -17,7 +17,7 @@ import uuid
 
 from src.core.database.models import IntelligenceCore, ProductData, MarketData
 from src.core.interfaces.repository_interfaces import RepositoryInterface
-from ..models.intelligence_models import ProductInfo, MarketInfo
+from src.intelligence.models.intelligence_models import ProductInfo, MarketInfo
 
 
 class IntelligenceRepository(RepositoryInterface[IntelligenceCore]):

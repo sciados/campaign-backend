@@ -43,5 +43,5 @@ class CampaignsModule(ModuleInterface):
     
     def get_api_router(self) -> APIRouter:
         """Get the API router for this module"""
-        from .api.routes import router
+        from src.campaigns.api.routes import router
         return router

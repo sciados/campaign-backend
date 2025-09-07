@@ -18,7 +18,7 @@ from datetime import datetime
 import uuid
 
 from src.core.database.models import IntelligenceCore, ProductData, MarketData
-from ..models.intelligence_models import ProductInfo, MarketInfo
+from src.intelligence.models.intelligence_models import ProductInfo, MarketInfo
 
 logger = logging.getLogger(__name__)
 

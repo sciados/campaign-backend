@@ -2,7 +2,7 @@
 
 """Campaign Models"""
 
-from .campaign import (
+from src.campaigns.models.campaign import (
     Campaign,
     CampaignStatusEnum,
     CampaignTypeEnum,

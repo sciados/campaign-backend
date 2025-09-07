@@ -14,8 +14,8 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.shared.decorators import log_execution_time
-from ..models.intelligence_models import AnalysisResult, ProductInfo, MarketInfo
-from ..providers.ai_provider_router import AIProviderRouter, RequestComplexity
+from src.intelligence.models.intelligence_models import AnalysisResult, ProductInfo, MarketInfo
+from src.intelligence.providers.ai_provider_router import AIProviderRouter, RequestComplexity
 
 logger = logging.getLogger(__name__)
 

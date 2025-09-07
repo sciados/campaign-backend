@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Generic, TypeVar
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database.models import Base
+from src.core.database.models import Base
 
 T = TypeVar('T', bound=Base)
 

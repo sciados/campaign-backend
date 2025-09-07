@@ -10,6 +10,6 @@ This module provides complete campaign lifecycle management including:
 - Performance tracking
 """
 
-from .campaigns_module import CampaignsModule
+from src.campaigns.campaigns_module import CampaignsModule
 
 __all__ = ["CampaignsModule"]

@@ -8,7 +8,7 @@ Pydantic schemas for Intelligence Engine API validation.
 Provides request/response schemas for API endpoints.
 """
 
-from ..models.intelligence_models import (
+from src.intelligence.models.intelligence_models import (
     IntelligenceRequest,
     IntelligenceResponse,
     AnalysisResult,

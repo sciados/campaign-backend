@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 
 from src.core.database.models import IntelligenceCore, ProductData, MarketData, KnowledgeBase
-from ..repositories.enhanced_intelligence_repository import EnhancedIntelligenceRepository
+from src.intelligence.repositories.enhanced_intelligence_repository import EnhancedIntelligenceRepository
 
 logger = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 
-from ...core.crud.base_crud import BaseModel as SQLModel
+from src.core.crud.base_crud import BaseModel as SQLModel
 
 # ============================================================================
 # SQLAlchemy Model

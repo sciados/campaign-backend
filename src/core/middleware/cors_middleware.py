@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from ..config import deployment_config
+from src.core.config import deployment_config
 
 logger = logging.getLogger(__name__)
 
