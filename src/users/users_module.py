@@ -15,14 +15,32 @@ class UsersModule(ModuleInterface):
     """Users Module - Enhanced with service re-enablement"""
     
     def __init__(self):
-        self.name = "users"
-        self.version = "1.1.0"  # Updated version
+        @property
+        def name(self) -> str:
+            """Return the module name."""
+            return self._name
+    
+        @property
+        def version(self) -> str:
+            """Return the module version."""
+            return self._version
+        
         self.description = "User management with authentication and dashboard services"
         self._router = None
         self._initialized = False
         
         # Register services with factory
         self._register_services()
+
+    async def shutdown(self) -> None:
+        """Shutdown the Users module"""
+        try:
+            print(f"Shutting down {self.name} module")
+            # Add any cleanup logic here if needed
+            pass
+        except Exception as e:
+            print(f"Warning: Error during {self.name} module shutdown: {e}")
+
     
     def _register_services(self):
         """Register services with ServiceFactory"""

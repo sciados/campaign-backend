@@ -64,7 +64,12 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 # Initialize module instances
-users_module = UsersModule()
+try:
+    users_module = UsersModule()
+    logger.info("Users module created successfully")
+except Exception as e:
+    logger.error(f"Failed to create users module: {e}")
+    users_module = None
 campaigns_module = CampaignModule()
 
 # ============================================================================
