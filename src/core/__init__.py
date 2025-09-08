@@ -10,10 +10,10 @@ including database connections, configuration management, shared utilities,
 and module interfaces.
 """
 
-from .database import get_db, get_async_db, engine, async_engine
-from .config import settings, get_settings
-from .interfaces import ModuleInterface, ServiceInterface, RepositoryInterface
-from .shared import (
+from src.core.database import get_db, get_async_db, engine, async_engine
+from src.core.config import settings, get_settings
+from src.core.interfaces import ModuleInterface, ServiceInterface, RepositoryInterface
+from src.core.shared import (
     CampaignForgeException,
     ValidationError,
     AuthenticationError,

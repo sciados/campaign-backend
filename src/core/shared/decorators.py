@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, Optional, Union
 import hashlib
 import json
 from datetime import datetime, timedelta
+from unittest import result
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +148,7 @@ def cache_result(ttl: int = 300, key_func: Optional[Callable] = None):
                     logger.debug(f"Cache miss for {func.__name__}, result cached")
             return result
         
-        return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
+        return async_wrapper if asyncio.iscoroutinefunction(func) else async_wrapper
     
     return decorator
 

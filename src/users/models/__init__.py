@@ -2,8 +2,8 @@
 
 """User Models"""
 
-from .user import User, Company
-from .user_storage import UserStorage
+from src.users.models.user import User, Company
+from src.users.models.user_storage import UserStorage
 
 __all__ = [
     "User",

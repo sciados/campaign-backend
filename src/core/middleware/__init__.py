@@ -10,13 +10,13 @@ middleware for the FastAPI application.
 """
 
 from src.users.middleware.auth_middleware import AuthMiddleware
-from .cors_middleware import setup_cors
-from .rate_limiting import RateLimitMiddleware
-from .error_handling import ErrorHandlingMiddleware
+# from src.core.middleware.cors_middleware import setup_cors
+from src.core.middleware.rate_limiting import RateLimitMiddleware
+from src.core.middleware.error_handling import ErrorHandlingMiddleware
 
 __all__ = [
     "AuthMiddleware",
-    "setup_cors",
+#    "setup_cors",
     "RateLimitMiddleware", 
     "ErrorHandlingMiddleware",
 ]

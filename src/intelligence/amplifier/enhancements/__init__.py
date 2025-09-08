@@ -6,12 +6,12 @@ Individual AI enhancement modules for each intelligence category
 
 # Import all AI enhancement modules
 try:
-    from .scientific_enhancer import ScientificIntelligenceEnhancer
-    from .market_enhancer import MarketIntelligenceEnhancer
-    from .credibility_enhancer import CredibilityIntelligenceEnhancer
-    from .content_enhancer import ContentIntelligenceEnhancer
-    from .emotional_enhancer import EmotionalTransformationEnhancer
-    from .authority_enhancer import ScientificAuthorityEnhancer
+    from src.intelligence.amplifier.enhancements.scientific_enhancer import ScientificIntelligenceEnhancer
+    from src.intelligence.amplifier.enhancements.market_enhancer import MarketIntelligenceEnhancer
+    from src.intelligence.amplifier.enhancements.credibility_enhancer import CredibilityIntelligenceEnhancer
+    from src.intelligence.amplifier.enhancements.content_enhancer import ContentIntelligenceEnhancer
+    from src.intelligence.amplifier.enhancements.emotional_enhancer import EmotionalTransformationEnhancer
+    from src.intelligence.amplifier.enhancements.authority_enhancer import ScientificAuthorityEnhancer
     
     ENHANCEMENT_MODULES_AVAILABLE = True
     

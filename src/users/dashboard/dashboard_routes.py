@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 
-from .dashboard_service import DashboardService
+from src.users.dashboard.dashboard_service import DashboardService
 from src.users.services.auth_service import AuthService
 from src.core.database.connection import get_db
 

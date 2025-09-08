@@ -17,10 +17,10 @@ from fastapi import APIRouter
 from src.core.interfaces.module_interfaces import ModuleInterface
 from src.core.database import test_database_connection
 from src.core.config import ai_provider_config
-from .api.intelligence_routes import router as intelligence_router
-from .services.intelligence_service import IntelligenceService
-from .cache.intelligence_cache import intelligence_cache
-from .providers.ai_provider_router import AIProviderRouter
+from src.intelligence.api.intelligence_routes import router as intelligence_router
+from src.intelligence.services.intelligence_service import IntelligenceService
+from src.intelligence.cache.intelligence_cache import intelligence_cache
+from src.intelligence.providers.ai_provider_router import AIProviderRouter
 
 logger = logging.getLogger(__name__)
 

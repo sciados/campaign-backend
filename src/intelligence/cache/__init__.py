@@ -9,6 +9,6 @@ Provides intelligent caching for analysis results, research data,
 and provider responses to optimize performance and reduce costs.
 """
 
-from .intelligence_cache import IntelligenceCache
+from src.intelligence.cache.intelligence_cache import IntelligenceCache
 
 __all__ = ["IntelligenceCache"]

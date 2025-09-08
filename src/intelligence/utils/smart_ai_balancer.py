@@ -250,7 +250,7 @@ async def smart_ai_call_with_balancing(
     Automatically switches providers when rate limits are hit
     """
     
-    from .ai_throttle import safe_ai_call
+    from src.intelligence.utils.ai_throttle import safe_ai_call
     
     for attempt in range(max_retries):
         # Get best available provider

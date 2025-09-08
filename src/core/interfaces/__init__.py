@@ -9,9 +9,9 @@ Defines the standard interfaces that all modules must implement
 for consistent interaction and dependency management.
 """
 
-from .module_interfaces import ModuleInterface
-from .service_interfaces import ServiceInterface
-from .repository_interfaces import RepositoryInterface
+from src.core.interfaces.module_interfaces import ModuleInterface
+from src.core.interfaces.service_interfaces import ServiceInterface
+from src.core.interfaces.repository_interfaces import RepositoryInterface
 
 __all__ = [
     "ModuleInterface",

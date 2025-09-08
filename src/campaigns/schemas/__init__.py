@@ -2,7 +2,7 @@
 
 """Campaign Schemas"""
 
-from .campaign import (
+from src.campaigns.schemas.campaign import (
     CampaignCreate,
     CampaignUpdate,
     CampaignResponse,
@@ -11,11 +11,11 @@ from .campaign import (
     CampaignStatusUpdate,
     CampaignSearchRequest,
     CampaignSearchResponse,
-    CampaignCounterUpdate,
-    convert_campaign_to_response
+    CampaignCounterUpdate
+#    convert_campaign_to_response
 )
 
-from .workflow import (
+from src.campaigns.schemas.workflow import (
     WorkflowProgress,
     WorkflowAction,
     WorkflowStepResult,
@@ -40,7 +40,7 @@ __all__ = [
     "CampaignSearchRequest",
     "CampaignSearchResponse",
     "CampaignCounterUpdate",
-    "convert_campaign_to_response",
+#    "convert_campaign_to_response",
     # Workflow schemas
     "WorkflowProgress",
     "WorkflowAction",

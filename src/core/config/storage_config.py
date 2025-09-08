@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Dict, Any, Optional
 from enum import Enum
 
-from .settings import settings
+from src.core.config.settings import settings
 
 
 class StorageTier(Enum):

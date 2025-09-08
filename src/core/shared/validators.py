@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 import bleach
 from email_validator import validate_email as _validate_email, EmailNotValidError
 
-from .exceptions import ValidationError
+from src.core.shared.exceptions import ValidationError
 
 
 def validate_uuid(value: Any, field_name: str = "id") -> str:

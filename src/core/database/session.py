@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
-from .connection import SessionLocal, AsyncSessionLocal
+from src.core.database.connection import SessionLocal, AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 

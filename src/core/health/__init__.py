@@ -9,8 +9,8 @@ Provides system health checks, performance metrics, and monitoring
 capabilities for Railway deployment.
 """
 
-from .health_checks import HealthChecker, get_health_status
-from .metrics import MetricsCollector, get_system_metrics
+from src.core.health.health_checks import HealthChecker, get_health_status
+from src.core.health.metrics import MetricsCollector, get_system_metrics
 
 __all__ = [
     "HealthChecker",

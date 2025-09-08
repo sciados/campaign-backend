@@ -9,7 +9,7 @@ Provides exceptions, response models, decorators, and other utilities
 used across all modules.
 """
 
-from .exceptions import (
+from src.core.shared.exceptions import (
     CampaignForgeException,
     ValidationError,
     AuthenticationError,
@@ -20,19 +20,19 @@ from .exceptions import (
     StorageError,
     AIProviderError,
 )
-from .responses import (
+from src.core.shared.responses import (
     StandardResponse,
     SuccessResponse,
     ErrorResponse,
     PaginatedResponse,
 )
-from .decorators import (
+from src.core.shared.decorators import (
     retry_on_failure,
     rate_limit,
     cache_result,
     log_execution_time,
 )
-from .validators import (
+from src.core.shared.validators import (
     validate_uuid,
     validate_email,
     validate_url,

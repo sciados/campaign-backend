@@ -14,7 +14,7 @@ from sqlalchemy import select, and_, desc, func
 import logging
 
 from src.campaigns.models.campaign import Campaign, CampaignStatus, CampaignWorkflowState, AutoAnalysisStatus
-from .base_crud import BaseCRUD
+from src.core.crud.base_crud import BaseCRUD
 
 logger = logging.getLogger(__name__)
 

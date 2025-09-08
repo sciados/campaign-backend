@@ -6,13 +6,13 @@ Centralized CRUD exports - UPDATED for modular architecture
 🆕 User management moved to Users module
 """
 
-from .base_crud import BaseCRUD
-from .campaign_crud import CampaignCRUD
-# from .intelligence_crud import IntelligenceCRUD
+from src.core.crud.base_crud import BaseCRUD
+from src.core.crud.campaign_crud import CampaignCRUD
+# from src.core.crudintelligence_crud import IntelligenceCRUD
 
 # 🔄 DEPRECATED: User CRUD moved to Users module
 # Use: from src.users.services.user_service import UserService
-# from .user_crud import user_crud  # MOVED TO: src.users.services.user_service
+# from src.core.crud.user_crud import user_crud  # MOVED TO: src.users.services.user_service
 
 # ✅ NEW: Import UserStorageCRUD
 try:

@@ -2,7 +2,7 @@
 
 """Campaign Workflows"""
 
-from .campaign_workflows import CampaignWorkflowEngine
+from src.campaigns.workflows.campaign_workflows import CampaignWorkflowEngine
 
 __all__ = [
     "CampaignWorkflowEngine"
