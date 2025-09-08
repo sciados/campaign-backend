@@ -5,7 +5,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from src.users.models.user import User
-from src.users.schemas.auth import UserLogin, TokenResponse
+from src.users.schemas.auth import LoginRequest as UserLogin, LoginResponse as TokenResponse
 from src.core.config.settings import get_settings
 
 settings = get_settings()

@@ -2,43 +2,69 @@
 
 """User Schemas"""
 
+# Import only classes that actually exist in user.py
 from src.users.schemas.user import (
     UserCreate,
     UserUpdate,
     UserResponse,
-    UserProfile,
-    UserPreferences,
-    CompanyCreate,
-    CompanyUpdate,
-    CompanyResponse
+    UserProfile,  # This exists in user.py
+    UserPasswordUpdate,
+    UserTypeUpdate,
+    UserOnboardingUpdate,
+    UserDashboardPreferences,
+    UserNotificationPreferences,
+    CompanyResponse,  # This exists
+    UserUsageSummary,
+    UserListResponse,
+    UserStatsResponse,
+    UserSearchRequest,
+    UserFilterRequest,
+    UserCreatedResponse,
+    UserUpdatedResponse,
+    UserDeletedResponse,
+    PreferencesUpdatedResponse,
+    UserErrorResponse,
+    ValidationErrorResponse
 )
 
-from src.users.auth import (
+# Import only classes that actually exist in auth.py (fix the path)
+from src.users.schemas.auth import (
     LoginRequest,
     LoginResponse,
     RegisterRequest,
-    RegisterResponse,
-    TokenData,
-    PasswordResetRequest,
-    PasswordResetResponse
+    CompanyInfo,
+    UserProfile as AuthUserProfile,  # Alias to avoid conflict
+    DashboardRouteResponse
 )
 
 __all__ = [
-    # User schemas
+    # User schemas that actually exist
     "UserCreate",
     "UserUpdate",
     "UserResponse", 
     "UserProfile",
-    "UserPreferences",
-    "CompanyCreate",
-    "CompanyUpdate",
+    "UserPasswordUpdate",
+    "UserTypeUpdate",
+    "UserOnboardingUpdate",
+    "UserDashboardPreferences",
+    "UserNotificationPreferences",
     "CompanyResponse",
-    # Auth schemas
+    "UserUsageSummary",
+    "UserListResponse",
+    "UserStatsResponse",
+    "UserSearchRequest",
+    "UserFilterRequest",
+    "UserCreatedResponse",
+    "UserUpdatedResponse",
+    "UserDeletedResponse",
+    "PreferencesUpdatedResponse",
+    "UserErrorResponse",
+    "ValidationErrorResponse",
+    # Auth schemas that actually exist
     "LoginRequest",
     "LoginResponse",
     "RegisterRequest",
-    "RegisterResponse",
-    "TokenData",
-    "PasswordResetRequest",
-    "PasswordResetResponse"
+    "CompanyInfo",
+    "AuthUserProfile",
+    "DashboardRouteResponse"
 ]
