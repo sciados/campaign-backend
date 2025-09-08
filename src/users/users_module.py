@@ -1,75 +1,54 @@
-# src/users/users_module.py - CORRECTED VERSION
+# ============================================================================
+# MODULE UPDATES FOR SERVICE RE-ENABLEMENT
+# ============================================================================
+
+# src/users/users_module.py (Updated for Session 5)
 
 from typing import Dict, Any
 from fastapi import APIRouter
 from datetime import datetime
 
 from src.core.interfaces.module_interfaces import ModuleInterface
-
+from src.core.factories.service_factory import ServiceFactory
 
 class UsersModule(ModuleInterface):
-    """
-    Users Module - Handles authentication, user management, and user dashboard
-    """
+    """Users Module - Enhanced with service re-enablement"""
     
     def __init__(self):
-        """Initialize the Users module"""
-        # Initialize service placeholders - only create if they exist
-        self.user_service = None
-        self.auth_service = None
-        self.dashboard_service = None
+        self.name = "users"
+        self.version = "1.1.0"  # Updated version
+        self.description = "User management with authentication and dashboard services"
         self._router = None
         self._initialized = False
+        
+        # Register services with factory
+        self._register_services()
     
-    @property
-    def name(self) -> str:
-        """Module name identifier"""
-        return "users"
-    
-    @property 
-    def version(self) -> str:
-        """Module version"""
-        return "1.0.0"
+    def _register_services(self):
+        """Register services with ServiceFactory"""
+        try:
+            from src.users.services.user_service import UserService
+            from src.users.services.auth_service import AuthService
+            
+            ServiceFactory.register_service("user_service", UserService)
+            ServiceFactory.register_service("auth_service", AuthService)
+            
+        except ImportError as e:
+            print(f"Warning: Could not register user services: {e}")
     
     async def initialize(self) -> bool:
-        """
-        Initialize the Users module
-        
-        Returns:
-            bool: True if initialization successful
-        """
+        """Initialize the Users module with service re-enablement"""
         try:
-            # Try to import and initialize services
+            # Initialize API router
             try:
                 from src.users.api.routes import router as users_router
                 self._router = users_router
             except ImportError as e:
                 print(f"Warning: Could not import users router: {e}")
-                self._router = APIRouter()  # Create empty router as fallback
+                self._router = APIRouter()
             
-            try:
-                from src.users.services.user_service import UserService
-                self.user_service = UserService()
-                if hasattr(self.user_service, 'initialize'):
-                    await self.user_service.initialize()
-            except ImportError as e:
-                print(f"Warning: Could not import UserService: {e}")
-            
-            try:
-                from src.users.services.auth_service import AuthService
-                self.auth_service = AuthService()
-                if hasattr(self.auth_service, 'initialize'):
-                    await self.auth_service.initialize()
-            except ImportError as e:
-                print(f"Warning: Could not import AuthService: {e}")
-                
-            try:
-                from src.users.dashboard.dashboard_service import UserDashboardService
-                self.dashboard_service = UserDashboardService()
-                if hasattr(self.dashboard_service, 'initialize'):
-                    await self.dashboard_service.initialize()
-            except ImportError as e:
-                print(f"Warning: Could not import UserDashboardService: {e}")
+            # Services are now created on-demand using ServiceFactory
+            print("User services registered and available via ServiceFactory")
             
             self._initialized = True
             return True
@@ -78,102 +57,53 @@ class UsersModule(ModuleInterface):
             print(f"Users module initialization failed: {e}")
             return False
     
-    async def shutdown(self) -> bool:
-        """
-        Shutdown the Users module gracefully
-        
-        Returns:
-            bool: True if shutdown successful
-        """
-        try:
-            # Cleanup services if they exist and have shutdown methods
-            if self.user_service and hasattr(self.user_service, 'shutdown'):
-                await self.user_service.shutdown()
-                
-            if self.auth_service and hasattr(self.auth_service, 'shutdown'):
-                await self.auth_service.shutdown()
-                
-            if self.dashboard_service and hasattr(self.dashboard_service, 'shutdown'):
-                await self.dashboard_service.shutdown()
-            
-            self._initialized = False
-            return True
-            
-        except Exception as e:
-            print(f"Users module shutdown failed: {e}")
-            return False
-    
     async def health_check(self) -> Dict[str, Any]:
-        """
-        Check the health of the Users module
-        
-        Returns:
-            Dict[str, Any]: Health status and metrics
-        """
+        """Enhanced health check with service testing"""
         try:
             services_status = {}
             
-            # Check each service health if available
-            if self.user_service:
-                if hasattr(self.user_service, 'health_check'):
-                    user_health = await self.user_service.health_check()
-                    services_status["user_service"] = user_health.get("status", "unknown")
-                else:
-                    services_status["user_service"] = "healthy"
-            else:
-                services_status["user_service"] = "not_loaded"
-                
-            if self.auth_service:
-                if hasattr(self.auth_service, 'health_check'):
-                    auth_health = await self.auth_service.health_check()
-                    services_status["auth_service"] = auth_health.get("status", "unknown")
-                else:
-                    services_status["auth_service"] = "healthy"
-            else:
-                services_status["auth_service"] = "not_loaded"
-                
-            if self.dashboard_service:
-                if hasattr(self.dashboard_service, 'health_check'):
-                    dashboard_health = await self.dashboard_service.health_check()
-                    services_status["dashboard_service"] = dashboard_health.get("status", "unknown")
-                else:
-                    services_status["dashboard_service"] = "healthy"
-            else:
-                services_status["dashboard_service"] = "not_loaded"
+            # Test UserService
+            try:
+                async with ServiceFactory.create_named_service("user_service") as user_service:
+                    health = await user_service.health_check() if hasattr(user_service, 'health_check') else {"status": "healthy"}
+                    services_status["user_service"] = health.get("status", "operational")
+            except Exception as e:
+                services_status["user_service"] = f"error: {str(e)}"
+            
+            # Test AuthService
+            try:
+                async with ServiceFactory.create_named_service("auth_service") as auth_service:
+                    health = await auth_service.health_check()
+                    services_status["auth_service"] = health.get("status", "operational")
+            except Exception as e:
+                services_status["auth_service"] = f"error: {str(e)}"
             
             return {
                 "module": self.name,
                 "version": self.version,
                 "status": "healthy" if self._initialized else "not_initialized",
                 "services": services_status,
-                "timestamp": self._get_timestamp()
+                "features": [
+                    "user_registration",
+                    "user_authentication",
+                    "profile_management",
+                    "company_management",
+                    "dashboard_preferences",
+                    "user_type_management"
+                ],
+                "timestamp": datetime.utcnow().isoformat()
             }
             
         except Exception as e:
             return {
                 "module": self.name,
-                "version": self.version,
                 "status": "error",
                 "error": str(e),
-                "timestamp": self._get_timestamp()
+                "timestamp": datetime.utcnow().isoformat()
             }
     
     def get_api_router(self) -> APIRouter:
-        """
-        Get the API router for this module
-        
-        Returns:
-            APIRouter: FastAPI router with all user endpoints
-        """
+        """Get the API router for this module"""
         if self._router is None:
-            # Return empty router if not initialized
             return APIRouter()
         return self._router
-    
-    def _get_timestamp(self) -> str:
-        """Get current timestamp for health checks"""
-        return datetime.utcnow().isoformat()
-
-
-# Export the module instance
-users_module = UsersModule()

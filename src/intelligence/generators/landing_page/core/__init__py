@@ -1,0 +1,31 @@
+"""
+Core module for landing page generation.
+Contains the main generator class and configuration.
+"""
+
+from .generator import LandingPageGenerator
+from .config import PAGE_CONFIGS, COLOR_SCHEMES, DEFAULT_PREFERENCES, AI_PROVIDER_CONFIG
+from .types import (
+    PageType, 
+    ColorScheme, 
+    ContentType, 
+    GenerationPreferences, 
+    GenerationResult,
+    ProductInfo,
+    ConversionIntelligence
+)
+
+__all__ = [
+    'LandingPageGenerator',
+    'PAGE_CONFIGS',
+    'COLOR_SCHEMES', 
+    'DEFAULT_PREFERENCES',
+    'AI_PROVIDER_CONFIG',
+    'PageType',
+    'ColorScheme',
+    'ContentType',
+    'GenerationPreferences',
+    'GenerationResult',
+    'ProductInfo',
+    'ConversionIntelligence'
+]
