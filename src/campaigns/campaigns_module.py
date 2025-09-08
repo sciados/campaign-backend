@@ -42,11 +42,18 @@ class CampaignModule(ModuleInterface):
             # Initialize services safely
             try:
                 from src.campaigns.services.campaign_service import CampaignService
-                self.campaign_service = CampaignService()
-                if hasattr(self.campaign_service, 'initialize'):
-                    await self.campaign_service.initialize()
+                from src.core.database.connection import get_async_session
+
+                # Get database session
+                async with get_async_session() as db:
+                    self.campaign_service = CampaignService(db=db)
+                    if hasattr(self.campaign_service, 'initialize'):
+                        await self.campaign_service.initialize()
+
             except ImportError as e:
                 logger.warning(f"Could not import CampaignService: {e}")
+            except Exception as e:
+                logger.error(f"Error initializing CampaignService: {e}")
             
             try:
                 from src.campaigns.services.workflow_service import WorkflowService
