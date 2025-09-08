@@ -16,7 +16,6 @@ from typing import Dict, Any, Optional
 from fastapi import APIRouter
 
 from src.core.interfaces.module_interfaces import ModuleInterface
-from src.core.database import test_database_connection
 from src.core.config import ai_provider_config
 from src.intelligence.api.intelligence_routes import router as intelligence_router
 from src.intelligence.services.intelligence_service import IntelligenceService
@@ -50,8 +49,8 @@ class IntelligenceModule(ModuleInterface):
         try:
             logger.info("Initializing Intelligence Engine module (Session 5 with async fixes)...")
             
-            # Check database connectivity
-            db_connected = await test_database_connection()
+            # FIXED: Check database connectivity without creating async loop conflicts
+            db_connected = await self._safe_database_check()
             if not db_connected:
                 logger.error("Database connection failed during Intelligence module initialization")
                 return False
@@ -90,6 +89,33 @@ class IntelligenceModule(ModuleInterface):
             logger.error(f"Intelligence module initialization failed: {e}")
             self._initialized = False
             self._healthy = False
+            return False
+    
+    async def _safe_database_check(self) -> bool:
+        """
+        Safely check database connection without creating async loop conflicts.
+        
+        FIXED: Uses session manager directly instead of test_database_connection
+        which was causing event loop conflicts.
+        """
+        try:
+            from src.core.database.session import AsyncSessionManager
+            
+            # Test async session creation directly
+            async with AsyncSessionManager.get_session() as session:
+                # Simple query to test connection
+                result = await session.execute("SELECT 1")
+                test_value = result.scalar()
+                
+                if test_value == 1:
+                    logger.info("Intelligence Engine database connectivity verified")
+                    return True
+                else:
+                    logger.warning("Database connection test returned unexpected result")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Database connectivity check failed: {e}")
             return False
     
     async def health_check(self) -> Dict[str, Any]:
@@ -134,7 +160,8 @@ class IntelligenceModule(ModuleInterface):
                 "provider_statistics": provider_stats,
                 "cache_cleanup_task": cache_task_status,
                 "async_loop_fix": "applied",  # Session 5 enhancement
-                "session_5_ready": True  # Session 5 enhancement
+                "session_5_ready": True,  # Session 5 enhancement
+                "database_check": "safe_method_used"  # Session 5 fix
             }
             
             if available_providers == 0:
@@ -232,6 +259,7 @@ class IntelligenceModule(ModuleInterface):
                 "async_fixes": {  # Session 5 enhancements
                     "cache_cleanup_task": "fixed",
                     "event_loop_handling": "improved",
+                    "database_check": "safe_method_implemented",
                     "session_5_ready": True
                 }
             }

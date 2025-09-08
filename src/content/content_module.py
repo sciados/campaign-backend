@@ -47,11 +47,29 @@ class ContentModule(ModuleInterface):
                 logger.warning(f"Service Factory initialization failed: {e}")
                 self._service_factory_ready = False
 
-            # Phase 2: Test integrated content service
+            # Phase 2: Test integrated content service with proper error handling
             try:
                 if self._service_factory_ready:
                     async with ServiceFactory.create_named_service("integrated_content") as test_service:
-                        self._generator_status = test_service.get_generator_status()
+                        # FIXED: Safely get generator status with type checking
+                        generator_result = test_service.get_generator_status()
+                        
+                        # Handle both list and dict responses
+                        if isinstance(generator_result, list):
+                            self._generator_status = {
+                                "total_available": len(generator_result),
+                                "generators": generator_result,
+                                "type": "list_response"
+                            }
+                        elif isinstance(generator_result, dict):
+                            self._generator_status = generator_result
+                        else:
+                            self._generator_status = {
+                                "total_available": 0,
+                                "error": f"Unexpected response type: {type(generator_result)}",
+                                "fallback": True
+                            }
+                        
                         logger.info("Integrated content service tested successfully")
                 else:
                     # Test direct service creation
@@ -59,15 +77,34 @@ class ContentModule(ModuleInterface):
                     from src.core.database.session import AsyncSessionManager
                     async with AsyncSessionManager.get_session() as db:
                         test_service = IntegratedContentService(db)
-                        self._generator_status = test_service.get_generator_status()
+                        
+                        # FIXED: Same safe handling for direct service
+                        generator_result = test_service.get_generator_status()
+                        
+                        if isinstance(generator_result, list):
+                            self._generator_status = {
+                                "total_available": len(generator_result),
+                                "generators": generator_result,
+                                "type": "list_response"
+                            }
+                        elif isinstance(generator_result, dict):
+                            self._generator_status = generator_result
+                        else:
+                            self._generator_status = {
+                                "total_available": 0,
+                                "error": f"Unexpected response type: {type(generator_result)}",
+                                "fallback": True
+                            }
+                        
                         logger.info("Direct content service tested successfully")
                 
+                # FIXED: Safe access to generator status
                 available_count = self._generator_status.get("total_available", 0)
                 logger.info(f"Content generators available: {available_count}")
                     
             except Exception as e:
                 logger.warning(f"Content service test failed: {e}")
-                self._generator_status = {"error": str(e), "fallback": True}
+                self._generator_status = {"error": str(e), "fallback": True, "total_available": 0}
 
             # Phase 3: Load API router
             try:
@@ -174,7 +211,7 @@ class ContentModule(ModuleInterface):
         if self._service_factory_ready:
             score += 0.2
         
-        # Generator status (20%)
+        # Generator status (20%) - FIXED: Safe access
         if self._generator_status and not self._generator_status.get("error"):
             score += 0.2
         
@@ -183,8 +220,9 @@ class ContentModule(ModuleInterface):
             score += 0.2
         
         # Dependencies available (40% total, 10% each)
-        available_deps = sum(1 for status in self._dependency_status.values() if status == "available")
-        score += (available_deps / len(self._dependency_status)) * 0.4
+        if self._dependency_status:
+            available_deps = sum(1 for status in self._dependency_status.values() if status == "available")
+            score += (available_deps / len(self._dependency_status)) * 0.4
         
         return score
 
@@ -331,12 +369,21 @@ class ContentModule(ModuleInterface):
                 validation_results["database_session_management"] = False
                 validation_results["database_error"] = str(e)
             
-            # Test content generation capability
+            # Test content generation capability - FIXED: Safe access
             try:
                 if validation_results.get("service_factory_integration"):
                     async with ServiceFactory.create_named_service("integrated_content") as service:
-                        status = service.get_generator_status()
-                        validation_results["content_generation_capability"] = status.get("total_available", 0) > 0
+                        status_result = service.get_generator_status()
+                        
+                        # Handle both list and dict responses safely
+                        if isinstance(status_result, list):
+                            total_available = len(status_result)
+                        elif isinstance(status_result, dict):
+                            total_available = status_result.get("total_available", 0)
+                        else:
+                            total_available = 0
+                        
+                        validation_results["content_generation_capability"] = total_available > 0
                 else:
                     validation_results["content_generation_capability"] = False
             except Exception as e:
