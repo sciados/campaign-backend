@@ -2,12 +2,11 @@
 
 """User Models"""
 
-from .user import User, Company, UserProfile
+from .user import User, Company
 from .user_storage import UserStorage
 
 __all__ = [
     "User",
-    "Company", 
-    "UserProfile",
+    "Company",
     "UserStorage"
 ]
