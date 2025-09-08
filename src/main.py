@@ -34,10 +34,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Core Infrastructure (Session 1)
-from src.core.config import deployment_config
-from src.core.middleware import setup_cors, ErrorHandlingMiddleware, RateLimitMiddleware
+from src.core.config.deployment import deployment_config
+from src.core.middleware import ErrorHandlingMiddleware, RateLimitMiddleware
 from src.core.database import test_database_connection
 from src.core.health import get_health_status
+from src.core.middleware import setup_cors
 
 # Intelligence Engine (Session 2)
 from src.intelligence.intelligence_module import intelligence_module

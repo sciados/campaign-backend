@@ -4,7 +4,6 @@
 
 """
 CORS middleware configuration for CampaignForge.
-
 Handles Cross-Origin Resource Sharing for Vercel frontend integration.
 """
 
@@ -12,18 +11,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from src.core.config import deployment_config
+from src.core.config.deployment import deployment_config
 
 logger = logging.getLogger(__name__)
 
 
-def setup_cors(app: FastAPI) -> None:
-    """
-    Configure CORS middleware for the FastAPI application.
-    
-    Args:
-        app: FastAPI application instance
-    """
+def setup_cors(app: FastAPI) -> None:    
     cors_config = deployment_config.get_cors_config()
     
     app.add_middleware(

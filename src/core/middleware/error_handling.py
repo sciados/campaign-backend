@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 import logging
-from typing import Union
+# from typing import Union
 
 from src.core.shared.exceptions import CampaignForgeException
 from src.core.shared.responses import ErrorResponse
@@ -51,7 +51,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                     message=e.message,
                     error_code=e.error_code,
                     details=e.details
-                ).dict()
+                ).model_dump()
             )
         except Exception as e:
             # Unexpected exceptions
@@ -62,5 +62,5 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                     message="An unexpected error occurred",
                     error_code="INTERNAL_SERVER_ERROR",
                     details={"error_type": type(e).__name__}
-                ).dict()
+                ).model_dump()
             )

@@ -16,7 +16,7 @@ from datetime import datetime
 import aiohttp
 from enum import Enum
 
-from src.core.database.connection import test_database_connection
+from src.core.database import test_database_connection
 from src.core.config import settings
 
 logger = logging.getLogger(__name__)
