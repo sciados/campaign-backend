@@ -26,26 +26,31 @@ class IntegratedContentService:
         """Initialize existing generators from intelligence module"""
         try:
             # Import your existing generators
-            from src.intelligence.generators import (
-                EmailSequenceGenerator,
+            from src.content.generators import (
+                EmailGenerator,
                 AdCopyGenerator,
                 SocialMediaGenerator,
                 get_available_generators,
-                ContentGeneratorFactory
+                BlogContentGenerator
             )
             
             # Initialize available generators
             available = get_available_generators()
             
             if available.get("email_sequence", False):
-                self._generators["email"] = EmailSequenceGenerator()
-                self._generators["email_sequence"] = EmailSequenceGenerator()
+                self._generators["email"] = EmailGenerator()
+                self._generators["email_sequence"] = EmailGenerator()
                 logger.info("Email sequence generator loaded")
             
             if available.get("ad_copy", False):
                 self._generators["ad_copy"] = AdCopyGenerator()
                 self._generators["advertisement"] = AdCopyGenerator()
                 logger.info("Ad copy generator loaded")
+
+            if available.get("blog_post", False):
+                self._generators["blog_post"] = BlogContentGenerator()
+                self._generators["blogposts"] = BlogContentGenerator()
+                logger.info("Blog Post generator loaded")
             
             if available.get("social_media", False):
                 self._generators["social_post"] = SocialMediaGenerator()
@@ -53,11 +58,11 @@ class IntegratedContentService:
                 logger.info("Social media generator loaded")
             
             # Try to use factory if available
-            if available.get("factory", False):
-                self._factory = ContentGeneratorFactory()
-                logger.info("Content generator factory loaded")
-            else:
-                self._factory = None
+            # if available.get("factory", False):
+            #    self._factory = ContentGeneratorFactory()
+            #    logger.info("Content generator factory loaded")
+            # else:
+            #    self._factory = None
             
             logger.info(f"Initialized {len(self._generators)} content generators")
             

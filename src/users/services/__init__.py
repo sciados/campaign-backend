@@ -4,10 +4,19 @@
 
 from src.users.services.user_service import UserService
 from src.users.services.auth_service import AuthService
-from src.users.services.user_storage_crud import UserStorageCRUD
+
+try:
+    from src.users.services.user_storage_crud import UserStorageCRUD
+    USER_STORAGE_AVAILABLE = True
+except ImportError as e:
+    print(f"UserStorageCRUD not available: {e}")
+    UserStorageCRUD = None
+    USER_STORAGE_AVAILABLE = False
 
 __all__ = [
     "UserService",
     "AuthService",
-    "UserStorageCRUD"
 ]
+
+if USER_STORAGE_AVAILABLE:
+    __all__.append("UserStorageCRUD")
