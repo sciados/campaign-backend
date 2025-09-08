@@ -13,4 +13,8 @@ from src.users.models.user import User
 from src.users.services.user_service import UserService
 from src.users.users_module import UsersModule
 
-__all__ = ["UsersModule"]
+__all__ = [
+    "UsersModule",
+    "UserService",
+    "User"
+]

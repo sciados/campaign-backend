@@ -44,7 +44,7 @@ __refactoring_info__ = {
 
 # Core module imports for external usage
 try:
-    from src.main import app, create_campaignforge_app
+    from src.main import app #, create_campaignforge_app
     __app_available__ = True
 except ImportError:
     __app_available__ = False
