@@ -9,10 +9,12 @@ import logging
 import asyncio
 
 from src.campaigns.schemas.workflow import (
-    WorkflowStateEnum, WorkflowProgress, WorkflowStepResult,
+    WorkflowProgress, WorkflowStepResult,
     WorkflowAction, WorkflowAnalytics, WorkflowNotification
+    # WorkflowStateEnum, 
 )
-from src.campaigns.models.campaign import Campaign, CampaignStatusEnum #, CampaignTypeEnum
+from src.campaigns.models.campaign import Campaign, CampaignStatusEnum
+# CampaignTypeEnum
 
 logger = logging.getLogger(__name__)
 

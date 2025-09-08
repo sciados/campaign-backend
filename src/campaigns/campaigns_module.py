@@ -41,49 +41,26 @@ class CampaignModule(ModuleInterface):
         try:
             logger.info(f"Initializing {self.name} module...")
 
-            # Initialize services safely
-            try: 
-                # Get database session
-                async with AsyncSessionLocal() as db:
-                    self.campaign_service = CampaignService(db=db)
-                    if hasattr(self.campaign_service, 'initialize'):
-                        await self.campaign_service.initialize()
-            except ImportError as e:
-                logger.warning(f"Could not import CampaignService: {e}")
-            except Exception as e:
-                logger.error(f"Error initializing CampaignService: {e}")
-            
-            try:
-                from src.campaigns.services.workflow_service import WorkflowService
-                self.workflow_service = WorkflowService()
-                if hasattr(self.workflow_service, 'initialize'):
-                    await self.workflow_service.initialize()
-            except ImportError as e:
-                logger.warning(f"Could not import WorkflowService: {e}")
-            
-            try:
-                from src.campaigns.dashboard.campaign_dashboard import CampaignDashboardService
-                self.dashboard_service = CampaignDashboardService()
-                if hasattr(self.dashboard_service, 'initialize'):
-                    await self.dashboard_service.initialize()
-            except ImportError as e:
-                logger.warning(f"Could not import CampaignDashboardService: {e}")
-            
+            # Skip database-dependent services during module initialization
+            self.campaign_service = None
+            self.workflow_service = None  # Don't create without database session
+            self.dashboard_service = None
+        
+            logger.info("Skipping service initialization - services will be created when needed")
+        
             # Initialize API router
             try:
                 from src.campaigns.api.routes import router
                 self._router = router
             except ImportError as e:
                 logger.warning(f"Could not import campaigns router: {e}")
+                from fastapi import APIRouter
                 self._router = APIRouter()
-            
-            # Start background tasks
-            await self._start_background_tasks()
-            
+        
             self._initialized = True
             logger.info(f"{self.name} module initialized successfully")
             return True
-            
+        
         except Exception as e:
             logger.error(f"Campaign module initialization failed: {e}")
             return False
