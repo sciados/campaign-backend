@@ -3,10 +3,10 @@
 """User Models"""
 
 from src.users.models.user import User, Company
-from src.users.models.user_storage import UserStorage
+from src.users.models.user_storage import UserStorageUsage
 
 __all__ = [
     "User",
     "Company",
-    "UserStorage"
+    "UserStorageUsage"
 ]
