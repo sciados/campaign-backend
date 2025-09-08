@@ -25,6 +25,8 @@ class UserStorageUsage(Base):
     Tracks all file uploads, storage usage, and analytics
     """
     __tablename__ = "user_storage_usage"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
     
     # Core identification
     user_id = Column(String, ForeignKey('users.id'), nullable=False, index=True)
