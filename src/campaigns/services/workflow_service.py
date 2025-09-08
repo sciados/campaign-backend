@@ -12,7 +12,7 @@ from src.campaigns.schemas.workflow import (
     WorkflowStateEnum, WorkflowProgress, WorkflowStepResult,
     WorkflowAction, WorkflowAnalytics, WorkflowNotification
 )
-from src.campaigns.models.campaign import Campaign, CampaignWorkflowStateEnum
+from src.campaigns.models.campaign import Campaign, CampaignStatusEnum #, CampaignTypeEnum
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class WorkflowService:
                     "step_number": 1,
                     "step_name": "Intelligence Analysis",
                     "step_type": "ANALYSIS",
-                    "state": CampaignWorkflowStateEnum.ANALYZING,
+                    "state": CampaignStatusEnum.ANALYZING,
                     "estimated_duration": 120,  # 2 minutes
                     "required": True,
                     "auto_proceed": True
@@ -40,7 +40,7 @@ class WorkflowService:
                     "step_number": 2,
                     "step_name": "Email Content Generation",
                     "step_type": "CONTENT_GENERATION",
-                    "state": CampaignWorkflowStateEnum.GENERATING_CONTENT,
+                    "state": CampaignStatusEnum.GENERATING_CONTENT,
                     "estimated_duration": 180,  # 3 minutes
                     "required": True,
                     "auto_proceed": True
@@ -49,7 +49,7 @@ class WorkflowService:
                     "step_number": 3,
                     "step_name": "Content Review",
                     "step_type": "REVIEW",
-                    "state": CampaignWorkflowStateEnum.REVIEW_REQUIRED,
+                    "state": CampaignStatusEnum.REVIEW_REQUIRED,
                     "estimated_duration": 300,  # 5 minutes (human review)
                     "required": True,
                     "auto_proceed": False
@@ -58,7 +58,7 @@ class WorkflowService:
                     "step_number": 4,
                     "step_name": "Final Approval",
                     "step_type": "APPROVAL",
-                    "state": CampaignWorkflowStateEnum.APPROVED,
+                    "state": CampaignStatusEnum.APPROVED,
                     "estimated_duration": 60,   # 1 minute
                     "required": True,
                     "auto_proceed": False
@@ -67,7 +67,7 @@ class WorkflowService:
                     "step_number": 5,
                     "step_name": "Campaign Ready",
                     "step_type": "COMPLETION",
-                    "state": CampaignWorkflowStateEnum.COMPLETE,
+                    "state": CampaignStatusEnum.COMPLETE,
                     "estimated_duration": 30,   # 30 seconds
                     "required": True,
                     "auto_proceed": True
@@ -78,7 +78,7 @@ class WorkflowService:
                     "step_number": 1,
                     "step_name": "Intelligence Analysis", 
                     "step_type": "ANALYSIS",
-                    "state": CampaignWorkflowStateEnum.ANALYZING,
+                    "state": CampaignStatusEnum.ANALYZING,
                     "estimated_duration": 120,
                     "required": True,
                     "auto_proceed": True
@@ -87,7 +87,7 @@ class WorkflowService:
                     "step_number": 2,
                     "step_name": "Social Media Content Generation",
                     "step_type": "CONTENT_GENERATION", 
-                    "state": CampaignWorkflowStateEnum.GENERATING_CONTENT,
+                    "state": CampaignStatusEnum.GENERATING_CONTENT,
                     "estimated_duration": 150,
                     "required": True,
                     "auto_proceed": True
@@ -96,7 +96,7 @@ class WorkflowService:
                     "step_number": 3,
                     "step_name": "Content Review",
                     "step_type": "REVIEW",
-                    "state": CampaignWorkflowStateEnum.REVIEW_REQUIRED,
+                    "state": CampaignStatusEnum.REVIEW_REQUIRED,
                     "estimated_duration": 240,
                     "required": True,
                     "auto_proceed": False
@@ -105,7 +105,7 @@ class WorkflowService:
                     "step_number": 4,
                     "step_name": "Campaign Ready",
                     "step_type": "COMPLETION",
-                    "state": CampaignWorkflowStateEnum.COMPLETE,
+                    "state": CampaignStatusEnum.COMPLETE,
                     "estimated_duration": 30,
                     "required": True,
                     "auto_proceed": True
@@ -116,7 +116,7 @@ class WorkflowService:
                     "step_number": 1,
                     "step_name": "Intelligence Analysis",
                     "step_type": "ANALYSIS",
-                    "state": CampaignWorkflowStateEnum.ANALYZING,
+                    "state": CampaignStatusEnum.ANALYZING,
                     "estimated_duration": 180,  # Longer for content marketing
                     "required": True,
                     "auto_proceed": True
@@ -125,7 +125,7 @@ class WorkflowService:
                     "step_number": 2,
                     "step_name": "Content Strategy Development",
                     "step_type": "CONTENT_GENERATION",
-                    "state": CampaignWorkflowStateEnum.GENERATING_CONTENT,
+                    "state": CampaignStatusEnum.GENERATING_CONTENT,
                     "estimated_duration": 300,
                     "required": True,
                     "auto_proceed": True
@@ -134,7 +134,7 @@ class WorkflowService:
                     "step_number": 3,
                     "step_name": "Content Creation",
                     "step_type": "CONTENT_GENERATION",
-                    "state": CampaignWorkflowStateEnum.GENERATING_CONTENT,
+                    "state": CampaignStatusEnum.GENERATING_CONTENT,
                     "estimated_duration": 420,  # 7 minutes
                     "required": True,
                     "auto_proceed": True
@@ -143,7 +143,7 @@ class WorkflowService:
                     "step_number": 4,
                     "step_name": "Editorial Review",
                     "step_type": "REVIEW",
-                    "state": CampaignWorkflowStateEnum.REVIEW_REQUIRED,
+                    "state": CampaignStatusEnum.REVIEW_REQUIRED,
                     "estimated_duration": 600,  # 10 minutes for thorough review
                     "required": True,
                     "auto_proceed": False
@@ -152,7 +152,7 @@ class WorkflowService:
                     "step_number": 5,
                     "step_name": "Campaign Ready",
                     "step_type": "COMPLETION",
-                    "state": CampaignWorkflowStateEnum.COMPLETE,
+                    "state": CampaignStatusEnum.COMPLETE,
                     "estimated_duration": 30,
                     "required": True,
                     "auto_proceed": True
@@ -163,7 +163,7 @@ class WorkflowService:
                     "step_number": 1,
                     "step_name": "Intelligence Analysis",
                     "step_type": "ANALYSIS",
-                    "state": CampaignWorkflowStateEnum.ANALYZING,
+                    "state": CampaignStatusEnum.ANALYZING,
                     "estimated_duration": 120,
                     "required": True,
                     "auto_proceed": True
@@ -172,7 +172,7 @@ class WorkflowService:
                     "step_number": 2,
                     "step_name": "Promotional Content Generation",
                     "step_type": "CONTENT_GENERATION",
-                    "state": CampaignWorkflowStateEnum.GENERATING_CONTENT,
+                    "state": CampaignStatusEnum.GENERATING_CONTENT,
                     "estimated_duration": 150,
                     "required": True,
                     "auto_proceed": True
@@ -181,7 +181,7 @@ class WorkflowService:
                     "step_number": 3,
                     "step_name": "Compliance Review",
                     "step_type": "REVIEW",
-                    "state": CampaignWorkflowStateEnum.REVIEW_REQUIRED,
+                    "state": CampaignStatusEnum.REVIEW_REQUIRED,
                     "estimated_duration": 180,
                     "required": True,
                     "auto_proceed": False
@@ -190,7 +190,7 @@ class WorkflowService:
                     "step_number": 4,
                     "step_name": "Campaign Ready",
                     "step_type": "COMPLETION",
-                    "state": CampaignWorkflowStateEnum.COMPLETE,
+                    "state": CampaignStatusEnum.COMPLETE,
                     "estimated_duration": 30,
                     "required": True,
                     "auto_proceed": True
@@ -201,7 +201,7 @@ class WorkflowService:
                     "step_number": 1,
                     "step_name": "Intelligence Analysis",
                     "step_type": "ANALYSIS",
-                    "state": CampaignWorkflowStateEnum.ANALYZING,
+                    "state": CampaignStatusEnum.ANALYZING,
                     "estimated_duration": 240,  # Longer for product launches
                     "required": True,
                     "auto_proceed": True
@@ -210,7 +210,7 @@ class WorkflowService:
                     "step_number": 2,
                     "step_name": "Launch Strategy Development",
                     "step_type": "CONTENT_GENERATION",
-                    "state": CampaignWorkflowStateEnum.GENERATING_CONTENT,
+                    "state": CampaignStatusEnum.GENERATING_CONTENT,
                     "estimated_duration": 360,
                     "required": True,
                     "auto_proceed": True
@@ -219,7 +219,7 @@ class WorkflowService:
                     "step_number": 3,
                     "step_name": "Marketing Asset Creation",
                     "step_type": "CONTENT_GENERATION",
-                    "state": CampaignWorkflowStateEnum.GENERATING_CONTENT,
+                    "state": CampaignStatusEnum.GENERATING_CONTENT,
                     "estimated_duration": 480,  # 8 minutes
                     "required": True,
                     "auto_proceed": True
@@ -228,7 +228,7 @@ class WorkflowService:
                     "step_number": 4,
                     "step_name": "Stakeholder Review",
                     "step_type": "REVIEW",
-                    "state": CampaignWorkflowStateEnum.REVIEW_REQUIRED,
+                    "state": CampaignStatusEnum.REVIEW_REQUIRED,
                     "estimated_duration": 720,  # 12 minutes for stakeholder review
                     "required": True,
                     "auto_proceed": False
@@ -237,7 +237,7 @@ class WorkflowService:
                     "step_number": 5,
                     "step_name": "Final Approval",
                     "step_type": "APPROVAL",
-                    "state": CampaignWorkflowStateEnum.APPROVED,
+                    "state": CampaignStatusEnum.APPROVED,
                     "estimated_duration": 120,
                     "required": True,
                     "auto_proceed": False
@@ -246,7 +246,7 @@ class WorkflowService:
                     "step_number": 6,
                     "step_name": "Launch Ready",
                     "step_type": "COMPLETION",
-                    "state": CampaignWorkflowStateEnum.COMPLETE,
+                    "state": CampaignStatusEnum.COMPLETE,
                     "estimated_duration": 30,
                     "required": True,
                     "auto_proceed": True
@@ -257,7 +257,7 @@ class WorkflowService:
                     "step_number": 1,
                     "step_name": "Intelligence Analysis",
                     "step_type": "ANALYSIS",
-                    "state": CampaignWorkflowStateEnum.ANALYZING,
+                    "state": CampaignStatusEnum.ANALYZING,
                     "estimated_duration": 120,
                     "required": True,
                     "auto_proceed": True
@@ -266,7 +266,7 @@ class WorkflowService:
                     "step_number": 2,
                     "step_name": "Content Generation",
                     "step_type": "CONTENT_GENERATION",
-                    "state": CampaignWorkflowStateEnum.GENERATING_CONTENT,
+                    "state": CampaignStatusEnum.GENERATING_CONTENT,
                     "estimated_duration": 180,
                     "required": True,
                     "auto_proceed": True
@@ -275,7 +275,7 @@ class WorkflowService:
                     "step_number": 3,
                     "step_name": "Review & Approval",
                     "step_type": "REVIEW",
-                    "state": CampaignWorkflowStateEnum.REVIEW_REQUIRED,
+                    "state": CampaignStatusEnum.REVIEW_REQUIRED,
                     "estimated_duration": 300,
                     "required": True,
                     "auto_proceed": False
@@ -284,7 +284,7 @@ class WorkflowService:
                     "step_number": 4,
                     "step_name": "Campaign Ready",
                     "step_type": "COMPLETION",
-                    "state": CampaignWorkflowStateEnum.COMPLETE,
+                    "state": CampaignStatusEnum.COMPLETE,
                     "estimated_duration": 30,
                     "required": True,
                     "auto_proceed": True
@@ -321,7 +321,7 @@ class WorkflowService:
             
             # Initialize workflow
             campaign.workflow_step = 1
-            campaign.workflow_state = CampaignWorkflowStateEnum.INITIAL
+            campaign.workflow_state = CampaignStatusEnum.INITIAL
             campaign.completion_percentage = 0
             campaign.is_workflow_complete = False
             campaign.workflow_data = {
@@ -366,13 +366,13 @@ class WorkflowService:
             return WorkflowProgress(
                 campaign_id=str(campaign.id),
                 current_step=campaign.workflow_step,
-                current_state=campaign.workflow_state or CampaignWorkflowStateEnum.INITIAL,
+                current_state=campaign.workflow_state or CampaignStatusEnum.INITIAL,
                 total_steps=total_steps,
                 completed_steps=self._calculate_completed_steps(campaign),
                 completion_percentage=campaign.completion_percentage,
                 is_complete=campaign.is_workflow_complete,
-                is_paused=campaign.workflow_state == CampaignWorkflowStateEnum.PAUSED,
-                has_errors=campaign.workflow_state == CampaignWorkflowStateEnum.ERROR,
+                is_paused=campaign.workflow_state == CampaignStatusEnum.PAUSED,
+                has_errors=campaign.workflow_state == CampaignStatusEnum.ERROR,
                 estimated_completion=self._calculate_estimated_completion(campaign),
                 step_statuses=self._get_step_statuses(campaign)
             )
@@ -473,7 +473,7 @@ class WorkflowService:
                 # Workflow complete
                 campaign.is_workflow_complete = True
                 campaign.completion_percentage = 100
-                campaign.workflow_state = CampaignWorkflowStateEnum.COMPLETE
+                campaign.workflow_state = CampaignStatusEnum.COMPLETE
                 
                 workflow_data["completed_at"] = datetime.now(timezone.utc).isoformat()
                 campaign.workflow_data = workflow_data
@@ -509,7 +509,7 @@ class WorkflowService:
             # Calculate analytics
             total_executions = 1 if step_history else 0
             successful_executions = 1 if campaign.is_workflow_complete else 0
-            failed_executions = 1 if campaign.workflow_state == CampaignWorkflowStateEnum.ERROR else 0
+            failed_executions = 1 if campaign.workflow_state == CampaignStatusEnum.ERROR else 0
             
             # Calculate completion time
             started_at = workflow_data.get("started_at")
@@ -596,12 +596,12 @@ class WorkflowService:
             
         except Exception as e:
             logger.error(f"Error executing step {step_number}: {e}")
-            campaign.workflow_state = CampaignWorkflowStateEnum.ERROR
+            campaign.workflow_state = CampaignStatusEnum.ERROR
             raise
     
     async def _pause_workflow(self, campaign: Campaign):
         """Pause workflow execution"""
-        campaign.workflow_state = CampaignWorkflowStateEnum.PAUSED
+        campaign.workflow_state = CampaignStatusEnum.PAUSED
         
         workflow_data = campaign.workflow_data or {}
         workflow_data["paused_at"] = datetime.now(timezone.utc).isoformat()
@@ -621,7 +621,7 @@ class WorkflowService:
             step_config = steps[current_step - 1]
             campaign.workflow_state = step_config["state"]
         else:
-            campaign.workflow_state = CampaignWorkflowStateEnum.COMPLETE
+            campaign.workflow_state = CampaignStatusEnum.COMPLETE
         
         workflow_data = campaign.workflow_data or {}
         workflow_data["resumed_at"] = datetime.now(timezone.utc).isoformat()
@@ -632,7 +632,7 @@ class WorkflowService:
     
     async def _stop_workflow(self, campaign: Campaign):
         """Stop workflow execution"""
-        campaign.workflow_state = CampaignWorkflowStateEnum.ERROR
+        campaign.workflow_state = CampaignStatusEnum.ERROR
         campaign.is_workflow_complete = True
         
         workflow_data = campaign.workflow_data or {}
@@ -688,7 +688,7 @@ class WorkflowService:
             
             workflow_data["step_history"] = step_history
             campaign.workflow_data = workflow_data
-            campaign.workflow_state = CampaignWorkflowStateEnum.ERROR
+            campaign.workflow_state = CampaignStatusEnum.ERROR
     
     async def _record_step_result(self, campaign: Campaign, step_result: WorkflowStepResult):
         """Record the result of a workflow step"""
@@ -830,7 +830,7 @@ class WorkflowService:
             notifications = []
             
             # Check for pending reviews
-            if campaign.workflow_state == CampaignWorkflowStateEnum.REVIEW_REQUIRED:
+            if campaign.workflow_state == CampaignStatusEnum.REVIEW_REQUIRED:
                 notifications.append(WorkflowNotification(
                     id=f"review_{campaign.id}_{campaign.workflow_step}",
                     campaign_id=str(campaign.id),
@@ -844,7 +844,7 @@ class WorkflowService:
                 ))
             
             # Check for approvals needed
-            if campaign.workflow_state == CampaignWorkflowStateEnum.APPROVED:
+            if campaign.workflow_state == CampaignStatusEnum.APPROVED:
                 notifications.append(WorkflowNotification(
                     id=f"approval_{campaign.id}_{campaign.workflow_step}",
                     campaign_id=str(campaign.id),
@@ -858,7 +858,7 @@ class WorkflowService:
                 ))
             
             # Check for errors
-            if campaign.workflow_state == CampaignWorkflowStateEnum.ERROR:
+            if campaign.workflow_state == CampaignStatusEnum.ERROR:
                 notifications.append(WorkflowNotification(
                     id=f"error_{campaign.id}_{campaign.workflow_step}",
                     campaign_id=str(campaign.id),
@@ -1012,7 +1012,7 @@ class WorkflowService:
             query = select(Campaign).where(
                 and_(
                     Campaign.is_workflow_complete == False,
-                    Campaign.workflow_state != CampaignWorkflowStateEnum.ERROR
+                    Campaign.workflow_state != CampaignStatusEnum.ERROR
                 )
             )
             
@@ -1046,8 +1046,8 @@ class WorkflowService:
                 and_(
                     Campaign.company_id == company_uuid,
                     Campaign.is_workflow_complete == False,
-                    Campaign.workflow_state != CampaignWorkflowStateEnum.PAUSED,
-                    Campaign.workflow_state != CampaignWorkflowStateEnum.ERROR
+                    Campaign.workflow_state != CampaignStatusEnum.PAUSED,
+                    Campaign.workflow_state != CampaignStatusEnum.ERROR
                 )
             )
             
@@ -1077,7 +1077,7 @@ class WorkflowService:
             query = select(Campaign).where(
                 and_(
                     Campaign.company_id == company_uuid,
-                    Campaign.workflow_state == CampaignWorkflowStateEnum.PAUSED
+                    Campaign.workflow_state == CampaignStatusEnum.PAUSED
                 )
             )
             

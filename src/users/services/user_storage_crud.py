@@ -19,7 +19,7 @@ from src.utils.json_utils import safe_json_dumps, safe_json_loads
 from src.core.crud.base_crud import BaseCRUD
 from src.users.models.user_storage import UserStorageUsage  # Only the model class
 from src.users.models.user import User
-from src.campaigns.models.campaign import Campaign
+# from src.campaigns.models.campaign import Campaign
 
 import logging
 logger = logging.getLogger(__name__)
