@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 import logging
 
 from src.campaigns.models.campaign import Campaign, CampaignStatusEnum, CampaignTypeEnum
-from src.core.shared.exceptions import CampaignNotFoundError
+from src.core.shared.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -310,7 +310,7 @@ class CampaignService:
         try:
             campaign = await self.get_campaign_by_id(campaign_id, user_id)
             if not campaign:
-                raise CampaignNotFoundError(f"Campaign {campaign_id} not found")
+                raise NotFoundError(f"Campaign {campaign_id} not found")
             
             # Update allowed fields
             allowed_fields = [
