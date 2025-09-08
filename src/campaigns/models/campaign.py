@@ -1,4 +1,5 @@
 # src/campaigns/models/campaign.py
+
 from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Text, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB

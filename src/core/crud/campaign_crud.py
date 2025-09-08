@@ -9,11 +9,12 @@ Campaign-specific CRUD operations
 from typing import List, Optional, Dict, Any, Union
 from uuid import UUID
 from datetime import datetime, timezone, timedelta
+from campaigns.schemas.campaign import CampaignWorkflowUpdate
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, func
 import logging
 
-from src.campaigns.models.campaign import Campaign, CampaignStatus, CampaignWorkflowState, AutoAnalysisStatus
+from src.campaigns.models.campaign import Campaign, CampaignStatusEnum, CampaignTypeEnum
 from src.core.crud.base_crud import BaseCRUD
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
                 try:
                     # Convert string to enum if needed
                     if isinstance(status_filter, str):
-                        status_enum = CampaignStatus(status_filter.upper())
+                        status_enum = CampaignStatusEnum(status_filter.upper())
                         filters["status"] = status_enum
                     else:
                         filters["status"] = status_filter
@@ -152,7 +153,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
             for status_name in ["DRAFT", "IN_PROGRESS", "COMPLETED", "ARCHIVED"]:
                 try:
                     # Convert string to proper enum
-                    status_enum = CampaignStatus(status_name)
+                    status_enum = CampaignStatusEnum(status_name)
                     status_filters = {**filters, "status": status_enum}
                     count = await self.count(db=db, filters=status_filters)
                     status_counts[status_name.lower()] = count
@@ -282,7 +283,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
         self,
         db: AsyncSession,
         campaign_id: UUID,
-        new_status: Union[str, CampaignStatus],  # 🔧 FIXED: Accept both string and enum
+        new_status: Union[str, CampaignStatusEnum],  # 🔧 FIXED: Accept both string and enum
         company_id: UUID
     ) -> Optional[Campaign]:
         """Update campaign status with access check and proper enum handling"""
@@ -292,7 +293,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
             # 🔧 FIXED: Convert string to enum if needed
             if isinstance(new_status, str):
                 try:
-                    status_enum = CampaignStatus(new_status.upper())
+                    status_enum = CampaignStatusEnum(new_status.upper())
                 except ValueError:
                     logger.error(f"Invalid status: {new_status}")
                     return None
@@ -329,7 +330,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
     async def get_campaigns_by_status(
         self,
         db: AsyncSession,
-        status: Union[str, CampaignStatus],
+        status: Union[str, CampaignStatusEnum],
         company_id: Optional[UUID] = None,
         user_id: Optional[UUID] = None,
         skip: int = 0,
@@ -343,7 +344,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
             # 🔧 FIXED: Convert string status to enum if needed
             if isinstance(status, str):
                 try:
-                    status_enum = CampaignStatus(status.upper())
+                    status_enum = CampaignStatusEnum(status.upper())
                 except ValueError:
                     logger.error(f"Invalid status: {status}")
                     return []
@@ -376,7 +377,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
         self,
         db: AsyncSession,
         campaign_id: UUID,
-        new_state: Union[str, CampaignWorkflowState],
+        new_state: Union[str, CampaignWorkflowUpdate],
         completion_percentage: Optional[int] = None
     ) -> Optional[Campaign]:
         """
@@ -390,32 +391,28 @@ class CampaignCRUD(BaseCRUD[Campaign]):
                 return None
             
             # 🔧 FIXED: Convert string to enum if needed
+            # Use the actual model methods instead
+            campaign.update_workflow_step(int(new_state) if isinstance(new_state, str) else new_state)
+            if completion_percentage == 100:
+                campaign.mark_workflow_complete()
+            
             if isinstance(new_state, str):
-                try:
-                    state_enum = CampaignWorkflowState(new_state.upper())
-                except ValueError:
-                    logger.error(f"Invalid workflow state: {new_state}")
-                    return None
+                workflow_step = int(new_state) if new_state.isdigit() else 0
             else:
-                state_enum = new_state
+                workflow_step = new_state
+
+            # Use the actual model method
+            campaign.update_workflow_step(workflow_step)
+
+            if completion_percentage == 100:
+                campaign.mark_workflow_complete()
+
+            # Commit the changes
+            await db.commit()
+            await db.refresh(campaign)
+            updated_campaign = campaign
             
-            # Prepare update data
-            update_data = {
-                "workflow_state": state_enum,
-                "updated_at": datetime.now(timezone.utc)
-            }
-            
-            if completion_percentage is not None:
-                update_data["completion_percentage"] = completion_percentage
-            
-            # Update campaign
-            updated_campaign = await self.update(
-                db=db,
-                db_obj=campaign,
-                obj_in=update_data
-            )
-            
-            logger.info(f"✅ Updated workflow state for campaign {campaign_id} to {state_enum.value}")
+            # logger.info(f"✅ Updated workflow state for campaign {campaign_id} to {state_enum.value}")
             return updated_campaign
             
         except Exception as e:
