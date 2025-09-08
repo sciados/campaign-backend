@@ -69,12 +69,12 @@ class UserOnboardingUpdate(BaseModel):
     step: int = Field(..., ge=0, le=100)
     step_data: Optional[Dict[str, Any]] = None
     goals: Optional[List[str]] = None
-    experience_level: Optional[str] = Field(None, regex="^(beginner|intermediate|advanced)$")
+    experience_level: Optional[str] = Field(None, pattern="^(beginner|intermediate|advanced)$")
 
 class UserDashboardPreferences(BaseModel):
     """Schema for dashboard preferences"""
-    theme: Optional[str] = Field(None, regex="^(light|dark|system)$")
-    layout: Optional[str] = Field(None, regex="^(grid|list|cards)$")
+    theme: Optional[str] = Field(None, pattern="^(light|dark|system)$") 
+    layout: Optional[str] = Field(None, pattern="^(grid|list|cards)$")
     sidebar_collapsed: Optional[bool] = None
     show_welcome: Optional[bool] = None
     default_view: Optional[str] = None
@@ -209,8 +209,8 @@ class UserFilterRequest(BaseModel):
     company_id: Optional[str] = None
     skip: int = Field(0, ge=0)
     limit: int = Field(100, ge=1, le=1000)
-    order_by: Optional[str] = Field(None, regex="^(created_at|last_login_at|full_name|email)$")
-    order_direction: Optional[str] = Field("desc", regex="^(asc|desc)$")
+    order_by: Optional[str] = Field(None, pattern="^(created_at|last_login_at|full_name|email)$")
+    order_direction: Optional[str] = Field("desc", pattern="^(asc|desc)$")
 
 # Success response schemas
 class UserCreatedResponse(BaseModel):
