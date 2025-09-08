@@ -13,13 +13,13 @@ from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 
-from src.core.crud.base_crud import BaseModel as SQLModel
+from src.core.database.models import Base
 
 # ============================================================================
 # SQLAlchemy Model
 # ============================================================================
 
-class UserStorageUsage(SQLModel):
+class UserStorageUsage(Base):
     """
     User Storage Usage tracking model
     Tracks all file uploads, storage usage, and analytics
