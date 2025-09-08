@@ -13,18 +13,9 @@ from src.core.factories.service_factory import ServiceFactory
 
 class UsersModule(ModuleInterface):
     """Users Module - Enhanced with service re-enablement"""
-    
     def __init__(self):
-        @property
-        def name(self) -> str:
-            """Return the module name."""
-            return self._name
-    
-        @property
-        def version(self) -> str:
-            """Return the module version."""
-            return self._version
-        
+        self._name = "users"  # Set the private attribute
+        self._version = "1.1.0"  # Set the private attribute
         self.description = "User management with authentication and dashboard services"
         self._router = None
         self._initialized = False
@@ -32,6 +23,18 @@ class UsersModule(ModuleInterface):
         # Register services with factory
         self._register_services()
 
+   
+    
+    @property
+    def name(self) -> str:
+        """Return the module name."""
+        return self._name
+    
+    @property
+    def version(self) -> str:
+        """Return the module version."""
+        return self._version
+   
     async def shutdown(self) -> None:
         """Shutdown the Users module"""
         try:
