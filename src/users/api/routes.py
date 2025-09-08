@@ -4,12 +4,9 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 
-from src.users.services.user_service import UserService
-from src.users.services.auth_service import AuthService
-from src.users.schemas.auth import UserLogin, UserRegister, TokenResponse
+from src.users.schemas.auth import LoginRequest, LoginResponse, RegisterRequest
 from src.users.schemas.user import UserResponse, UserUpdate, UserDashboardPreferences
 from src.core.database.connection import get_db
-from src.core.shared.responses import success_response, error_response
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 security = HTTPBearer()
@@ -17,15 +14,15 @@ security = HTTPBearer()
 # Migrate existing auth routes
 @router.post("/register", response_model=Dict[str, Any])
 async def register_user(
-    user_data: UserRegister,
+    user_data: RegisterRequest,
     db: Session = Depends(get_db)
 ):
     """Register new user - migrate existing logic"""
     pass
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=LoginResponse)  # Changed return type
 async def login_user(
-    login_data: UserLogin,
+    login_data: LoginRequest,  # Changed from UserLogin
     db: Session = Depends(get_db)
 ):
     """Login user - migrate existing logic"""
