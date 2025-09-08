@@ -47,7 +47,7 @@ from src.intelligence.intelligence_module import intelligence_module
 from src.users.users_module import UsersModule
 
 # Campaign Management Module (Session 4) - NEW
-from src.campaigns.campaigns_module import CampaignsModule
+from src.campaigns.campaigns_module import CampaignModule
 
 # ============================================================================
 # LOGGING CONFIGURATION
@@ -65,7 +65,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize module instances
 users_module = UsersModule()
-campaigns_module = CampaignsModule()
+campaigns_module = CampaignModule()
 
 # ============================================================================
 # MODULAR APPLICATION FACTORY
