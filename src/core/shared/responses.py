@@ -131,3 +131,71 @@ def paginated_response(
         size=size,
         message=message
     )
+
+
+# ===== UTILITY FUNCTIONS FOR BACKWARD COMPATIBILITY =====
+
+def create_success_response(
+    data: Any = None,
+    message: str = "Success",
+    status_code: int = 200,
+    meta: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Create a success response dictionary for backward compatibility.
+    
+    This function provides compatibility with existing code that expects
+    dict responses rather than Pydantic models.
+    
+    Args:
+        data: Response data
+        message: Success message
+        status_code: HTTP status code (for compatibility, not used in dict)
+        meta: Additional metadata
+        
+    Returns:
+        Dictionary response for compatibility with existing endpoints
+    """
+    response = {
+        "success": True,
+        "message": message,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    if data is not None:
+        response["data"] = data
+    
+    if meta:
+        response["meta"] = meta
+    
+    return response
+
+def create_error_response(
+    message: str = "An error occurred",
+    status_code: int = 400,
+    error_code: str = "GENERAL_ERROR",
+    details: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Create an error response dictionary for backward compatibility.
+    
+    Args:
+        message: Error message
+        status_code: HTTP status code (for compatibility)
+        error_code: Specific error code
+        details: Additional error details
+        
+    Returns:
+        Dictionary response for compatibility with existing endpoints
+    """
+    response = {
+        "success": False,
+        "message": message,
+        "error_code": error_code,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    if details:
+        response["details"] = details
+    
+    return response

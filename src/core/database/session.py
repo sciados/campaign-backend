@@ -1,112 +1,41 @@
+# src/core/database/session.py - Enhanced Session Management for Session 5
 
-# =====================================
-# File: src/core/database/session.py
-# =====================================
-
-"""
-Advanced session management for CampaignForge database operations.
-
-Provides transaction management, connection pooling, and error handling.
-Enhanced for Session 5 with Railway optimizations.
-"""
-
-from contextlib import contextmanager, asynccontextmanager
-from typing import Optional, Any, Dict, AsyncGenerator
-from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
 import logging
+from typing import AsyncGenerator, Optional, Generator
+from contextlib import asynccontextmanager, contextmanager
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import NullPool
 
-from src.core.database.connection import SessionLocal, AsyncSessionLocal
 from src.core.config.settings import get_database_url
 
 logger = logging.getLogger(__name__)
 
-
-class SessionManager:
-    """Synchronous database session manager with transaction support."""
-    
-    @staticmethod
-    @contextmanager
-    def get_session():
-        """Get a database session with automatic cleanup."""
-        session = SessionLocal()
-        try:
-            yield session
-        except Exception as e:
-            logger.error(f"Session error: {e}")
-            session.rollback()
-            raise
-        finally:
-            session.close()
-    
-    @staticmethod
-    @contextmanager
-    def get_transaction():
-        """Get a database session with automatic transaction management."""
-        session = SessionLocal()
-        try:
-            yield session
-            session.commit()
-        except Exception as e:
-            logger.error(f"Transaction error: {e}")
-            session.rollback()
-            raise
-        finally:
-            session.close()
-
-
 class AsyncSessionManager:
-    """Asynchronous database session manager with transaction support."""
+    """Enhanced async session manager with proper lifecycle management"""
     
-    # Enhanced class variables for Session 5
     _engine = None
     _session_factory = None
     _initialized = False
     
-    @staticmethod
-    @asynccontextmanager
-    async def get_session():
-        """Get an async database session with automatic cleanup."""
-        async with AsyncSessionLocal() as session:
-            try:
-                yield session
-            except Exception as e:
-                logger.error(f"Async session error: {e}")
-                await session.rollback()
-                raise
-    
-    @staticmethod
-    @asynccontextmanager
-    async def get_transaction():
-        """Get an async database session with automatic transaction management."""
-        async with AsyncSessionLocal() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception as e:
-                logger.error(f"Async transaction error: {e}")
-                await session.rollback()
-                raise
-    
-    # Session 5 Enhancements
     @classmethod
     async def initialize(cls):
-        """Initialize the session manager for Railway deployment"""
+        """Initialize the session manager"""
         if cls._initialized:
             return
         
         try:
-            database_url = get_database_url()
-            logger.info("Initializing enhanced database session manager...")
+            database_url = get_database_url(async_mode=True)
+            logger.info("Initializing async database session manager...")
             
-            # Create async engine with Railway-optimized settings
+            # Create async engine with optimized settings
             cls._engine = create_async_engine(
                 database_url,
                 poolclass=NullPool,  # Railway-friendly
                 pool_pre_ping=True,
                 pool_recycle=300,
-                echo=False,
+                echo=False,  # Set to True for SQL debugging
                 future=True
             )
             
@@ -120,29 +49,166 @@ class AsyncSessionManager:
             )
             
             cls._initialized = True
-            logger.info("Enhanced database session manager initialized")
+            logger.info("Async database session manager initialized successfully")
             
         except Exception as e:
-            logger.error(f"Failed to initialize session manager: {e}")
+            logger.error(f"Failed to initialize async session manager: {e}")
             cls._initialized = False
             raise
     
     @classmethod
+    @asynccontextmanager
+    async def get_session(cls) -> AsyncGenerator[AsyncSession, None]:
+        """Get an async database session with proper cleanup"""
+        if not cls._initialized:
+            await cls.initialize()
+        
+        if cls._session_factory is None:
+            raise RuntimeError("Async session manager not properly initialized")
+        
+        async with cls._session_factory() as session:
+            try:
+                logger.debug("Created new async database session")
+                yield session
+            except Exception as e:
+                logger.error(f"Async session error: {e}")
+                await session.rollback()
+                raise
+            finally:
+                await session.close()
+                logger.debug("Closed async database session")
+    
+    @classmethod
+    @asynccontextmanager
+    async def get_transaction(cls) -> AsyncGenerator[AsyncSession, None]:
+        """Get a transactional session with automatic commit/rollback"""
+        async with cls.get_session() as session:
+            try:
+                yield session
+                await session.commit()
+                logger.debug("Async transaction committed")
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Async transaction rolled back due to error: {e}")
+                raise
+    
+    @classmethod
     async def close(cls):
-        """Close the session manager and engine"""
+        """Close the async session manager and engine"""
         if cls._engine:
             await cls._engine.dispose()
             cls._engine = None
             cls._session_factory = None
             cls._initialized = False
-            logger.info("Session manager closed")
+            logger.info("Async session manager closed")
 
 
-# Legacy compatibility function and Service Factory support
-async def get_enhanced_async_session() -> AsyncGenerator[AsyncSession, None]:
-    """Enhanced session getter for service factory"""
-    if not AsyncSessionManager._initialized:
-        await AsyncSessionManager.initialize()
+class SessionManager:
+    """Synchronous session manager for sync operations"""
     
+    _engine = None
+    _session_factory = None
+    _initialized = False
+    
+    @classmethod
+    def initialize(cls):
+        """Initialize the sync session manager"""
+        if cls._initialized:
+            return
+        
+        try:
+            # Get sync database URL (without asyncpg)
+            database_url = get_database_url(async_mode=False)
+            
+            logger.info("Initializing sync database session manager...")
+            
+            # Create sync engine
+            cls._engine = create_engine(
+                database_url,
+                pool_pre_ping=True,
+                pool_recycle=300,
+                echo=False,
+                future=True
+            )
+            
+            # Create session factory
+            cls._session_factory = sessionmaker(
+                bind=cls._engine,
+                autoflush=True,
+                autocommit=False
+            )
+            
+            cls._initialized = True
+            logger.info("Sync database session manager initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize sync session manager: {e}")
+            cls._initialized = False
+            raise
+    
+    @classmethod
+    @contextmanager
+    def get_session(cls) -> Generator[Session, None, None]:
+        """Get a sync database session with proper cleanup"""
+        if not cls._initialized:
+            cls.initialize()
+        
+        if cls._session_factory is None:
+            raise RuntimeError("Sync session manager not properly initialized")
+        
+        session = cls._session_factory()
+        try:
+            logger.debug("Created new sync database session")
+            yield session
+        except Exception as e:
+            logger.error(f"Sync session error: {e}")
+            session.rollback()
+            raise
+        finally:
+            session.close()
+            logger.debug("Closed sync database session")
+    
+    @classmethod
+    def close(cls):
+        """Close the sync session manager and engine"""
+        if cls._engine:
+            cls._engine.dispose()
+            cls._engine = None
+            cls._session_factory = None
+            cls._initialized = False
+            logger.info("Sync session manager closed")
+
+
+# Legacy compatibility function
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    """Legacy function for backward compatibility"""
     async with AsyncSessionManager.get_session() as session:
         yield session
+
+
+# FastAPI dependency functions
+def get_db() -> Generator[Session, None, None]:
+    """FastAPI dependency for sync database sessions"""
+    with SessionManager.get_session() as session:
+        yield session
+
+
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI dependency for async database sessions"""
+    async with AsyncSessionManager.get_session() as session:
+        yield session
+
+
+# Engine access functions
+def get_engine():
+    """Get the sync database engine"""
+    if not SessionManager._initialized:
+        SessionManager.initialize()
+    return SessionManager._engine
+
+
+async def get_async_engine():
+    """Get the async database engine"""
+    if not AsyncSessionManager._initialized:
+        await AsyncSessionManager.initialize()
+    return AsyncSessionManager._engine
