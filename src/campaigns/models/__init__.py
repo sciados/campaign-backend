@@ -5,23 +5,11 @@
 from src.campaigns.models.campaign import (
     Campaign,
     CampaignStatusEnum,
-    CampaignTypeEnum,
-    CampaignWorkflowStateEnum,
-    AutoAnalysisStatusEnum,
-    # Legacy compatibility aliases
-    CampaignStatus,
-    CampaignWorkflowState,
-    AutoAnalysisStatus
+    CampaignTypeEnum
 )
 
 __all__ = [
     "Campaign",
     "CampaignStatusEnum",
-    "CampaignTypeEnum", 
-    "CampaignWorkflowStateEnum",
-    "AutoAnalysisStatusEnum",
-    # Legacy aliases
-    "CampaignStatus",
-    "CampaignWorkflowState",
-    "AutoAnalysisStatus"
+    "CampaignTypeEnum"
 ]

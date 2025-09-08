@@ -9,12 +9,12 @@ Campaign-specific CRUD operations
 from typing import List, Optional, Dict, Any, Union
 from uuid import UUID
 from datetime import datetime, timezone, timedelta
-from campaigns.schemas.campaign import CampaignWorkflowUpdate
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, func
 import logging
 
-from src.campaigns.models.campaign import Campaign, CampaignStatusEnum, CampaignTypeEnum
+from src.campaigns.models.campaign import Campaign, CampaignStatusEnum #, CampaignTypeEnum
+from src.campaigns.schemas.campaign import CampaignWorkflowUpdate
 from src.core.crud.base_crud import BaseCRUD
 
 logger = logging.getLogger(__name__)

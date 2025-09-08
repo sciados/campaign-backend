@@ -7,7 +7,7 @@ Centralized CRUD exports - UPDATED for modular architecture
 """
 
 from src.core.crud.base_crud import BaseCRUD
-from src.core.crud.campaign_crud import CampaignCRUD
+# from src.core.crud.campaign_crud import CampaignCRUD
 # from src.core.crudintelligence_crud import IntelligenceCRUD
 
 # 🔄 DEPRECATED: User CRUD moved to Users module
@@ -26,7 +26,7 @@ except ImportError as e:
     print(f"⚠️ UserStorageCRUD not available: {e}")
 
 # Global CRUD instances - ready to use anywhere
-campaign_crud = CampaignCRUD()
+# campaign_crud = CampaignCRUD()
 # intelligence_crud = IntelligenceCRUD()
 
 # 🔄 DEPRECATED: user_crud moved to Users module
@@ -48,12 +48,7 @@ if USER_STORAGE_CRUD_AVAILABLE:
     ]
 else:
     __all__ = [
-        "BaseCRUD",
-        "CampaignCRUD", 
-        # "IntelligenceCRUD",
-        "campaign_crud",
-        # "intelligence_crud",
-        # "user_crud"  # DEPRECATED: Moved to Users module
+        "BaseCRUD"
     ]
 
 """
@@ -65,14 +60,12 @@ Note: User CRUD moved to src.users.services.user_service.UserService
 def get_available_crud_instances():
     """Get dictionary of available CRUD instances"""
     available = {
-        "campaign_crud": campaign_crud,
-        # "intelligence_crud": intelligence_crud
+        # "campaign_crud": campaign_crud,  # Commented out
     }
     
     if USER_STORAGE_CRUD_AVAILABLE:
         available["user_storage_crud"] = user_storage_crud
     
-    # Note: user_crud moved to Users module
     available["users_note"] = "Use UserService from src.users.services.user_service"
     
     return available
@@ -81,13 +74,9 @@ def check_crud_system_status():
     """Check status of CRUD system"""
     return {
         "base_crud_available": BaseCRUD is not None,
-        "campaign_crud_available": campaign_crud is not None,
-        # "intelligence_crud_available": intelligence_crud is not None,
+        # "campaign_crud_available": campaign_crud is not None,  # Commented out
         "user_storage_crud_available": USER_STORAGE_CRUD_AVAILABLE,
-        "users_module_migration": "✅ Completed - Use UserService",
+        "users_module_migration": "Completed - Use UserService",
         "total_crud_classes": len(__all__),
-        "system_ready": all([
-            BaseCRUD is not None,
-            campaign_crud is not None,
-        ])
+        "system_ready": BaseCRUD is not None
     }
