@@ -10,6 +10,8 @@ from .services.analysis_service import AnalysisService
 from .services.enhancement_service import EnhancementService
 from .models.intelligence_models import IntelligenceRequest, IntelligenceResponse
 from .api.intelligence_routes import router as intelligence_router
+from src.intelligence.intelligence_module import IntelligenceModule
+from src.intelligence.analysis.enhanced_handler import EnhancedAnalysisHandler
 
 __version__ = "2.0.0"
 __all__ = [

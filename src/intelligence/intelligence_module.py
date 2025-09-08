@@ -33,6 +33,7 @@ class IntelligenceModule(ModuleInterface):
         self.ai_router = AIProviderRouter()
         self._initialized = False
         self._healthy = False
+        self._initialized = False
     
     @property
     def name(self) -> str:
@@ -43,16 +44,8 @@ class IntelligenceModule(ModuleInterface):
     def version(self) -> str:
         """Return the module version."""
         return "2.0.0"
-    
-    async def initialize(self) -> bool:
-        """
-        Initialize the Intelligence Engine module.
-        
-        Sets up AI providers, cache system, and validates configuration.
-        
-        Returns:
-            bool: True if initialization successful
-        """
+
+    async def initialize(self) -> bool:        
         try:
             logger.info("Initializing Intelligence Engine module...")
             
@@ -153,12 +146,7 @@ class IntelligenceModule(ModuleInterface):
         """
         return intelligence_router
     
-    async def shutdown(self) -> None:
-        """
-        Clean shutdown of the Intelligence Engine module.
-        
-        Performs cleanup of resources, cache, and connections.
-        """
+    async def shutdown(self) -> bool:       
         try:
             logger.info("Shutting down Intelligence Engine module...")
             
@@ -169,10 +157,12 @@ class IntelligenceModule(ModuleInterface):
             self._healthy = False
             
             logger.info("Intelligence Engine module shutdown complete")
-            
+            return True
+        
         except Exception as e:
             logger.error(f"Intelligence module shutdown error: {e}")
-    
+            return False
+        
     async def get_dependencies(self) -> Dict[str, str]:
         """
         Get module dependencies.
