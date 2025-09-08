@@ -11,6 +11,6 @@ Handles:
 # from src.users.auth.auth_middleware import AuthMiddleware
 from src.users.models.user import User
 from src.users.services.user_service import UserService
-from .users_module import UsersModule
+from src.users.users_module import UsersModule
 
 __all__ = ["UsersModule"]

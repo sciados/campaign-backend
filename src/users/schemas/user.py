@@ -142,8 +142,7 @@ class UserResponse(BaseModel):
     
     class Config:
         from_attributes = True
-
-class UserProfileResponse(BaseModel):
+class UserProfile(BaseModel):
     """Detailed user profile response"""
     id: str
     email: str
