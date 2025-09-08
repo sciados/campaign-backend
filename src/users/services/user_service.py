@@ -6,7 +6,7 @@ Migrated from src/core/crud/user_crud.py with enhancements
 
 from typing import List, Optional, Dict, Any, Union
 from uuid import UUID
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, desc, func
 from sqlalchemy.orm import selectinload
@@ -14,7 +14,7 @@ import logging
 import json
 
 from src.users.models.user import User, Company, UserTypeEnum, UserRoleEnum, SubscriptionTierEnum
-from src.core.shared.exceptions import UserNotFoundError, UserAlreadyExistsError
+from src.core.shared.exceptions import NotFoundError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class UserService:
             # Check if user already exists
             existing_user = await self.get_user_by_email(email)
             if existing_user:
-                raise UserAlreadyExistsError(f"User with email {email} already exists")
+                raise ValidationError(f"User with email {email} already exists", field="email")
             
             # Create company first
             company_slug = company_name.lower().replace(" ", "-").replace(".", "")
@@ -191,7 +191,7 @@ class UserService:
         try:
             user = await self.get_user_by_id(user_id=user_id)
             if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found", resource_type="user", resource_id=str(user_id))
             
             # Update allowed fields
             allowed_fields = [
@@ -324,7 +324,7 @@ class UserService:
         try:
             user = await self.get_user_by_id(user_id=user_id)
             if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found", resource_type="user", resource_id=str(user_id))
             
             user.update_dashboard_preferences(preferences)
             await self.db.commit()
@@ -343,7 +343,7 @@ class UserService:
         try:
             user = await self.get_user_by_id(user_id=user_id)
             if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found", resource_type="user", resource_id=str(user_id))
             
             return user.get_dashboard_preferences()
             
@@ -391,7 +391,7 @@ class UserService:
         try:
             user = await self.get_user_by_id(user_id=user_id)
             if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found", resource_type="user", resource_id=str(user_id))
             
             user.set_user_type(user_type, type_data)
             
@@ -416,7 +416,7 @@ class UserService:
         try:
             user = await self.get_user_by_id(user_id=user_id)
             if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found", resource_type="user", resource_id=str(user_id))
             
             user.complete_onboarding(goals, experience_level)
             
@@ -441,7 +441,7 @@ class UserService:
         try:
             user = await self.get_user_by_id(user_id=user_id)
             if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found", resource_type="user", resource_id=str(user_id))
             
             user.update_onboarding_step(step, step_data)
             
@@ -466,7 +466,7 @@ class UserService:
         try:
             user = await self.get_user_by_id(user_id=user_id)
             if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found", resource_type="user", resource_id=str(user_id))
             
             user.set_password(new_password)
             await self.db.commit()
@@ -489,7 +489,7 @@ class UserService:
         try:
             user = await self.get_user_by_id(user_id=user_id)
             if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found", resource_type="user", resource_id=str(user_id))
             
             if not user.verify_password(current_password):
                 logger.warning(f"Invalid current password for user {user_id}")
@@ -514,7 +514,7 @@ class UserService:
         try:
             user = await self.get_user_by_id(user_id=user_id)
             if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found", resource_type="user", resource_id=str(user_id))
             
             user.is_active = False
             user.updated_at = datetime.now(timezone.utc)
@@ -537,7 +537,7 @@ class UserService:
         try:
             user = await self.get_user_by_id(user_id=user_id)
             if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found", resource_type="user", resource_id=str(user_id))
             
             user.is_active = True
             user.updated_at = datetime.now(timezone.utc)
@@ -565,7 +565,7 @@ class UserService:
         try:
             user = await self.get_user_by_id(user_id=user_id)
             if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found", resource_type="user", resource_id=str(user_id))
             
             user.increment_usage(
                 campaigns=campaigns_increment,
@@ -608,7 +608,7 @@ class UserService:
         try:
             user = await self.get_user_by_id(user_id=user_id, include_company=True)
             if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found", resource_type="user", resource_id=str(user_id))
             
             return user.get_usage_summary()
             
@@ -647,6 +647,3 @@ class UserService:
         except Exception as e:
             logger.error(f"Error searching users: {e}")
             raise
-
-# Import missing timedelta
-from datetime import timedelta
