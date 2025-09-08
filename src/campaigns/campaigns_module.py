@@ -3,6 +3,7 @@ import asyncio
 import logging
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter
+from database.connection import AsyncSessionLocal
 from src.core.interfaces.module_interfaces import ModuleInterface
 
 logger = logging.getLogger(__name__)
@@ -38,18 +39,17 @@ class CampaignModule(ModuleInterface):
         """Initialize the Campaigns module"""
         try:
             logger.info(f"Initializing {self.name} module...")
-            
+
             # Initialize services safely
             try:
                 from src.campaigns.services.campaign_service import CampaignService
-                from src.core.database.connection import get_async_session
-
+                from src.core.database.connection import AsyncSessionLocal
+            
                 # Get database session
-                async with get_async_session() as db:
+                async with AsyncSessionLocal() as db:
                     self.campaign_service = CampaignService(db=db)
                     if hasattr(self.campaign_service, 'initialize'):
                         await self.campaign_service.initialize()
-
             except ImportError as e:
                 logger.warning(f"Could not import CampaignService: {e}")
             except Exception as e:
