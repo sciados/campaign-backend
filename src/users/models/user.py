@@ -29,11 +29,10 @@ class UserRoleEnum(str, enum.Enum):
     MODERATOR = "moderator"
 
 class SubscriptionTierEnum(str, enum.Enum):
-    """Subscription tier enumeration"""
-    FREE = "free"
-    BASIC = "basic"
-    PRO = "pro"
-    ENTERPRISE = "enterprise"
+    FREE = "FREE"        # Change from "free" to "FREE"
+    BASIC = "BASIC"      # Change from "basic" to "BASIC"  
+    PRO = "PRO"          # Change from "pro" to "PRO"
+    ENTERPRISE = "ENTERPRISE"  # Change from "enterprise" to "ENTERPRISE"
 
 class Company(Base):
     """Company model for user organizations"""
