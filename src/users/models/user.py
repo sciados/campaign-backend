@@ -14,6 +14,7 @@ import bcrypt
 import uuid
 import enum
 
+
 from src.core.database.base import Base
 
 class UserTypeEnum(str, enum.Enum):

@@ -1,4 +1,4 @@
-# src/main.py - Complete Session 5 Implementation
+# src/main.py - Session 6 Implementation: Complete 6/6 Modular Architecture
 
 import os
 import sys
@@ -51,8 +51,11 @@ from src.users.users_module import UsersModule
 # Campaign Management Module (Session 4)
 from src.campaigns.campaigns_module import CampaignModule
 
-# Content Generation Module (Session 5) - NEW
+# Content Generation Module (Session 5)
 from src.content.content_module import ContentModule
+
+# Storage Module (Session 6) - NEW
+from src.storage.storage_module import StorageModule
 
 # ============================================================================
 # LOGGING CONFIGURATION
@@ -90,24 +93,32 @@ except Exception as e:
     logger.error(f"Failed to create content module: {e}")
     content_module = None
 
+# Session 6 NEW: Storage Module
+try:
+    storage_module = StorageModule()
+    logger.info("Storage module created successfully")
+except Exception as e:
+    logger.error(f"Failed to create storage module: {e}")
+    storage_module = None
+
 # ============================================================================
-# SESSION 5 APPLICATION FACTORY
+# SESSION 6 APPLICATION FACTORY
 # ============================================================================
 
 async def create_campaignforge_app() -> FastAPI:
     """
-    Create CampaignForge application with Session 5 complete integration.
+    Create CampaignForge application with Session 6 complete integration.
     
     Returns:
-        FastAPI: Configured FastAPI application with all modules
+        FastAPI: Configured FastAPI application with all 6 modules
     """
-    logger.info("Starting CampaignForge Session 5 Complete Backend...")
+    logger.info("Starting CampaignForge Session 6 Complete Backend (6/6 Modules)...")
     
     # Create FastAPI application
     app = FastAPI(
         title="CampaignForge AI Backend",
-        description="Complete modular AI-powered marketing campaign platform - Session 5",
-        version="2.1.0",
+        description="Complete modular AI-powered marketing campaign platform - Session 6 Complete",
+        version="3.0.0",
         docs_url="/docs",
         redoc_url="/redoc"
     )
@@ -130,8 +141,8 @@ async def create_campaignforge_app() -> FastAPI:
     app.add_middleware(ErrorHandlingMiddleware)
     app.add_middleware(RateLimitMiddleware, calls=100, period=60)
     
-    # Phase 4: Initialize all modules
-    logger.info("Phase 4: Initializing all modules...")
+    # Phase 4: Initialize all modules (6/6)
+    logger.info("Phase 4: Initializing all 6 modules...")
     
     # Initialize Intelligence Engine module
     intelligence_initialized = False
@@ -180,7 +191,7 @@ async def create_campaignforge_app() -> FastAPI:
             logger.error(f"Campaigns module initialization error: {e}")
             campaigns_initialized = False
     
-    # Initialize Content Generation module (SESSION 5 NEW)
+    # Initialize Content Generation module
     content_initialized = False
     if content_module:
         try:
@@ -195,13 +206,29 @@ async def create_campaignforge_app() -> FastAPI:
         except Exception as e:
             logger.error(f"Content module initialization error: {e}")
             content_initialized = False
+    
+    # Initialize Storage Module (SESSION 6 NEW)
+    storage_initialized = False
+    if storage_module:
+        try:
+            storage_initialized = await storage_module.initialize(ServiceFactory)
+            if storage_initialized:
+                logger.info("Storage module initialized successfully")
+                storage_router = storage_module.get_router()
+                if storage_router:
+                    app.include_router(storage_router, prefix="/api")
+            else:
+                logger.error("Storage module initialization failed")
+        except Exception as e:
+            logger.error(f"Storage module initialization error: {e}")
+            storage_initialized = False
         
-    # Phase 5: Add Session 5 enhanced endpoints
-    logger.info("Phase 5: Adding Session 5 enhanced endpoints...")
+    # Phase 5: Add Session 6 enhanced endpoints
+    logger.info("Phase 5: Adding Session 6 enhanced endpoints...")
     
     @app.get("/health")
     async def health_check():
-        """Session 5 enhanced system health check endpoint."""
+        """Session 6 enhanced system health check endpoint."""
         try:
             health_status = await get_health_status()
             
@@ -210,36 +237,39 @@ async def create_campaignforge_app() -> FastAPI:
             users_health = await users_module.health_check() if users_initialized else {"status": "unhealthy"}
             campaigns_health = await campaigns_module.health_check() if campaigns_initialized else {"status": "unhealthy"}
             content_health = await content_module.health_check() if content_initialized else {"status": "unhealthy"}
+            storage_health = await storage_module.health_check() if storage_initialized else {"status": "unhealthy"}
             
             # Calculate overall status
             healthy_modules = sum([
-                1 for status in [intelligence_health, users_health, campaigns_health, content_health]
+                1 for status in [intelligence_health, users_health, campaigns_health, content_health, storage_health]
                 if status.get("status") == "healthy"
             ])
             
-            overall_status = "healthy" if healthy_modules >= 3 else "degraded" if healthy_modules >= 2 else "unhealthy"
+            overall_status = "healthy" if healthy_modules >= 4 else "degraded" if healthy_modules >= 3 else "unhealthy"
             
             return {
                 "status": overall_status,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "session": "5_complete",
+                "session": "6_complete",
                 "modules": {
                     "intelligence": intelligence_health["status"],
                     "users": users_health["status"],
                     "campaigns": campaigns_health["status"],
                     "content": content_health["status"],
+                    "storage": storage_health["status"],
                     "authentication": "healthy"
                 },
                 "module_count": {
-                    "total": 5,
+                    "total": 6,
                     "healthy": healthy_modules + 1,
-                    "completion_percentage": round((healthy_modules + 1) / 5 * 100, 1)
+                    "completion_percentage": round((healthy_modules + 1) / 6 * 100, 1)
                 },
-                "session_5_status": {
-                    "content_generation": content_initialized,
-                    "service_factory": True,
-                    "enhanced_sessions": True,
-                    "intelligence_fixed": True
+                "session_6_status": {
+                    "storage_module": storage_initialized,
+                    "cloudflare_r2": storage_health.get("services", {}).get("cloudflare_r2") if storage_initialized else "inactive",
+                    "file_management": storage_health.get("services", {}).get("file_management") if storage_initialized else "inactive",
+                    "media_generation": storage_health.get("services", {}).get("media_generation") if storage_initialized else "inactive",
+                    "quota_system": storage_health.get("services", {}).get("quota_system") if storage_initialized else "inactive"
                 },
                 "details": health_status
             }
@@ -249,23 +279,24 @@ async def create_campaignforge_app() -> FastAPI:
                 "status": "unhealthy",
                 "error": str(e),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "session": "5_error"
+                "session": "6_error"
             }
     
     @app.get("/")
     async def root():
-        """Session 5 enhanced root endpoint."""
+        """Session 6 enhanced root endpoint."""
         return {
-            "message": "CampaignForge AI Backend - Session 5 Complete",
-            "version": "2.1.0",
-            "architecture": "modular",
-            "session": "5_complete",
+            "message": "CampaignForge AI Backend - Session 6 Complete (6/6 Modules)",
+            "version": "3.0.0",
+            "architecture": "modular_complete",
+            "session": "6_complete",
             "modules": {
                 "core": "active",
                 "intelligence": "active" if intelligence_initialized else "inactive",
                 "users": "active" if users_initialized else "inactive",
                 "campaigns": "active" if campaigns_initialized else "inactive",
                 "content": "active" if content_initialized else "inactive",
+                "storage": "active" if storage_initialized else "inactive",
                 "authentication": "active"
             },
             "features": [
@@ -274,7 +305,11 @@ async def create_campaignforge_app() -> FastAPI:
                 "content_generation_system",
                 "intelligence_engine_optimization",
                 "service_factory_pattern",
-                "enhanced_database_sessions"
+                "enhanced_database_sessions",
+                "file_upload_download_system",
+                "cloudflare_r2_integration",
+                "media_generation_pipeline",
+                "storage_quota_management"
             ],
             "docs": "/docs",
             "health": "/health",
@@ -304,13 +339,22 @@ async def create_campaignforge_app() -> FastAPI:
                     "/api/content/blog/generate",
                     "/api/content/generators/status",
                     "/api/content/campaigns/{campaign_id}/content"
+                ],
+                "storage": [
+                    "/api/storage/upload",
+                    "/api/storage/download/{file_id}",
+                    "/api/storage/files/{file_id}",
+                    "/api/storage/generate/images",
+                    "/api/storage/generate/video",
+                    "/api/storage/quota/status",
+                    "/api/storage/files/list"
                 ]
             }
         }
     
     @app.get("/api/modules/status")
     async def module_status():
-        """Session 5 enhanced module status endpoint."""
+        """Session 6 enhanced module status endpoint."""
         try:
             # Get all module health
             intelligence_health = await intelligence_module.health_check() if intelligence_initialized else {"status": "unhealthy"}
@@ -319,17 +363,18 @@ async def create_campaignforge_app() -> FastAPI:
             users_health = await users_module.health_check() if users_initialized else {"status": "unhealthy"}
             campaigns_health = await campaigns_module.health_check() if campaigns_initialized else {"status": "unhealthy"}
             content_health = await content_module.health_check() if content_initialized else {"status": "unhealthy"}
+            storage_health = await storage_module.health_check() if storage_initialized else {"status": "unhealthy"}
             
             # Check service factory
             service_factory_health = await ServiceFactory.health_check()
             
             healthy_count = sum([
-                1 for status in [intelligence_health, users_health, campaigns_health, content_health]
+                1 for status in [intelligence_health, users_health, campaigns_health, content_health, storage_health]
                 if status.get("status") == "healthy"
             ])
             
             return {
-                "session": "5_complete",
+                "session": "6_complete",
                 "modules": {
                     "intelligence": {
                         "status": intelligence_health["status"],
@@ -354,6 +399,12 @@ async def create_campaignforge_app() -> FastAPI:
                         "description": content_module.description if content_module else "Content generation",
                         "features": content_health.get("features", [])
                     },
+                    "storage": {
+                        "status": storage_health["status"],
+                        "version": storage_module.version if storage_module else "unknown",
+                        "description": storage_module.description if storage_module else "File storage and media generation",
+                        "features": storage_health.get("features", [])
+                    },
                     "authentication": {
                         "status": "healthy",
                         "version": "1.0.0",
@@ -361,38 +412,42 @@ async def create_campaignforge_app() -> FastAPI:
                     }
                 },
                 "service_factory": service_factory_health,
-                "total_modules": 5,
+                "total_modules": 6,
                 "healthy_modules": healthy_count + 1,
-                "completion_percentage": round((healthy_count + 1) / 5 * 100, 1),
-                "session_5_objectives": {
-                    "content_generation_module": content_initialized,
-                    "service_re_enablement": service_factory_health.get("status") == "healthy",
-                    "database_session_management": True,
-                    "intelligence_async_fix": True,
-                    "module_integration": healthy_count >= 3
+                "completion_percentage": round((healthy_count + 1) / 6 * 100, 1),
+                "session_6_objectives": {
+                    "storage_module_complete": storage_initialized,
+                    "cloudflare_r2_integration": storage_health.get("services", {}).get("cloudflare_r2") == "connected" if storage_initialized else False,
+                    "file_management_operational": storage_health.get("services", {}).get("file_management") == "operational" if storage_initialized else False,
+                    "media_generation_ready": storage_health.get("services", {}).get("media_generation") == "ready" if storage_initialized else False,
+                    "quota_system_active": storage_health.get("services", {}).get("quota_system") == "active" if storage_initialized else False,
+                    "all_modules_complete": healthy_count >= 5
                 }
             }
         except Exception as e:
             logger.error(f"Module status check failed: {e}")
             return {
                 "error": str(e),
-                "session": "5_error",
+                "session": "6_error",
                 "modules": {},
                 "total_modules": 0,
                 "healthy_modules": 0
             }
     
-    @app.get("/api/session-5/validation")
-    async def session_5_validation():
-        """Validate Session 5 completion status"""
+    @app.get("/api/session-6/validation")
+    async def session_6_validation():
+        """Validate Session 6 completion status"""
         try:
-            # Test end-to-end workflow capability
+            # Test end-to-end workflow capability including storage
             workflow_tests = {
                 "user_service_available": False,
                 "campaign_service_available": False,
                 "content_service_available": False,
+                "storage_service_available": False,
                 "database_sessions_working": False,
-                "service_factory_working": False
+                "service_factory_working": False,
+                "cloudflare_r2_working": False,
+                "media_generation_working": False
             }
             
             try:
@@ -414,6 +469,21 @@ async def create_campaignforge_app() -> FastAPI:
                 pass
             
             try:
+                async with ServiceFactory.create_named_service("cloudflare") as cloudflare_service:
+                    workflow_tests["storage_service_available"] = True
+                    # Test R2 connection
+                    r2_test = await cloudflare_service.test_connection()
+                    workflow_tests["cloudflare_r2_working"] = r2_test.get("success", False)
+            except Exception:
+                pass
+            
+            try:
+                async with ServiceFactory.create_named_service("media_generator") as media_service:
+                    workflow_tests["media_generation_working"] = True
+            except Exception:
+                pass
+            
+            try:
                 async with AsyncSessionManager.get_session() as db:
                     workflow_tests["database_sessions_working"] = True
             except Exception:
@@ -425,23 +495,67 @@ async def create_campaignforge_app() -> FastAPI:
             completion_score = sum(workflow_tests.values()) / len(workflow_tests) * 100
             
             return {
-                "session": "5_validation",
+                "session": "6_validation",
                 "completion_score": round(completion_score, 1),
                 "workflow_tests": workflow_tests,
-                "session_5_ready": completion_score >= 80,
-                "next_session": "6_storage_and_media" if completion_score >= 80 else "5_fixes_needed",
+                "session_6_ready": completion_score >= 80,
+                "platform_complete": completion_score >= 90,
+                "next_phase": "frontend_development" if completion_score >= 80 else "storage_fixes_needed",
                 "recommendations": [
-                    "All core services operational" if completion_score >= 80 else "Fix service initialization issues",
-                    "Ready for Session 6" if completion_score >= 80 else "Complete Session 5 fixes first"
+                    "All 6 modules operational - Ready for frontend development" if completion_score >= 90 else "Complete storage module integration",
+                    "Backend 100% complete" if completion_score >= 90 else "Fix remaining service issues"
                 ]
             }
             
         except Exception as e:
             return {
-                "session": "5_validation_error",
+                "session": "6_validation_error",
                 "error": str(e),
                 "completion_score": 0,
-                "session_5_ready": False
+                "session_6_ready": False
+            }
+    
+    @app.get("/api/storage/test")
+    async def test_storage_system():
+        """Test complete storage system functionality"""
+        try:
+            # Test Cloudflare R2 connection
+            cloudflare_service = ServiceFactory().get_service("cloudflare")
+            r2_test = await cloudflare_service.test_connection() if cloudflare_service else {"success": False, "error": "Service not available"}
+            
+            # Test file service
+            file_service = ServiceFactory().get_service("file_manager")
+            file_test = {"available": file_service is not None}
+            
+            # Test media generation service
+            media_service = ServiceFactory().get_service("media_generator")
+            media_test = {"available": media_service is not None}
+            
+            # Test quota service
+            quota_service = ServiceFactory().get_service("quota_manager")
+            quota_test = {"available": quota_service is not None}
+            
+            return {
+                "storage_system_test": {
+                    "cloudflare_r2": r2_test,
+                    "file_service": file_test,
+                    "media_service": media_test,
+                    "quota_service": quota_test
+                },
+                "overall_status": "operational" if r2_test.get("success") and file_test["available"] else "issues_detected",
+                "session_6_storage": "complete" if all([
+                    r2_test.get("success"),
+                    file_test["available"],
+                    media_test["available"],
+                    quota_test["available"]
+                ]) else "incomplete"
+            }
+            
+        except Exception as e:
+            return {
+                "storage_system_test": "failed",
+                "error": str(e),
+                "session_6_storage": "failed"
             }
     
     # Phase 6: Database connectivity check
@@ -450,34 +564,36 @@ async def create_campaignforge_app() -> FastAPI:
     if not db_connected:
         logger.warning("Database connectivity issues detected")
     
-    # Phase 7: Session 5 completion validation
-    logger.info("Phase 7: Validating Session 5 completion...")
-    session_5_success = all([
+    # Phase 7: Session 6 completion validation
+    logger.info("Phase 7: Validating Session 6 completion...")
+    session_6_success = all([
         intelligence_initialized,
         users_initialized or users_module is not None,
         campaigns_initialized or campaigns_module is not None,
-        content_initialized or content_module is not None
+        content_initialized or content_module is not None,
+        storage_initialized or storage_module is not None
     ])
     
     # Log startup summary
-    logger.info("=" * 60)
-    logger.info("CampaignForge Session 5 Backend initialization complete!")
-    logger.info("=" * 60)
+    logger.info("=" * 70)
+    logger.info("CampaignForge Session 6 Backend initialization complete!")
+    logger.info("=" * 70)
     logger.info(f"Database: {'Connected' if db_connected else 'Issues detected'}")
     logger.info(f"Intelligence Engine: {'Active' if intelligence_initialized else 'Failed'}")
     logger.info(f"Users Module: {'Active' if users_initialized else 'Structure Only'}")
     logger.info(f"Campaigns Module: {'Active' if campaigns_initialized else 'Structure Only'}")
     logger.info(f"Content Module: {'Active' if content_initialized else 'Failed'}")
+    logger.info(f"Storage Module: {'Active' if storage_initialized else 'Failed'}")
     logger.info(f"Service Factory: {'Initialized' if ServiceFactory._initialized else 'Failed'}")
     logger.info(f"Total routes: {len(app.routes)}")
-    logger.info(f"Session 5 Status: {'SUCCESS' if session_5_success else 'PARTIAL'}")
+    logger.info(f"Session 6 Status: {'SUCCESS (6/6 MODULES)' if session_6_success else 'PARTIAL'}")
     
-    if session_5_success:
-        logger.info("✅ Ready for Session 6: Storage & Media Module")
+    if session_6_success:
+        logger.info("✅ Backend 100% Complete - Ready for Frontend Development")
     else:
-        logger.warning("⚠️  Session 5 partially complete - some services may need attention")
+        logger.warning("⚠️  Session 6 partially complete - some services may need attention")
     
-    logger.info("=" * 60)
+    logger.info("=" * 70)
     
     return app
 
@@ -486,8 +602,8 @@ async def create_campaignforge_app() -> FastAPI:
 # ============================================================================
 
 async def shutdown_modules():
-    """Gracefully shutdown all Session 5 modules."""
-    logger.info("Shutting down all Session 5 modules...")
+    """Gracefully shutdown all Session 6 modules."""
+    logger.info("Shutting down all Session 6 modules...")
     try:
         # Shutdown Intelligence Engine
         await intelligence_module.shutdown()
@@ -500,6 +616,14 @@ async def shutdown_modules():
                 logger.info("Content module shutdown complete")
             except Exception as e:
                 logger.error(f"Content module shutdown error: {e}")
+        
+        # Shutdown Storage Module
+        if storage_module:
+            try:
+                # Storage module doesn't need explicit shutdown for now
+                logger.info("Storage module shutdown complete")
+            except Exception as e:
+                logger.error(f"Storage module shutdown error: {e}")
         
         # Close enhanced session manager
         await AsyncSessionManager.close()
@@ -517,19 +641,19 @@ async def shutdown_modules():
 # ============================================================================
 
 async def initialize_for_railway():
-    """Initialize application for Railway deployment with Session 5 features."""
+    """Initialize application for Railway deployment with Session 6 features."""
     global app
     try:
         app = await create_campaignforge_app()
-        logger.info("Railway deployment initialization complete with Session 5 features")
+        logger.info("Railway deployment initialization complete with Session 6 features")
         return app
     except Exception as e:
-        logger.error(f"Railway Session 5 initialization failed: {e}")
+        logger.error(f"Railway Session 6 initialization failed: {e}")
         
         # Create fallback app
         fallback_app = FastAPI(
-            title="CampaignForge AI Backend - Session 5 Initialization Failed",
-            version="2.1.0-fallback"
+            title="CampaignForge AI Backend - Session 6 Initialization Failed",
+            version="3.0.0-fallback"
         )
         
         # Add CORS to fallback
@@ -545,7 +669,7 @@ async def initialize_for_railway():
         async def fallback_health():
             return {
                 "status": "initialization_failed",
-                "session": "5_failed",
+                "session": "6_failed",
                 "error": str(e),
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
@@ -553,9 +677,9 @@ async def initialize_for_railway():
         @fallback_app.get("/")
         async def fallback_root():
             return {
-                "message": "CampaignForge AI Backend - Session 5 Fallback Mode",
+                "message": "CampaignForge AI Backend - Session 6 Fallback Mode",
                 "status": "initialization_error",
-                "session": "5_fallback",
+                "session": "6_fallback",
                 "docs": "/docs"
             }
         
@@ -566,22 +690,22 @@ async def initialize_for_railway():
 # ============================================================================
 
 def create_app_sync():
-    """Create app synchronously for Railway deployment with Session 5 completion."""
+    """Create app synchronously for Railway deployment with Session 6 completion."""
     import asyncio
-    logger.info("Creating Session 5 complete app for Railway deployment...")
+    logger.info("Creating Session 6 complete app for Railway deployment...")
     result = asyncio.run(create_campaignforge_app())
-    logger.info(f"Session 5 app created successfully with {len(result.routes)} routes")
+    logger.info(f"Session 6 app created successfully with {len(result.routes)} routes")
     return result
 
 # Create app instance for Railway
 try:
     app = create_app_sync()
-    logger.info(f"Session 5 production app created with {len(app.routes)} routes")
+    logger.info(f"Session 6 production app created with {len(app.routes)} routes")
 except Exception as e:
-    logger.error(f"Failed to create Session 5 production app: {e}")
+    logger.error(f"Failed to create Session 6 production app: {e}")
     
     # Minimal fallback for Railway
-    app = FastAPI(title="CampaignForge AI Backend - Session 5 Error", version="2.1.0-error")
+    app = FastAPI(title="CampaignForge AI Backend - Session 6 Error", version="3.0.0-error")
     
     app.add_middleware(
         CORSMiddleware,
@@ -595,8 +719,8 @@ except Exception as e:
     async def error_health():
         return {
             "status": "error",
-            "session": "5_error",
-            "error": "Session 5 app initialization failed",
+            "session": "6_error",
+            "error": "Session 6 app initialization failed",
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
@@ -608,8 +732,8 @@ if __name__ == "__main__":
     import asyncio
     
     async def run_development_server():
-        """Run development server with Session 5 features."""
-        logger.info("Starting CampaignForge Session 5 development server...")
+        """Run development server with Session 6 features."""
+        logger.info("Starting CampaignForge Session 6 development server...")
         
         # Create app
         app_instance = await create_campaignforge_app()
@@ -642,9 +766,10 @@ __all__ = [
     'create_campaignforge_app',
     'initialize_for_railway',
     'shutdown_modules',
-    'content_module'
+    'content_module',
+    'storage_module'
 ]
 
-__version__ = "2.1.0"
-__architecture__ = "modular_session_5_complete"
-__session__ = "5_complete"
+__version__ = "3.0.0"
+__architecture__ = "modular_session_6_complete"
+__session__ = "6_complete"
