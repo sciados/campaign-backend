@@ -17,16 +17,14 @@ import enum
 from src.core.database.base import Base
 
 class UserTypeEnum(str, enum.Enum):
-    """User type enumeration for different user categories"""
-    AFFILIATE_MARKETER = "affiliate_marketer"
-    CONTENT_CREATOR = "content_creator"
-    BUSINESS_OWNER = "business_owner"
+    AFFILIATE_MARKETER = "AFFILIATE_MARKETER"  # Change from "affiliate_marketer"
+    CONTENT_CREATOR = "CONTENT_CREATOR"        # Change from "content_creator"
+    BUSINESS_OWNER = "BUSINESS_OWNER"          # Change from "business_owner"
 
 class UserRoleEnum(str, enum.Enum):
-    """User role enumeration for permissions"""
-    USER = "user"
-    ADMIN = "admin"
-    MODERATOR = "moderator"
+    USER = "USER"        # Change from "user" to "USER"
+    ADMIN = "ADMIN"      # Change from "admin" to "ADMIN"
+    MODERATOR = "MODERATOR"  # Change from "moderator" to "MODERATOR"
 
 class SubscriptionTierEnum(str, enum.Enum):
     FREE = "FREE"        # Change from "free" to "FREE"
