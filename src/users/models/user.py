@@ -103,8 +103,8 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     
     # User classification
-    role = Column(Enum(UserRoleEnum), default=UserRoleEnum.USER, nullable=False)
-    user_type = Column(Enum(UserTypeEnum), nullable=True)
+    role = Column(String(50), default="USER", nullable=False)
+    user_type = Column(String(50), nullable=True)
     
     # Account status
     is_active = Column(Boolean, default=True)
