@@ -51,7 +51,7 @@ class Company(Base):
     description = Column(Text, nullable=True)
     
     # Subscription and billing
-    subscription_tier = Column(Enum(SubscriptionTierEnum), default=SubscriptionTierEnum.FREE, nullable=False)
+    subscription_tier = Column(String(20), default="FREE", nullable=False)
     subscription_status = Column(String(50), default="active")
     monthly_credits_used = Column(Integer, default=0)
     monthly_credits_limit = Column(Integer, default=1000)
