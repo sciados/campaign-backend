@@ -94,26 +94,26 @@ class IntelligenceModule(ModuleInterface):
     async def _safe_database_check(self) -> bool:
         """
         Safely check database connection without creating async loop conflicts.
-        
-        FIXED: Uses session manager directly instead of test_database_connection
-        which was causing event loop conflicts.
+    
+        FIXED: Uses session manager directly with proper SQL text() declaration
         """
         try:
             from src.core.database.session import AsyncSessionManager
-            
+            from sqlalchemy import text  # FIXED: Import text for SQL execution
+        
             # Test async session creation directly
             async with AsyncSessionManager.get_session() as session:
-                # Simple query to test connection
-                result = await session.execute("SELECT 1")
+                # FIXED: Properly declare textual SQL with text()
+                result = await session.execute(text("SELECT 1"))
                 test_value = result.scalar()
-                
+            
                 if test_value == 1:
                     logger.info("Intelligence Engine database connectivity verified")
                     return True
                 else:
                     logger.warning("Database connection test returned unexpected result")
                     return False
-                    
+                
         except Exception as e:
             logger.error(f"Database connectivity check failed: {e}")
             return False
