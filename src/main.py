@@ -211,7 +211,7 @@ async def create_campaignforge_app() -> FastAPI:
     storage_initialized = False
     if storage_module:
         try:
-            storage_initialized = await storage_module.initialize(ServiceFactory)
+            storage_initialized = await storage_module.initialize()
             if storage_initialized:
                 logger.info("Storage module initialized successfully")
                 storage_router = storage_module.get_router()
