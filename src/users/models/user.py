@@ -190,13 +190,12 @@ class User(Base):
     # User type management
     def set_user_type(self, user_type: Union[UserTypeEnum, str], type_data: Optional[Dict[str, Any]] = None) -> None:
         """Set user type and handle type-specific data"""
-        # Accept either enum or string
         if isinstance(user_type, UserTypeEnum):
-            self.user_type = user_type
+            self.user_type = user_type.value  # Get the string value from the enum
         elif isinstance(user_type, str):
-            # Validate string against enum values
             try:
-                self.user_type = UserTypeEnum(user_type)
+                UserTypeEnum(user_type)  # Validate
+                self.user_type = user_type
             except ValueError:
                 valid_values = [e.value for e in UserTypeEnum]
                 raise ValueError(f"Invalid user_type: {user_type}. Must be one of: {valid_values}")
@@ -222,18 +221,20 @@ class User(Base):
     def set_role(self, role: Union[UserRoleEnum, str]) -> None:
         """Set user role"""
         if isinstance(role, UserRoleEnum):
-            self.role = role
+            self.role = role.value  # Get the string value from the enum
         elif isinstance(role, str):
             try:
-                self.role = UserRoleEnum(role)
+                # Validate that the string is a valid enum value
+                UserRoleEnum(role)
+                self.role = role
             except ValueError:
                 valid_values = [e.value for e in UserRoleEnum]
                 raise ValueError(f"Invalid role: {role}. Must be one of: {valid_values}")
         else:
             raise TypeError(f"role must be UserRoleEnum or str, got {type(role)}")
-        
+    
         # Update is_admin for backwards compatibility
-        self.is_admin = (self.role == UserRoleEnum.ADMIN)
+        self.is_admin = (self.role == "ADMIN")  # Compare with string now
         self.updated_at = datetime.now(timezone.utc)
     
     # Onboarding management
