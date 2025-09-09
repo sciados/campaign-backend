@@ -1,8 +1,8 @@
 # ============================================================================
-# ENHANCED AUTH SERVICE (Session 5 Re-enablement)
+# ENHANCED AUTH SERVICE (Session 5 Re-enablement) - FIXED
 # ============================================================================
 
-# src/users/services/auth_service.py (Enhanced from placeholder)
+# src/users/services/auth_service.py (Fixed .value issues)
 
 from typing import Optional, Dict, Any, Union
 from uuid import UUID
@@ -123,7 +123,7 @@ class AuthService:
         email: str,
         password: str
     ) -> Dict[str, Any]:
-        """Complete login process"""
+        """Complete login process - FIXED: Removed .value calls"""
         try:
             # Authenticate user
             user = await self.authenticate_user(email, password)
@@ -141,13 +141,13 @@ class AuthService:
                     "id": str(user.id),
                     "email": user.email,
                     "full_name": user.full_name,
-                    "role": user.role.value if user.role else "user",
-                    "user_type": user.user_type.value if user.user_type else None,
+                    "role": user.role if user.role else "USER",  # FIXED: Removed .value
+                    "user_type": user.user_type if user.user_type else None,  # FIXED: Removed .value
                     "company": {
                         "id": str(user.company.id),
                         "name": user.company.company_name,
                         "slug": user.company.company_slug,
-                        "subscription_tier": user.company.subscription_tier.value
+                        "subscription_tier": user.company.subscription_tier  # FIXED: Removed .value
                     } if user.company else None
                 }
             }
