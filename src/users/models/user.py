@@ -67,6 +67,7 @@ class Company(Base):
     
     # Relationships
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
+    campaigns = relationship("Campaign", back_populates="company", cascade="all, delete-orphan")
     
     def get_usage_percentage(self) -> float:
         """Get percentage of monthly credits used"""
@@ -162,8 +163,9 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # Relationships
+    # Relationships - FIXED: Added missing campaigns relationship
     company = relationship("Company", back_populates="users")
+    campaigns = relationship("Campaign", back_populates="user", cascade="all, delete-orphan")
     
     # Password management
     def verify_password(self, password: str) -> bool:
