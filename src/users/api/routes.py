@@ -92,17 +92,11 @@ async def get_user_profile(token: str = Depends(security)):
                     detail="Invalid or expired token"
                 )
             
-            # Map backend user_type enum to frontend format
+            # Map backend user_type to frontend format
+            # Since user_type is stored as a string (not enum), we can directly map it
             frontend_user_type = None
             if user.user_type:
                 try:
-                    # Get the actual user_type value
-                    user_type_value = user.user_type
-                    if hasattr(user.user_type, 'value'):
-                        user_type_value = user.user_type.value
-                    elif hasattr(user.user_type, 'name'):
-                        user_type_value = user.user_type.name
-                    
                     # Map to frontend format
                     backend_to_frontend_mapping = {
                         "AFFILIATE_MARKETER": "affiliate_marketer",
@@ -110,10 +104,10 @@ async def get_user_profile(token: str = Depends(security)):
                         "BUSINESS_OWNER": "business_owner",
                     }
                     
-                    frontend_user_type = backend_to_frontend_mapping.get(str(user_type_value), str(user_type_value).lower())
+                    frontend_user_type = backend_to_frontend_mapping.get(user.user_type, user.user_type.lower())
                 except Exception as e:
                     # Fallback to original value if mapping fails
-                    frontend_user_type = str(user.user_type) if user.user_type else None
+                    frontend_user_type = user.user_type.lower() if user.user_type else None
                     print(f"Warning: User type mapping failed: {e}")
                     
 
@@ -121,13 +115,13 @@ async def get_user_profile(token: str = Depends(security)):
                 "id": str(user.id),
                 "email": user.email,
                 "full_name": user.full_name,
-                "role": user.role.value if user.role else "user",
+                "role": user.role if user.role else "user",  # role is stored as string, not enum
                 "user_type": frontend_user_type,
                 "is_active": user.is_active,
                 "company": {
                     "id": str(user.company.id),
                     "name": user.company.company_name,
-                    "subscription_tier": user.company.subscription_tier.value
+                    "subscription_tier": user.company.subscription_tier  # subscription_tier is stored as string, not enum
                 } if user.company else None
             }
         
