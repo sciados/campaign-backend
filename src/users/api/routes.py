@@ -282,3 +282,187 @@ async def complete_user_onboarding(request: Dict[str, Any], token: str = Depends
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/users/company/stats")
+async def get_company_stats(token: str = Depends(security)):
+    """Get company statistics for business dashboard"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired token"
+                )
+            
+            if not user.company:
+                raise HTTPException(
+                    status_code=404,
+                    detail="No company associated with user"
+                )
+            
+            # For now, return mock data. This can be enhanced with real metrics later
+            return {
+                "business_metrics": {
+                    "revenue": 125000,
+                    "revenue_growth": 15.2,
+                    "leads": 342,
+                    "lead_growth": 8.5,
+                    "conversion": 4.2,
+                    "conversion_growth": 2.1,
+                    "sales_calls": 89
+                },
+                "marketing_roi": {
+                    "ad_spend": 12500,
+                    "revenue": 125000,
+                    "roi": 900
+                },
+                "company_id": str(user.company.id),
+                "company_name": user.company.company_name
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/users/company/details")
+async def get_company_details(token: str = Depends(security)):
+    """Get company details for business dashboard"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired token"
+                )
+            
+            if not user.company:
+                raise HTTPException(
+                    status_code=404,
+                    detail="No company associated with user"
+                )
+            
+            # Return company details with some mock pipeline data
+            return {
+                "company": {
+                    "id": str(user.company.id),
+                    "name": user.company.company_name,
+                    "subscription_tier": user.company.subscription_tier,
+                    "created_at": user.company.created_at.isoformat() if user.company.created_at else None
+                },
+                "market_intelligence": [
+                    {
+                        "id": 1,
+                        "type": "competitor",
+                        "title": "Competitor Analysis Update",
+                        "description": "New competitor pricing detected in your market",
+                        "impact": "medium",
+                        "source": "Market Intelligence Engine",
+                        "timestamp": "2024-01-15T14:30:00Z"
+                    },
+                    {
+                        "id": 2,
+                        "type": "opportunity",
+                        "title": "SEO Opportunity",
+                        "description": "Untapped keyword cluster identified",
+                        "impact": "high",
+                        "source": "SEO Monitor",
+                        "timestamp": "2024-01-15T12:15:00Z"
+                    }
+                ],
+                "lead_pipeline": [
+                    {
+                        "id": 1,
+                        "source": "Google Ads",
+                        "leads": 125,
+                        "revenue": 45000,
+                        "conversion": 3.8,
+                        "growth": 12.5
+                    },
+                    {
+                        "id": 2,
+                        "source": "Facebook Ads",
+                        "leads": 89,
+                        "revenue": 32000,
+                        "conversion": 4.2,
+                        "growth": 8.1
+                    },
+                    {
+                        "id": 3,
+                        "source": "Organic Search",
+                        "leads": 156,
+                        "revenue": 48000,
+                        "conversion": 5.1,
+                        "growth": 15.3
+                    }
+                ]
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/user-social/profiles")
+async def get_user_social_profiles(token: str = Depends(security)):
+    """Get user social media profiles for creator dashboard"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired token"
+                )
+            
+            # For now, return mock social profile data. This can be enhanced later
+            return {
+                "social_profiles": [
+                    {
+                        "platform": "Instagram",
+                        "username": "@creator_username",
+                        "followers": 12450,
+                        "engagement_rate": 4.2,
+                        "last_updated": "2024-01-15T10:30:00Z",
+                        "status": "connected"
+                    },
+                    {
+                        "platform": "YouTube",
+                        "username": "CreatorChannel",
+                        "followers": 8960,
+                        "engagement_rate": 7.1,
+                        "last_updated": "2024-01-15T09:15:00Z",
+                        "status": "connected"
+                    },
+                    {
+                        "platform": "TikTok",
+                        "username": "@tiktokcreator",
+                        "followers": 15200,
+                        "engagement_rate": 9.8,
+                        "last_updated": "2024-01-15T08:45:00Z",
+                        "status": "connected"
+                    },
+                    {
+                        "platform": "Twitter",
+                        "username": "@twitteruser",
+                        "followers": 3420,
+                        "engagement_rate": 3.5,
+                        "last_updated": "2024-01-15T11:20:00Z",
+                        "status": "connected"
+                    }
+                ],
+                "total_platforms": 4,
+                "connected_platforms": 4,
+                "total_followers": 40030,
+                "avg_engagement_rate": 6.15
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

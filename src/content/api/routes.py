@@ -1001,3 +1001,88 @@ async def session_5_validation():
             message=f"Session 5 validation failed: {str(e)}",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+# ============================================================================
+# CONTENT STATS ENDPOINT FOR CREATOR DASHBOARD
+# ============================================================================
+
+@router.get("/stats")
+async def get_content_stats(
+    user_id: Optional[str] = None,
+    content_type: Optional[str] = None,
+    days: int = 30
+):
+    """Get content statistics for creator dashboard"""
+    try:
+        # For now, return mock data. This can be enhanced with real metrics later
+        return {
+            "content_pipeline": {
+                "published": 45,
+                "draft": 12,
+                "scheduled": 8,
+                "ideas": 23
+            },
+            "creator_metrics": {
+                "followers": 12450,
+                "follower_growth": 8.5,
+                "engagement": 4.2,
+                "engagement_growth": 12.3,
+                "viral_score": 78.5,
+                "monthly_earnings": 3250
+            },
+            "recent_content": [
+                {
+                    "id": 1,
+                    "title": "5 Tips for Better Content Creation",
+                    "type": "blog_post",
+                    "platform": "website",
+                    "views": 2340,
+                    "engagement": 4.8,
+                    "performance": "excellent",
+                    "growth": 15.2
+                },
+                {
+                    "id": 2,
+                    "title": "Instagram Growth Strategies",
+                    "type": "social_post",
+                    "platform": "instagram",
+                    "views": 8960,
+                    "engagement": 6.2,
+                    "performance": "excellent",
+                    "growth": 23.5
+                },
+                {
+                    "id": 3,
+                    "title": "Video Marketing Masterclass",
+                    "type": "video",
+                    "platform": "youtube",
+                    "views": 12540,
+                    "engagement": 7.1,
+                    "performance": "excellent",
+                    "growth": 31.8
+                }
+            ],
+            "viral_opportunities": [
+                {
+                    "id": 1,
+                    "type": "trending_topic",
+                    "title": "AI Content Creation Trend",
+                    "description": "AI-powered content is trending - create content about AI tools",
+                    "urgency": "high",
+                    "platform": "linkedin",
+                    "impact": "High engagement potential"
+                },
+                {
+                    "id": 2,
+                    "type": "hashtag_opportunity",
+                    "title": "#CreatorEconomy Hashtag",
+                    "description": "Creator economy discussions are gaining traction",
+                    "urgency": "medium",
+                    "platform": "twitter",
+                    "impact": "Increased reach potential"
+                }
+            ]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -35,12 +35,13 @@ async def get_current_user_id(
 async def get_campaigns(
     status: Optional[str] = None,
     campaign_type: Optional[str] = None,
+    sort: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_async_db)
 ):
-    """Get user campaigns"""
+    """Get user campaigns with optional sorting"""
     campaign_service = CampaignService(db)
     
     campaigns = await campaign_service.get_user_campaigns(
@@ -50,6 +51,10 @@ async def get_campaigns(
         skip=skip,
         limit=limit
     )
+    
+    # Apply sorting if requested
+    if sort == "recent":
+        campaigns = sorted(campaigns, key=lambda x: x.created_at, reverse=True)
     
     return CampaignListResponse(
         campaigns=[campaign.to_dict() for campaign in campaigns],
@@ -68,6 +73,79 @@ async def get_campaign_stats(
     stats = await campaign_service.get_campaign_stats(user_id=user_id)
     
     return CampaignStatsResponse(**stats)
+
+@router.get("/stats/stats")
+async def get_dashboard_stats(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Get dashboard statistics (frontend compatibility endpoint)"""
+    campaign_service = CampaignService(db)
+    stats = await campaign_service.get_campaign_stats(user_id=user_id)
+    
+    # Return in format expected by frontend
+    return {
+        "monthly_recurring_revenue": stats.get("total_revenue", 0),
+        "growth_percentage": stats.get("growth_rate", 0),
+        "conversion_rate": stats.get("avg_conversion_rate", 0),
+        "total_campaigns": stats.get("total_campaigns", 0),
+        "active_campaigns": stats.get("active_campaigns", 0),
+        "paused_campaigns": stats.get("paused_campaigns", 0),
+        "testing_campaigns": stats.get("testing_campaigns", 0),
+        "winning_campaigns": stats.get("winning_campaigns", 0)
+    }
+
+@router.get("/affiliate/performance")
+async def get_affiliate_performance(
+    days: int = 30,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Get affiliate performance metrics"""
+    campaign_service = CampaignService(db)
+    
+    # Get affiliate-specific performance data
+    stats = await campaign_service.get_campaign_stats(user_id=user_id)
+    campaigns = await campaign_service.get_user_campaigns(user_id=user_id, limit=10)
+    
+    # Calculate affiliate-specific metrics
+    total_revenue = stats.get("total_revenue", 0)
+    total_campaigns = len(campaigns)
+    avg_conversion = stats.get("avg_conversion_rate", 0)
+    
+    # Mock competitor feed for now (can be enhanced later)
+    competitor_feed = [
+        {
+            "id": 1,
+            "competitor": "CompetitorPro",
+            "offer": "Health Supplement Campaign",
+            "detected_change": "New landing page detected",
+            "timestamp": "2024-01-15T10:30:00Z"
+        },
+        {
+            "id": 2,
+            "competitor": "AffiliateKing", 
+            "offer": "Crypto Trading Course",
+            "detected_change": "Ad spend increased 45%",
+            "timestamp": "2024-01-15T08:15:00Z"
+        }
+    ]
+    
+    return {
+        "commission_metrics": {
+            "thisMonth": total_revenue,
+            "growth": stats.get("growth_rate", 0),
+            "epc": round(total_revenue / max(total_campaigns, 1), 2),
+            "topOffer": campaigns[0].title if campaigns else "No campaigns yet"
+        },
+        "campaign_status": {
+            "active": stats.get("active_campaigns", 0),
+            "paused": stats.get("paused_campaigns", 0), 
+            "testing": stats.get("testing_campaigns", 0),
+            "winners": stats.get("winning_campaigns", 0)
+        },
+        "competitor_feed": competitor_feed
+    }
 
 @router.get("/{campaign_id}", response_model=CampaignResponse)
 async def get_campaign(
