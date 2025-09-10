@@ -92,12 +92,25 @@ async def get_user_profile(token: str = Depends(security)):
                     detail="Invalid or expired token"
                 )
             
+            # Map backend user_type enum to frontend format
+            frontend_user_type = None
+            if user.user_type:
+                backend_to_frontend_mapping = {
+                    "AFFILIATE_MARKETER": "affiliate_marketer",
+                    "CONTENT_CREATOR": "content_creator", 
+                    "BUSINESS_OWNER": "business_owner",
+                }
+                frontend_user_type = backend_to_frontend_mapping.get(
+                    user.user_type.value if hasattr(user.user_type, 'value') else user.user_type,
+                    user.user_type.value if hasattr(user.user_type, 'value') else user.user_type
+                )
+
             return {
                 "id": str(user.id),
                 "email": user.email,
                 "full_name": user.full_name,
                 "role": user.role.value if user.role else "user",
-                "user_type": user.user_type.value if user.user_type else None,
+                "user_type": frontend_user_type,
                 "is_active": user.is_active,
                 "company": {
                     "id": str(user.company.id),
