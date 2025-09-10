@@ -164,7 +164,7 @@ class AuthService:
         company_name: str = "Default Company",
         user_type: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Complete registration process"""
+        """Complete registration process with auto-login"""
         try:
             # Create user
             user = await self.user_service.create_user(
@@ -175,11 +175,17 @@ class AuthService:
                 user_type=user_type
             )
             
+            # Auto-login: create access token for the new user
+            access_token = await self.create_access_token(user)
+            
             return {
                 "message": "User registered successfully",
                 "user_id": str(user.id),
                 "company_id": str(user.company_id) if user.company_id else None,
-                "email": user.email
+                "email": user.email,
+                "access_token": access_token,
+                "token_type": "bearer",
+                "expires_in": self.access_token_expire_minutes * 60,
             }
             
         except Exception as e:
