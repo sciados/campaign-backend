@@ -95,15 +95,27 @@ async def get_user_profile(token: str = Depends(security)):
             # Map backend user_type enum to frontend format
             frontend_user_type = None
             if user.user_type:
-                backend_to_frontend_mapping = {
-                    "AFFILIATE_MARKETER": "affiliate_marketer",
-                    "CONTENT_CREATOR": "content_creator", 
-                    "BUSINESS_OWNER": "business_owner",
-                }
-                frontend_user_type = backend_to_frontend_mapping.get(
-                    user.user_type.value if hasattr(user.user_type, 'value') else user.user_type,
-                    user.user_type.value if hasattr(user.user_type, 'value') else user.user_type
-                )
+                try:
+                    # Get the actual user_type value
+                    user_type_value = user.user_type
+                    if hasattr(user.user_type, 'value'):
+                        user_type_value = user.user_type.value
+                    elif hasattr(user.user_type, 'name'):
+                        user_type_value = user.user_type.name
+                    
+                    # Map to frontend format
+                    backend_to_frontend_mapping = {
+                        "AFFILIATE_MARKETER": "affiliate_marketer",
+                        "CONTENT_CREATOR": "content_creator", 
+                        "BUSINESS_OWNER": "business_owner",
+                    }
+                    
+                    frontend_user_type = backend_to_frontend_mapping.get(str(user_type_value), str(user_type_value).lower())
+                except Exception as e:
+                    # Fallback to original value if mapping fails
+                    frontend_user_type = str(user.user_type) if user.user_type else None
+                    print(f"Warning: User type mapping failed: {e}")
+                    
 
             return {
                 "id": str(user.id),
