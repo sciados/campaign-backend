@@ -23,6 +23,7 @@ async def register_user(request: Dict[str, Any]):
         password = request.get("password")
         full_name = request.get("full_name")
         company_name = request.get("company_name", "Default Company")
+        user_type = request.get("user_type")  # Get user_type from request
         
         if not all([email, password, full_name]):
             raise HTTPException(
@@ -30,12 +31,26 @@ async def register_user(request: Dict[str, Any]):
                 detail="email, password, and full_name are required"
             )
         
+        # Map frontend user types to backend enums if user_type is provided
+        backend_user_type = None
+        if user_type:
+            user_type_mapping = {
+                "affiliate_marketer": "AFFILIATE_MARKETER",
+                "affiliate": "AFFILIATE_MARKETER",
+                "content_creator": "CONTENT_CREATOR", 
+                "creator": "CONTENT_CREATOR",
+                "business_owner": "BUSINESS_OWNER",
+                "business": "BUSINESS_OWNER",
+            }
+            backend_user_type = user_type_mapping.get(user_type, user_type.upper())
+        
         async with ServiceFactory.create_transactional_service(AuthService) as auth_service:
             result = await auth_service.register(
                 email=email,
                 password=password,
                 full_name=full_name,
-                company_name=company_name
+                company_name=company_name,
+                user_type=backend_user_type  # Pass user_type to register method
             )
         
         return result
@@ -91,6 +106,159 @@ async def get_user_profile(token: str = Depends(security)):
                 } if user.company else None
             }
         
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/user-types/select")
+async def select_user_type(request: Dict[str, Any], token: str = Depends(security)):
+    """Set user type during onboarding"""
+    try:
+        from datetime import datetime
+        
+        user_type = request.get("user_type")
+        goals = request.get("goals", [])
+        experience_level = request.get("experience_level", "beginner")
+        
+        if not user_type:
+            raise HTTPException(
+                status_code=400,
+                detail="user_type is required"
+            )
+        
+        # Map frontend user types to backend enums
+        user_type_mapping = {
+            "affiliate_marketer": "AFFILIATE_MARKETER",
+            "affiliate": "AFFILIATE_MARKETER", 
+            "content_creator": "CONTENT_CREATOR",
+            "creator": "CONTENT_CREATOR",
+            "business_owner": "BUSINESS_OWNER", 
+            "business": "BUSINESS_OWNER",
+        }
+        
+        # Convert to backend format
+        backend_user_type = user_type_mapping.get(user_type, user_type.upper())
+        
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired token"
+                )
+            
+            # Use UserService to update user type
+            async with ServiceFactory.create_service(UserService) as user_service:
+                type_data = {
+                    "goals": goals,
+                    "experience_level": experience_level,
+                    "selected_at": datetime.utcnow().isoformat()
+                }
+                
+                updated_user = await user_service.update_user_type(
+                    user.id, 
+                    backend_user_type, 
+                    type_data
+                )
+                
+                if not updated_user:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Failed to update user type"
+                    )
+                
+                return {
+                    "success": True,
+                    "message": "User type selected successfully",
+                    "user_profile": {
+                        "id": str(updated_user.id),
+                        "email": updated_user.email,
+                        "full_name": updated_user.full_name,
+                        "role": updated_user.role,
+                        "user_type": user_type,  # Return original format for frontend
+                        "is_active": updated_user.is_active,
+                        "onboarding_completed": updated_user.onboarding_completed
+                    }
+                }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/user-types/complete-onboarding") 
+async def complete_user_onboarding(request: Dict[str, Any], token: str = Depends(security)):
+    """Complete user onboarding process"""
+    try:
+        from datetime import datetime
+        
+        user_type = request.get("user_type")
+        goals = request.get("goals", [])
+        experience_level = request.get("experience_level", "beginner")
+        
+        if not user_type:
+            raise HTTPException(
+                status_code=400,
+                detail="user_type is required"
+            )
+        
+        # Map frontend user types to backend enums  
+        user_type_mapping = {
+            "affiliate_marketer": "AFFILIATE_MARKETER",
+            "affiliate": "AFFILIATE_MARKETER",
+            "content_creator": "CONTENT_CREATOR", 
+            "creator": "CONTENT_CREATOR",
+            "business_owner": "BUSINESS_OWNER",
+            "business": "BUSINESS_OWNER",
+        }
+        
+        backend_user_type = user_type_mapping.get(user_type, user_type.upper())
+        
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired token"
+                )
+            
+            async with ServiceFactory.create_service(UserService) as user_service:
+                # Update user type
+                type_data = {
+                    "goals": goals,
+                    "experience_level": experience_level,
+                    "onboarding_completed_at": datetime.utcnow().isoformat()
+                }
+                
+                updated_user = await user_service.update_user_type(
+                    user.id,
+                    backend_user_type, 
+                    type_data
+                )
+                
+                # Complete onboarding
+                if updated_user:
+                    updated_user.complete_onboarding(goals, experience_level)
+                    await user_service.db.commit()
+                    await user_service.db.refresh(updated_user)
+                
+                return {
+                    "success": True,
+                    "message": "Onboarding completed successfully",
+                    "user_profile": {
+                        "id": str(updated_user.id),
+                        "email": updated_user.email,
+                        "full_name": updated_user.full_name,
+                        "role": updated_user.role,
+                        "user_type": user_type,
+                        "is_active": updated_user.is_active,
+                        "onboarding_completed": updated_user.onboarding_completed
+                    }
+                }
+                
     except HTTPException:
         raise
     except Exception as e:

@@ -161,7 +161,8 @@ class AuthService:
         email: str,
         password: str,
         full_name: str,
-        company_name: str = "Default Company"
+        company_name: str = "Default Company",
+        user_type: Optional[str] = None
     ) -> Dict[str, Any]:
         """Complete registration process"""
         try:
@@ -170,7 +171,8 @@ class AuthService:
                 email=email,
                 password=password,
                 full_name=full_name,
-                company_name=company_name
+                company_name=company_name,
+                user_type=user_type
             )
             
             return {

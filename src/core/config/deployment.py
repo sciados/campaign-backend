@@ -70,8 +70,31 @@ class DeploymentConfig:
     
     def get_cors_config(self) -> Dict[str, Any]:
         """Get CORS configuration for Railway deployment."""
+        
+        # Get configured origins
+        cors_origins = settings.cors_origins
+        
+        # Add localhost origins for development
+        localhost_origins = [
+            "http://localhost:3000",
+            "http://localhost:3001", 
+            "http://localhost:3002",
+            "http://localhost:3003",
+            "http://localhost:3004",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
+            "http://127.0.0.1:3002",
+            "http://127.0.0.1:3003",
+            "http://127.0.0.1:3004"
+        ]
+        
+        # Add localhost origins if not already included
+        for origin in localhost_origins:
+            if origin not in cors_origins:
+                cors_origins.append(origin)
+        
         return {
-            "allow_origins": settings.cors_origins,
+            "allow_origins": cors_origins,
             "allow_credentials": True,
             "allow_methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
             "allow_headers": ["*"],
