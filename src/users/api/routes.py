@@ -466,3 +466,343 @@ async def get_user_social_profiles(token: str = Depends(security)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# ADMIN API ENDPOINTS
+# ============================================================================
+
+@router.get("/api/admin/stats")
+async def get_admin_stats(token: str = Depends(security)):
+    """Get admin dashboard statistics"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired token"
+                )
+            
+            if user.role != "ADMIN":
+                raise HTTPException(
+                    status_code=403,
+                    detail="Admin access required"
+                )
+            
+            # Return mock admin stats for now
+            return {
+                "total_users": 150,
+                "total_companies": 45,
+                "total_campaigns_created": 325,
+                "monthly_recurring_revenue": 12500,
+                "subscription_breakdown": {
+                    "free": 89,
+                    "starter": 35,
+                    "professional": 18,
+                    "agency": 6,
+                    "enterprise": 2
+                }
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/admin/users")
+async def get_admin_users(
+    page: int = 1,
+    limit: int = 20,
+    search: str = None,
+    subscription_tier: str = None,
+    token: str = Depends(security)
+):
+    """Get users list for admin dashboard"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired token"
+                )
+            
+            if user.role != "ADMIN":
+                raise HTTPException(
+                    status_code=403,
+                    detail="Admin access required"
+                )
+            
+            # Return mock user data for now
+            return {
+                "users": [
+                    {
+                        "id": "user1",
+                        "full_name": "John Doe",
+                        "email": "john@example.com",
+                        "role": "user",
+                        "company_name": "John's Company",
+                        "subscription_tier": "professional",
+                        "monthly_credits_used": 150,
+                        "monthly_credits_limit": 500,
+                        "is_active": True,
+                        "is_verified": True
+                    }
+                ],
+                "total": 150,
+                "page": page,
+                "per_page": limit
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/admin/companies") 
+async def get_admin_companies(
+    page: int = 1,
+    limit: int = 20,
+    search: str = None,
+    subscription_tier: str = None,
+    token: str = Depends(security)
+):
+    """Get companies list for admin dashboard"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired token"
+                )
+            
+            if user.role != "ADMIN":
+                raise HTTPException(
+                    status_code=403,
+                    detail="Admin access required"
+                )
+            
+            # Return mock company data for now
+            return {
+                "companies": [
+                    {
+                        "id": "comp1",
+                        "company_name": "Tech Startup Inc",
+                        "company_slug": "tech-startup",
+                        "company_size": "50-100",
+                        "industry": "Technology",
+                        "subscription_tier": "professional",
+                        "monthly_credits_used": 2500,
+                        "monthly_credits_limit": 5000,
+                        "user_count": 8,
+                        "campaign_count": 25
+                    }
+                ],
+                "total": 45,
+                "page": page,
+                "per_page": limit
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# AI Discovery API endpoints (basic stubs for now)
+@router.get("/api/admin/ai-discovery/active-providers")
+async def get_active_providers(
+    top_3_only: bool = False,
+    token: str = Depends(security)
+):
+    """Get active AI providers for admin dashboard"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user or user.role != "ADMIN":
+                raise HTTPException(status_code=403, detail="Admin access required")
+            
+            # Return mock AI provider data
+            return {
+                "providers": [
+                    {"id": 1, "name": "OpenAI GPT-4", "status": "active", "cost": 50},
+                    {"id": 2, "name": "Claude-3", "status": "active", "cost": 45},
+                    {"id": 3, "name": "Gemini Pro", "status": "active", "cost": 40}
+                ]
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/admin/ai-discovery/discovered-suggestions")
+async def get_discovered_suggestions(token: str = Depends(security)):
+    """Get AI discovery suggestions for admin dashboard"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user or user.role != "ADMIN":
+                raise HTTPException(status_code=403, detail="Admin access required")
+            
+            return {"suggestions": []}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/admin/ai-discovery/dashboard")
+async def get_ai_discovery_dashboard(token: str = Depends(security)):
+    """Get AI discovery dashboard data"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user or user.role != "ADMIN":
+                raise HTTPException(status_code=403, detail="Admin access required")
+            
+            return {"dashboard": {"healthy": True}}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/admin/ai-discovery/category-rankings")
+async def get_category_rankings(token: str = Depends(security)):
+    """Get AI category rankings"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user or user.role != "ADMIN":
+                raise HTTPException(status_code=403, detail="Admin access required")
+            
+            return {"rankings": []}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# ✅ WAITLIST API ENDPOINTS
+# ============================================================================
+
+@router.post("/api/waitlist/join")
+async def join_waitlist(request: dict):
+    """Join the waitlist"""
+    email = request.get("email")
+    referrer = request.get("referrer")
+    
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    
+    return {
+        "message": "Successfully joined the waitlist!",
+        "total_signups": 1247,
+        "position": 1248,
+        "email": email
+    }
+
+@router.get("/api/waitlist/check/{email}")
+async def check_waitlist(email: str):
+    """Check if email is on waitlist"""
+    return {
+        "on_waitlist": True,
+        "message": "You're on the waitlist!",
+        "position": 1248,
+        "total_signups": 1247,
+        "joined_date": "2024-01-15",
+        "is_notified": False
+    }
+
+@router.get("/api/waitlist/stats")
+async def get_waitlist_stats(token: str = Depends(security)):
+    """Get waitlist statistics (admin only)"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user or user.role != "ADMIN":
+                raise HTTPException(status_code=403, detail="Admin access required")
+            
+            return {
+                "total": 1247,
+                "today": 15,
+                "this_week": 89,
+                "this_month": 342,
+                "recent_signups": [
+                    {"email": "user1@example.com", "created_at": "2024-01-15", "id": 1},
+                    {"email": "user2@example.com", "created_at": "2024-01-14", "id": 2}
+                ],
+                "daily_stats": [
+                    {"date": "2024-01-15", "count": 15},
+                    {"date": "2024-01-14", "count": 23}
+                ]
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/waitlist/export")
+async def export_waitlist(token: str = Depends(security)):
+    """Export waitlist emails (admin only)"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user or user.role != "ADMIN":
+                raise HTTPException(status_code=403, detail="Admin access required")
+            
+            return {
+                "emails": [
+                    {
+                        "id": 1,
+                        "email": "user1@example.com",
+                        "joined_date": "2024-01-15",
+                        "is_notified": False,
+                        "referrer": "direct"
+                    }
+                ],
+                "total": 1247,
+                "export_date": "2024-01-15"
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/waitlist/list")
+async def get_waitlist_list(skip: int = 0, limit: int = 100, token: str = Depends(security)):
+    """Get paginated waitlist entries (admin only)"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user or user.role != "ADMIN":
+                raise HTTPException(status_code=403, detail="Admin access required")
+            
+            return [
+                {
+                    "id": 1,
+                    "email": "user1@example.com",
+                    "created_at": "2024-01-15",
+                    "ip_address": "192.168.1.1",
+                    "is_notified": False
+                }
+            ]
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
