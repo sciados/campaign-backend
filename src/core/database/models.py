@@ -9,14 +9,14 @@ Provides common model patterns and the consolidated intelligence schema.
 """
 
 from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, Float, Boolean, ForeignKey, Index
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 import uuid
 
-Base = declarative_base()
+# Import Base from the main database base module to ensure consistency
+from src.core.database.base import Base
 
 
 class TimestampMixin:
