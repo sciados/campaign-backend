@@ -164,6 +164,7 @@ class User(Base):
     # Relationships - FIXED: Added missing campaigns relationship
     company = relationship("Company", back_populates="users")
     campaigns = relationship("Campaign", back_populates="user", cascade="all, delete-orphan")
+    storage_usage = relationship("UserStorageUsage", back_populates="user", cascade="all, delete-orphan")
     
     # Password management
     def verify_password(self, password: str) -> bool:

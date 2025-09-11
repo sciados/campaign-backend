@@ -73,6 +73,7 @@ class Campaign(Base):
     # Relationships
     user = relationship("User", back_populates="campaigns")
     company = relationship("Company", back_populates="campaigns")
+    storage_files = relationship("UserStorageUsage", back_populates="campaign", cascade="all, delete-orphan")
     
     def get_performance_metrics(self) -> Dict[str, Any]:
         """Get campaign performance metrics"""
