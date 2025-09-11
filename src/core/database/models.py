@@ -170,3 +170,19 @@ class ScrapedContent(Base, TimestampMixin):
         Index('idx_scraped_url', 'url'),
         Index('idx_scraped_date', 'scraped_at'),
     )
+
+
+class Waitlist(Base, TimestampMixin):
+    """Simple waitlist model for tracking signups"""
+    __tablename__ = "waitlist"
+    
+    id = Column(Integer, primary_key=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    referrer = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    is_notified = Column(Boolean, default=False)
+    
+    __table_args__ = (
+        Index('idx_waitlist_email', 'email'),
+        Index('idx_waitlist_created', 'created_at'),
+    )
