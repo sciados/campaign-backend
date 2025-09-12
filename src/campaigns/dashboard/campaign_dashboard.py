@@ -205,7 +205,7 @@ class CampaignDashboardService:
             for campaign in recent_campaigns:
                 activity.append({
                     "campaign_id": str(campaign.id),
-                    "campaign_name": campaign.title or campaign.name,
+                    "campaign_name": campaign.name,
                     "action": self._determine_recent_action(campaign),
                     "status": campaign.status.value if campaign.status else "unknown",
                     "timestamp": campaign.updated_at.isoformat() if campaign.updated_at else None
@@ -304,7 +304,7 @@ class CampaignDashboardService:
                     if estimated_completion:
                         deadlines.append({
                             "campaign_id": str(campaign.id),
-                            "campaign_name": campaign.title or campaign.name,
+                            "campaign_name": campaign.name,
                             "deadline": estimated_completion,
                             "status": "pending",
                             "urgency": "medium"
@@ -484,7 +484,7 @@ class CampaignDashboardService:
             
             scored_campaigns.append({
                 "campaign_id": str(campaign.id),
-                "campaign_name": campaign.title or campaign.name,
+                "campaign_name": campaign.name,
                 "performance_score": score,
                 "revenue": revenue,
                 "conversions": conversions,

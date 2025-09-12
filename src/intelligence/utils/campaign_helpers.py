@@ -114,7 +114,7 @@ async def get_campaign_with_verification(
         )
         
         if campaign:
-            logger.debug(f"✅ CRUD campaign verification successful: {campaign.title}")
+            logger.debug(f"✅ CRUD campaign verification successful: {campaign.name}")
         else:
             logger.warning(f"⚠️ CRUD campaign not found or access denied: {campaign_id}")
         

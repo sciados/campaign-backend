@@ -404,7 +404,7 @@ class CampaignWorkflowEngine:
             }
             
             # Check basic requirements
-            if not campaign.title and not campaign.name:
+            if not campaign.name:
                 validation_results["requirements_met"] = False
                 validation_results["missing_requirements"].append("Campaign name/title required")
             

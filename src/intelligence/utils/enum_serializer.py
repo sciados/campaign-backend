@@ -106,7 +106,7 @@ class EnumSerializerMixin:
         
         return {
             "id": str(campaign.id),
-            "title": campaign.title,
+            "title": campaign.name,
             "description": campaign.description,
             "status": campaign.status.value if campaign.status else "draft",
             "workflow_state": campaign.workflow_state.value if campaign.workflow_state else "basic_setup",

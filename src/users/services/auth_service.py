@@ -133,6 +133,9 @@ class AuthService:
             # Create access token
             access_token = await self.create_access_token(user)
             
+            # NOTE: Demo campaigns are now handled via global demo system
+            # No need to create individual demos per user
+            
             return {
                 "access_token": access_token,
                 "token_type": "bearer",
@@ -177,6 +180,9 @@ class AuthService:
             
             # Auto-login: create access token for the new user
             access_token = await self.create_access_token(user)
+            
+            # NOTE: Demo campaigns are now handled via global demo system
+            # No need to create individual demos per user
             
             return {
                 "message": "User registered successfully",

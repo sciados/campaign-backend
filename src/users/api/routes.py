@@ -10,6 +10,7 @@ from typing import Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, desc
 from datetime import datetime, timedelta
+import logging
 
 from src.core.factories.service_factory import ServiceFactory
 from src.users.services.auth_service import AuthService
@@ -21,6 +22,7 @@ from src.core.database.models import IntelligenceCore, Waitlist
 
 router = APIRouter()
 security = HTTPBearer()
+logger = logging.getLogger(__name__)
 
 @router.post("/api/auth/register")
 async def register_user(request: Dict[str, Any]):
@@ -696,7 +698,7 @@ async def get_active_providers(
     token: str = Depends(security),
     db: Session = Depends(get_db)
 ):
-    """Get active AI providers for admin dashboard"""
+    """Get active AI providers for admin dashboard - TEMPORARY MOCK DATA"""
     try:
         async with ServiceFactory.create_service(AuthService) as auth_service:
             user = await auth_service.get_current_user(token.credentials)
@@ -704,38 +706,83 @@ async def get_active_providers(
             if not user or user.role != "ADMIN":
                 raise HTTPException(status_code=403, detail="Admin access required")
             
-            # Get analysis method statistics from intelligence data
-            method_stats = db.query(
-                IntelligenceCore.analysis_method,
-                func.count(IntelligenceCore.id).label('count'),
-                func.avg(IntelligenceCore.confidence_score).label('avg_confidence')
-            ).group_by(IntelligenceCore.analysis_method).all()
+            # TEMPORARY: Return mock data until intelligence_core table is created
+            mock_providers = [
+                {
+                    "id": 1,
+                    "provider_name": "OpenAI GPT-4",
+                    "env_var_name": "OPENAI_API_KEY",
+                    "category": "text_generation",
+                    "use_type": "premium_analysis",
+                    "cost_per_1k_tokens": 0.01,
+                    "quality_score": 4.8,
+                    "category_rank": 1,
+                    "is_top_3": True,
+                    "is_active": True,
+                    "primary_model": "gpt-4",
+                    "discovered_date": "2024-01-01T00:00:00Z",
+                    "response_time_ms": 2500,
+                    "monthly_usage": 50000
+                },
+                {
+                    "id": 2,
+                    "provider_name": "Claude-3-Sonnet",
+                    "env_var_name": "ANTHROPIC_API_KEY", 
+                    "category": "text_generation",
+                    "use_type": "analysis",
+                    "cost_per_1k_tokens": 0.015,
+                    "quality_score": 4.7,
+                    "category_rank": 2,
+                    "is_top_3": True,
+                    "is_active": True,
+                    "primary_model": "claude-3-sonnet",
+                    "discovered_date": "2024-01-01T00:00:00Z",
+                    "response_time_ms": 3000,
+                    "monthly_usage": 30000
+                },
+                {
+                    "id": 3,
+                    "provider_name": "DeepSeek-V2",
+                    "env_var_name": "DEEPSEEK_API_KEY",
+                    "category": "text_generation", 
+                    "use_type": "budget_analysis",
+                    "cost_per_1k_tokens": 0.0001,
+                    "quality_score": 4.2,
+                    "category_rank": 3,
+                    "is_top_3": True,
+                    "is_active": True,
+                    "primary_model": "deepseek-v2",
+                    "discovered_date": "2024-01-01T00:00:00Z",
+                    "response_time_ms": 1500,
+                    "monthly_usage": 100000
+                },
+                {
+                    "id": 4,
+                    "provider_name": "DALL-E 3",
+                    "env_var_name": "OPENAI_API_KEY",
+                    "category": "image_generation",
+                    "use_type": "visual_content",
+                    "cost_per_1k_tokens": 0.02,
+                    "quality_score": 4.6,
+                    "category_rank": 1,
+                    "is_top_3": True,
+                    "is_active": True,
+                    "primary_model": "dall-e-3",
+                    "discovered_date": "2024-01-01T00:00:00Z",
+                    "response_time_ms": 4000,
+                    "monthly_usage": 15000
+                }
+            ]
             
-            # Map analysis methods to providers
-            provider_map = {
-                "fast": {"name": "OpenAI GPT-3.5", "cost": 30},
-                "deep": {"name": "OpenAI GPT-4", "cost": 50}, 
-                "enhanced": {"name": "Claude-3", "cost": 45}
-            }
-            
-            providers = []
-            for method, count, avg_conf in method_stats:
-                provider_info = provider_map.get(method, {"name": method.title(), "cost": 35})
-                providers.append({
-                    "id": method,
-                    "name": provider_info["name"],
-                    "status": "active",
-                    "cost": provider_info["cost"],
-                    "usage_count": count,
-                    "avg_confidence": round(float(avg_conf or 0), 2)
-                })
-            
-            # Sort by usage count and limit if requested
-            providers.sort(key=lambda x: x['usage_count'], reverse=True)
             if top_3_only:
-                providers = providers[:3]
+                mock_providers = [p for p in mock_providers if p["is_top_3"]][:3]
             
-            return {"providers": providers}
+            return {
+                "success": True,
+                "providers": mock_providers,
+                "total_count": len(mock_providers),
+                "filter": {"top_3_only": top_3_only}
+            }
         
     except HTTPException:
         raise
@@ -744,7 +791,7 @@ async def get_active_providers(
 
 @router.get("/api/admin/ai-discovery/discovered-suggestions")
 async def get_discovered_suggestions(token: str = Depends(security), db: Session = Depends(get_db)):
-    """Get AI discovery suggestions for admin dashboard"""
+    """Get AI discovery suggestions for admin dashboard - TEMPORARY MOCK DATA"""
     try:
         async with ServiceFactory.create_service(AuthService) as auth_service:
             user = await auth_service.get_current_user(token.credentials)
@@ -752,23 +799,67 @@ async def get_discovered_suggestions(token: str = Depends(security), db: Session
             if not user or user.role != "ADMIN":
                 raise HTTPException(status_code=403, detail="Admin access required")
             
-            # Get recent intelligence with low confidence scores as suggestions for improvement
-            low_confidence_intel = db.query(IntelligenceCore).filter(
-                IntelligenceCore.confidence_score < 0.7
-            ).order_by(desc(IntelligenceCore.created_at)).limit(10).all()
+            # TEMPORARY: Return mock data until intelligence_core table is created
+            mock_suggestions = [
+                {
+                    "id": 1,
+                    "provider_name": "Groq LLaMA",
+                    "suggested_env_var_name": "GROQ_API_KEY",
+                    "category": "text_generation",
+                    "use_type": "ultra_fast_analysis",
+                    "estimated_cost_per_1k_tokens": 0.0002,
+                    "estimated_quality_score": 4.1,
+                    "website_url": "https://groq.com",
+                    "recommendation_priority": "high",
+                    "unique_features": '["Ultra-fast inference", "Low cost", "Open source models"]',
+                    "research_notes": "Extremely fast inference times with good quality results",
+                    "discovered_date": "2024-01-15T00:00:00Z",
+                    "review_status": "pending",
+                    "competitive_advantages": '["Speed", "Cost efficiency", "Hardware optimization"]',
+                    "integration_complexity": "medium"
+                },
+                {
+                    "id": 2,
+                    "provider_name": "Together AI",
+                    "suggested_env_var_name": "TOGETHER_API_KEY", 
+                    "category": "text_generation",
+                    "use_type": "budget_analysis",
+                    "estimated_cost_per_1k_tokens": 0.0008,
+                    "estimated_quality_score": 4.3,
+                    "website_url": "https://together.ai",
+                    "recommendation_priority": "medium",
+                    "unique_features": '["Open source models", "Competitive pricing", "Multiple model options"]',
+                    "research_notes": "Good balance of cost and quality for large-scale analysis",
+                    "discovered_date": "2024-01-10T00:00:00Z",
+                    "review_status": "pending",
+                    "competitive_advantages": '["Model variety", "Transparent pricing", "Community support"]',
+                    "integration_complexity": "easy"
+                },
+                {
+                    "id": 3,
+                    "provider_name": "Replicate Llama-70B",
+                    "suggested_env_var_name": "REPLICATE_API_KEY",
+                    "category": "text_generation",
+                    "use_type": "heavy_analysis",
+                    "estimated_cost_per_1k_tokens": 0.003,
+                    "estimated_quality_score": 4.5,
+                    "website_url": "https://replicate.com",
+                    "recommendation_priority": "medium",
+                    "unique_features": '["Large parameter models", "On-demand scaling", "Research-grade quality"]',
+                    "research_notes": "High quality results for complex analysis tasks",
+                    "discovered_date": "2024-01-08T00:00:00Z",
+                    "review_status": "approved",
+                    "competitive_advantages": '["Model size", "Quality", "Research backing"]',
+                    "integration_complexity": "medium"
+                }
+            ]
             
-            suggestions = []
-            for intel in low_confidence_intel:
-                suggestions.append({
-                    "id": intel.id,
-                    "product_name": intel.product_name,
-                    "confidence_score": intel.confidence_score,
-                    "analysis_method": intel.analysis_method,
-                    "suggestion": f"Consider re-analyzing {intel.product_name} with enhanced method for better confidence",
-                    "created_at": intel.created_at.isoformat() if intel.created_at else None
-                })
-            
-            return {"suggestions": suggestions}
+            return {
+                "success": True,
+                "suggestions": mock_suggestions,
+                "total_count": len(mock_suggestions),
+                "filter": {}
+            }
         
     except HTTPException:
         raise
@@ -777,7 +868,7 @@ async def get_discovered_suggestions(token: str = Depends(security), db: Session
 
 @router.get("/api/admin/ai-discovery/dashboard")
 async def get_ai_discovery_dashboard(token: str = Depends(security), db: Session = Depends(get_db)):
-    """Get AI discovery dashboard data"""
+    """Get AI discovery dashboard data - TEMPORARY MOCK DATA"""
     try:
         async with ServiceFactory.create_service(AuthService) as auth_service:
             user = await auth_service.get_current_user(token.credentials)
@@ -785,26 +876,71 @@ async def get_ai_discovery_dashboard(token: str = Depends(security), db: Session
             if not user or user.role != "ADMIN":
                 raise HTTPException(status_code=403, detail="Admin access required")
             
-            # Get intelligence statistics
-            total_intelligence = db.query(IntelligenceCore).count()
-            avg_confidence = db.query(func.avg(IntelligenceCore.confidence_score)).scalar() or 0
-            
-            # Get recent activity (last 7 days)
-            week_ago = datetime.now() - timedelta(days=7)
-            recent_intelligence = db.query(IntelligenceCore).filter(
-                IntelligenceCore.created_at >= week_ago
-            ).count()
-            
-            # Calculate health score based on various metrics
-            health_score = min(100, (avg_confidence * 100) + (recent_intelligence * 2))
-            
+            # TEMPORARY: Return mock data until intelligence_core table is created
             return {
+                "success": True,
                 "dashboard": {
-                    "healthy": health_score > 70,
-                    "health_score": round(health_score, 1),
-                    "total_intelligence": total_intelligence,
-                    "avg_confidence": round(avg_confidence, 2),
-                    "recent_activity": recent_intelligence
+                    "active_providers": {
+                        "by_category": [
+                            {
+                                "category": "text_generation",
+                                "total": 6,
+                                "active": 4,
+                                "top_3": 3
+                            },
+                            {
+                                "category": "image_generation",
+                                "total": 3,
+                                "active": 2,
+                                "top_3": 1
+                            },
+                            {
+                                "category": "multimodal",
+                                "total": 2,
+                                "active": 1,
+                                "top_3": 1
+                            }
+                        ],
+                        "total": 11
+                    },
+                    "discovered_providers": {
+                        "by_category": [
+                            {
+                                "category": "text_generation",
+                                "total": 8,
+                                "high_priority": 3
+                            },
+                            {
+                                "category": "image_generation",
+                                "total": 4,
+                                "high_priority": 1
+                            },
+                            {
+                                "category": "audio_generation",
+                                "total": 2,
+                                "high_priority": 0
+                            }
+                        ],
+                        "total": 14
+                    },
+                    "recent_discoveries": [
+                        {
+                            "id": 1,
+                            "provider_name": "Groq LLaMA",
+                            "category": "text_generation",
+                            "recommendation_priority": "high",
+                            "discovered_date": "2024-01-15T00:00:00Z"
+                        },
+                        {
+                            "id": 2,
+                            "provider_name": "Together AI",
+                            "category": "text_generation", 
+                            "recommendation_priority": "medium",
+                            "discovered_date": "2024-01-10T00:00:00Z"
+                        }
+                    ],
+                    "system_status": "operational",
+                    "last_discovery_cycle": "2024-01-15T12:00:00Z"
                 }
             }
         
@@ -815,7 +951,7 @@ async def get_ai_discovery_dashboard(token: str = Depends(security), db: Session
 
 @router.get("/api/admin/ai-discovery/category-rankings")
 async def get_category_rankings(token: str = Depends(security), db: Session = Depends(get_db)):
-    """Get AI category rankings"""
+    """Get AI category rankings - TEMPORARY MOCK DATA"""
     try:
         async with ServiceFactory.create_service(AuthService) as auth_service:
             user = await auth_service.get_current_user(token.credentials)
@@ -823,31 +959,253 @@ async def get_category_rankings(token: str = Depends(security), db: Session = De
             if not user or user.role != "ADMIN":
                 raise HTTPException(status_code=403, detail="Admin access required")
             
-            # Get top products by confidence score
-            top_products = db.query(
-                IntelligenceCore.product_name,
-                func.avg(IntelligenceCore.confidence_score).label('avg_confidence'),
-                func.count(IntelligenceCore.id).label('analysis_count')
-            ).group_by(IntelligenceCore.product_name)\
-             .order_by(desc('avg_confidence'))\
-             .limit(10).all()
+            # TEMPORARY: Return mock data until intelligence_core table is created
+            mock_category_rankings = {
+                "text_generation": [
+                    {
+                        "rank": 1,
+                        "provider_name": "OpenAI GPT-4",
+                        "quality_score": 4.8,
+                        "cost_per_1k_tokens": 0.01,
+                        "primary_model": "gpt-4",
+                        "is_active": True
+                    },
+                    {
+                        "rank": 2,
+                        "provider_name": "Claude-3-Sonnet",
+                        "quality_score": 4.7,
+                        "cost_per_1k_tokens": 0.015,
+                        "primary_model": "claude-3-sonnet",
+                        "is_active": True
+                    },
+                    {
+                        "rank": 3,
+                        "provider_name": "DeepSeek-V2",
+                        "quality_score": 4.2,
+                        "cost_per_1k_tokens": 0.0001,
+                        "primary_model": "deepseek-v2",
+                        "is_active": True
+                    }
+                ],
+                "image_generation": [
+                    {
+                        "rank": 1,
+                        "provider_name": "DALL-E 3",
+                        "quality_score": 4.6,
+                        "cost_per_1k_tokens": 0.02,
+                        "primary_model": "dall-e-3",
+                        "is_active": True
+                    },
+                    {
+                        "rank": 2,
+                        "provider_name": "Midjourney",
+                        "quality_score": 4.5,
+                        "cost_per_1k_tokens": 0.018,
+                        "primary_model": "midjourney-v6",
+                        "is_active": False
+                    }
+                ],
+                "multimodal": [
+                    {
+                        "rank": 1,
+                        "provider_name": "GPT-4-Vision",
+                        "quality_score": 4.4,
+                        "cost_per_1k_tokens": 0.012,
+                        "primary_model": "gpt-4-vision-preview",
+                        "is_active": True
+                    }
+                ]
+            }
             
-            rankings = []
-            for rank, (product, avg_conf, count) in enumerate(top_products, 1):
-                rankings.append({
-                    "rank": rank,
-                    "product_name": product,
-                    "avg_confidence": round(float(avg_conf), 2),
-                    "analysis_count": count,
-                    "category": "Intelligence Analysis"  # Could be enhanced with real categories
-                })
-            
-            return {"rankings": rankings}
+            return {
+                "success": True,
+                "category_rankings": mock_category_rankings,
+                "total_categories": len(mock_category_rankings),
+                "total_top_providers": sum(len(providers) for providers in mock_category_rankings.values())
+            }
         
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# ✅ DEMO CAMPAIGN CREATION ENDPOINTS
+# ============================================================================
+
+@router.post("/api/admin/create-demo-campaign/{user_id}")
+async def create_demo_campaign_for_user(
+    user_id: str,
+    token: str = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Create demo campaign for a specific user (admin only)"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            admin_user = await auth_service.get_current_user(token.credentials)
+            
+            if not admin_user or admin_user.role != "ADMIN":
+                raise HTTPException(status_code=403, detail="Admin access required")
+        
+        async with ServiceFactory.create_service(UserService) as user_service:
+            success = await user_service.ensure_user_has_demo_campaign(user_id)
+            
+            if success:
+                return {
+                    "message": f"Demo campaign created successfully for user {user_id}",
+                    "success": True
+                }
+            else:
+                return {
+                    "message": f"Demo campaign already exists for user {user_id} or user not found",
+                    "success": False
+                }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating demo campaign: {str(e)}")
+
+@router.post("/api/admin/create-demo-campaigns-all")
+async def create_demo_campaigns_for_all_users(
+    token: str = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Create demo campaigns for all users who don't have any campaigns (admin only)"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            admin_user = await auth_service.get_current_user(token.credentials)
+            
+            if not admin_user or admin_user.role != "ADMIN":
+                raise HTTPException(status_code=403, detail="Admin access required")
+        
+        async with ServiceFactory.create_service(UserService) as user_service:
+            # Get all users
+            users = await user_service.get_all_users()
+            
+            created_count = 0
+            total_users = len(users)
+            
+            for user in users:
+                try:
+                    success = await user_service.create_demo_campaign(user)
+                    if success:
+                        created_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to create demo for user {user.id}: {e}")
+            
+            return {
+                "message": f"Created {created_count} demo campaigns for {total_users} users",
+                "created_count": created_count,
+                "total_users": total_users,
+                "success": True
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating demo campaigns: {str(e)}")
+
+@router.post("/api/campaigns/demo/toggle-visibility")
+async def toggle_demo_campaign_visibility(
+    request: Dict[str, Any],
+    token: str = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Toggle demo campaign visibility for the current user (now works with global demos)"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user:
+                raise HTTPException(status_code=401, detail="Authentication required")
+        
+        hidden = request.get("hidden", True)
+        
+        async with ServiceFactory.create_service(UserService) as user_service:
+            # Set user preference for global demo visibility
+            demo_settings = await user_service.get_user_demo_settings(user.id)
+            demo_settings["global_demo_hidden"] = hidden
+            
+            success = await user_service.set_user_demo_settings(user.id, demo_settings)
+            
+            if success:
+                action = "hidden" if hidden else "shown"
+                return {
+                    "message": f"Global demo campaign {action} successfully",
+                    "hidden": hidden,
+                    "success": True
+                }
+            else:
+                return {
+                    "message": "Failed to update demo visibility preference",
+                    "success": False
+                }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error toggling demo visibility: {str(e)}")
+
+@router.get("/api/campaigns/list")
+async def get_user_campaigns(
+    include_hidden_demos: bool = False,
+    token: str = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Get user campaigns with option to exclude hidden demo campaigns"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user:
+                raise HTTPException(status_code=401, detail="Authentication required")
+        
+        async with ServiceFactory.create_service(UserService) as user_service:
+            campaigns = await user_service.get_user_campaigns(user.id, include_hidden_demos)
+            
+            # Convert campaigns to serializable format
+            campaigns_data = []
+            for campaign in campaigns:
+                # Handle both Campaign objects and raw query results
+                if hasattr(campaign, 'id'):
+                    # Campaign object
+                    campaign_data = {
+                        "id": str(campaign.id),
+                        "name": campaign.name,
+                        "description": campaign.description,
+                        "campaign_type": campaign.campaign_type.value if hasattr(campaign.campaign_type, 'value') else str(campaign.campaign_type),
+                        "status": campaign.status.value if hasattr(campaign.status, 'value') else str(campaign.status),
+                        "target_audience": campaign.target_audience,
+                        "goals": campaign.goals,
+                        "settings": campaign.settings,
+                        "created_at": campaign.created_at.isoformat() if campaign.created_at else None,
+                        "updated_at": campaign.updated_at.isoformat() if hasattr(campaign, 'updated_at') and campaign.updated_at else None
+                    }
+                else:
+                    # Raw query result
+                    campaign_data = dict(campaign._mapping) if hasattr(campaign, '_mapping') else dict(campaign)
+                    # Convert UUID to string and handle dates
+                    if 'id' in campaign_data and campaign_data['id']:
+                        campaign_data['id'] = str(campaign_data['id'])
+                    if 'created_at' in campaign_data and campaign_data['created_at']:
+                        campaign_data['created_at'] = campaign_data['created_at'].isoformat()
+                    if 'updated_at' in campaign_data and campaign_data['updated_at']:
+                        campaign_data['updated_at'] = campaign_data['updated_at'].isoformat()
+                
+                campaigns_data.append(campaign_data)
+            
+            return {
+                "campaigns": campaigns_data,
+                "total": len(campaigns_data),
+                "include_hidden_demos": include_hidden_demos,
+                "success": True
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting campaigns: {str(e)}")
 
 # ============================================================================
 # ✅ WAITLIST API ENDPOINTS
@@ -1035,6 +1393,72 @@ async def get_waitlist_list(skip: int = 0, limit: int = 100, token: str = Depend
                 })
             
             return entries_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/admin/create-global-demo")
+async def create_global_demo_campaign(token: str = Depends(security)):
+    """Admin endpoint to create the single global demo campaign"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user:
+                raise HTTPException(status_code=401, detail="User not found")
+            
+            # Try to create global demo campaign
+            async with ServiceFactory.create_service(UserService) as user_service:
+                try:
+                    result = await user_service.create_global_demo_campaign()
+                    return {
+                        "success": True,
+                        "message": f"Global demo campaign creation result: {result}",
+                        "admin_user": str(user.id)
+                    }
+                except Exception as demo_error:
+                    return {
+                        "success": False,
+                        "error": str(demo_error),
+                        "error_type": type(demo_error).__name__,
+                        "admin_user": str(user.id)
+                    }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/debug/create-demo-campaign")
+async def debug_create_demo_campaign(token: str = Depends(security)):
+    """Debug endpoint to manually create demo campaign and see errors"""
+    try:
+        async with ServiceFactory.create_service(AuthService) as auth_service:
+            user = await auth_service.get_current_user(token.credentials)
+            
+            if not user:
+                raise HTTPException(status_code=401, detail="User not found")
+            
+            # Try to create demo campaign and capture detailed errors
+            async with ServiceFactory.create_service(UserService) as user_service:
+                try:
+                    result = await user_service.create_demo_campaign(user)
+                    return {
+                        "success": True,
+                        "message": f"Demo campaign creation result: {result}",
+                        "user_id": str(user.id),
+                        "user_email": user.email
+                    }
+                except Exception as demo_error:
+                    return {
+                        "success": False,
+                        "error": str(demo_error),
+                        "error_type": type(demo_error).__name__,
+                        "user_id": str(user.id),
+                        "user_email": user.email
+                    }
         
     except HTTPException:
         raise

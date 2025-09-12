@@ -647,3 +647,332 @@ class UserService:
         except Exception as e:
             logger.error(f"Error searching users: {e}")
             raise
+
+    async def get_all_users(self) -> List[User]:
+        """Get all users (admin only)"""
+        try:
+            result = await self.db.execute(
+                select(User).options(selectinload(User.company))
+            )
+            return list(result.scalars().all())
+        except Exception as e:
+            logger.error(f"Error getting all users: {e}")
+            raise
+
+    # Demo campaign creation
+    async def create_demo_campaign(self, user: User) -> bool:
+        """Create a demo campaign for new users to showcase platform capabilities"""
+        try:
+            # Import Campaign models here to avoid circular imports
+            from src.campaigns.models.campaign import Campaign, CampaignTypeEnum, CampaignStatusEnum
+            
+            # Check if user already has campaigns
+            existing_campaigns = await self.db.execute(
+                select(func.count(Campaign.id)).where(Campaign.user_id == user.id)
+            )
+            campaign_count = existing_campaigns.scalar() or 0
+            
+            if campaign_count > 0:
+                logger.info(f"User {user.id} already has {campaign_count} campaigns, skipping demo")
+                return False
+            
+            # Create a comprehensive demo campaign
+            demo_campaign = Campaign(
+                name="🌟 Welcome to CampaignForge - Demo Campaign",
+                description="This is your demo campaign showcasing CampaignForge's powerful AI-driven marketing capabilities. Explore features like intelligent product analysis, automated content generation, and multi-channel campaign orchestration.",
+                campaign_type=CampaignTypeEnum.PRODUCT_LAUNCH,
+                status=CampaignStatusEnum.ACTIVE,
+                user_id=user.id,
+                company_id=user.company_id,
+                target_audience="Health-conscious consumers seeking natural wellness solutions",
+                goals=[
+                    "Demonstrate AI-powered product intelligence",
+                    "Showcase multi-channel content generation",
+                    "Highlight campaign optimization features",
+                    "Provide onboarding experience for new users"
+                ],
+                settings={
+                    "is_demo": True,
+                    "demo_hidden": False,  # Show demo by default
+                    "demo_created_at": datetime.now(timezone.utc).isoformat(),
+                    "ai_analysis_enabled": True,
+                    "content_generation_enabled": True,
+                    "optimization_enabled": True,
+                    "channels": ["email", "social_media", "landing_page"],
+                    "demo_product": {
+                        "name": "VitalBoost Pro - Premium Health Supplement",
+                        "category": "Health & Wellness",
+                        "price": "$49.99",
+                        "key_benefits": [
+                            "Boosts energy naturally with organic ingredients",
+                            "Supports immune system function",
+                            "Enhances mental clarity and focus",
+                            "Made with clinically-tested compounds"
+                        ],
+                        "target_market": "Active adults 25-55 seeking natural wellness",
+                        "unique_selling_points": [
+                            "Third-party tested for purity",
+                            "90-day money-back guarantee", 
+                            "Formulated by certified nutritionists",
+                            "Sustainable packaging"
+                        ]
+                    },
+                    "demo_intelligence": {
+                        "confidence_score": 0.94,
+                        "market_analysis": "High-growth health supplement market with strong online presence",
+                        "competitive_advantages": [
+                            "Premium organic ingredient sourcing",
+                            "Transparent third-party testing",
+                            "Strong customer testimonial portfolio"
+                        ],
+                        "campaign_angles": [
+                            "Natural energy without crashes",
+                            "Science-backed wellness solution",
+                            "Transform your daily vitality"
+                        ]
+                    }
+                }
+            )
+            
+            self.db.add(demo_campaign)
+            await self.db.commit()
+            await self.db.refresh(demo_campaign)
+            
+            logger.info(f"Created demo campaign for user {user.id}: {demo_campaign.id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error creating demo campaign for user {user.id}: {e}")
+            await self.db.rollback()
+            return False
+
+    async def create_global_demo_campaign(self) -> bool:
+        """Create a single global demo campaign that will be shown to all users"""
+        try:
+            # Import Campaign models here to avoid circular imports
+            from src.campaigns.models.campaign import Campaign, CampaignTypeEnum, CampaignStatusEnum
+            
+            # Check if global demo already exists
+            existing_demo = await self.db.execute(
+                select(Campaign).where(Campaign.user_id == None, 
+                                     Campaign.settings['is_demo'] == True)
+            )
+            if existing_demo.scalar():
+                logger.info("Global demo campaign already exists, skipping creation")
+                return True
+            
+            # Create the global demo campaign
+            global_demo = Campaign(
+                name="🌟 Welcome to CampaignForge - Global Demo",
+                description="This is a shared demo campaign showcasing CampaignForge's AI-driven marketing capabilities. This campaign demonstrates intelligent product analysis, automated content generation, multi-channel orchestration, and conversion optimization for all new users.",
+                campaign_type=CampaignTypeEnum.PRODUCT_LAUNCH,
+                status=CampaignStatusEnum.ACTIVE,
+                user_id=None,  # Global campaign - no specific user
+                company_id=None,  # Global campaign - no specific company
+                target_audience="Health-conscious consumers seeking premium wellness solutions",
+                goals=[
+                    "Showcase AI-powered product intelligence across industries",
+                    "Demonstrate multi-channel content generation capabilities",
+                    "Highlight advanced campaign optimization features",
+                    "Provide comprehensive onboarding experience for all users"
+                ],
+                settings={
+                    "is_demo": True,
+                    "is_global_demo": True,  # Special flag for global demos
+                    "demo_created_at": datetime.now(timezone.utc).isoformat(),
+                    "ai_analysis_enabled": True,
+                    "content_generation_enabled": True,
+                    "optimization_enabled": True,
+                    "multi_platform_enabled": True,
+                    "channels": ["email", "social_media", "landing_page", "ads", "video"],
+                    "demo_product": {
+                        "name": "VitalBoost Pro - Premium Health Supplement",
+                        "category": "Health & Wellness",
+                        "price": "$49.99",
+                        "key_benefits": [
+                            "Boosts energy naturally with organic ingredients",
+                            "Supports immune system and cognitive function",
+                            "Enhances mental clarity and physical performance",
+                            "Made with clinically-tested, third-party verified compounds"
+                        ],
+                        "target_market": "Active professionals 25-55 seeking natural wellness optimization",
+                        "unique_selling_points": [
+                            "Third-party tested for purity and potency",
+                            "90-day money-back satisfaction guarantee", 
+                            "Formulated by certified nutritionists and researchers",
+                            "Sustainable packaging and ethical sourcing"
+                        ]
+                    },
+                    "demo_intelligence": {
+                        "confidence_score": 0.96,
+                        "market_analysis": "High-growth $50B+ health supplement market with strong online presence and recurring purchase patterns",
+                        "competitive_advantages": [
+                            "Premium organic ingredient sourcing with full traceability",
+                            "Transparent third-party testing and batch verification",
+                            "Strong customer testimonial portfolio and retention rates",
+                            "Multi-channel marketing integration and optimization"
+                        ],
+                        "campaign_angles": [
+                            "Natural energy without crashes or jitters",
+                            "Science-backed wellness solution for peak performance",
+                            "Transform your daily vitality and mental clarity",
+                            "Premium ingredients for professionals who demand results"
+                        ],
+                        "estimated_metrics": {
+                            "conversion_rate": "4.2%",
+                            "customer_lifetime_value": "$180",
+                            "market_penetration": "High growth potential",
+                            "recommended_budget": "$2,500/month"
+                        }
+                    }
+                }
+            )
+            
+            self.db.add(global_demo)
+            await self.db.commit()
+            await self.db.refresh(global_demo)
+            
+            logger.info(f"Created global demo campaign: {global_demo.id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error creating global demo campaign: {e}")
+            await self.db.rollback()
+            return False
+
+    async def ensure_user_has_demo_campaign(self, user_id: Union[str, UUID]) -> bool:
+        """Ensure user has a demo campaign, create one if they don't"""
+        try:
+            user = await self.get_user_by_id(user_id)
+            if not user:
+                return False
+            
+            return await self.create_demo_campaign(user)
+            
+        except Exception as e:
+            logger.error(f"Error ensuring demo campaign for user {user_id}: {e}")
+            return False
+
+    async def toggle_demo_campaign_visibility(self, user_id: Union[str, UUID], hidden: bool = True) -> bool:
+        """Toggle demo campaign visibility for a user"""
+        try:
+            # Import Campaign models here to avoid circular imports
+            from src.campaigns.models.campaign import Campaign, CampaignTypeEnum, CampaignStatusEnum
+            from sqlalchemy import text
+            
+            # Find the demo campaign for this user
+            result = await self.db.execute(
+                text("""
+                    UPDATE campaigns 
+                    SET settings = jsonb_set(settings, '{demo_hidden}', :hidden::jsonb)
+                    WHERE user_id = :user_id 
+                    AND settings->>'is_demo' = 'true'
+                    RETURNING id
+                """),
+                {"user_id": str(user_id), "hidden": str(hidden).lower()}
+            )
+            
+            updated_campaign = result.fetchone()
+            
+            if updated_campaign:
+                await self.db.commit()
+                action = "hidden" if hidden else "shown"
+                logger.info(f"Demo campaign {action} for user {user_id}")
+                return True
+            else:
+                logger.warning(f"No demo campaign found for user {user_id}")
+                return False
+            
+        except Exception as e:
+            logger.error(f"Error toggling demo campaign visibility for user {user_id}: {e}")
+            await self.db.rollback()
+            return False
+
+    async def get_user_campaigns(self, user_id: Union[str, UUID], include_hidden_demos: bool = False) -> List:
+        """Get user campaigns with option to exclude hidden demo campaigns, plus global demo"""
+        try:
+            # Import Campaign models here to avoid circular imports
+            from src.campaigns.models.campaign import Campaign
+            from sqlalchemy import text, or_
+            
+            # Check if user has hidden the global demo
+            user_settings = await self.get_user_demo_settings(user_id)
+            global_demo_hidden = user_settings.get("global_demo_hidden", False)
+            
+            if include_hidden_demos:
+                # Include all user campaigns + global demo (even if hidden)
+                query = text("""
+                    SELECT * FROM campaigns 
+                    WHERE user_id = :user_id 
+                       OR (user_id IS NULL AND settings->>'is_global_demo' = 'true')
+                    ORDER BY created_at DESC
+                """)
+                result = await self.db.execute(query, {"user_id": str(user_id)})
+                campaigns = result.fetchall()
+                return list(campaigns)
+            else:
+                # Build query to exclude hidden demos but include global demo if not hidden by user
+                if global_demo_hidden:
+                    # User has hidden global demo, exclude it
+                    query = text("""
+                        SELECT * FROM campaigns 
+                        WHERE user_id = :user_id 
+                        AND NOT (
+                            settings->>'is_demo' = 'true' 
+                            AND settings->>'demo_hidden' = 'true'
+                        )
+                        ORDER BY created_at DESC
+                    """)
+                else:
+                    # Include global demo since user hasn't hidden it
+                    query = text("""
+                        SELECT * FROM campaigns 
+                        WHERE (
+                            user_id = :user_id 
+                            AND NOT (
+                                settings->>'is_demo' = 'true' 
+                                AND settings->>'demo_hidden' = 'true'
+                            )
+                        ) OR (
+                            user_id IS NULL 
+                            AND settings->>'is_global_demo' = 'true'
+                        )
+                        ORDER BY created_at DESC
+                    """)
+                
+                result = await self.db.execute(query, {"user_id": str(user_id)})
+                campaigns = result.fetchall()
+                return list(campaigns)
+            
+        except Exception as e:
+            logger.error(f"Error getting campaigns for user {user_id}: {e}")
+            return []
+
+    async def get_user_demo_settings(self, user_id: Union[str, UUID]) -> Dict[str, Any]:
+        """Get user's demo campaign visibility settings"""
+        try:
+            user = await self.get_user_by_id(user_id)
+            if not user or not user.settings:
+                return {}
+            return user.settings.get("demo_settings", {})
+        except Exception as e:
+            logger.error(f"Error getting demo settings for user {user_id}: {e}")
+            return {}
+    
+    async def set_user_demo_settings(self, user_id: Union[str, UUID], settings: Dict[str, Any]) -> bool:
+        """Set user's demo campaign visibility settings"""
+        try:
+            user = await self.get_user_by_id(user_id)
+            if not user:
+                return False
+            
+            if not user.settings:
+                user.settings = {}
+            
+            user.settings["demo_settings"] = settings
+            await self.db.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error setting demo settings for user {user_id}: {e}")
+            await self.db.rollback()
+            return False

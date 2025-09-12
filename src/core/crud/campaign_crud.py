@@ -114,7 +114,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
                 return None
             
             campaign = campaigns[0]
-            logger.info(f"✅ Campaign access granted: {campaign.title}")
+            logger.info(f"✅ Campaign access granted: {campaign.name}")
             return campaign
             
         except Exception as e:
@@ -263,7 +263,7 @@ class CampaignCRUD(BaseCRUD[Campaign]):
             filtered_campaigns = []
             
             for campaign in all_campaigns:
-                title_match = campaign.title and search_lower in campaign.title.lower()
+                title_match = campaign.name and search_lower in campaign.name.lower()
                 desc_match = campaign.description and search_lower in campaign.description.lower()
                 
                 if title_match or desc_match:

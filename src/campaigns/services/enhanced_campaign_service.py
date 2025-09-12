@@ -47,7 +47,7 @@ class EnhancedCampaignService(CampaignService):
                 "campaign": {
                     "id": str(campaign.id),
                     "name": campaign.name,
-                    "title": campaign.title,
+                    "title": campaign.name,
                     "status": campaign.status.value,
                     "created_at": campaign.created_at.isoformat()
                 },
@@ -117,7 +117,7 @@ class EnhancedCampaignService(CampaignService):
                 "campaign": {
                     "id": str(campaign.id),
                     "name": campaign.name,
-                    "title": campaign.title,
+                    "title": campaign.name,
                     "description": campaign.description,
                     "status": campaign.status.value,
                     "campaign_type": campaign.campaign_type.value,

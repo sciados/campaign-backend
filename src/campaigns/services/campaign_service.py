@@ -56,8 +56,7 @@ class CampaignService:
             company_uuid = UUID(str(company_id)) if isinstance(company_id, str) else company_id
             
             campaign = Campaign(
-                title=name,  # Set title for legacy compatibility
-                name=name,   # Set name for new schema
+                name=name,   # Campaign name
                 description=description,
                 campaign_type=campaign_type_enum,
                 user_id=user_uuid,
@@ -131,7 +130,7 @@ class CampaignService:
                 logger.warning(f"Campaign {campaign_id} not found or access denied")
                 return None
             
-            logger.info(f"Campaign access granted: {campaign.title or campaign.name}")
+            logger.info(f"Campaign access granted: {campaign.name}")
             return campaign
             
         except Exception as e:
@@ -279,7 +278,6 @@ class CampaignService:
                     Campaign.user_id == user_uuid,
                     Campaign.company_id == company_uuid,
                     or_(
-                        Campaign.title.ilike(search_pattern),
                         Campaign.name.ilike(search_pattern),
                         Campaign.description.ilike(search_pattern)
                     )

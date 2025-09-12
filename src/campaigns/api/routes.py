@@ -136,7 +136,7 @@ async def get_affiliate_performance(
             "thisMonth": total_revenue,
             "growth": stats.get("growth_rate", 0),
             "epc": round(total_revenue / max(total_campaigns, 1), 2),
-            "topOffer": campaigns[0].title if campaigns else "No campaigns yet"
+            "topOffer": campaigns[0].name if campaigns else "No campaigns yet"
         },
         "campaign_status": {
             "active": stats.get("active_campaigns", 0),
