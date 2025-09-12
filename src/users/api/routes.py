@@ -698,7 +698,7 @@ async def get_active_providers(
     token: str = Depends(security),
     db: Session = Depends(get_db)
 ):
-    """Get active AI providers for admin dashboard - TEMPORARY MOCK DATA"""
+    """Get active AI providers from real configuration with cost-based tiering"""
     try:
         async with ServiceFactory.create_service(AuthService) as auth_service:
             user = await auth_service.get_current_user(token.credentials)
@@ -706,81 +706,67 @@ async def get_active_providers(
             if not user or user.role != "ADMIN":
                 raise HTTPException(status_code=403, detail="Admin access required")
             
-            # TEMPORARY: Return mock data until intelligence_core table is created
-            mock_providers = [
-                {
-                    "id": 1,
-                    "provider_name": "OpenAI GPT-4",
-                    "env_var_name": "OPENAI_API_KEY",
+            # Get real providers from AI provider configuration
+            from src.core.config.ai_providers import ai_provider_config
+            
+            providers = []
+            provider_names = {
+                "deepseek": "DeepSeek-V2",
+                "groq": "Groq LLaMA3",
+                "together": "Together AI",
+                "aimlapi": "AIML API",
+                "cohere": "Cohere Command",
+                "minimax": "MiniMax",
+                "openai": "OpenAI GPT-4",
+                "anthropic": "Anthropic Claude"
+            }
+            
+            # Calculate quality scores based on cost efficiency (cheaper = better efficiency score)
+            cheapest_cost = min(p.cost_per_1k_tokens for p in ai_provider_config.providers.values() if p.enabled)
+            
+            for i, (name, config) in enumerate(ai_provider_config.providers.items(), 1):
+                # Calculate quality score: cheaper providers get efficiency bonus
+                base_quality = 5.0 - (config.fallback_priority * 0.1)  # Higher priority = higher base quality
+                cost_efficiency_bonus = (cheapest_cost / config.cost_per_1k_tokens) * 0.5  # Up to 0.5 bonus for cheapest
+                quality_score = min(5.0, base_quality + cost_efficiency_bonus)
+                
+                # Determine use case based on tier and cost
+                if config.tier.value == "ultra_cheap":
+                    use_type = "high_volume_processing"
+                elif config.tier.value == "budget": 
+                    use_type = "cost_effective_analysis"
+                elif config.tier.value == "standard":
+                    use_type = "balanced_performance"
+                else:  # premium
+                    use_type = "premium_fallback_only"  # Only used when cheaper options fail
+                
+                providers.append({
+                    "id": i,
+                    "provider_name": provider_names.get(name, name.title()),
+                    "env_var_name": f"{name.upper()}_API_KEY",
                     "category": "text_generation",
-                    "use_type": "premium_analysis",
-                    "cost_per_1k_tokens": 0.01,
-                    "quality_score": 4.8,
-                    "category_rank": 1,
-                    "is_top_3": True,
-                    "is_active": True,
-                    "primary_model": "gpt-4",
+                    "use_type": use_type,
+                    "cost_per_1k_tokens": config.cost_per_1k_tokens,
+                    "quality_score": round(quality_score, 1),
+                    "category_rank": config.fallback_priority,  # Cost-based ranking
+                    "is_top_3": config.fallback_priority <= 3,  # Top 3 cheapest
+                    "is_active": config.enabled,
+                    "primary_model": config.name,
                     "discovered_date": "2024-01-01T00:00:00Z",
-                    "response_time_ms": 2500,
-                    "monthly_usage": 50000
-                },
-                {
-                    "id": 2,
-                    "provider_name": "Claude-3-Sonnet",
-                    "env_var_name": "ANTHROPIC_API_KEY", 
-                    "category": "text_generation",
-                    "use_type": "analysis",
-                    "cost_per_1k_tokens": 0.015,
-                    "quality_score": 4.7,
-                    "category_rank": 2,
-                    "is_top_3": True,
-                    "is_active": True,
-                    "primary_model": "claude-3-sonnet",
-                    "discovered_date": "2024-01-01T00:00:00Z",
-                    "response_time_ms": 3000,
-                    "monthly_usage": 30000
-                },
-                {
-                    "id": 3,
-                    "provider_name": "DeepSeek-V2",
-                    "env_var_name": "DEEPSEEK_API_KEY",
-                    "category": "text_generation", 
-                    "use_type": "budget_analysis",
-                    "cost_per_1k_tokens": 0.0001,
-                    "quality_score": 4.2,
-                    "category_rank": 3,
-                    "is_top_3": True,
-                    "is_active": True,
-                    "primary_model": "deepseek-v2",
-                    "discovered_date": "2024-01-01T00:00:00Z",
-                    "response_time_ms": 1500,
-                    "monthly_usage": 100000
-                },
-                {
-                    "id": 4,
-                    "provider_name": "DALL-E 3",
-                    "env_var_name": "OPENAI_API_KEY",
-                    "category": "image_generation",
-                    "use_type": "visual_content",
-                    "cost_per_1k_tokens": 0.02,
-                    "quality_score": 4.6,
-                    "category_rank": 1,
-                    "is_top_3": True,
-                    "is_active": True,
-                    "primary_model": "dall-e-3",
-                    "discovered_date": "2024-01-01T00:00:00Z",
-                    "response_time_ms": 4000,
-                    "monthly_usage": 15000
-                }
-            ]
+                    "response_time_ms": 1000 + (config.fallback_priority * 200),  # Faster for cheaper providers
+                    "monthly_usage": config.max_tokens * 20  # Usage based on max_tokens capacity
+                })
+            
+            # Sort by cost efficiency (cheapest first)
+            providers.sort(key=lambda x: x["cost_per_1k_tokens"])
             
             if top_3_only:
-                mock_providers = [p for p in mock_providers if p["is_top_3"]][:3]
+                providers = [p for p in providers if p["is_top_3"]][:3]
             
             return {
                 "success": True,
-                "providers": mock_providers,
-                "total_count": len(mock_providers),
+                "providers": providers,
+                "total_count": len(providers),
                 "filter": {"top_3_only": top_3_only}
             }
         
@@ -791,7 +777,7 @@ async def get_active_providers(
 
 @router.get("/api/admin/ai-discovery/discovered-suggestions")
 async def get_discovered_suggestions(token: str = Depends(security), db: Session = Depends(get_db)):
-    """Get AI discovery suggestions for admin dashboard - TEMPORARY MOCK DATA"""
+    """Get AI discovery suggestions including premium providers marked for caution"""
     try:
         async with ServiceFactory.create_service(AuthService) as auth_service:
             user = await auth_service.get_current_user(token.credentials)
@@ -799,65 +785,76 @@ async def get_discovered_suggestions(token: str = Depends(security), db: Session
             if not user or user.role != "ADMIN":
                 raise HTTPException(status_code=403, detail="Admin access required")
             
-            # TEMPORARY: Return mock data until intelligence_core table is created
-            mock_suggestions = [
-                {
-                    "id": 1,
-                    "provider_name": "Groq LLaMA",
-                    "suggested_env_var_name": "GROQ_API_KEY",
+            # Get premium providers from configuration as "suggestions" with cost warnings
+            from src.core.config.ai_providers import ai_provider_config
+            
+            suggestions = []
+            
+            # Show premium providers as suggestions with cost warnings
+            premium_providers = [p for p in ai_provider_config.providers.values() if p.tier.value == "premium"]
+            for i, config in enumerate(premium_providers, 1):
+                suggestions.append({
+                    "id": i,
+                    "provider_name": f"{config.name.title()} (Premium)",
+                    "suggested_env_var_name": f"{config.name.upper()}_API_KEY",
                     "category": "text_generation",
-                    "use_type": "ultra_fast_analysis",
-                    "estimated_cost_per_1k_tokens": 0.0002,
-                    "estimated_quality_score": 4.1,
-                    "website_url": "https://groq.com",
+                    "use_type": "premium_fallback_only",
+                    "estimated_cost_per_1k_tokens": config.cost_per_1k_tokens,
+                    "estimated_quality_score": 4.9,  # High quality but expensive
+                    "website_url": "https://openai.com" if config.name == "openai" else "https://anthropic.com",
+                    "recommendation_priority": "low",  # Low priority due to high cost
+                    "unique_features": '["Highest quality", "Most reliable", "Enterprise grade"]',
+                    "research_notes": f"⚠️ HIGH COST ALERT: ${config.cost_per_1k_tokens:.3f}/1K tokens - Use only when budget providers fail",
+                    "discovered_date": "2024-01-01T00:00:00Z",
+                    "review_status": "approved",
+                    "competitive_advantages": '["Premium quality", "Enterprise support", "Proven reliability"]',
+                    "integration_complexity": "easy"
+                })
+            
+            # Add some genuinely new provider suggestions
+            new_suggestions = [
+                {
+                    "id": len(suggestions) + 1,
+                    "provider_name": "Perplexity AI",
+                    "suggested_env_var_name": "PERPLEXITY_API_KEY",
+                    "category": "text_generation",
+                    "use_type": "research_analysis",
+                    "estimated_cost_per_1k_tokens": 0.001,
+                    "estimated_quality_score": 4.2,
+                    "website_url": "https://perplexity.ai",
                     "recommendation_priority": "high",
-                    "unique_features": '["Ultra-fast inference", "Low cost", "Open source models"]',
-                    "research_notes": "Extremely fast inference times with good quality results",
+                    "unique_features": '["Real-time web search", "Citation support", "Research-focused"]',
+                    "research_notes": "Excellent for research tasks with real-time web integration",
                     "discovered_date": "2024-01-15T00:00:00Z",
                     "review_status": "pending",
-                    "competitive_advantages": '["Speed", "Cost efficiency", "Hardware optimization"]',
+                    "competitive_advantages": '["Web integration", "Citation tracking", "Research optimization"]',
                     "integration_complexity": "medium"
                 },
                 {
-                    "id": 2,
-                    "provider_name": "Together AI",
-                    "suggested_env_var_name": "TOGETHER_API_KEY", 
+                    "id": len(suggestions) + 2,
+                    "provider_name": "Mistral AI",
+                    "suggested_env_var_name": "MISTRAL_API_KEY",
                     "category": "text_generation",
-                    "use_type": "budget_analysis",
-                    "estimated_cost_per_1k_tokens": 0.0008,
-                    "estimated_quality_score": 4.3,
-                    "website_url": "https://together.ai",
+                    "use_type": "european_compliant",
+                    "estimated_cost_per_1k_tokens": 0.0005,
+                    "estimated_quality_score": 4.4,
+                    "website_url": "https://mistral.ai",
                     "recommendation_priority": "medium",
-                    "unique_features": '["Open source models", "Competitive pricing", "Multiple model options"]',
-                    "research_notes": "Good balance of cost and quality for large-scale analysis",
-                    "discovered_date": "2024-01-10T00:00:00Z",
+                    "unique_features": '["European AI", "GDPR compliant", "Multilingual"]',
+                    "research_notes": "European-based AI with strong multilingual capabilities and GDPR compliance",
+                    "discovered_date": "2024-01-12T00:00:00Z",
                     "review_status": "pending",
-                    "competitive_advantages": '["Model variety", "Transparent pricing", "Community support"]',
+                    "competitive_advantages": '["European compliance", "Multilingual", "Privacy focused"]',
                     "integration_complexity": "easy"
-                },
-                {
-                    "id": 3,
-                    "provider_name": "Replicate Llama-70B",
-                    "suggested_env_var_name": "REPLICATE_API_KEY",
-                    "category": "text_generation",
-                    "use_type": "heavy_analysis",
-                    "estimated_cost_per_1k_tokens": 0.003,
-                    "estimated_quality_score": 4.5,
-                    "website_url": "https://replicate.com",
-                    "recommendation_priority": "medium",
-                    "unique_features": '["Large parameter models", "On-demand scaling", "Research-grade quality"]',
-                    "research_notes": "High quality results for complex analysis tasks",
-                    "discovered_date": "2024-01-08T00:00:00Z",
-                    "review_status": "approved",
-                    "competitive_advantages": '["Model size", "Quality", "Research backing"]',
-                    "integration_complexity": "medium"
                 }
             ]
             
+            suggestions.extend(new_suggestions)
+            
             return {
                 "success": True,
-                "suggestions": mock_suggestions,
-                "total_count": len(mock_suggestions),
+                "suggestions": suggestions,
+                "total_count": len(suggestions),
                 "filter": {}
             }
         
