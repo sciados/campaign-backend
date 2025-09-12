@@ -712,7 +712,7 @@ async def get_active_providers(
             providers = []
             provider_names = {
                 "deepseek": "DeepSeek-V2",
-                "groq": "Groq LLaMA3",
+                "groq": "Groq LLaMA3", 
                 "together": "Together AI",
                 "aimlapi": "AIML API",
                 "cohere": "Cohere Command",
@@ -721,41 +721,77 @@ async def get_active_providers(
                 "anthropic": "Anthropic Claude"
             }
             
-            # Calculate quality scores based on cost efficiency (cheaper = better efficiency score)
+            # Define provider capabilities (many support multiple content types)
+            provider_capabilities = {
+                "deepseek": ["text_generation"],
+                "groq": ["text_generation"],
+                "together": ["text_generation", "image_generation"],  # Supports both
+                "aimlapi": ["text_generation", "image_generation"],   # Multi-modal API
+                "cohere": ["text_generation"],
+                "minimax": ["text_generation", "image_generation", "video_generation"],  # Multi-modal
+                "openai": ["text_generation", "image_generation"],   # GPT-4 + DALL-E
+                "anthropic": ["text_generation", "image_generation"] # Claude 3 supports images
+            }
+            
+            # Calculate quality scores based on cost efficiency
             cheapest_cost = min(p.cost_per_1k_tokens for p in ai_provider_config.providers.values() if p.enabled)
             
-            for i, (name, config) in enumerate(ai_provider_config.providers.items(), 1):
-                # Calculate quality score: cheaper providers get efficiency bonus
-                base_quality = 5.0 - (config.fallback_priority * 0.1)  # Higher priority = higher base quality
-                cost_efficiency_bonus = (cheapest_cost / config.cost_per_1k_tokens) * 0.5  # Up to 0.5 bonus for cheapest
-                quality_score = min(5.0, base_quality + cost_efficiency_bonus)
+            # Create providers for each capability they support
+            provider_id = 1
+            for name, config in ai_provider_config.providers.items():
+                capabilities = provider_capabilities.get(name, ["text_generation"])
                 
-                # Determine use case based on tier and cost
-                if config.tier.value == "ultra_cheap":
-                    use_type = "high_volume_processing"
-                elif config.tier.value == "budget": 
-                    use_type = "cost_effective_analysis"
-                elif config.tier.value == "standard":
-                    use_type = "balanced_performance"
-                else:  # premium
-                    use_type = "premium_fallback_only"  # Only used when cheaper options fail
-                
-                providers.append({
-                    "id": i,
-                    "provider_name": provider_names.get(name, name.title()),
-                    "env_var_name": f"{name.upper()}_API_KEY",
-                    "category": "text_generation",
-                    "use_type": use_type,
-                    "cost_per_1k_tokens": config.cost_per_1k_tokens,
-                    "quality_score": round(quality_score, 1),
-                    "category_rank": config.fallback_priority,  # Cost-based ranking
-                    "is_top_3": config.fallback_priority <= 3,  # Top 3 cheapest
-                    "is_active": config.enabled,
-                    "primary_model": config.name,
-                    "discovered_date": "2024-01-01T00:00:00Z",
-                    "response_time_ms": 1000 + (config.fallback_priority * 200),  # Faster for cheaper providers
-                    "monthly_usage": config.max_tokens * 20  # Usage based on max_tokens capacity
-                })
+                for category in capabilities:
+                    # Calculate quality score with category-specific adjustments
+                    base_quality = 5.0 - (config.fallback_priority * 0.1)
+                    cost_efficiency_bonus = (cheapest_cost / config.cost_per_1k_tokens) * 0.5
+                    
+                    # Adjust quality based on category specialization
+                    category_bonus = 0
+                    if category == "image_generation" and name in ["openai", "together", "aimlapi"]:
+                        category_bonus = 0.3  # These are known for good image generation
+                    elif category == "video_generation" and name == "minimax":
+                        category_bonus = 0.4  # MiniMax specializes in video
+                    
+                    quality_score = min(5.0, base_quality + cost_efficiency_bonus + category_bonus)
+                    
+                    # Determine use case based on tier and category
+                    if config.tier.value == "ultra_cheap":
+                        use_type = f"high_volume_{category.replace('_', '_')}"
+                    elif config.tier.value == "budget":
+                        use_type = f"cost_effective_{category.replace('_', '_')}"
+                    elif config.tier.value == "standard":
+                        use_type = f"balanced_{category.replace('_', '_')}"
+                    else:  # premium
+                        use_type = f"premium_{category.replace('_', '_')}_fallback"
+                    
+                    # Adjust costs for different content types (images cost more)
+                    category_cost_multiplier = {
+                        "text_generation": 1.0,
+                        "image_generation": 20.0,  # Images typically cost ~20x more
+                        "video_generation": 100.0,  # Videos cost significantly more
+                        "audio_generation": 5.0     # Audio costs moderately more
+                    }
+                    
+                    adjusted_cost = config.cost_per_1k_tokens * category_cost_multiplier.get(category, 1.0)
+                    
+                    providers.append({
+                        "id": provider_id,
+                        "provider_name": f"{provider_names.get(name, name.title())} {category.replace('_', ' ').title()}",
+                        "env_var_name": f"{name.upper()}_API_KEY",
+                        "category": category,
+                        "use_type": use_type,
+                        "cost_per_1k_tokens": adjusted_cost,
+                        "quality_score": round(quality_score, 1),
+                        "category_rank": config.fallback_priority,
+                        "is_top_3": config.fallback_priority <= 3 and category == "text_generation",  # Top 3 for text
+                        "is_active": config.enabled,
+                        "primary_model": f"{config.name}-{category}",
+                        "discovered_date": "2024-01-01T00:00:00Z",
+                        "response_time_ms": 1000 + (config.fallback_priority * 200) + (50 if category != "text_generation" else 0),
+                        "monthly_usage": config.max_tokens * (5 if category == "text_generation" else 1)  # Less usage for images/video
+                    })
+                    provider_id += 1
             
             # Sort by cost efficiency (cheapest first)
             providers.sort(key=lambda x: x["cost_per_1k_tokens"])
@@ -811,7 +847,7 @@ async def get_discovered_suggestions(token: str = Depends(security), db: Session
                     "integration_complexity": "easy"
                 })
             
-            # Add some genuinely new provider suggestions
+            # Add diverse new provider suggestions across categories
             new_suggestions = [
                 {
                     "id": len(suggestions) + 1,
@@ -832,20 +868,54 @@ async def get_discovered_suggestions(token: str = Depends(security), db: Session
                 },
                 {
                     "id": len(suggestions) + 2,
-                    "provider_name": "Mistral AI",
-                    "suggested_env_var_name": "MISTRAL_API_KEY",
-                    "category": "text_generation",
-                    "use_type": "european_compliant",
-                    "estimated_cost_per_1k_tokens": 0.0005,
-                    "estimated_quality_score": 4.4,
-                    "website_url": "https://mistral.ai",
-                    "recommendation_priority": "medium",
-                    "unique_features": '["European AI", "GDPR compliant", "Multilingual"]',
-                    "research_notes": "European-based AI with strong multilingual capabilities and GDPR compliance",
-                    "discovered_date": "2024-01-12T00:00:00Z",
+                    "provider_name": "Stability AI SDXL",
+                    "suggested_env_var_name": "STABILITY_API_KEY",
+                    "category": "image_generation",
+                    "use_type": "high_quality_images",
+                    "estimated_cost_per_1k_tokens": 0.02,
+                    "estimated_quality_score": 4.6,
+                    "website_url": "https://stability.ai",
+                    "recommendation_priority": "high",
+                    "unique_features": '["Open source", "High resolution", "Style control", "Fast generation"]',
+                    "research_notes": "💡 BUDGET-FRIENDLY: Excellent image quality at competitive pricing vs DALL-E",
+                    "discovered_date": "2024-01-14T00:00:00Z",
                     "review_status": "pending",
-                    "competitive_advantages": '["European compliance", "Multilingual", "Privacy focused"]',
+                    "competitive_advantages": '["Cost effective", "Open source", "High quality", "Style flexibility"]',
                     "integration_complexity": "easy"
+                },
+                {
+                    "id": len(suggestions) + 3,
+                    "provider_name": "Replicate FLUX",
+                    "suggested_env_var_name": "REPLICATE_API_KEY",
+                    "category": "image_generation",
+                    "use_type": "creative_images",
+                    "estimated_cost_per_1k_tokens": 0.005,
+                    "estimated_quality_score": 4.4,
+                    "website_url": "https://replicate.com",
+                    "recommendation_priority": "medium",
+                    "unique_features": '["Multiple models", "Pay per use", "No subscription"]',
+                    "research_notes": "🎨 Great for creative image generation with flexible pricing model",
+                    "discovered_date": "2024-01-13T00:00:00Z",
+                    "review_status": "pending",
+                    "competitive_advantages": '["Model variety", "Pay per use", "No minimums", "Creative quality"]',
+                    "integration_complexity": "medium"
+                },
+                {
+                    "id": len(suggestions) + 4,
+                    "provider_name": "RunwayML Gen-2",
+                    "suggested_env_var_name": "RUNWAY_API_KEY",
+                    "category": "video_generation",
+                    "use_type": "video_content",
+                    "estimated_cost_per_1k_tokens": 0.10,
+                    "estimated_quality_score": 4.3,
+                    "website_url": "https://runwayml.com",
+                    "recommendation_priority": "medium",
+                    "unique_features": '["Video generation", "Motion control", "Style transfer"]',
+                    "research_notes": "🎬 Leading video AI platform - consider for video marketing campaigns",
+                    "discovered_date": "2024-01-11T00:00:00Z",
+                    "review_status": "pending",
+                    "competitive_advantages": '["Video specialization", "Motion control", "Professional quality"]',
+                    "integration_complexity": "medium"
                 }
             ]
             
