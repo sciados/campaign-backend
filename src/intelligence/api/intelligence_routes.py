@@ -23,7 +23,7 @@ from src.intelligence.services.intelligence_service import IntelligenceService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/intelligence", tags=["Intelligence"])
+router = APIRouter(prefix="", tags=["Intelligence"])
 security = HTTPBearer()
 intelligence_service = IntelligenceService()
 

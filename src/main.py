@@ -152,7 +152,7 @@ async def create_campaignforge_app() -> FastAPI:
             logger.info("Intelligence Engine module initialized successfully")
             intelligence_router = intelligence_module.get_api_router()
             if intelligence_router:
-                app.include_router(intelligence_router, prefix="/api")
+                app.include_router(intelligence_router, prefix="/api/intelligence")
         else:
             logger.error("Intelligence Engine module initialization failed")
     except Exception as e:
