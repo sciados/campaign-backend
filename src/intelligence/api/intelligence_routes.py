@@ -6,12 +6,14 @@
 FastAPI routes for Intelligence Engine operations.
 
 Provides REST API endpoints for intelligence analysis, retrieval, and management.
+Enhanced with 3-step intelligence-driven content generation.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field
 import logging
 
 from src.core.database import get_async_db
@@ -20,12 +22,31 @@ from src.core.shared.responses import SuccessResponse, PaginatedResponse
 from src.core.shared.exceptions import CampaignForgeException
 from src.intelligence.models.intelligence_models import IntelligenceRequest, IntelligenceResponse, AnalysisResult, AnalysisMethod
 from src.intelligence.services.intelligence_service import IntelligenceService
+from src.intelligence.services.intelligence_content_service import IntelligenceContentService, generate_intelligence_driven_content
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="", tags=["Intelligence"])
 security = HTTPBearer()
 intelligence_service = IntelligenceService()
+intelligence_content_service = IntelligenceContentService()
+
+# Request models for 3-step content generation
+class IntelligenceContentRequest(BaseModel):
+    """Request model for 3-step intelligence-driven content generation"""
+    content_type: str = Field(..., description="Type of content to generate")
+    campaign_id: Optional[str] = Field(None, description="Campaign context")
+    company_id: Optional[str] = Field(None, description="Company context")
+    preferences: Optional[Dict[str, Any]] = Field(None, description="User preferences")
+
+class IntelligenceContentResponse(BaseModel):
+    """Response model for 3-step content generation"""
+    success: bool
+    content_type: str
+    content: Dict[str, Any]
+    intelligence_driven: bool
+    three_step_process: Dict[str, Any]
+    metadata: Dict[str, Any]
 
 
 @router.post("/analyze", response_model=SuccessResponse[IntelligenceResponse])
@@ -146,6 +167,98 @@ async def list_intelligence(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve intelligence list"
+        )
+
+
+@router.post("/generate-content", response_model=SuccessResponse[IntelligenceContentResponse])
+async def generate_intelligence_driven_content_endpoint(
+    request: IntelligenceContentRequest,
+    credentials: HTTPBearer = Depends(security),
+    session: AsyncSession = Depends(get_async_db)
+):
+    """
+    Generate content using 3-step intelligence-driven process.
+    
+    This endpoint implements the strategic 3-step process:
+    1. Extract relevant data from user's intelligence database
+    2. Generate optimized prompts using extracted intelligence  
+    3. Route to cost-effective AI providers for content generation
+    
+    The process leverages your existing intelligence data to create
+    highly targeted, personalized content at a fraction of the cost
+    of traditional AI content generation.
+    """
+    try:
+        user_id = AuthMiddleware.require_authentication(credentials)
+        
+        logger.info(f"3-step intelligence content generation requested by user {user_id}")
+        logger.info(f"Content type: {request.content_type}, Campaign: {request.campaign_id}")
+        
+        # Generate using the 3-step service
+        result = await intelligence_content_service.generate_intelligence_driven_content(
+            content_type=request.content_type,
+            user_id=user_id,
+            company_id=request.company_id,
+            campaign_id=request.campaign_id,
+            preferences=request.preferences,
+            session=session
+        )
+        
+        # Convert to response model
+        response_data = IntelligenceContentResponse(
+            success=result.get("success", True),
+            content_type=result.get("content_type"),
+            content=result.get("content", {}),
+            intelligence_driven=result.get("intelligence_driven", True),
+            three_step_process=result.get("three_step_process", {}),
+            metadata=result.get("metadata", {})
+        )
+        
+        logger.info(f"3-step generation completed: intelligence_driven={result.get('intelligence_driven')}")
+        
+        return SuccessResponse(
+            data=response_data,
+            message="Intelligence-driven content generated successfully"
+        )
+        
+    except CampaignForgeException:
+        raise
+    except Exception as e:
+        logger.error(f"Intelligence content generation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate intelligence-driven content"
+        )
+
+
+@router.get("/content-service/metrics", response_model=SuccessResponse[Dict[str, Any]])
+async def get_intelligence_content_service_metrics(
+    credentials: HTTPBearer = Depends(security)
+):
+    """
+    Get metrics for the 3-step intelligence content service.
+    
+    Returns performance metrics including:
+    - Step-by-step operation counts
+    - Cost savings and optimization metrics
+    - Intelligence utilization scores
+    - Service performance analytics
+    """
+    try:
+        user_id = AuthMiddleware.require_authentication(credentials)
+        
+        metrics = intelligence_content_service.get_service_metrics()
+        
+        return SuccessResponse(
+            data=metrics,
+            message="Service metrics retrieved successfully"
+        )
+        
+    except Exception as e:
+        logger.error(f"Service metrics retrieval failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve service metrics"
         )
 
 
