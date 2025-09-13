@@ -204,11 +204,14 @@ async def delete_campaign(
     return success_response(message="Campaign deleted successfully")
 
 @router.post("/")
-async def create_campaign_enhanced(request: Dict[str, Any]):
+async def create_campaign_enhanced(
+    request: Dict[str, Any],
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_async_db)
+):
     """Create campaign with optional content generation"""
     try:
-        # Extract request data
-        user_id = request.get("user_id")
+        # Extract request data - use authenticated user_id
         company_id = request.get("company_id")
         name = request.get("title") or request.get("name")
         campaign_type = request.get("campaign_type", "universal")
@@ -218,10 +221,10 @@ async def create_campaign_enhanced(request: Dict[str, Any]):
         auto_generate_content = request.get("auto_generate_content", False)
         content_types = request.get("content_types", [])
         
-        if not all([user_id, company_id, name]):
+        if not all([company_id, name]):
             raise HTTPException(
                 status_code=400,
-                detail="user_id, company_id, and name are required"
+                detail="company_id and name are required"
             )
         
         async with ServiceFactory.create_transactional_service(EnhancedCampaignService) as campaign_service:
@@ -244,27 +247,3 @@ async def create_campaign_enhanced(request: Dict[str, Any]):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{campaign_id}")
-async def get_campaign_with_content(
-    campaign_id: UUID,
-    company_id: str,
-    include_content: bool = True
-):
-    """Get campaign with associated content"""
-    try:
-        async with ServiceFactory.create_service(EnhancedCampaignService) as campaign_service:
-            result = await campaign_service.get_campaign_with_content(
-                campaign_id=campaign_id,
-                company_id=company_id,
-                include_content=include_content
-            )
-        
-        if "error" in result:
-            raise HTTPException(status_code=404, detail=result["error"])
-        
-        return result
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
