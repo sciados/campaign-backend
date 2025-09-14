@@ -58,6 +58,65 @@ from src.content.content_module import ContentModule
 from src.storage.storage_module import StorageModule
 
 # ============================================================================
+# AUTO-MIGRATION FUNCTION
+# ============================================================================
+
+async def run_auto_migration():
+    """Auto-run database migration for enum types if needed"""
+    try:
+        from src.core.database import async_engine
+        from sqlalchemy import text
+        
+        async with async_engine.begin() as conn:
+            # Check if enums exist
+            check_enums = text("""
+                SELECT EXISTS (
+                    SELECT 1 FROM pg_type WHERE typname = 'campaignstatusenum'
+                ) as status_enum_exists,
+                EXISTS (
+                    SELECT 1 FROM pg_type WHERE typname = 'campaigntypeenum'
+                ) as type_enum_exists;
+            """)
+            
+            result = await conn.execute(check_enums)
+            row = result.fetchone()
+            
+            if row and row.status_enum_exists and row.type_enum_exists:
+                logger.info("✅ Database enum types already exist")
+                return True
+            
+            logger.info("🔧 Creating missing database enum types...")
+            
+            # Create enum types
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    CREATE TYPE campaignstatusenum AS ENUM (
+                        'draft', 'active', 'paused', 'completed', 'archived'
+                    );
+                EXCEPTION
+                    WHEN duplicate_object THEN null;
+                END $$;
+            """))
+            
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    CREATE TYPE campaigntypeenum AS ENUM (
+                        'email_sequence', 'social_media', 'content_marketing', 
+                        'affiliate_promotion', 'product_launch'
+                    );
+                EXCEPTION
+                    WHEN duplicate_object THEN null;
+                END $$;
+            """))
+            
+            logger.info("✅ Database enum types created successfully")
+            return True
+            
+    except Exception as e:
+        logger.error(f"Auto-migration failed: {e}")
+        return False
+
+# ============================================================================
 # LOGGING CONFIGURATION
 # ============================================================================
 
@@ -558,11 +617,18 @@ async def create_campaignforge_app() -> FastAPI:
                 "session_6_storage": "failed"
             }
     
-    # Phase 6: Database connectivity check
+    # Phase 6: Database connectivity check and migration
     logger.info("Phase 6: Checking database connectivity...")
     db_connected = await test_database_connection()
     if not db_connected:
         logger.warning("Database connectivity issues detected")
+    else:
+        # Auto-run migration if needed
+        logger.info("Running database migration check...")
+        try:
+            await run_auto_migration()
+        except Exception as e:
+            logger.warning(f"Auto-migration check failed: {e}")
     
     # Phase 7: Session 6 completion validation
     logger.info("Phase 7: Validating Session 6 completion...")
