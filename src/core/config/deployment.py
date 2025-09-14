@@ -85,6 +85,7 @@ class DeploymentConfig:
             "http://localhost:3006",
             "http://localhost:3007",
             "http://localhost:3008",
+            "http://localhost:3009",
             "http://127.0.0.1:3000",
             "http://127.0.0.1:3001",
             "http://127.0.0.1:3002",
@@ -93,7 +94,8 @@ class DeploymentConfig:
             "http://127.0.0.1:3005",
             "http://127.0.0.1:3006",
             "http://127.0.0.1:3007",
-            "http://127.0.0.1:3008"
+            "http://127.0.0.1:3008",
+            "http://127.0.0.1:3009"
         ]
         
         # Add localhost origins if not already included
