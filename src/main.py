@@ -110,6 +110,35 @@ async def run_auto_migration():
             """))
             
             logger.info("✅ Database enum types created successfully")
+            
+            # Update table columns if campaigns table exists
+            logger.info("🔧 Updating campaigns table columns...")
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    -- Check if campaigns table exists
+                    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'campaigns') THEN
+                        -- Update status column if needed
+                        BEGIN
+                            ALTER TABLE campaigns 
+                            ALTER COLUMN status TYPE campaignstatusenum 
+                            USING status::campaignstatusenum;
+                        EXCEPTION
+                            WHEN OTHERS THEN null;
+                        END;
+                        
+                        -- Update campaign_type column if needed  
+                        BEGIN
+                            ALTER TABLE campaigns 
+                            ALTER COLUMN campaign_type TYPE campaigntypeenum 
+                            USING campaign_type::campaigntypeenum;
+                        EXCEPTION
+                            WHEN OTHERS THEN null;
+                        END;
+                    END IF;
+                END $$;
+            """))
+            logger.info("✅ Updated campaigns table columns")
+            
             return True
             
     except Exception as e:
