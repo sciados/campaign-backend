@@ -63,11 +63,22 @@ from src.storage.storage_module import StorageModule
 
 async def run_auto_migration():
     """Auto-run database migration for enum types if needed"""
+    migration_engine = None
     try:
-        from src.core.database import async_engine
+        from src.core.config.settings import get_database_url
+        from sqlalchemy.ext.asyncio import create_async_engine
         from sqlalchemy import text
         
-        async with async_engine.begin() as conn:
+        # Create a dedicated migration engine
+        database_url = get_database_url(async_mode=True)
+        migration_engine = create_async_engine(
+            database_url,
+            pool_pre_ping=True,
+            pool_recycle=300,
+            echo=False
+        )
+        
+        async with migration_engine.begin() as conn:
             # Check if enums exist
             check_enums = text("""
                 SELECT EXISTS (
@@ -144,6 +155,11 @@ async def run_auto_migration():
     except Exception as e:
         logger.error(f"Auto-migration failed: {e}")
         return False
+    finally:
+        # Always dispose of the migration engine
+        if migration_engine:
+            await migration_engine.dispose()
+            logger.info("Migration engine disposed")
 
 # ============================================================================
 # LOGGING CONFIGURATION
