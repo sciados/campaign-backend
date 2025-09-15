@@ -36,9 +36,9 @@ class Campaign(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     
-    # Campaign classification
-    campaign_type = Column(String(50), nullable=False)  # Use string instead of enum
-    status = Column(String(20), default="draft")  # Use string instead of enum
+    # Campaign classification - use strings to match database enum values exactly
+    campaign_type = Column(String(50), nullable=False)
+    status = Column(String(20), default="draft")
     
     # Ownership
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
@@ -54,7 +54,7 @@ class Campaign(Base):
     intelligence_status = Column(String(50), default="pending")  # pending, processing, completed, failed
     
     # Workflow tracking
-    workflow_step = Column(Integer, default=0)
+    workflow_step = Column(String(50), default="INITIAL")
     workflow_data = Column(JSONB, nullable=True)
     is_workflow_complete = Column(Boolean, default=False)
     
@@ -90,7 +90,7 @@ class Campaign(Base):
             "roas": round(self.revenue / 100, 2) if self.revenue > 0 else 0
         }
     
-    def update_workflow_step(self, step: int, step_data: Optional[Dict[str, Any]] = None):
+    def update_workflow_step(self, step: str, step_data: Optional[Dict[str, Any]] = None):
         """Update workflow progress"""
         self.workflow_step = step
         
@@ -104,23 +104,23 @@ class Campaign(Base):
     def mark_workflow_complete(self):
         """Mark workflow as complete"""
         self.is_workflow_complete = True
-        self.workflow_step = 100
+        self.workflow_step = "COMPLETE"
         self.updated_at = datetime.now(timezone.utc)
     
     def launch_campaign(self):
         """Launch the campaign"""
-        self.status = CampaignStatusEnum.ACTIVE
+        self.status = CampaignStatusEnum.ACTIVE.value
         self.launched_at = datetime.now(timezone.utc)
         self.updated_at = datetime.now(timezone.utc)
     
     def pause_campaign(self):
         """Pause the campaign"""
-        self.status = CampaignStatusEnum.PAUSED
+        self.status = CampaignStatusEnum.PAUSED.value
         self.updated_at = datetime.now(timezone.utc)
     
     def complete_campaign(self):
         """Complete the campaign"""
-        self.status = CampaignStatusEnum.COMPLETED
+        self.status = CampaignStatusEnum.COMPLETED.value
         self.completed_at = datetime.now(timezone.utc)
         self.updated_at = datetime.now(timezone.utc)
     
@@ -130,8 +130,8 @@ class Campaign(Base):
             "id": str(self.id),
             "name": self.name,
             "description": self.description,
-            "campaign_type": self.campaign_type.value,
-            "status": self.status.value,
+            "campaign_type": self.campaign_type,  # Already a string now
+            "status": self.status,  # Already a string now
             "user_id": str(self.user_id),
             "company_id": str(self.company_id),
             "target_audience": self.target_audience,

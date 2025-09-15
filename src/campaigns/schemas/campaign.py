@@ -8,12 +8,11 @@ import uuid
 
 class CampaignStatusEnum(str, Enum):
     """Campaign status enumeration"""
-    DRAFT = "DRAFT"
-    IN_PROGRESS = "IN_PROGRESS"
-    ACTIVE = "ACTIVE"
-    PAUSED = "PAUSED"
-    COMPLETED = "COMPLETED"
-    ARCHIVED = "ARCHIVED"
+    DRAFT = "draft"
+    ACTIVE = "active"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    ARCHIVED = "archived"
 
 class CampaignTypeEnum(str, Enum):
     """Campaign type enumeration"""
@@ -148,7 +147,6 @@ class CampaignListResponse(BaseModel):
 class CampaignStatusBreakdown(BaseModel):
     """Campaign status breakdown schema"""
     draft: int = Field(default=0, ge=0)
-    in_progress: int = Field(default=0, ge=0)
     active: int = Field(default=0, ge=0)
     paused: int = Field(default=0, ge=0)
     completed: int = Field(default=0, ge=0)

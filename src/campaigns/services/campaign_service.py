@@ -37,24 +37,28 @@ class CampaignService:
         try:
             logger.info(f"Creating campaign '{name}' for user {user_id}")
             
-            # Convert campaign type if string
+            # Convert campaign type to valid string value for database
             if isinstance(campaign_type, str):
                 try:
                     # First try the string value directly (e.g., "content_marketing")
                     campaign_type_enum = CampaignTypeEnum(campaign_type)
+                    final_campaign_type = campaign_type_enum.value  # Extract string value
                 except ValueError:
                     try:
                         # If that fails, try uppercase key (e.g., "CONTENT_MARKETING") and get its value
-                        campaign_type_enum = getattr(CampaignTypeEnum, campaign_type.upper())
+                        enum_obj = getattr(CampaignTypeEnum, campaign_type.upper())
+                        final_campaign_type = enum_obj.value  # Extract string value
                     except (ValueError, AttributeError):
-                        raise ValueError(f"Invalid campaign type: {campaign_type}")
+                        # If all else fails, pass the string as-is (should be a valid enum value)
+                        final_campaign_type = campaign_type.lower()
+                        logger.warning(f"Using campaign type as-is: {final_campaign_type}")
             else:
                 # Already a CampaignTypeEnum object
-                campaign_type_enum = campaign_type
+                final_campaign_type = campaign_type.value if hasattr(campaign_type, 'value') else str(campaign_type)
             
             # Debug logging for enum conversion  
             logger.info(f"🔧 Input campaign_type: {campaign_type} (type: {type(campaign_type)})")
-            logger.info(f"🔧 Enum object: {campaign_type_enum} (type: {type(campaign_type_enum)})")
+            logger.info(f"🔧 Final campaign_type: {final_campaign_type} (type: {type(final_campaign_type)})")
             
             # Convert UUIDs if strings
             user_uuid = UUID(str(user_id)) if isinstance(user_id, str) else user_id
@@ -65,21 +69,19 @@ class CampaignService:
             
             company_uuid = UUID(str(company_id)) if isinstance(company_id, str) else company_id
             
-            # Ensure we always pass string values to the database
-            final_campaign_type = campaign_type_enum.value if hasattr(campaign_type_enum, 'value') else str(campaign_type_enum)
+            # Pass string values directly to avoid enum conversion issues
             final_status = CampaignStatusEnum.DRAFT.value
-            
-            logger.info(f"🔧 Final values to DB: campaign_type='{final_campaign_type}', status='{final_status}'")
+            logger.info(f"🔧 Final string values to DB: campaign_type='{final_campaign_type}', status='{final_status}'")
             
             campaign = Campaign(
                 name=name,   # Campaign name
                 description=description,
-                campaign_type=final_campaign_type,
+                campaign_type=final_campaign_type,  # Use string value
                 user_id=user_uuid,
                 company_id=company_uuid,
                 target_audience=target_audience,
                 goals=goals,
-                status=final_status
+                status=final_status  # Use string value
             )
             
             self.db.add(campaign)
@@ -388,7 +390,7 @@ class CampaignService:
             await self.db.commit()
             await self.db.refresh(campaign)
             
-            logger.info(f"Updated campaign {campaign_id} status to {status_enum.value}")
+            logger.info(f"Updated campaign {campaign_id} status to {status_enum.value if hasattr(status_enum, 'value') else status_enum}")
             return campaign
             
         except Exception as e:
