@@ -27,6 +27,12 @@ async def fix_enum_columns():
         logger.error("No database URL found in environment variables")
         return False
         
+    # Convert to async URL if needed
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql+asyncpg://', 1)
+    elif database_url.startswith('postgresql://'):
+        database_url = database_url.replace('postgresql://', 'postgresql+asyncpg://', 1)
+        
     logger.info(f"Connecting to database...")
     
     # Create engine
