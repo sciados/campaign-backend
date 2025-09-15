@@ -48,6 +48,7 @@ class Campaign(Base):
     target_audience = Column(Text, nullable=True)
     goals = Column(JSONB, nullable=True)  # JSON array of goals
     settings = Column(JSONB, nullable=True)  # Campaign-specific settings
+    messaging_focus = Column(Text, nullable=True)  # Messaging focus for landing page generation
     
     # Intelligence integration
     intelligence_id = Column(UUID(as_uuid=True), nullable=True)  # Link to intelligence data
