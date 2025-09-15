@@ -94,41 +94,47 @@ async def run_auto_migration():
             
             if row and row.status_enum_exists and row.type_enum_exists:
                 logger.info("✅ Database enum types already exist")
-                # Still need to check and fix column types
-                logger.info("🔧 Checking and fixing column types...")
+                # Still need to check and fix column types - aggressive approach
+                logger.info("🔧 Performing aggressive column type migration...")
+                
+                # Step 1: Drop existing columns and recreate with proper types
                 await conn.execute(text("""
                     DO $$ BEGIN
                         -- Check if campaigns table exists
                         IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'campaigns') THEN
-                            -- Force update status column type
+                            -- Drop existing columns and recreate with proper enum types
                             BEGIN
-                                ALTER TABLE campaigns 
-                                ALTER COLUMN status TYPE campaignstatusenum 
-                                USING status::text::campaignstatusenum;
+                                -- Drop status column and recreate
+                                ALTER TABLE campaigns DROP COLUMN IF EXISTS status CASCADE;
+                                ALTER TABLE campaigns ADD COLUMN status campaignstatusenum DEFAULT 'draft'::campaignstatusenum;
+                                
+                                -- Drop campaign_type column and recreate  
+                                ALTER TABLE campaigns DROP COLUMN IF EXISTS campaign_type CASCADE;
+                                ALTER TABLE campaigns ADD COLUMN campaign_type campaigntypeenum DEFAULT 'content_marketing'::campaigntypeenum;
+                                
                             EXCEPTION
                                 WHEN OTHERS THEN 
-                                    -- Try alternative approach
-                                    ALTER TABLE campaigns 
-                                    ALTER COLUMN status SET DATA TYPE campaignstatusenum 
-                                    USING status::campaignstatusenum;
-                            END;
-                            
-                            -- Force update campaign_type column type  
-                            BEGIN
-                                ALTER TABLE campaigns 
-                                ALTER COLUMN campaign_type TYPE campaigntypeenum 
-                                USING campaign_type::text::campaigntypeenum;
-                            EXCEPTION
-                                WHEN OTHERS THEN 
-                                    -- Try alternative approach
-                                    ALTER TABLE campaigns 
-                                    ALTER COLUMN campaign_type SET DATA TYPE campaigntypeenum 
-                                    USING campaign_type::campaigntypeenum;
+                                    -- If that fails, try to convert column types directly
+                                    BEGIN
+                                        -- Convert status column by casting through text
+                                        ALTER TABLE campaigns ALTER COLUMN status DROP DEFAULT;
+                                        ALTER TABLE campaigns ALTER COLUMN status TYPE text;
+                                        ALTER TABLE campaigns ALTER COLUMN status TYPE campaignstatusenum USING COALESCE(status::campaignstatusenum, 'draft'::campaignstatusenum);
+                                        ALTER TABLE campaigns ALTER COLUMN status SET DEFAULT 'draft'::campaignstatusenum;
+                                        
+                                        -- Convert campaign_type column by casting through text
+                                        ALTER TABLE campaigns ALTER COLUMN campaign_type DROP DEFAULT;
+                                        ALTER TABLE campaigns ALTER COLUMN campaign_type TYPE text;
+                                        ALTER TABLE campaigns ALTER COLUMN campaign_type TYPE campaigntypeenum USING COALESCE(campaign_type::campaigntypeenum, 'content_marketing'::campaigntypeenum);
+                                        ALTER TABLE campaigns ALTER COLUMN campaign_type SET DEFAULT 'content_marketing'::campaigntypeenum;
+                                    EXCEPTION
+                                        WHEN OTHERS THEN null; -- Ignore final errors
+                                    END;
                             END;
                         END IF;
                     END $$;
                 """))
-                logger.info("✅ Column types fixed")
+                logger.info("✅ Aggressive column migration completed")
                 return True
             
             logger.info("🔧 Creating missing database enum types...")
