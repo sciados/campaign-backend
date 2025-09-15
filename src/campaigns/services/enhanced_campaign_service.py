@@ -48,7 +48,7 @@ class EnhancedCampaignService(CampaignService):
                     "id": str(campaign.id),
                     "name": campaign.name,
                     "title": campaign.name,
-                    "status": campaign.status.value,
+                    "status": campaign.status,
                     "created_at": campaign.created_at.isoformat()
                 },
                 "content_generated": False,
@@ -119,8 +119,8 @@ class EnhancedCampaignService(CampaignService):
                     "name": campaign.name,
                     "title": campaign.name,
                     "description": campaign.description,
-                    "status": campaign.status.value,
-                    "campaign_type": campaign.campaign_type.value,
+                    "status": campaign.status,
+                    "campaign_type": campaign.campaign_type,
                     "created_at": campaign.created_at.isoformat(),
                     "updated_at": campaign.updated_at.isoformat()
                 },
