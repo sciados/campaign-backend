@@ -109,18 +109,18 @@ class Campaign(Base):
     
     def launch_campaign(self):
         """Launch the campaign"""
-        self.status = CampaignStatusEnum.ACTIVE.value
+        self.status = "active"
         self.launched_at = datetime.now(timezone.utc)
         self.updated_at = datetime.now(timezone.utc)
     
     def pause_campaign(self):
         """Pause the campaign"""
-        self.status = CampaignStatusEnum.PAUSED.value
+        self.status = "paused"
         self.updated_at = datetime.now(timezone.utc)
     
     def complete_campaign(self):
         """Complete the campaign"""
-        self.status = CampaignStatusEnum.COMPLETED.value
+        self.status = "completed"
         self.completed_at = datetime.now(timezone.utc)
         self.updated_at = datetime.now(timezone.utc)
     

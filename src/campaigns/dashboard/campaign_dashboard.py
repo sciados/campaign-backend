@@ -207,7 +207,7 @@ class CampaignDashboardService:
                     "campaign_id": str(campaign.id),
                     "campaign_name": campaign.name,
                     "action": self._determine_recent_action(campaign),
-                    "status": campaign.status.value if campaign.status else "unknown",
+                    "status": campaign.status if campaign.status else "unknown",
                     "timestamp": campaign.updated_at.isoformat() if campaign.updated_at else None
                 })
             
@@ -331,13 +331,13 @@ class CampaignDashboardService:
     
     def _determine_recent_action(self, campaign: Campaign) -> str:
         """Determine the most recent action for a campaign"""
-        if campaign.status == CampaignStatusEnum.DRAFT:
+        if campaign.status == "draft":
             return "created"
-        elif campaign.status == CampaignStatusEnum.ACTIVE:
+        elif campaign.status == "active":
             return "launched"
-        elif campaign.status == CampaignStatusEnum.COMPLETED:
+        elif campaign.status == "completed":
             return "completed"
-        elif campaign.status == CampaignStatusEnum.PAUSED:
+        elif campaign.status == "paused":
             return "paused"
         else:
             return "updated"
@@ -379,13 +379,18 @@ class CampaignDashboardService:
         campaigns: List[Campaign]
     ) -> Dict[str, int]:
         """Calculate campaign status distribution"""
-        distribution = {}
-        for status in CampaignStatusEnum:
-            distribution[status.value] = 0
+        # Initialize with known status values as strings
+        distribution = {
+            "draft": 0,
+            "active": 0,
+            "completed": 0,
+            "paused": 0,
+            "archived": 0
+        }
         
         for campaign in campaigns:
-            if campaign.status:
-                distribution[campaign.status.value] += 1
+            if campaign.status and campaign.status in distribution:
+                distribution[campaign.status] += 1
         
         return distribution
     
@@ -394,13 +399,18 @@ class CampaignDashboardService:
         campaigns: List[Campaign]
     ) -> Dict[str, int]:
         """Calculate campaign type distribution"""
-        distribution = {}
-        for campaign_type in CampaignTypeEnum:
-            distribution[campaign_type.value] = 0
+        # Initialize with known campaign type values as strings
+        distribution = {
+            "social_media": 0,
+            "email_marketing": 0,
+            "content_marketing": 0,
+            "affiliate_promotion": 0,
+            "product_launch": 0
+        }
         
         for campaign in campaigns:
-            if campaign.campaign_type:
-                distribution[campaign.campaign_type.value] += 1
+            if campaign.campaign_type and campaign.campaign_type in distribution:
+                distribution[campaign.campaign_type] += 1
         
         return distribution
     
@@ -604,7 +614,7 @@ class CampaignDashboardService:
         
         for campaign in campaigns:
             if campaign.workflow_data and campaign.campaign_type:
-                campaign_type = campaign.campaign_type.value
+                campaign_type = campaign.campaign_type
                 workflow_types[campaign_type] = workflow_types.get(campaign_type, 0) + 1
         
         return workflow_types

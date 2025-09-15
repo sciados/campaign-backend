@@ -38,7 +38,7 @@ class CampaignWorkflowEngine:
         try:
             logger.info(f"Initializing workflow for campaign {campaign.id}")
             
-            campaign_type = campaign.campaign_type.value if campaign.campaign_type else "DEFAULT"
+            campaign_type = campaign.campaign_type if campaign.campaign_type else "DEFAULT"
             
             # Register workflow in active workflows
             self._active_workflows[str(campaign.id)] = {
@@ -294,13 +294,13 @@ class CampaignWorkflowEngine:
             
             # Determine content type based on campaign type
             content_type = "email"  # default
-            if campaign.campaign_type == CampaignTypeEnum.SOCIAL_MEDIA:
+            if campaign.campaign_type == "social_media":
                 content_type = "social_media"
-            elif campaign.campaign_type == CampaignTypeEnum.CONTENT_MARKETING:
+            elif campaign.campaign_type == "content_marketing":
                 content_type = "blog_content"
-            elif campaign.campaign_type == CampaignTypeEnum.AFFILIATE_PROMOTION:
+            elif campaign.campaign_type == "affiliate_promotion":
                 content_type = "promotional"
-            elif campaign.campaign_type == CampaignTypeEnum.PRODUCT_LAUNCH:
+            elif campaign.campaign_type == "product_launch":
                 content_type = "launch_materials"
             
             # Trigger content generation
@@ -385,7 +385,7 @@ class CampaignWorkflowEngine:
     ) -> Dict[str, Any]:
         """Validate workflow configuration for campaign"""
         try:
-            campaign_type = campaign.campaign_type.value if campaign.campaign_type else "DEFAULT"
+            campaign_type = campaign.campaign_type if campaign.campaign_type else "DEFAULT"
             template = self.get_workflow_template(campaign_type)
             
             if not template:

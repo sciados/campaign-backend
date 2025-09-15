@@ -28,6 +28,9 @@ class EnhancedCampaignService(CampaignService):
         name: str,
         campaign_type: str,
         description: Optional[str] = None,
+        target_audience: Optional[str] = None,
+        goals: Optional[List[str]] = None,
+        keywords: Optional[List[str]] = None,
         auto_generate_content: bool = False,
         content_types: Optional[List[str]] = None,
         company_id: Optional[Union[str, UUID]] = None
@@ -40,6 +43,9 @@ class EnhancedCampaignService(CampaignService):
                 name=name,
                 campaign_type=campaign_type,
                 description=description,
+                target_audience=target_audience,
+                goals=goals,
+                keywords=keywords,
                 company_id=company_id
             )
             

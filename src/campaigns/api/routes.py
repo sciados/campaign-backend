@@ -217,6 +217,11 @@ async def create_campaign_enhanced(
         campaign_type = request.get("campaign_type", "universal")
         description = request.get("description")
         
+        # Campaign form data
+        target_audience = request.get("target_audience")
+        goals = request.get("goals", [])
+        keywords = request.get("keywords", [])
+        
         # Content generation options
         auto_generate_content = request.get("auto_generate_content", False)
         content_types = request.get("content_types", [])
@@ -233,6 +238,9 @@ async def create_campaign_enhanced(
                 name=name,
                 campaign_type=campaign_type,
                 description=description,
+                target_audience=target_audience,
+                goals=goals,
+                keywords=keywords,
                 auto_generate_content=auto_generate_content,
                 content_types=content_types,
                 company_id=company_id

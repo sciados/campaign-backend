@@ -31,6 +31,7 @@ class CampaignService:
         description: Optional[str] = None,
         target_audience: Optional[str] = None,
         goals: Optional[List[str]] = None,
+        keywords: Optional[List[str]] = None,
         company_id: Optional[Union[str, UUID]] = None
     ) -> Campaign:
         """Create a new campaign"""
@@ -38,23 +39,15 @@ class CampaignService:
             logger.info(f"Creating campaign '{name}' for user {user_id}")
             
             # Convert campaign type to valid string value for database
+            # Database now expects strings directly, no enum conversion needed
             if isinstance(campaign_type, str):
-                try:
-                    # First try the string value directly (e.g., "content_marketing")
-                    campaign_type_enum = CampaignTypeEnum(campaign_type)
-                    final_campaign_type = campaign_type_enum.value  # Extract string value
-                except ValueError:
-                    try:
-                        # If that fails, try uppercase key (e.g., "CONTENT_MARKETING") and get its value
-                        enum_obj = getattr(CampaignTypeEnum, campaign_type.upper())
-                        final_campaign_type = enum_obj.value  # Extract string value
-                    except (ValueError, AttributeError):
-                        # If all else fails, pass the string as-is (should be a valid enum value)
-                        final_campaign_type = campaign_type.lower()
-                        logger.warning(f"Using campaign type as-is: {final_campaign_type}")
+                # Normalize to lowercase for consistency
+                final_campaign_type = campaign_type.lower()
+                logger.info(f"Using string campaign type directly: {final_campaign_type}")
             else:
-                # Already a CampaignTypeEnum object
+                # Handle enum objects by extracting their value
                 final_campaign_type = campaign_type.value if hasattr(campaign_type, 'value') else str(campaign_type)
+                logger.info(f"Extracted campaign type from enum: {final_campaign_type}")
             
             # Debug logging for enum conversion  
             logger.info(f"🔧 Input campaign_type: {campaign_type} (type: {type(campaign_type)})")
@@ -69,9 +62,16 @@ class CampaignService:
             
             company_uuid = UUID(str(company_id)) if isinstance(company_id, str) else company_id
             
-            # Pass string values directly to avoid enum conversion issues
-            final_status = CampaignStatusEnum.DRAFT.value
+            # Pass string values directly to avoid enum conversion issues  
+            final_status = "draft"
+            
+            # Prepare settings with keywords if provided
+            campaign_settings = {}
+            if keywords:
+                campaign_settings["keywords"] = keywords
+                
             logger.info(f"🔧 Final string values to DB: campaign_type='{final_campaign_type}', status='{final_status}'")
+            logger.info(f"🔧 Campaign data: target_audience={bool(target_audience)}, goals={len(goals) if goals else 0}, keywords={len(keywords) if keywords else 0}")
             
             campaign = Campaign(
                 name=name,   # Campaign name
@@ -81,6 +81,7 @@ class CampaignService:
                 company_id=company_uuid,
                 target_audience=target_audience,
                 goals=goals,
+                settings=campaign_settings if campaign_settings else None,
                 status=final_status  # Use string value
             )
             
@@ -382,15 +383,15 @@ class CampaignService:
             campaign.updated_at = datetime.now(timezone.utc)
             
             # Update timestamps based on status
-            if status_enum == CampaignStatusEnum.ACTIVE:
+            if status_enum == "active" or (hasattr(status_enum, 'value') and status_enum.value == "active"):
                 campaign.launched_at = datetime.now(timezone.utc)
-            elif status_enum == CampaignStatusEnum.COMPLETED:
+            elif status_enum == "completed" or (hasattr(status_enum, 'value') and status_enum.value == "completed"):
                 campaign.completed_at = datetime.now(timezone.utc)
             
             await self.db.commit()
             await self.db.refresh(campaign)
             
-            logger.info(f"Updated campaign {campaign_id} status to {status_enum.value if hasattr(status_enum, 'value') else status_enum}")
+            logger.info(f"Updated campaign {campaign_id} status to {status_enum if isinstance(status_enum, str) else status_enum.value if hasattr(status_enum, 'value') else status_enum}")
             return campaign
             
         except Exception as e:
@@ -484,7 +485,7 @@ class CampaignService:
             if not campaign:
                 return False
             
-            campaign.status = CampaignStatusEnum.ARCHIVED
+            campaign.status = "archived"
             campaign.updated_at = datetime.now(timezone.utc)
             
             await self.db.commit()
@@ -525,7 +526,9 @@ class CampaignService:
                 status_result = await self.db.execute(
                     base_query.where(Campaign.status == status)
                 )
-                status_counts[status.value.lower()] = status_result.scalar() or 0
+                # Status is now a string, not enum
+                status_key = status if isinstance(status, str) else status.value
+                status_counts[status_key.lower()] = status_result.scalar() or 0
             
             # Recent campaigns (last 30 days)
             thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
@@ -539,7 +542,9 @@ class CampaignService:
                 type_result = await self.db.execute(
                     base_query.where(Campaign.campaign_type == campaign_type)
                 )
-                campaign_types[campaign_type.value.lower()] = type_result.scalar() or 0
+                # Campaign type is now a string, not enum  
+                type_key = campaign_type if isinstance(campaign_type, str) else campaign_type.value
+                campaign_types[type_key.lower()] = type_result.scalar() or 0
             
             # Calculate completion rate
             active_campaigns = status_counts.get("active", 0)
