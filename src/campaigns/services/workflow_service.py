@@ -113,7 +113,7 @@ class WorkflowService:
                     "auto_proceed": True
                 }
             ],
-            "CONTENT_MARKETING": [
+            "content_marketing": [
                 {
                     "step_number": 1,
                     "step_name": "Intelligence Analysis",

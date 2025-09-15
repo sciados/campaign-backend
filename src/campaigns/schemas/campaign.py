@@ -17,11 +17,11 @@ class CampaignStatusEnum(str, Enum):
 
 class CampaignTypeEnum(str, Enum):
     """Campaign type enumeration"""
-    EMAIL_SEQUENCE = "EMAIL_SEQUENCE"
-    SOCIAL_MEDIA = "SOCIAL_MEDIA"
-    CONTENT_MARKETING = "CONTENT_MARKETING"
-    AFFILIATE_PROMOTION = "AFFILIATE_PROMOTION"
-    PRODUCT_LAUNCH = "PRODUCT_LAUNCH"
+    EMAIL_SEQUENCE = "email_sequence"
+    SOCIAL_MEDIA = "social_media"
+    CONTENT_MARKETING = "content_marketing"
+    AFFILIATE_PROMOTION = "affiliate_promotion"
+    PRODUCT_LAUNCH = "product_launch"
 
 class CampaignWorkflowStateEnum(str, Enum):
     """Campaign workflow state enumeration"""
