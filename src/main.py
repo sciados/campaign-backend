@@ -112,8 +112,9 @@ async def run_auto_migration():
                                 ALTER TABLE campaigns DROP COLUMN IF EXISTS campaign_type CASCADE;
                                 ALTER TABLE campaigns ADD COLUMN campaign_type campaigntypeenum DEFAULT 'content_marketing'::campaigntypeenum;
                                 
-                                -- Fix target_audience column to be TEXT instead of JSONB
-                                ALTER TABLE campaigns ALTER COLUMN target_audience TYPE TEXT;
+                                -- Fix target_audience column default value mismatch
+                                ALTER TABLE campaigns ALTER COLUMN target_audience DROP DEFAULT;
+                                ALTER TABLE campaigns ALTER COLUMN target_audience SET DEFAULT NULL;
                                 
                             EXCEPTION
                                 WHEN OTHERS THEN 
@@ -131,8 +132,9 @@ async def run_auto_migration():
                                         ALTER TABLE campaigns ALTER COLUMN campaign_type TYPE campaigntypeenum USING COALESCE(campaign_type::campaigntypeenum, 'content_marketing'::campaigntypeenum);
                                         ALTER TABLE campaigns ALTER COLUMN campaign_type SET DEFAULT 'content_marketing'::campaigntypeenum;
                                         
-                                        -- Fix target_audience column type
-                                        ALTER TABLE campaigns ALTER COLUMN target_audience TYPE TEXT;
+                                        -- Fix target_audience column default value mismatch
+                                        ALTER TABLE campaigns ALTER COLUMN target_audience DROP DEFAULT;
+                                        ALTER TABLE campaigns ALTER COLUMN target_audience SET DEFAULT NULL;
                                     EXCEPTION
                                         WHEN OTHERS THEN null; -- Ignore final errors
                                     END;
