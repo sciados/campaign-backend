@@ -94,6 +94,41 @@ async def run_auto_migration():
             
             if row and row.status_enum_exists and row.type_enum_exists:
                 logger.info("✅ Database enum types already exist")
+                # Still need to check and fix column types
+                logger.info("🔧 Checking and fixing column types...")
+                await conn.execute(text("""
+                    DO $$ BEGIN
+                        -- Check if campaigns table exists
+                        IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'campaigns') THEN
+                            -- Force update status column type
+                            BEGIN
+                                ALTER TABLE campaigns 
+                                ALTER COLUMN status TYPE campaignstatusenum 
+                                USING status::text::campaignstatusenum;
+                            EXCEPTION
+                                WHEN OTHERS THEN 
+                                    -- Try alternative approach
+                                    ALTER TABLE campaigns 
+                                    ALTER COLUMN status SET DATA TYPE campaignstatusenum 
+                                    USING status::campaignstatusenum;
+                            END;
+                            
+                            -- Force update campaign_type column type  
+                            BEGIN
+                                ALTER TABLE campaigns 
+                                ALTER COLUMN campaign_type TYPE campaigntypeenum 
+                                USING campaign_type::text::campaigntypeenum;
+                            EXCEPTION
+                                WHEN OTHERS THEN 
+                                    -- Try alternative approach
+                                    ALTER TABLE campaigns 
+                                    ALTER COLUMN campaign_type SET DATA TYPE campaigntypeenum 
+                                    USING campaign_type::campaigntypeenum;
+                            END;
+                        END IF;
+                    END $$;
+                """))
+                logger.info("✅ Column types fixed")
                 return True
             
             logger.info("🔧 Creating missing database enum types...")

@@ -40,9 +40,14 @@ class CampaignService:
             # Convert campaign type if string
             if isinstance(campaign_type, str):
                 try:
-                    campaign_type_enum = CampaignTypeEnum(campaign_type.upper())
+                    # First try the string value directly (e.g., "content_marketing")
+                    campaign_type_enum = CampaignTypeEnum(campaign_type)
                 except ValueError:
-                    raise ValueError(f"Invalid campaign type: {campaign_type}")
+                    try:
+                        # If that fails, try uppercase key (e.g., "CONTENT_MARKETING")
+                        campaign_type_enum = getattr(CampaignTypeEnum, campaign_type.upper())
+                    except (ValueError, AttributeError):
+                        raise ValueError(f"Invalid campaign type: {campaign_type}")
             else:
                 campaign_type_enum = campaign_type
             
