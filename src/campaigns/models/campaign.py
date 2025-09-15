@@ -128,21 +128,42 @@ class Campaign(Base):
         """Convert campaign to dictionary"""
         return {
             "id": str(self.id),
-            "name": self.name,
+            "title": self.name,  # Required by CampaignResponse
+            "name": self.name,   # Legacy field
+            "display_name": self.name,  # Required by CampaignResponse
             "description": self.description,
             "campaign_type": self.campaign_type,  # Already a string now
             "status": self.status,  # Already a string now
             "user_id": str(self.user_id),
             "company_id": str(self.company_id),
             "target_audience": self.target_audience,
-            "goals": self.goals,
-            "workflow_step": self.workflow_step,
-            "is_workflow_complete": self.is_workflow_complete,
+            "goals": self.goals or [],
             "intelligence_status": self.intelligence_status,
+            
+            # Required workflow object
+            "workflow": {
+                "current_step": 0 if not self.workflow_step or self.workflow_step == "INITIAL" else 1,
+                "current_state": self.workflow_step or "INITIAL",
+                "completion_percentage": self.completion_percentage if hasattr(self, 'completion_percentage') else 0,
+                "is_complete": self.is_workflow_complete,
+                "auto_analysis_status": "PENDING"
+            },
+            
+            # Required counters object
+            "counters": {
+                "sources": 0,
+                "intelligence": 1 if self.intelligence_id else 0,
+                "content": 0
+            },
+            
+            # Required performance object
             "performance": self.get_performance_metrics(),
+            
+            # Timestamps as strings
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "launched_at": self.launched_at.isoformat() if self.launched_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
         }
     
     def __repr__(self):
