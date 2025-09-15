@@ -45,8 +45,7 @@ class CampaignService:
                 except ValueError:
                     try:
                         # If that fails, try uppercase key (e.g., "CONTENT_MARKETING") and get its value
-                        campaign_type_attr = getattr(CampaignTypeEnum, campaign_type.upper())
-                        campaign_type_enum = CampaignTypeEnum(campaign_type_attr.value)
+                        campaign_type_enum = getattr(CampaignTypeEnum, campaign_type.upper())
                     except (ValueError, AttributeError):
                         raise ValueError(f"Invalid campaign type: {campaign_type}")
             else:
