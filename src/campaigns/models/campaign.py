@@ -37,8 +37,8 @@ class Campaign(Base):
     description = Column(Text, nullable=True)
     
     # Campaign classification
-    campaign_type = Column(Enum(CampaignTypeEnum), nullable=False)
-    status = Column(Enum(CampaignStatusEnum), default=CampaignStatusEnum.DRAFT)
+    campaign_type = Column(String(50), nullable=False)  # Use string instead of enum
+    status = Column(String(20), default="draft")  # Use string instead of enum
     
     # Ownership
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
