@@ -64,12 +64,12 @@ class CampaignService:
             campaign = Campaign(
                 name=name,   # Campaign name
                 description=description,
-                campaign_type=campaign_type_enum,
+                campaign_type=campaign_type_enum.value if hasattr(campaign_type_enum, 'value') else campaign_type_enum,
                 user_id=user_uuid,
                 company_id=company_uuid,
                 target_audience=target_audience,
                 goals=goals,
-                status=CampaignStatusEnum.DRAFT
+                status=CampaignStatusEnum.DRAFT.value
             )
             
             self.db.add(campaign)
