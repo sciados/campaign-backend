@@ -25,6 +25,17 @@ class WorkflowService:
         self.db = db
         self._workflow_steps = self._initialize_workflow_steps()
         
+    def _map_campaign_type_to_workflow_key(self, db_campaign_type: str) -> str:
+        """Map database campaign_type values to workflow dictionary keys"""
+        mapping = {
+            "email_sequence": "EMAIL_SEQUENCE",
+            "social_media": "SOCIAL_MEDIA", 
+            "content_marketing": "content_marketing",
+            "affiliate_promotion": "AFFILIATE_PROMOTION",
+            "product_launch": "PRODUCT_LAUNCH"
+        }
+        return mapping.get(db_campaign_type, "DEFAULT")
+        
     def _initialize_workflow_steps(self) -> Dict[str, List[Dict[str, Any]]]:
         """Initialize workflow step definitions"""
         return {
@@ -463,7 +474,9 @@ class WorkflowService:
                 campaign.completion_percentage = int((next_step / total_steps) * 100)
                 
                 # Get campaign type and steps
-                campaign_type = campaign.campaign_type.value if campaign.campaign_type else "DEFAULT"
+                # Map database campaign_type to workflow key
+                db_campaign_type = campaign.campaign_type if isinstance(campaign.campaign_type, str) else str(campaign.campaign_type)
+                campaign_type = self._map_campaign_type_to_workflow_key(db_campaign_type)
                 steps = self._workflow_steps.get(campaign_type, self._workflow_steps["DEFAULT"])
                 
                 # Execute next step if auto_proceed is enabled
