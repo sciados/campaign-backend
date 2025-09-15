@@ -51,6 +51,10 @@ class CampaignService:
             else:
                 campaign_type_enum = campaign_type
             
+            # Debug logging for enum conversion
+            logger.info(f"🔧 Campaign type conversion: {campaign_type} -> {campaign_type_enum} -> {campaign_type_enum.value if hasattr(campaign_type_enum, 'value') else campaign_type_enum}")
+            logger.info(f"🔧 Status conversion: DRAFT -> {CampaignStatusEnum.DRAFT.value}")
+            
             # Convert UUIDs if strings
             user_uuid = UUID(str(user_id)) if isinstance(user_id, str) else user_id
             
