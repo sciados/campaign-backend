@@ -255,3 +255,52 @@ async def create_campaign_enhanced(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/{campaign_id}/workflow", response_model=Dict[str, Any])
+async def get_workflow_state(
+    campaign_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Get campaign workflow state"""
+    campaign_service = CampaignService(db)
+    
+    campaign = await campaign_service.get_campaign_by_id(
+        campaign_id=campaign_id,
+        user_id=user_id
+    )
+    
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    return {
+        "campaign_id": str(campaign.id),
+        "workflow_step": campaign.workflow_step or "INITIAL",
+        "is_complete": campaign.is_workflow_complete or False,
+        "workflow_data": campaign.workflow_data or {}
+    }
+
+@router.get("/{campaign_id}/content", response_model=Dict[str, Any])
+async def get_generated_content(
+    campaign_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Get generated content for campaign"""
+    campaign_service = CampaignService(db)
+    
+    campaign = await campaign_service.get_campaign_by_id(
+        campaign_id=campaign_id,
+        user_id=user_id
+    )
+    
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    # For now, return empty content - this can be enhanced later
+    return {
+        "campaign_id": str(campaign.id),
+        "content_items": [],
+        "total_items": 0,
+        "status": "pending"
+    }
+
