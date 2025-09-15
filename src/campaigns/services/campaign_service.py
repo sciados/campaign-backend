@@ -49,11 +49,12 @@ class CampaignService:
                     except (ValueError, AttributeError):
                         raise ValueError(f"Invalid campaign type: {campaign_type}")
             else:
+                # Already a CampaignTypeEnum object
                 campaign_type_enum = campaign_type
             
-            # Debug logging for enum conversion
-            logger.info(f"🔧 Campaign type conversion: {campaign_type} -> {campaign_type_enum} -> {campaign_type_enum.value if hasattr(campaign_type_enum, 'value') else campaign_type_enum}")
-            logger.info(f"🔧 Status conversion: DRAFT -> {CampaignStatusEnum.DRAFT.value}")
+            # Debug logging for enum conversion  
+            logger.info(f"🔧 Input campaign_type: {campaign_type} (type: {type(campaign_type)})")
+            logger.info(f"🔧 Enum object: {campaign_type_enum} (type: {type(campaign_type_enum)})")
             
             # Convert UUIDs if strings
             user_uuid = UUID(str(user_id)) if isinstance(user_id, str) else user_id
@@ -64,15 +65,21 @@ class CampaignService:
             
             company_uuid = UUID(str(company_id)) if isinstance(company_id, str) else company_id
             
+            # Ensure we always pass string values to the database
+            final_campaign_type = campaign_type_enum.value if hasattr(campaign_type_enum, 'value') else str(campaign_type_enum)
+            final_status = CampaignStatusEnum.DRAFT.value
+            
+            logger.info(f"🔧 Final values to DB: campaign_type='{final_campaign_type}', status='{final_status}'")
+            
             campaign = Campaign(
                 name=name,   # Campaign name
                 description=description,
-                campaign_type=campaign_type_enum.value if hasattr(campaign_type_enum, 'value') else campaign_type_enum,
+                campaign_type=final_campaign_type,
                 user_id=user_uuid,
                 company_id=company_uuid,
                 target_audience=target_audience,
                 goals=goals,
-                status=CampaignStatusEnum.DRAFT.value
+                status=final_status
             )
             
             self.db.add(campaign)
