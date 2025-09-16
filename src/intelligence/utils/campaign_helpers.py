@@ -13,7 +13,8 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.campaigns.models.campaign import Campaign
-from src.intelligence.repositories.intelligence_repository import IntelligenceRepository, GeneratedContent
+from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
+from src.content.models.content_generation import GeneratedContent
 
 # 🔧 CRUD IMPORTS - Using proven CRUD patterns
 from src.core.crud.campaign_crud import CampaignCRUD

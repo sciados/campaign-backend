@@ -1,5 +1,15 @@
 # src/intelligence/generators/email_generator.py
 """
+DEPRECATED: This file has been superseded by the new modular content generation system.
+
+New Implementation: src/content/generators/email_generator.py
+Deprecation Date: 2024-09-16
+Planned Removal: Next major release
+
+This file is maintained for compatibility but will be removed in future versions.
+Use the new content module for all content generation tasks.
+
+LEGACY DESCRIPTION:
 ENHANCED EMAIL SEQUENCE GENERATOR WITH ULTRA-CHEAP AI INTEGRATION + DATABASE LEARNING
 ✅ 97% cost savings through unified ultra-cheap provider system
 ✅ Campaign-centric email generation for affiliate marketers
@@ -16,6 +26,13 @@ ENHANCED EMAIL SEQUENCE GENERATOR WITH ULTRA-CHEAP AI INTEGRATION + DATABASE LEA
 🔥 FIXED: All syntax errors corrected
 🔥 FIXED: Circular import eliminated by moving imports inside methods
 """
+
+import warnings
+warnings.warn(
+    f"src.intelligence.generators.email_generator is deprecated. Use src.content.generators.email_generator instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import os
 import json

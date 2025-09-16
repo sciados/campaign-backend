@@ -535,10 +535,12 @@ class EnhancedContentGenerator:
         self.stability_generator = StabilityAIGenerator()
         self.social_generator = SocialWithStability()
         
-        # Import slideshow generator
+        # Import slideshow generator - DISABLED FOR RAILWAY DEPLOYMENT
         try:
-            from .slideshow_video_generator import SlideshowVideoGenerator
-            self.slideshow_generator = SlideshowVideoGenerator()
+            # from .slideshow_video_generator import SlideshowVideoGenerator
+            # self.slideshow_generator = SlideshowVideoGenerator()
+            logger.warning("SlideshowVideoGenerator disabled - legacy dependency")
+            self.slideshow_generator = None
         except ImportError:
             logger.warning("SlideshowVideoGenerator not available")
             self.slideshow_generator = None

@@ -1,13 +1,30 @@
 # src/intelligence/generators/blog_post_generator.py
 """
+DEPRECATED: This file has been superseded by the new modular content generation system.
+
+New Implementation: src/content/generators/blog_content_generator.py
+Deprecation Date: 2024-09-16
+Planned Removal: Next major release
+
+This file is maintained for compatibility but will be removed in future versions.
+Use the new content module for all content generation tasks.
+
+LEGACY DESCRIPTION:
 ✅ PHASE 2.2 COMPLETE: BLOG POST GENERATOR WITH PROVEN PATTERNS
 🎯 CRUD Integration: Complete with intelligence_crud operations
-🗄️ Storage Integration: Quota-aware file uploads via UniversalDualStorageManager  
+🗄️ Storage Integration: Quota-aware file uploads via UniversalDualStorageManager
 🔧 Product Name Fixes: Centralized extraction and placeholder substitution
 🚀 Enhanced AI: Ultra-cheap provider system with dynamic routing
 📊 SEO Optimization: Structured content with meta data
 ✅ Factory Pattern: BaseGenerator compliance for seamless integration
 """
+
+import warnings
+warnings.warn(
+    f"src.intelligence.generators.blog_post_generator is deprecated. Use src.content.generators.blog_content_generator instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import os
 import logging

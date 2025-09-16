@@ -1,5 +1,15 @@
 # src/intelligence/generators/ad_copy_generator.py
 """
+DEPRECATED: This file has been superseded by the new modular content generation system.
+
+New Implementation: src/content/generators/ad_copy_generator.py
+Deprecation Date: 2024-09-16
+Planned Removal: Next major release
+
+This file is maintained for compatibility but will be removed in future versions.
+Use the new content module for all content generation tasks.
+
+LEGACY DESCRIPTION:
 ENHANCED AD COPY GENERATOR WITH ULTRA-CHEAP AI INTEGRATION
 ✅ 97% cost savings through unified ultra-cheap provider system
 ✅ Platform-specific ad copy (Facebook, Google, Instagram, LinkedIn, YouTube)
@@ -10,6 +20,13 @@ ENHANCED AD COPY GENERATOR WITH ULTRA-CHEAP AI INTEGRATION
 🔥 FIXED: Product name placeholder elimination
 🔥 FIXED: Ultra-cheap provider missing attribute error
 """
+
+import warnings
+warnings.warn(
+    f"src.intelligence.generators.ad_copy_generator is deprecated. Use src.content.generators.ad_copy_generator instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import os
 import logging

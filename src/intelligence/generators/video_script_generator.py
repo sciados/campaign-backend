@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 # ✅ CRUD MIGRATION IMPORTS
 from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
 from src.core.crud.campaign_crud import CampaignCRUD
-from src.core.crud.intelligence_crud import intelligence_crud, GeneratedContent
+# from src.core.crud.intelligence_crud import intelligence_crud, GeneratedContent  # DEPRECATED - Legacy file
 
 # ✅ STORAGE SYSTEM INTEGRATION
 # from src.storage.universal_dual_storage import... # TODO: Fix this import

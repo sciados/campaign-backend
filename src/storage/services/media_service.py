@@ -34,9 +34,11 @@ class MediaService:
         """Lazy load video generator"""
         if self._video_generator is None:
             try:
-                # Import from old intelligence generators
-                from src.intelligence.generators.slideshow_video_generator import SlideshowVideoGenerator
-                self._video_generator = SlideshowVideoGenerator()
+                # Import from old intelligence generators - DISABLED FOR RAILWAY DEPLOYMENT
+                # from src.intelligence.generators.slideshow_video_generator import SlideshowVideoGenerator
+                # self._video_generator = SlideshowVideoGenerator()
+                logger.warning("Video generator disabled - legacy dependency")
+                self._video_generator = None
             except ImportError:
                 logger.warning("Video generator not available")
         return self._video_generator
