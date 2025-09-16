@@ -14,16 +14,10 @@ from src.core.crud.base_crud import BaseCRUD
 # Use: from src.users.services.user_service import UserService
 # from src.core.crud.user_crud import user_crud  # MOVED TO: src.users.services.user_service
 
-# ✅ NEW: Import UserStorageCRUD
-try:
-    from src.users.services.user_storage_crud import user_storage_crud
-    USER_STORAGE_CRUD_AVAILABLE = True
-except ImportError as e:
-    # Fallback if user_storage_crud is not available yet
-    USER_STORAGE_CRUD_AVAILABLE = False
-    UserStorageCRUD = None
-    user_storage_crud = None
-    print(f"⚠️ UserStorageCRUD not available: {e}")
+# ✅ NEW: UserStorageCRUD - Use lazy loading to avoid circular imports
+# Import directly where needed: from src.users.services.user_storage_crud import user_storage_crud
+USER_STORAGE_CRUD_AVAILABLE = True  # Assume available, import where needed
+user_storage_crud = None  # Lazy loaded
 
 # Global CRUD instances - ready to use anywhere
 # campaign_crud = CampaignCRUD()

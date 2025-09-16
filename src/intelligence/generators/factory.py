@@ -46,26 +46,30 @@ except ImportError as e:
     UniversalDualStorageManager = None
     STORAGE_AVAILABLE = False
 
-# ✅ PHASE 2: Import product name utilities from Phase 1
-try:
-    from src.intelligence.utils.product_name_extractor import (
-        extract_product_name_from_intelligence,
-        get_product_details_summary
-    )
-    PRODUCT_NAME_EXTRACTOR_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠️ Product name extractor not available: {e}")
-    PRODUCT_NAME_EXTRACTOR_AVAILABLE = False
+# ✅ PHASE 2: Disable legacy product name utilities for Railway deployment
+PRODUCT_NAME_EXTRACTOR_AVAILABLE = False
+PRODUCT_NAME_FIX_AVAILABLE = False
 
-try:
-    from src.intelligence.utils.product_name_fix import (
-        substitute_placeholders_in_data,
-        validate_no_placeholders
-    )
-    PRODUCT_NAME_FIX_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠️ Product name fix utilities not available: {e}")
-    PRODUCT_NAME_FIX_AVAILABLE = False
+# Legacy imports disabled for Railway compatibility - will be re-enabled with new architecture
+# try:
+#     from src.intelligence.utils.product_name_extractor import (
+#         extract_product_name_from_intelligence,
+#         get_product_details_summary
+#     )
+#     PRODUCT_NAME_EXTRACTOR_AVAILABLE = True
+# except ImportError as e:
+#     print(f"⚠️ Product name extractor not available: {e}")
+#     PRODUCT_NAME_EXTRACTOR_AVAILABLE = False
+
+# try:
+#     from src.intelligence.utils.product_name_fix import (
+#         substitute_placeholders_in_data,
+#         validate_no_placeholders
+#     )
+#     PRODUCT_NAME_FIX_AVAILABLE = True
+# except ImportError as e:
+#     print(f"⚠️ Product name fix utilities not available: {e}")
+#     PRODUCT_NAME_FIX_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 

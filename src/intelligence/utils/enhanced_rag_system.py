@@ -416,8 +416,16 @@ class EnhancedSalesPageAnalyzer:
     async def _get_base_analyzer(self):
         """Lazy load base analyzer to avoid circular imports"""
         if self._base_analyzer is None:
-            # from src.intelligence.analyzers import... # TODO: Fix this import
-            self._base_analyzer = SalesPageAnalyzer()
+            try:
+                # Try to import and instantiate the analyzer
+                from src.intelligence.analysis.analyzers import ContentAnalyzer
+                self._base_analyzer = ContentAnalyzer()
+            except ImportError:
+                # Fallback - create a simple analyzer replacement
+                logger.warning("SalesPageAnalyzer not available, using fallback")
+                self._base_analyzer = type('FallbackAnalyzer', (), {
+                    'analyze': lambda self, url: {'error': 'Analyzer not available', 'url': url}
+                })()
         return self._base_analyzer
     
     async def analyze_with_research_context(self, url: str, research_docs: List[str] = None) -> Dict[str, Any]:

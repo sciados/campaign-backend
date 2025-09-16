@@ -12,12 +12,12 @@ from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.database.models.campaign import Campaign
+from src.campaigns.models.campaign import Campaign
 from src.intelligence.repositories.intelligence_repository import IntelligenceRepository, GeneratedContent
 
 # 🔧 CRUD IMPORTS - Using proven CRUD patterns
 from src.core.crud.campaign_crud import CampaignCRUD
-from src.core.crud.intelligence_crud import IntelligenceCRUD
+# from src.core.crud.intelligence_crud import IntelligenceCRUD  # DEPRECATED - using IntelligenceRepository
 from src.core.crud.base_crud import BaseCRUD
 
 # ✅ Initialize CRUD instances

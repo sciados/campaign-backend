@@ -160,9 +160,26 @@ class UserSpecificRAGSystem:
         
         try:
             # Step 1: Base sales page analysis
-            # from src.intelligence.analyzers import... # TODO: Fix this import
-            analyzer = SalesPageAnalyzer()
-            base_analysis = await analyzer.analyze(sales_page_url)
+            try:
+                # Try to import and use the real analyzer
+                from src.intelligence.analysis.analyzers import ContentAnalyzer
+                analyzer = ContentAnalyzer()
+                base_analysis = await analyzer.analyze(sales_page_url)
+            except ImportError:
+                # Fallback - create basic analysis structure
+                logger.warning("SalesPageAnalyzer not available, using fallback analysis")
+                base_analysis = {
+                    'product_name': product_name or 'Product',
+                    'source_url': sales_page_url,
+                    'analysis_timestamp': datetime.now(timezone.utc).isoformat(),
+                    'offer_intelligence': {'products': [], 'pricing': []},
+                    'psychology_intelligence': {'pain_points': [], 'target_audience': 'Unknown'},
+                    'competitive_intelligence': {'opportunities': [], 'positioning': 'Unknown'},
+                    'content_intelligence': {'key_messages': []},
+                    'brand_intelligence': {'tone_voice': 'Unknown'},
+                    'confidence_score': 0.5,
+                    'fallback_used': True
+                }
             
             if not product_name:
                 product_name = base_analysis.get('product_name', 'Product')
@@ -1185,7 +1202,7 @@ async def analyze_with_user_optimization(
             raise HTTPException(status_code=400, detail="URL is required")
         
         # Initialize user-specific analyzer
-        analyzer = EnhancedSalesPageAnalyzer(user_type)
+        analyzer = SalesPageAnalyzer(user_type)
         
         # Perform optimized analysis
         result = await analyzer.analyze_for_user_type(
