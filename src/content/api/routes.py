@@ -561,6 +561,26 @@ async def get_campaign_content(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+@router.get("/results/{campaign_id}")
+async def get_content_results_alias(
+    campaign_id: UUID,
+    content_type: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    sort_by: str = "created_at",
+    sort_order: str = "desc"
+):
+    """Get content results for campaign (frontend compatibility alias)"""
+    # Reuse the existing campaign content endpoint logic
+    return await get_campaign_content(
+        campaign_id=campaign_id,
+        content_type=content_type,
+        limit=limit,
+        offset=offset,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
+
 @router.get("/content/{content_id}")
 async def get_content_by_id(content_id: str):
     """Get specific content by ID"""

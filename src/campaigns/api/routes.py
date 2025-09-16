@@ -279,6 +279,16 @@ async def get_workflow_state(
         "workflow_data": campaign.workflow_data or {}
     }
 
+@router.get("/{campaign_id}/workflow-state", response_model=Dict[str, Any])
+async def get_workflow_state_alias(
+    campaign_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Get campaign workflow state (frontend compatibility alias)"""
+    # Reuse the existing workflow endpoint logic
+    return await get_workflow_state(campaign_id, user_id, db)
+
 @router.get("/{campaign_id}/content", response_model=Dict[str, Any])
 async def get_generated_content(
     campaign_id: str,
