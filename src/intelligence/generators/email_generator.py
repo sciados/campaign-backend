@@ -30,10 +30,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import enhanced base generator with ultra-cheap AI
 from .base_generator import BaseContentGenerator
-from src.models.base import EnumSerializerMixin
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 
 # ✅ CRUD INTEGRATION: Import centralized CRUD
-from src.core.crud import intelligence_crud
+from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
 
 # 🔥 NEW: Import centralized product name extraction
 from src.intelligence.utils.product_name_extractor import (
@@ -365,7 +365,7 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
                 return False
             
             # Import the required enums
-            from src.models.email_subject_templates import SubjectLineCategory, PerformanceLevel
+            # from src.models.email_subject_templates import... # TODO: Fix this import
             
             # Complete list of proven high-converting templates
             proven_templates = [

@@ -13,7 +13,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.campaign import Campaign
-from src.core.crud.intelligence_crud import intelligence_crud, GeneratedContent
+from src.intelligence.repositories.intelligence_repository import IntelligenceRepository, GeneratedContent
 
 # 🔧 CRUD IMPORTS - Using proven CRUD patterns
 from src.core.crud.campaign_crud import CampaignCRUD
@@ -22,7 +22,7 @@ from src.core.crud.base_crud import BaseCRUD
 
 # ✅ Initialize CRUD instances
 campaign_crud = CampaignCRUD()
-intelligence_crud = IntelligenceCRUD()
+intelligence_repository = IntelligenceRepository()
 generated_content_crud = BaseCRUD(GeneratedContent)
 
 logger = logging.getLogger(__name__)

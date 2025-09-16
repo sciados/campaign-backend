@@ -28,7 +28,7 @@ from uuid import UUID
 
 # ✅ PHASE 2: Import CRUD integration from Phase 1
 try:
-    from src.core.crud.intelligence_crud import IntelligenceCRUD
+    from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
     from src.core.crud.campaign_crud import CampaignCRUD
     CRUD_AVAILABLE = True
 except ImportError as e:
@@ -39,7 +39,7 @@ except ImportError as e:
 
 # ✅ PHASE 2: Import storage system with quota management
 try:
-    from src.storage.universal_dual_storage import UniversalDualStorageManager
+    # from src.storage.universal_dual_storage import... # TODO: Fix this import
     STORAGE_AVAILABLE = True
 except ImportError as e:
     print(f"⚠️ Storage imports not available: {e}")
@@ -120,7 +120,7 @@ class ContentGeneratorFactory:
         self._content_type_mapping = {}
         
         # ✅ PHASE 2: Initialize CRUD systems with fallbacks
-        self.intelligence_crud = IntelligenceCRUD() if CRUD_AVAILABLE and IntelligenceCRUD else None
+        self.intelligence_repository = IntelligenceRepository() if CRUD_AVAILABLE and IntelligenceCRUD else None
         self.campaign_crud = CampaignCRUD() if CRUD_AVAILABLE and CampaignCRUD else None
         self.storage = UniversalDualStorageManager() if STORAGE_AVAILABLE and UniversalDualStorageManager else None
         self.db = db_session

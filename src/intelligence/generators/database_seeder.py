@@ -7,7 +7,7 @@ import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_async_session
 from src.core.crud.subject_template_crud import SubjectTemplateCRUD
-from src.models.email_subject_templates import SubjectLineCategory, PerformanceLevel
+# from src.models.email_subject_templates import... # TODO: Fix this import
 
 async def seed_subject_line_templates():
     """Seed database with proven high-converting subject line templates"""

@@ -21,10 +21,10 @@ from datetime import datetime, timezone
 from .base_generator import BaseGenerator
 
 # ✅ PHASE 2.2: Import CRUD infrastructure
-from src.core.crud.intelligence_crud import IntelligenceCRUD
+from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
 
 # ✅ PHASE 2.2: Import storage system
-from src.storage.universal_dual_storage import get_storage_manager
+# from src.storage.universal_dual_storage import... # TODO: Fix this import
 
 # ✅ PHASE 2.2: Import centralized product name utilities
 from src.intelligence.utils.product_name_fix import (
@@ -44,7 +44,7 @@ class BlogPostGenerator(BaseGenerator):
         super().__init__("blog_post", "Long-Form Blog Post Generator")
         
         # ✅ PHASE 2.2: CRUD Integration
-        self.intelligence_crud = IntelligenceCRUD()
+        self.intelligence_repository = IntelligenceRepository()
         
         # ✅ PHASE 2.2: Storage Integration  
         self.storage_manager = get_storage_manager()

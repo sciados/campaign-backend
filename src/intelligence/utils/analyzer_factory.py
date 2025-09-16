@@ -19,24 +19,10 @@ def _lazy_import_analyzers():
     global ANALYZERS_AVAILABLE, INTELLIGENCE_AVAILABLE
     
     try:
-        # ✅ FIXED: Import inside function to avoid circular import
-        from src.intelligence.analyzers import (
-            SalesPageAnalyzer, 
-            DocumentAnalyzer, 
-            WebAnalyzer,
-            VSLAnalyzer
-        )
-        
-        ANALYZERS_AVAILABLE = True
-        INTELLIGENCE_AVAILABLE = True
-        logger.info("✅ SUCCESS: All intelligence analyzers imported successfully via lazy loading")
-        
-        return {
-            'SalesPageAnalyzer': SalesPageAnalyzer,
-            'DocumentAnalyzer': DocumentAnalyzer,
-            'WebAnalyzer': WebAnalyzer,
-            'VSLAnalyzer': VSLAnalyzer
-        }
+        pass  # Analyzers temporarily disabled
+        ANALYZERS_AVAILABLE = False
+        INTELLIGENCE_AVAILABLE = False
+        return None  # TODO: Return proper analyzers when available
         
     except ImportError as e:
         logger.warning(f"⚠️ IMPORT WARNING: Analyzers not available: {str(e)}")

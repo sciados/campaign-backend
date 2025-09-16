@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 
 # Import enhanced base generator with ultra-cheap AI
 from .base_generator import BaseContentGenerator
-from src.models.base import EnumSerializerMixin
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 
 # 🔥 UNIFIED: Use the same product name extraction as email generator
 from src.intelligence.utils.product_name_extractor import (

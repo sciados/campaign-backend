@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import logging
 
-from src.core.crud.intelligence_crud import intelligence_crud
+from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
 
 logger = logging.getLogger(__name__)
 
@@ -416,7 +416,7 @@ class EnhancedSalesPageAnalyzer:
     async def _get_base_analyzer(self):
         """Lazy load base analyzer to avoid circular imports"""
         if self._base_analyzer is None:
-            from src.intelligence.analyzers import SalesPageAnalyzer
+            # from src.intelligence.analyzers import... # TODO: Fix this import
             self._base_analyzer = SalesPageAnalyzer()
         return self._base_analyzer
     

@@ -10,19 +10,19 @@ from datetime import datetime
 import json
 
 # ✅ CRUD MIGRATION IMPORTS
-from src.core.crud.intelligence_crud import IntelligenceCRUD
+from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
 from src.core.crud.campaign_crud import CampaignCRUD
 # from src.core.crud.intelligence_crud import intelligence_crud, GeneratedContent
 
 # ✅ STORAGE SYSTEM INTEGRATION
-from src.storage.universal_dual_storage import UniversalDualStorageManager
+# from src.storage.universal_dual_storage import... # TODO: Fix this import
 from src.storage.storage_tiers import StorageTier
 
 # ✅ DATABASE SESSION
 from src.core.database import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.base import EnumSerializerMixin
+from src.intelligence.utils.enum_serializer import EnumSerializerMixin
 # 🔥 ADD PRODUCT NAME FIX IMPORTS
 from ..utils.product_name_fix import (
     extract_product_name_from_intelligence
@@ -86,7 +86,7 @@ class UltraCheapImageGenerator(EnumSerializerMixin):
     def __init__(self):
         self.providers = self._initialize_providers()
         # ✅ INITIALIZE CRUD INSTANCES
-        self.intelligence_crud = IntelligenceCRUD()
+        self.intelligence_repository = IntelligenceRepository()
         self.campaign_crud = CampaignCRUD()
         
         # ✅ INITIALIZE STORAGE SYSTEM

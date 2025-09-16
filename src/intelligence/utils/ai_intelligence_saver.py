@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # 🔧 CRUD Infrastructure
-from src.core.crud.intelligence_crud import intelligence_crud
+from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
 from src.utils.json_utils import safe_json_dumps, safe_json_loads
 
 logger = logging.getLogger(__name__)
