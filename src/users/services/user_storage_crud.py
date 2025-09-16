@@ -639,4 +639,4 @@ class UserStorageCRUD(BaseCRUD[UserStorageUsage]):
         }
 
 # ✅ FIXED: Create singleton instance with correct typing
-# user_storage_crud = UserStorageCRUD()
+user_storage_crud = UserStorageCRUD()

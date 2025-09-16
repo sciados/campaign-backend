@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.campaign import Campaign
+from src.core.database.models.campaign import Campaign
 from src.intelligence.repositories.intelligence_repository import IntelligenceRepository, GeneratedContent
 
 # 🔧 CRUD IMPORTS - Using proven CRUD patterns

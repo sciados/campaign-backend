@@ -21,8 +21,9 @@ from abc import ABC, abstractmethod
 from uuid import UUID
 
 # ✅ PHASE 3: Import updated CRUD for new schema
-from src.core.crud.intelligence_crud import intelligence_crud
+# from src.core.crud.intelligence_crud import intelligence_crud
 from src.core.crud.campaign_crud import CampaignCRUD
+from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
 
 # ✅ PHASE 3: Import storage system with quota management
 try:
@@ -114,7 +115,7 @@ class BaseContentGenerator(ABC):
         
         try:
             # ✅ PHASE 3: Use new intelligence_crud methods for recent intelligence
-            intelligence_sources = await intelligence_crud.get_recent_intelligence(
+            intelligence_sources = await intelligence_sources.get_recent_intelligence(
                 db=self.db,
                 days=30,
                 limit=10
@@ -296,7 +297,7 @@ class BaseContentGenerator(ABC):
             }
             
             # ✅ PHASE 3: Store using new intelligence_crud
-            stored_intelligence_id = await intelligence_crud.create_intelligence(
+            stored_intelligence_id = await intelligence_id.create_intelligence(
                 db=self.db,
                 analysis_data=analysis_data
             )

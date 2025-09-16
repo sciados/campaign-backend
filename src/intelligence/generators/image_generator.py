@@ -16,7 +16,7 @@ from src.core.crud.campaign_crud import CampaignCRUD
 
 # ✅ STORAGE SYSTEM INTEGRATION
 # from src.storage.universal_dual_storage import... # TODO: Fix this import
-from src.storage.storage_tiers import StorageTier
+# from src.storage.storage_tiers import StorageTier  # LEGACY - Commented out for deployment
 
 # ✅ DATABASE SESSION
 from src.core.database import get_async_db

@@ -12,7 +12,7 @@ import logging
 # Use existing auth functions
 from src.core.database import get_async_db
 from src.auth.dependencies import get_current_active_user
-from src.models import User, Company, GeneratedContent, Campaign
+from src.core.database.models import User, Company, GeneratedContent, Campaign
 
 # Try to import landing page components
 try:

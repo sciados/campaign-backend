@@ -365,7 +365,7 @@ class EmailSequenceGenerator(BaseContentGenerator, EnumSerializerMixin):
                 return False
             
             # Import the required enums
-            # from src.models.email_subject_templates import... # TODO: Fix this import
+            # from src.core.database.models.email_subject_templates import... # TODO: Fix this import
             
             # Complete list of proven high-converting templates
             proven_templates = [

@@ -13,7 +13,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from src.core.crud.subject_template_crud import SubjectTemplateCRUD, SubjectPerformanceCRUD
-# from src.models.email_subject_templates import... # TODO: Fix this import
+# from src.core.database.models.email_subject_templates import... # TODO: Fix this import
 import re
 import uuid
 

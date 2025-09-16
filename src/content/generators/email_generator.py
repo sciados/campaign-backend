@@ -1,4 +1,5 @@
 # src/content/generators/email_generator.py
+"""Remove ALL tempalate mock data and generate content using the campaign intelligence data"""
 
 import logging
 from typing import List, Dict, Any, Optional, Union
@@ -158,7 +159,8 @@ class EmailGenerator:
         strategic_angle: str,
         intelligence: Optional[List[Dict]]
     ) -> str:
-        """Generate subject line using templates and intelligence"""
+        """Last resort fallback is to generate subject line using templates and intelligence"""
+        """Ai should always generate subject lines using the stored campaign intelligence and introduce the product_name"""
         
         # Subject line templates by strategic angle
         templates = {
