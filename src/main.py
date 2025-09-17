@@ -135,6 +135,20 @@ async def create_campaignforge_app() -> FastAPI:
     # Phase 2: Configure CORS middleware
     logger.info("Phase 2: Configuring CORS...")
     setup_cors(app)
+
+    # EMERGENCY: Add additional CORS as backup for production domain
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "https://www.rodgersdigital.com",
+            "https://rodgersdigital.com",
+            "*"  # Emergency wildcard fallback
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    logger.warning("Emergency CORS middleware added for production domain")
     
     # Phase 3: Add core middleware
     logger.info("Phase 3: Adding middleware...")

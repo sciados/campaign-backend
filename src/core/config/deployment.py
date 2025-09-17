@@ -71,11 +71,26 @@ class DeploymentConfig:
     def get_cors_config(self) -> Dict[str, Any]:
         """Get CORS configuration for Railway deployment."""
 
-        # Get configured origins, with fallbacks
+        # Get configured origins, with emergency fallbacks for Railway deployment
         try:
             cors_origins = settings.cors_origins or []
         except Exception:
             cors_origins = []
+
+        # EMERGENCY: Add production domain directly if not present
+        emergency_production_origins = [
+            "https://www.rodgersdigital.com",
+            "https://rodgersdigital.com"
+        ]
+
+        # Always ensure production domain is included
+        for origin in emergency_production_origins:
+            if origin not in cors_origins:
+                cors_origins.append(origin)
+                logger.warning(f"Emergency CORS: Added {origin}")
+
+        # Log current origins for debugging
+        logger.info(f"CORS origins before production additions: {cors_origins}")
 
         # Add production domains if not already included
         production_origins = [
