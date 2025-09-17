@@ -70,9 +70,24 @@ class DeploymentConfig:
     
     def get_cors_config(self) -> Dict[str, Any]:
         """Get CORS configuration for Railway deployment."""
-        
-        # Get configured origins
-        cors_origins = settings.cors_origins
+
+        # Get configured origins, with fallbacks
+        try:
+            cors_origins = settings.cors_origins
+        except Exception:
+            cors_origins = []
+
+        # Add production domains if not already included
+        production_origins = [
+            "https://www.rodgersdigital.com",
+            "https://rodgersdigital.com",
+            "https://campaignforge-frontend.vercel.app",
+            "https://campaignforge-frontend-git-main.vercel.app"
+        ]
+
+        for origin in production_origins:
+            if origin not in cors_origins:
+                cors_origins.append(origin)
         
         # Add localhost origins for development
         localhost_origins = [
