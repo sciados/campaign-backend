@@ -71,6 +71,10 @@ class DeploymentConfig:
     def get_cors_config(self) -> Dict[str, Any]:
         """Get CORS configuration for Railway deployment."""
 
+        # Initialize logging first
+        import logging
+        logger = logging.getLogger(__name__)
+
         # Get configured origins, with emergency fallbacks for Railway deployment
         try:
             cors_origins = settings.cors_origins or []
@@ -100,9 +104,7 @@ class DeploymentConfig:
             "https://campaignforge-frontend-git-main.vercel.app"
         ]
 
-        # Debug logging
-        import logging
-        logger = logging.getLogger(__name__)
+        # Debug logging for production origins
         logger.info(f"Initial CORS origins from settings: {cors_origins}")
 
         for origin in production_origins:
