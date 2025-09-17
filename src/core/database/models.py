@@ -49,18 +49,21 @@ class UserMixin:
 
 class IntelligenceCore(Base, TimestampMixin, UserMixin):
     """
-    Core intelligence metadata table (lean and optimized).
-    
-    This is the main table for intelligence records with minimal,
-    frequently-accessed data for optimal query performance.
+    Core intelligence metadata table with complete analysis data storage.
+
+    This is the main table for intelligence records including the complete
+    intelligence data from the 3-stage analysis pipeline.
     """
     __tablename__ = "intelligence_core"
-    
+
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     product_name = Column(String, nullable=False, index=True)
     source_url = Column(Text, nullable=False)
     confidence_score = Column(Float, default=0.0, index=True)
     analysis_method = Column(String, nullable=False)  # 'fast', 'deep', 'enhanced'
+
+    # Complete intelligence data storage (thousands of characters)
+    full_analysis_data = Column(JSON, nullable=True)  # Complete intelligence from 3-stage pipeline
     
     # Relationships
     product_data = relationship("ProductData", back_populates="intelligence", cascade="all, delete-orphan")

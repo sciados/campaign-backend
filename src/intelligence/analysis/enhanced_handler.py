@@ -21,8 +21,11 @@ from datetime import datetime
 
 import openai
 import anthropic
+import httpx
+import json
 
 from src.core.config import ai_provider_config, settings
+from src.core.config.ai_providers import AIProviderTier
 from src.core.shared.decorators import retry_on_failure
 from src.core.shared.exceptions import AIProviderError, ServiceUnavailableError
 
@@ -33,9 +36,14 @@ class EnhancedAnalysisHandler:
     """Enhanced handler with full 3-stage pipeline for rich intelligence generation."""
     
     def __init__(self):
+        # Use ultra-cheap AI providers instead of expensive ones
+        self.ultra_cheap_providers = ai_provider_config.get_providers_by_tier(AIProviderTier.ULTRA_CHEAP)
+        self.current_provider_index = 0
+
+        # Fallback to premium providers only if ultra-cheap fail
         self.openai_client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         self.anthropic_client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-        
+
         # Enhancement modules
         self.enhancers = {
             "scientific": self._scientific_enhancer,
@@ -45,6 +53,8 @@ class EnhancedAnalysisHandler:
             "authority": self._authority_enhancer,
             "market": self._market_enhancer
         }
+
+        logger.info(f"Initialized with {len(self.ultra_cheap_providers)} ultra-cheap AI providers")
     
     # =====================================
     # STAGE 1: BASE ANALYZER
@@ -592,30 +602,123 @@ class EnhancedAnalysisHandler:
         
         return providers[:3]  # Limit to 3 providers for cost control
     
-    async def _query_ai_provider(self, prompt: str, provider_name: str) -> str:
-        """Query specific AI provider with fallback."""
+    async def _query_ai_provider(self, prompt: str, provider_name: str = "ultra_cheap") -> str:
+        """Query AI provider with ultra-cheap providers prioritized for cost optimization."""
         try:
-            if provider_name.lower() in ["openai", "gpt"]:
+            # Always try ultra-cheap providers first for cost savings
+            if provider_name in ["ultra_cheap", "cheap", "budget"] or provider_name not in ["openai", "anthropic"]:
+                logger.info("Using ultra-cheap providers for cost optimization")
+                return await self._query_ultra_cheap_provider(prompt)
+            elif provider_name.lower() in ["openai", "gpt"]:
+                logger.warning("Using expensive OpenAI provider")
                 return await self._query_openai(prompt)
             elif provider_name.lower() in ["anthropic", "claude"]:
+                logger.warning("Using expensive Anthropic provider")
                 return await self._query_anthropic(prompt)
             else:
-                # Fallback to OpenAI
-                return await self._query_openai(prompt)
+                # Default to ultra-cheap providers
+                return await self._query_ultra_cheap_provider(prompt)
         except Exception as e:
             logger.error(f"Provider {provider_name} failed: {e}")
-            # Try fallback provider
-            if provider_name != "openai":
-                return await self._query_openai(prompt)
-            raise
+            # Final fallback to OpenAI only if ultra-cheap providers fail
+            logger.warning("All providers failed, using OpenAI as final fallback")
+            return await self._query_openai(prompt)
     
+    async def _query_ultra_cheap_provider(self, prompt: str) -> str:
+        """Query ultra-cheap AI providers with rotation for cost optimization."""
+
+        if not self.ultra_cheap_providers:
+            logger.warning("No ultra-cheap providers available, falling back to OpenAI")
+            return await self._query_openai(prompt)
+
+        # Try each ultra-cheap provider in rotation
+        for attempt in range(len(self.ultra_cheap_providers)):
+            provider = self.ultra_cheap_providers[self.current_provider_index]
+
+            try:
+                logger.info(f"Using ultra-cheap provider: {provider.name} (${provider.cost_per_1k_tokens}/1K tokens)")
+
+                if provider.name == "deepseek":
+                    result = await self._query_deepseek(prompt, provider)
+                elif provider.name == "groq":
+                    result = await self._query_groq(prompt, provider)
+                else:
+                    # Skip unknown providers
+                    self._rotate_provider()
+                    continue
+
+                # Success! Rotate for next call
+                self._rotate_provider()
+                return result
+
+            except Exception as e:
+                logger.warning(f"Ultra-cheap provider {provider.name} failed: {e}")
+                self._rotate_provider()
+                continue
+
+        # If all ultra-cheap providers failed, fallback to OpenAI
+        logger.warning("All ultra-cheap providers failed, falling back to OpenAI")
+        return await self._query_openai(prompt)
+
+    def _rotate_provider(self):
+        """Rotate to next ultra-cheap provider."""
+        self.current_provider_index = (self.current_provider_index + 1) % len(self.ultra_cheap_providers)
+
+    async def _query_deepseek(self, prompt: str, provider_config) -> str:
+        """Query DeepSeek API (ultra-cheap at $0.0001/1K tokens)."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.deepseek.com/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {provider_config.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "deepseek-chat",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 1500,
+                        "temperature": 0.1
+                    },
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            raise AIProviderError(f"DeepSeek query failed: {str(e)}", provider="deepseek")
+
+    async def _query_groq(self, prompt: str, provider_config) -> str:
+        """Query Groq API (ultra-cheap at $0.0002/1K tokens)."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {provider_config.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "mixtral-8x7b-32768",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 1500,
+                        "temperature": 0.1
+                    },
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            raise AIProviderError(f"Groq query failed: {str(e)}", provider="groq")
+
     async def _query_openai(self, prompt: str) -> str:
-        """Query OpenAI API with enhanced error handling."""
+        """Query OpenAI API (expensive fallback - $0.01/1K tokens)."""
         try:
             response = await self.openai_client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=1500,  # Increased for enhancement responses
+                max_tokens=1500,
                 temperature=0.1
             )
             return response.choices[0].message.content
