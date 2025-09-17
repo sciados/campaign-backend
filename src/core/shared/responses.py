@@ -37,7 +37,7 @@ class SuccessResponse(StandardResponse[T]):
     success: Literal[True] = Field(True, description="Success status")
     
     def __init__(self, data: T, message: Optional[str] = None, **kwargs):
-        super().__init__(success=True, data=data, message=message, **kwargs)
+        super().__init__(data=data, message=message, **kwargs)
 
 
 class ErrorResponse(StandardResponse[None]):
@@ -55,7 +55,6 @@ class ErrorResponse(StandardResponse[None]):
         **kwargs
     ):
         super().__init__(
-            success=False,
             data=None,
             message=message,
             error_code=error_code,
