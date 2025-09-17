@@ -200,7 +200,8 @@ class AnalysisService:
             final_intelligence = await self.enhanced_handler.apply_rag_enhancement(enriched_intelligence, source_url)
 
             # Extract the needed format for the service
-            product_name = final_intelligence.get("offer_intelligence", {}).get("products", ["Unknown Product"])[0]
+            products_list = final_intelligence.get("offer_intelligence", {}).get("products", ["Unknown Product"])
+            product_name = products_list[0] if products_list else "Unknown Product"
 
             # Build product info from base intelligence
             product_info_data = {
