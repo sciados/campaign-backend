@@ -115,7 +115,12 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> List[str]:
         """Get parsed CORS origins as list."""
-        return self.ALLOWED_ORIGINS if isinstance(self.ALLOWED_ORIGINS, list) else []
+        if isinstance(self.ALLOWED_ORIGINS, list):
+            return self.ALLOWED_ORIGINS
+        elif isinstance(self.ALLOWED_ORIGINS, str):
+            return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+        else:
+            return []
     
     @property
     def is_production(self) -> bool:

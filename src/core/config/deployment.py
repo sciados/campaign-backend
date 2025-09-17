@@ -73,7 +73,7 @@ class DeploymentConfig:
 
         # Get configured origins, with fallbacks
         try:
-            cors_origins = settings.cors_origins
+            cors_origins = settings.cors_origins or []
         except Exception:
             cors_origins = []
 
@@ -85,9 +85,17 @@ class DeploymentConfig:
             "https://campaignforge-frontend-git-main.vercel.app"
         ]
 
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Initial CORS origins from settings: {cors_origins}")
+
         for origin in production_origins:
             if origin not in cors_origins:
                 cors_origins.append(origin)
+                logger.info(f"Added production origin: {origin}")
+
+        logger.info(f"Final CORS origins: {cors_origins}")
         
         # Add localhost origins for development
         localhost_origins = [
