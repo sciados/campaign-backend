@@ -486,7 +486,7 @@ class IntegratedContentService:
                 "content_title": row.content_title,
                 "content_body": row.content_body,
                 "content_metadata": self._safe_get_metadata_as_dict(row.content_metadata),
-                "generation_settings": row.generation_settings if row.generation_settings else {},
+                "generation_settings": self._safe_get_metadata_as_dict(row.generation_settings),
                 "user_rating": row.user_rating,
                 "is_published": row.is_published,
                 "created_at": row.created_at.isoformat(),
