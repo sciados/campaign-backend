@@ -485,7 +485,7 @@ class IntegratedContentService:
                 "content_type": row.content_type,
                 "content_title": row.content_title,
                 "content_body": row.content_body,
-                "content_metadata": row.content_metadata if row.content_metadata else {},
+                "content_metadata": self._safe_get_metadata_as_dict(row.content_metadata),
                 "generation_settings": row.generation_settings if row.generation_settings else {},
                 "user_rating": row.user_rating,
                 "is_published": row.is_published,
@@ -498,6 +498,31 @@ class IntegratedContentService:
             for row in rows
         ]
     
+    def _safe_get_metadata_as_dict(self, content_metadata) -> Dict[str, Any]:
+        """Safely convert content_metadata to dictionary format"""
+        try:
+            if content_metadata is None:
+                return {}
+
+            # If it's already a dictionary, return it
+            if isinstance(content_metadata, dict):
+                return content_metadata
+
+            # If it's a list, try to merge items into a single dict
+            if isinstance(content_metadata, list):
+                result = {}
+                for item in content_metadata:
+                    if isinstance(item, dict):
+                        result.update(item)
+                return result
+
+            # If it's some other type, return empty dict
+            return {}
+
+        except Exception as e:
+            logger.warning(f"Error converting metadata to dict: {e}")
+            return {}
+
     def _safe_get_generator_used(self, content_metadata) -> str:
         """Safely extract generator_used from content_metadata that might be list or dict"""
         try:
