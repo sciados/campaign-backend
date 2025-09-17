@@ -36,16 +36,35 @@ class EnhancedAnalysisHandler:
     """Enhanced handler with full 3-stage pipeline for rich intelligence generation."""
     
     def __init__(self):
-        # Use ultra-cheap AI providers instead of expensive ones
-        try:
-            from src.core.config.ai_providers import ai_provider_config as apc
-            self.ultra_cheap_providers = apc.get_providers_by_tier(AIProviderTier.ULTRA_CHEAP)
-            logger.info(f"Found {len(self.ultra_cheap_providers)} ultra-cheap providers")
-            for provider in self.ultra_cheap_providers:
-                logger.info(f"  - {provider.name}: ${provider.cost_per_1k_tokens}/1K tokens")
-        except Exception as e:
-            logger.error(f"Failed to load ultra-cheap providers: {e}")
-            self.ultra_cheap_providers = []
+        # Simple direct provider setup using environment variables (like before modular structure)
+        self.available_providers = []
+
+        # Check each provider directly from settings
+        if settings.DEEPSEEK_API_KEY and len(settings.DEEPSEEK_API_KEY.strip()) > 10:
+            self.available_providers.append({"name": "deepseek", "api_key": settings.DEEPSEEK_API_KEY, "cost": 0.0001})
+            logger.info("✅ DeepSeek provider available")
+
+        if settings.GROQ_API_KEY and len(settings.GROQ_API_KEY.strip()) > 10:
+            self.available_providers.append({"name": "groq", "api_key": settings.GROQ_API_KEY, "cost": 0.0002})
+            logger.info("✅ Groq provider available")
+
+        if settings.TOGETHER_API_KEY and len(settings.TOGETHER_API_KEY.strip()) > 10:
+            self.available_providers.append({"name": "together", "api_key": settings.TOGETHER_API_KEY, "cost": 0.0008})
+            logger.info("✅ Together provider available")
+
+        if settings.AIMLAPI_API_KEY and len(settings.AIMLAPI_API_KEY.strip()) > 10:
+            self.available_providers.append({"name": "aimlapi", "api_key": settings.AIMLAPI_API_KEY, "cost": 0.001})
+            logger.info("✅ AI/ML API provider available")
+
+        if settings.MINIMAX_API_KEY and len(settings.MINIMAX_API_KEY.strip()) > 10:
+            self.available_providers.append({"name": "minimax", "api_key": settings.MINIMAX_API_KEY, "cost": 0.003})
+            logger.info("✅ MiniMax provider available")
+
+        if settings.COHERE_API_KEY and len(settings.COHERE_API_KEY.strip()) > 10:
+            self.available_providers.append({"name": "cohere", "api_key": settings.COHERE_API_KEY, "cost": 0.002})
+            logger.info("✅ Cohere provider available")
+
+        logger.info(f"Total providers loaded: {len(self.available_providers)}")
 
         self.current_provider_index = 0
 
@@ -63,7 +82,7 @@ class EnhancedAnalysisHandler:
             "market": self._market_enhancer
         }
 
-        logger.info(f"Enhanced handler initialized with {len(self.ultra_cheap_providers)} ultra-cheap providers")
+        logger.info(f"Enhanced handler initialized with {len(self.available_providers)} total providers")
     
     # =====================================
     # STAGE 1: BASE ANALYZER
@@ -143,16 +162,13 @@ class EnhancedAnalysisHandler:
         """
         
         try:
-            # Use best available provider for base analysis
-            providers = ai_provider_config.get_providers_by_tier("standard")
-            if not providers:
-                providers = ai_provider_config.get_providers_by_tier("budget")
-            
-            provider = providers[0] if providers else None
-            if not provider:
+            # Use available providers directly (simple approach like before modular structure)
+            if not self.available_providers:
                 raise ServiceUnavailableError("No AI providers available")
-            
-            response = await self._query_ai_provider(prompt, provider.name)
+
+            # Use the cheapest available provider
+            provider = min(self.available_providers, key=lambda x: x["cost"])
+            response = await self._query_ai_provider(prompt, provider["name"])
             intelligence = json.loads(response)
             
             # Ensure all required sections exist
@@ -601,15 +617,9 @@ class EnhancedAnalysisHandler:
         return enriched
     
     def _get_enhancement_providers(self) -> List[Any]:
-        """Get AI providers for enhancement pipeline."""
-        # Try to get diverse providers for different enhancers
-        providers = ai_provider_config.get_providers_by_tier("standard")
-        if not providers:
-            providers = ai_provider_config.get_providers_by_tier("budget")
-        if not providers:
-            providers = ai_provider_config.get_all_available_providers()
-        
-        return providers[:3]  # Limit to 3 providers for cost control
+        """Get AI providers for enhancement pipeline using simple approach."""
+        # Return available providers directly (simple approach like before modular structure)
+        return self.available_providers[:3]  # Limit to 3 providers for cost control
     
     async def _query_ai_provider(self, prompt: str, provider_name: str = "ultra_cheap") -> str:
         """Query AI provider with ultra-cheap providers prioritized for cost optimization."""
@@ -634,29 +644,31 @@ class EnhancedAnalysisHandler:
             return await self._query_openai(prompt)
     
     async def _query_ultra_cheap_provider(self, prompt: str) -> str:
-        """Query ultra-cheap AI providers with rotation for cost optimization."""
+        """Query available AI providers with rotation for cost optimization."""
 
-        if not self.ultra_cheap_providers:
-            logger.warning("No ultra-cheap providers available, falling back to OpenAI")
+        if not self.available_providers:
+            logger.warning("No AI providers available, falling back to OpenAI")
             return await self._query_openai(prompt)
 
-        # Try each ultra-cheap provider in rotation
-        for attempt in range(len(self.ultra_cheap_providers)):
-            provider = self.ultra_cheap_providers[self.current_provider_index]
+        # Try each available provider in cost order (rotation)
+        for attempt in range(len(self.available_providers)):
+            provider = self.available_providers[self.current_provider_index]
 
             try:
-                logger.info(f"Using ultra-cheap provider: {provider.name} (${provider.cost_per_1k_tokens}/1K tokens)")
+                logger.info(f"Using ultra-cheap provider: {provider['name']} (${provider['cost']}/1K tokens)")
 
-                if provider.name == "deepseek":
+                if provider["name"] == "deepseek":
                     result = await self._query_deepseek(prompt, provider)
-                elif provider.name == "groq":
+                elif provider["name"] == "groq":
                     result = await self._query_groq(prompt, provider)
-                elif provider.name == "together":
+                elif provider["name"] == "together":
                     result = await self._query_together(prompt, provider)
-                elif provider.name == "aimlapi":
+                elif provider["name"] == "aimlapi":
                     result = await self._query_aimlapi(prompt, provider)
-                elif provider.name == "minimax":
+                elif provider["name"] == "minimax":
                     result = await self._query_minimax(prompt, provider)
+                elif provider["name"] == "cohere":
+                    result = await self._query_cohere(prompt, provider)
                 else:
                     # Skip unknown providers
                     self._rotate_provider()
@@ -667,17 +679,17 @@ class EnhancedAnalysisHandler:
                 return result
 
             except Exception as e:
-                logger.warning(f"Ultra-cheap provider {provider.name} failed: {e}")
+                logger.warning(f"Ultra-cheap provider {provider['name']} failed: {e}")
                 self._rotate_provider()
                 continue
 
-        # If all ultra-cheap providers failed, fallback to OpenAI
-        logger.warning("All ultra-cheap providers failed, falling back to OpenAI")
+        # If all available providers failed, fallback to OpenAI
+        logger.warning("All available providers failed, falling back to OpenAI")
         return await self._query_openai(prompt)
 
     def _rotate_provider(self):
-        """Rotate to next ultra-cheap provider."""
-        self.current_provider_index = (self.current_provider_index + 1) % len(self.ultra_cheap_providers)
+        """Rotate to next available provider."""
+        self.current_provider_index = (self.current_provider_index + 1) % len(self.available_providers)
 
     async def _query_deepseek(self, prompt: str, provider_config) -> str:
         """Query DeepSeek API (ultra-cheap at $0.0001/1K tokens)."""
@@ -686,7 +698,7 @@ class EnhancedAnalysisHandler:
                 response = await client.post(
                     "https://api.deepseek.com/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {provider_config.api_key}",
+                        "Authorization": f"Bearer {provider_config['api_key']}",
                         "Content-Type": "application/json"
                     },
                     json={
@@ -710,7 +722,7 @@ class EnhancedAnalysisHandler:
                 response = await client.post(
                     "https://api.groq.com/openai/v1/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {provider_config.api_key}",
+                        "Authorization": f"Bearer {provider_config['api_key']}",
                         "Content-Type": "application/json"
                     },
                     json={
@@ -734,7 +746,7 @@ class EnhancedAnalysisHandler:
                 response = await client.post(
                     "https://api.together.xyz/v1/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {provider_config.api_key}",
+                        "Authorization": f"Bearer {provider_config['api_key']}",
                         "Content-Type": "application/json"
                     },
                     json={
@@ -758,7 +770,7 @@ class EnhancedAnalysisHandler:
                 response = await client.post(
                     "https://api.aimlapi.com/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {provider_config.api_key}",
+                        "Authorization": f"Bearer {provider_config['api_key']}",
                         "Content-Type": "application/json"
                     },
                     json={
@@ -782,7 +794,7 @@ class EnhancedAnalysisHandler:
                 response = await client.post(
                     "https://api.minimax.chat/v1/text/chatcompletion_v2",
                     headers={
-                        "Authorization": f"Bearer {provider_config.api_key}",
+                        "Authorization": f"Bearer {provider_config['api_key']}",
                         "Content-Type": "application/json"
                     },
                     json={
@@ -798,6 +810,30 @@ class EnhancedAnalysisHandler:
                 return data["choices"][0]["message"]["content"]
         except Exception as e:
             raise AIProviderError(f"MiniMax query failed: {str(e)}", provider="minimax")
+
+    async def _query_cohere(self, prompt: str, provider_config) -> str:
+        """Query Cohere API (standard at $0.002/1K tokens)."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.cohere.ai/v1/chat",
+                    headers={
+                        "Authorization": f"Bearer {provider_config['api_key']}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "command-r-plus",
+                        "message": prompt,
+                        "max_tokens": 1500,
+                        "temperature": 0.1
+                    },
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data["text"]
+        except Exception as e:
+            raise AIProviderError(f"Cohere query failed: {str(e)}", provider="cohere")
 
     async def _query_openai(self, prompt: str) -> str:
         """Query OpenAI API (expensive fallback - $0.01/1K tokens)."""
@@ -904,6 +940,8 @@ class EnhancedAnalysisHandler:
             "enhancement_applied": True,
             "fallback_used": True
         }
+
+    def _get_fallback_base_intelligence(self):
         """Fallback base intelligence structure."""
         return {
             "offer_intelligence": {

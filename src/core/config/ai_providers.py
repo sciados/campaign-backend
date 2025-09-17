@@ -121,7 +121,10 @@ class AIProviderManager:
     
     def get_providers_by_tier(self, tier: AIProviderTier) -> List[AIProviderConfig]:
         """Get all providers in a specific tier, sorted by fallback priority."""
-        providers = [p for p in self.providers.values() if p.tier == tier and p.enabled]
+        providers = [
+            p for p in self.providers.values()
+            if p.tier == tier and p.enabled and p.api_key and len(p.api_key.strip()) > 10
+        ]
         return sorted(providers, key=lambda x: x.fallback_priority)
     
     def get_cheapest_provider(self) -> Optional[AIProviderConfig]:
