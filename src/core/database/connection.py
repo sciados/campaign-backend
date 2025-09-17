@@ -37,6 +37,13 @@ async_engine = create_async_engine(
     pool_pre_ping=True,
     pool_recycle=300,
     echo=settings.DEBUG if hasattr(settings, 'DEBUG') else False,
+    # Prevent transaction conflicts on Railway
+    isolation_level="READ_COMMITTED",
+    connect_args={
+        "server_settings": {
+            "application_name": "campaignforge_backend",
+        }
+    }
 )
 
 # Session factories
@@ -49,7 +56,9 @@ SessionLocal = sessionmaker(
 AsyncSessionLocal = sessionmaker(
     bind=async_engine,
     class_=AsyncSession,
-    expire_on_commit=False
+    expire_on_commit=False,
+    autoflush=False,  # Prevent automatic flushes that can cause transaction conflicts
+    autocommit=False  # Explicit transaction control
 )
 
 def get_db() -> Generator[Session, None, None]:
@@ -72,18 +81,21 @@ def get_db() -> Generator[Session, None, None]:
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency to get async database session for asynchronous operations.
-    
+
     Yields:
         AsyncSession: SQLAlchemy async database session
     """
     async with AsyncSessionLocal() as session:
         try:
             yield session
-            await session.commit()
+            # Don't auto-commit here - let the service layer handle commits
         except Exception as e:
             logger.error(f"Async database session error: {e}")
             await session.rollback()
             raise
+        finally:
+            # Session is automatically closed by async context manager
+            pass
 
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):

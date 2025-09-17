@@ -137,13 +137,14 @@ class UserService:
         """Get user by ID with optional company info"""
         try:
             query = select(User).where(User.id == user_id)
-            
+
             if include_company:
                 query = query.options(selectinload(User.company))
-            
+
+            # Execute query without creating a new transaction
             result = await self.db.execute(query)
             user = result.scalar_one_or_none()
-            
+
             return user
             
         except Exception as e:
