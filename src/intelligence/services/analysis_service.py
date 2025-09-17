@@ -226,9 +226,11 @@ class AnalysisService:
             # Prepare research data from the comprehensive analysis
             research_data = [
                 {
-                    "source": "Enhanced 3-stage pipeline",
+                    "research_id": "enhanced_3stage_analysis",
                     "content": f"Complete intelligence analysis for {product_name} with {len(str(final_intelligence))} characters of data",
-                    "relevance_score": confidence_score
+                    "research_type": "enhanced_analysis",
+                    "relevance_score": confidence_score,
+                    "source_metadata": {"pipeline": "3-stage", "enhancers": 6, "stages": ["base", "amplification", "rag"]}
                 }
             ]
 
@@ -279,7 +281,13 @@ class AnalysisService:
                 trends=[]
             ),
             "confidence_score": 0.3,
-            "research": [],
+            "research": [{
+                "research_id": "fallback_analysis",
+                "content": "Basic fallback analysis - enhanced pipeline failed",
+                "research_type": "fallback",
+                "relevance_score": 0.1,
+                "source_metadata": {"pipeline": "fallback", "reason": "enhanced_analysis_failed"}
+            }],
             "full_analysis_data": {"error": "Enhanced analysis failed, using fallback"}
         }
 
