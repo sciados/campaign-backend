@@ -111,6 +111,7 @@ class IntelligenceRepository(RepositoryInterface[IntelligenceCore]):
         product_info: ProductInfo,
         market_info: MarketInfo,
         company_id: Optional[str] = None,
+        full_analysis_data: Optional[Dict[str, Any]] = None,
         session: AsyncSession = None
     ) -> IntelligenceCore:
         """Create complete intelligence record with product and market data."""
@@ -123,7 +124,8 @@ class IntelligenceRepository(RepositoryInterface[IntelligenceCore]):
             user_id=user_id,
             company_id=company_id,
             analysis_method=analysis_method,
-            confidence_score=confidence_score
+            confidence_score=confidence_score,
+            full_analysis_data=full_analysis_data  # Store the complete 3-stage analysis
         )
         
         # Create product data

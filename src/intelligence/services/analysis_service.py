@@ -23,6 +23,7 @@ from src.intelligence.repositories.intelligence_repository import IntelligenceRe
 from src.intelligence.repositories.research_repository import ResearchRepository
 from src.intelligence.analysis.analyzers import ContentAnalyzer
 from src.intelligence.analysis.handler import AnalysisHandler
+from src.intelligence.analysis.enhanced_handler import EnhancedAnalysisHandler
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class AnalysisService:
         self.research_repo = ResearchRepository()
         self.content_analyzer = ContentAnalyzer()
         self.analysis_handler = AnalysisHandler()
+        self.enhanced_handler = EnhancedAnalysisHandler()
     
     @log_execution_time()
     @retry_on_failure(max_retries=2)
@@ -180,49 +182,106 @@ class AnalysisService:
         }
     
     async def _enhanced_analysis(self, content_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform enhanced analysis using premium AI providers and research."""
+        """Perform enhanced analysis using the complete 3-stage pipeline with ultra-cheap providers."""
         logger.info("Running enhanced analysis pipeline")
-        
-        # Get premium providers for highest quality analysis
-        providers = ai_provider_config.get_providers_by_tier("premium")
-        if not providers:
-            # Fallback to standard providers
-            providers = ai_provider_config.get_providers_by_tier("standard")
-        
-        if not providers:
-            raise ServiceUnavailableError("No suitable AI providers available")
-        
-        primary_provider = providers[0]
-        
-        # Premium product extraction with multiple passes
-        product_info = await self.analysis_handler.extract_comprehensive_product_info(
-            content_data["text"],
-            provider_name=primary_provider.name
-        )
-        
-        # Premium market analysis with competitor research
-        market_info = await self.analysis_handler.extract_comprehensive_market_info(
-            content_data["text"],
-            provider_name=primary_provider.name
-        )
-        
-        # Comprehensive research gathering
-        research_data = await self.analysis_handler.gather_comprehensive_research(
-            product_info.get("name", ""),
-            content_data["text"],
-            market_info.get("category", "")
-        )
-        
-        confidence_score = self._calculate_confidence_score(content_data, "enhanced")
-        
+
+        try:
+            # Use our working enhanced handler with all providers available
+            content_text = content_data["text"]
+            source_url = content_data.get("url", "unknown")
+
+            # STAGE 1: Base Analysis
+            base_intelligence = await self.enhanced_handler.perform_base_analysis(content_text, source_url)
+
+            # STAGE 2: Enhancement Pipeline (6 enhancers)
+            enriched_intelligence = await self.enhanced_handler.perform_amplification(base_intelligence, source_url)
+
+            # STAGE 3: RAG Integration
+            final_intelligence = await self.enhanced_handler.apply_rag_enhancement(enriched_intelligence, source_url)
+
+            # Extract the needed format for the service
+            product_name = final_intelligence.get("offer_intelligence", {}).get("products", ["Unknown Product"])[0]
+
+            # Build product info from base intelligence
+            product_info_data = {
+                "name": product_name,
+                "category": final_intelligence.get("competitive_intelligence", {}).get("market_positioning", "Unknown"),
+                "features": final_intelligence.get("offer_intelligence", {}).get("key_features", []),
+                "benefits": final_intelligence.get("offer_intelligence", {}).get("primary_benefits", []),
+                "pricing": str(final_intelligence.get("offer_intelligence", {}).get("pricing_info", "Unknown"))
+            }
+
+            # Build market info from competitive intelligence
+            market_info_data = {
+                "category": final_intelligence.get("competitive_intelligence", {}).get("market_positioning", "Unknown"),
+                "target_audience": final_intelligence.get("psychology_intelligence", {}).get("target_audience", "Unknown"),
+                "competitive_advantages": final_intelligence.get("competitive_intelligence", {}).get("competitive_advantages", []),
+                "market_size": "Unknown",  # Would need additional research
+                "trends": ["AI-enhanced analysis available"]
+            }
+
+            confidence_score = final_intelligence.get("confidence_score", 0.7)
+
+            # Prepare research data from the comprehensive analysis
+            research_data = [
+                {
+                    "source": "Enhanced 3-stage pipeline",
+                    "content": f"Complete intelligence analysis for {product_name} with {len(str(final_intelligence))} characters of data",
+                    "relevance_score": confidence_score
+                }
+            ]
+
+            return {
+                "product_name": product_name,
+                "product_info": ProductInfo(**product_info_data),
+                "market_info": MarketInfo(**market_info_data),
+                "confidence_score": confidence_score,
+                "research": research_data,
+                "full_analysis_data": final_intelligence  # Store the complete analysis
+            }
+
+        except Exception as e:
+            logger.error(f"Enhanced analysis failed: {e}")
+            # Fallback to basic analysis if enhanced fails
+            return await self._basic_fallback_analysis(content_data)
+
+    async def _basic_fallback_analysis(self, content_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Basic fallback analysis when enhanced pipeline fails."""
+        logger.warning("Using basic fallback analysis")
+
+        # Extract basic product name from content
+        text = content_data["text"][:1000]  # First 1000 chars
+        product_name = "Unknown Product"
+
+        # Simple extraction
+        if "product" in text.lower():
+            words = text.split()
+            for i, word in enumerate(words):
+                if word.lower() == "product" and i > 0:
+                    product_name = words[i-1].title()
+                    break
+
         return {
-            "product_name": product_info.get("name", "Unknown Product"),
-            "product_info": ProductInfo(**product_info),
-            "market_info": MarketInfo(**market_info),
-            "confidence_score": confidence_score,
-            "research": research_data
+            "product_name": product_name,
+            "product_info": ProductInfo(
+                name=product_name,
+                category="Unknown",
+                features=[],
+                benefits=[],
+                pricing="Unknown"
+            ),
+            "market_info": MarketInfo(
+                category="Unknown",
+                target_audience="Unknown",
+                competitive_advantages=[],
+                market_size="Unknown",
+                trends=[]
+            ),
+            "confidence_score": 0.3,
+            "research": [],
+            "full_analysis_data": {"error": "Enhanced analysis failed, using fallback"}
         }
-    
+
     async def _store_analysis_results(
         self,
         source_url: str,
@@ -244,26 +303,31 @@ class AnalysisService:
             confidence_score=analysis_data["confidence_score"],
             product_info=analysis_data["product_info"],
             market_info=analysis_data["market_info"],
+            full_analysis_data=analysis_data.get("full_analysis_data"),  # Store complete 3-stage analysis
             session=session
         )
         
         # Store research data if available
         for research_item in analysis_data.get("research", []):
-            # Create or get existing research
-            research = await self.research_repo.create_or_get_research(
-                content=research_item["content"],
-                research_type=research_item["type"],
-                source_metadata=research_item.get("metadata", {}),
-                session=session
-            )
-            
-            # Link research to intelligence
-            await self.research_repo.link_research_to_intelligence(
-                intelligence_id=intelligence.id,
-                research_id=research.id,
-                relevance_score=research_item.get("relevance", 0.5),
-                session=session
-            )
+            try:
+                # Create or get existing research
+                research = await self.research_repo.create_or_get_research(
+                    content=research_item.get("content", ""),
+                    research_type=research_item.get("type", "enhanced_analysis"),
+                    source_metadata=research_item.get("metadata", {}),
+                    session=session
+                )
+
+                # Link research to intelligence
+                await self.research_repo.link_research_to_intelligence(
+                    intelligence_id=intelligence.id,
+                    research_id=research.id,
+                    relevance_score=research_item.get("relevance_score", 0.5),
+                    session=session
+                )
+            except Exception as e:
+                logger.warning(f"Failed to store research item: {e}")
+                continue
         
         await session.commit()
         return intelligence
