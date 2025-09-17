@@ -479,24 +479,30 @@ class IntegratedContentService:
         result = await self.db.execute(query, params)
         rows = result.fetchall()
         
-        return [
-            {
-                "id": str(row.id),
-                "content_type": row.content_type,
-                "content_title": row.content_title,
-                "content_body": row.content_body,
-                "content_metadata": self._safe_get_metadata_as_dict(row.content_metadata),
-                "generation_settings": self._safe_get_metadata_as_dict(row.generation_settings),
-                "user_rating": row.user_rating,
-                "is_published": row.is_published,
-                "created_at": row.created_at.isoformat(),
-                "updated_at": row.updated_at.isoformat(),
-                "generation_method": row.generation_method,
-                "content_status": row.content_status,
-                "generator_used": self._safe_get_generator_used(row.content_metadata)
-            }
-            for row in rows
-        ]
+        result_list = []
+        for row in rows:
+            try:
+                result_list.append({
+                    "id": str(row.id),
+                    "content_type": row.content_type,
+                    "content_title": row.content_title,
+                    "content_body": row.content_body,
+                    "content_metadata": self._safe_get_metadata_as_dict(row.content_metadata),
+                    "generation_settings": self._safe_get_metadata_as_dict(row.generation_settings),
+                    "user_rating": row.user_rating,
+                    "is_published": row.is_published,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                    "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                    "generation_method": row.generation_method,
+                    "content_status": row.content_status,
+                    "generator_used": self._safe_get_generator_used(row.content_metadata)
+                })
+            except Exception as e:
+                logger.error(f"Error processing content row {getattr(row, 'id', 'unknown')}: {e}")
+                # Skip problematic rows but continue processing
+                continue
+
+        return result_list
     
     def _safe_get_metadata_as_dict(self, content_metadata) -> Dict[str, Any]:
         """Safely convert content_metadata to dictionary format"""
