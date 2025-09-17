@@ -493,11 +493,35 @@ class IntegratedContentService:
                 "updated_at": row.updated_at.isoformat(),
                 "generation_method": row.generation_method,
                 "content_status": row.content_status,
-                "generator_used": (row.content_metadata or {}).get("generator_used", "unknown")
+                "generator_used": self._safe_get_generator_used(row.content_metadata)
             }
             for row in rows
         ]
     
+    def _safe_get_generator_used(self, content_metadata) -> str:
+        """Safely extract generator_used from content_metadata that might be list or dict"""
+        try:
+            if content_metadata is None:
+                return "unknown"
+
+            # If it's a dictionary, use .get() method
+            if isinstance(content_metadata, dict):
+                return content_metadata.get("generator_used", "unknown")
+
+            # If it's a list, try to find generator_used in list items
+            if isinstance(content_metadata, list):
+                for item in content_metadata:
+                    if isinstance(item, dict) and "generator_used" in item:
+                        return item["generator_used"]
+                return "unknown"
+
+            # If it's some other type, return unknown
+            return "unknown"
+
+        except Exception as e:
+            logger.warning(f"Error extracting generator_used from metadata: {e}")
+            return "unknown"
+
     def get_generator_status(self) -> Dict[str, Any]:
         """Get status of available generators"""
         try:
