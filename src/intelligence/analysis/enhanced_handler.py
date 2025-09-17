@@ -642,6 +642,12 @@ class EnhancedAnalysisHandler:
                     result = await self._query_deepseek(prompt, provider)
                 elif provider.name == "groq":
                     result = await self._query_groq(prompt, provider)
+                elif provider.name == "together":
+                    result = await self._query_together(prompt, provider)
+                elif provider.name == "aimlapi":
+                    result = await self._query_aimlapi(prompt, provider)
+                elif provider.name == "minimax":
+                    result = await self._query_minimax(prompt, provider)
                 else:
                     # Skip unknown providers
                     self._rotate_provider()
@@ -711,6 +717,78 @@ class EnhancedAnalysisHandler:
                 return data["choices"][0]["message"]["content"]
         except Exception as e:
             raise AIProviderError(f"Groq query failed: {str(e)}", provider="groq")
+
+    async def _query_together(self, prompt: str, provider_config) -> str:
+        """Query Together API (budget at $0.0008/1K tokens)."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.together.xyz/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {provider_config.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 1500,
+                        "temperature": 0.1
+                    },
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            raise AIProviderError(f"Together query failed: {str(e)}", provider="together")
+
+    async def _query_aimlapi(self, prompt: str, provider_config) -> str:
+        """Query AI/ML API (budget at $0.001/1K tokens)."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.aimlapi.com/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {provider_config.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 1500,
+                        "temperature": 0.1
+                    },
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            raise AIProviderError(f"AI/ML API query failed: {str(e)}", provider="aimlapi")
+
+    async def _query_minimax(self, prompt: str, provider_config) -> str:
+        """Query MiniMax API (standard at $0.003/1K tokens)."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.minimax.chat/v1/text/chatcompletion_v2",
+                    headers={
+                        "Authorization": f"Bearer {provider_config.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "abab6.5s-chat",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 1500,
+                        "temperature": 0.1
+                    },
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            raise AIProviderError(f"MiniMax query failed: {str(e)}", provider="minimax")
 
     async def _query_openai(self, prompt: str) -> str:
         """Query OpenAI API (expensive fallback - $0.01/1K tokens)."""
