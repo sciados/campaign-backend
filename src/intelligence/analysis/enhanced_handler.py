@@ -37,7 +37,16 @@ class EnhancedAnalysisHandler:
     
     def __init__(self):
         # Use ultra-cheap AI providers instead of expensive ones
-        self.ultra_cheap_providers = ai_provider_config.get_providers_by_tier(AIProviderTier.ULTRA_CHEAP)
+        try:
+            from src.core.config.ai_providers import ai_provider_config as apc
+            self.ultra_cheap_providers = apc.get_providers_by_tier(AIProviderTier.ULTRA_CHEAP)
+            logger.info(f"Found {len(self.ultra_cheap_providers)} ultra-cheap providers")
+            for provider in self.ultra_cheap_providers:
+                logger.info(f"  - {provider.name}: ${provider.cost_per_1k_tokens}/1K tokens")
+        except Exception as e:
+            logger.error(f"Failed to load ultra-cheap providers: {e}")
+            self.ultra_cheap_providers = []
+
         self.current_provider_index = 0
 
         # Fallback to premium providers only if ultra-cheap fail
@@ -54,7 +63,7 @@ class EnhancedAnalysisHandler:
             "market": self._market_enhancer
         }
 
-        logger.info(f"Initialized with {len(self.ultra_cheap_providers)} ultra-cheap AI providers")
+        logger.info(f"Enhanced handler initialized with {len(self.ultra_cheap_providers)} ultra-cheap providers")
     
     # =====================================
     # STAGE 1: BASE ANALYZER

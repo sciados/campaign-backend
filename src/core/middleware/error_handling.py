@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 import logging
+from datetime import datetime
 # from typing import Union
 
 from src.core.shared.exceptions import CampaignForgeException
@@ -47,11 +48,13 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             logger.error(f"Application error: {e.error_code} - {e.message}")
             return JSONResponse(
                 status_code=e.status_code,
-                content=ErrorResponse(
-                    message=e.message,
-                    error_code=e.error_code,
-                    details=e.details
-                ).model_dump()
+                content={
+                    "success": False,
+                    "message": e.message,
+                    "error_code": e.error_code,
+                    "details": e.details,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
             )
         except Exception as e:
             # Unexpected exceptions
