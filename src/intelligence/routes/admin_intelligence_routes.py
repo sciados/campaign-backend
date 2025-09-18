@@ -21,7 +21,7 @@ from src.core.auth.dependencies import get_current_user, require_admin, require_
 from src.core.shared.responses import StandardResponse
 from src.intelligence.models.intelligence_models import AnalysisMethod
 from src.intelligence.services.admin_intelligence_service import AdminIntelligenceService
-from src.intelligence.routes.product_creator_invite_routes import router as invite_router
+from src.intelligence.routes.product_creator_invite_routes import router as invite_router, public_router as invite_public_router
 from src.intelligence.routes.product_creator_dashboard_routes import router as dashboard_router
 
 router = APIRouter(prefix="", tags=["Admin Intelligence"])
@@ -301,6 +301,7 @@ async def list_product_creator_submissions(
 
 # Include product creator invite management routes
 router.include_router(invite_router)
+router.include_router(invite_public_router)
 
 # Include product creator dashboard routes (separate prefix)
 from fastapi import APIRouter as FastAPIRouter

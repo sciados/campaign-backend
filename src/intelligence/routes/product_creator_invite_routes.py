@@ -23,6 +23,7 @@ from src.intelligence.models.product_creator_invite import InviteStatus
 from src.intelligence.services.email_service import email_service
 
 router = APIRouter(prefix="/admin/product-creator-invites", tags=["Admin Product Creator Invites"])
+public_router = APIRouter(prefix="/product-creator-invites", tags=["Product Creator Invites Public"])
 logger = logging.getLogger(__name__)
 
 
@@ -161,7 +162,7 @@ async def list_product_creator_invites(
         raise HTTPException(status_code=500, detail=f"Failed to list invites: {str(e)}")
 
 
-@router.post("/validate", response_model=StandardResponse[Dict[str, Any]])
+@public_router.post("/validate", response_model=StandardResponse[Dict[str, Any]])
 async def validate_invite_token(
     request: ValidateInviteRequest,
     session: AsyncSession = Depends(get_async_db)
