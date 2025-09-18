@@ -7,6 +7,8 @@ Admin Intelligence API routes for pre-populating URL cache.
 
 Provides endpoints for admins and product creators to build the
 intelligence library before launch.
+
+Railway deployment: Fixed import paths for production.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
