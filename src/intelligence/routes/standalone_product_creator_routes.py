@@ -205,3 +205,50 @@ async def revoke_product_creator_invite(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to revoke invite: {str(e)}")
+
+
+@admin_router.post("/resend/{invite_id}", response_model=StandardResponse[Dict[str, Any]])
+async def resend_product_creator_invite(
+    invite_id: str,
+    current_user: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_async_db)
+) -> StandardResponse[Dict[str, Any]]:
+    """
+    📧 Resend a product creator invite email (Admin Only).
+
+    **Admin Control**: Resend invitation email for pending invites.
+    Can only resend invites that are still pending and not expired.
+    """
+    try:
+        invite_service = ProductCreatorInviteService()
+
+        # Get the invite to check status and get email
+        invite = await invite_service.get_invite_by_id(invite_id, session=session)
+        if not invite:
+            raise HTTPException(status_code=404, detail="Invite not found")
+
+        if invite.status != "pending":
+            raise HTTPException(status_code=400, detail="Can only resend pending invites")
+
+        # Send invitation email to product creator
+        from src.intelligence.services.email_service import email_service
+        email_sent = await email_service.send_product_creator_invitation(
+            invite_data=invite.to_dict(include_sensitive=True),
+            admin_name=current_user.get("name") or current_user.get("email", "Admin")
+        )
+
+        return StandardResponse(
+            success=True,
+            data={
+                "invite_id": invite_id,
+                "invitee_email": invite.invitee_email,
+                "resent_by": current_user["id"],
+                "email_sent": email_sent
+            },
+            message=f"Invitation email {'resent' if email_sent else 'logged (no SMTP config)'} to {invite.invitee_email}"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to resend invite: {str(e)}")

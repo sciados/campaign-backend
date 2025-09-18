@@ -102,6 +102,28 @@ class ProductCreatorInviteService:
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_invite_by_id(
+        self,
+        invite_id: str,
+        session: AsyncSession
+    ) -> Optional[ProductCreatorInvite]:
+        """
+        Get invite by ID for admin operations.
+
+        Args:
+            invite_id: The invite ID
+            session: Database session
+
+        Returns:
+            ProductCreatorInvite or None
+        """
+        stmt = select(ProductCreatorInvite).where(
+            ProductCreatorInvite.id == invite_id
+        )
+
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_invite_by_email(
         self,
         email: str,
