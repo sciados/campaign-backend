@@ -20,6 +20,7 @@ from src.core.auth.dependencies import require_admin, get_current_user
 from src.core.shared.responses import StandardResponse
 from src.intelligence.services.product_creator_invite_service import ProductCreatorInviteService
 from src.intelligence.models.product_creator_invite import InviteStatus
+from src.intelligence.services.email_service import email_service
 
 router = APIRouter(prefix="/admin/product-creator-invites", tags=["Admin Product Creator Invites"])
 logger = logging.getLogger(__name__)
@@ -79,16 +80,32 @@ async def create_product_creator_invite(
             session=session
         )
 
+        # Send invitation email to product creator
+        email_sent = await email_service.send_product_creator_invitation(
+            invite_data=invite.to_dict(include_sensitive=True),
+            admin_name=current_user.get("name") or current_user.get("email", "Admin")
+        )
+
+        # Send confirmation email to admin
+        admin_email = current_user.get("email")
+        if admin_email:
+            await email_service.send_admin_confirmation(
+                admin_email=admin_email,
+                invite_data=invite.to_dict(include_sensitive=True),
+                admin_name=current_user.get("name") or "Admin"
+            )
+
         # Include sensitive data for admin
         invite_data = invite.to_dict(include_sensitive=True)
 
         # Add registration URL for easy sharing
         invite_data["registration_url"] = f"/register?invite_token={invite.invite_token}"
+        invite_data["email_sent"] = email_sent
 
         return StandardResponse(
             success=True,
             data=invite_data,
-            message=f"Product creator invite created for {request.invitee_email}. Valid for {request.days_valid} days."
+            message=f"Product creator invite created for {request.invitee_email}. Valid for {request.days_valid} days. Email {'sent' if email_sent else 'logged (no SMTP config)'}."
         )
 
     except ValueError as e:
