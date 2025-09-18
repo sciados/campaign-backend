@@ -21,6 +21,8 @@ from src.core.auth.dependencies import get_current_user, require_admin, require_
 from src.core.shared.responses import StandardResponse
 from src.intelligence.models.intelligence_models import AnalysisMethod
 from src.intelligence.services.admin_intelligence_service import AdminIntelligenceService
+from src.intelligence.routes.product_creator_invite_routes import router as invite_router
+from src.intelligence.routes.product_creator_dashboard_routes import router as dashboard_router
 
 router = APIRouter(prefix="/admin/intelligence", tags=["Admin Intelligence"])
 
@@ -295,3 +297,14 @@ async def list_product_creator_submissions(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list submissions: {str(e)}")
+
+
+# Include product creator invite management routes
+router.include_router(invite_router)
+
+# Include product creator dashboard routes (separate prefix)
+from fastapi import APIRouter as FastAPIRouter
+dashboard_wrapper = FastAPIRouter(prefix="/api/intelligence")
+dashboard_wrapper.include_router(dashboard_router)
+
+# Note: dashboard_wrapper will be included in main intelligence router
