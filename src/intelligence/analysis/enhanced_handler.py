@@ -156,7 +156,7 @@ class EnhancedAnalysisHandler:
           }}
         }}
 
-        Content: {content[:3000]}
+        Content: {content[:8000]}
 
         Return only valid JSON without markdown formatting.
         """
@@ -311,7 +311,7 @@ class EnhancedAnalysisHandler:
             task = asyncio.create_task(
                 asyncio.wait_for(
                     enhancer_func(base_intel, opportunities, providers),
-                    timeout=30  # Individual enhancer timeout
+                    timeout=60  # Individual enhancer timeout for comprehensive analysis
                 )
             )
             enhancement_tasks.append((enhancer_name, task))
@@ -397,7 +397,7 @@ class EnhancedAnalysisHandler:
                 return {
                     "enhancement_applied": True,
                     "simulated_enhancement": True,
-                    "raw_response": response[:500],  # Store first 500 chars for debugging
+                    "raw_response": response,  # Store complete response for full intelligence
                     "enhancement_confidence": 0.5
                 }
 
@@ -452,7 +452,7 @@ class EnhancedAnalysisHandler:
                 return {
                     "enhancement_applied": True,
                     "simulated_enhancement": True,
-                    "raw_response": response[:500],  # Store first 500 chars for debugging
+                    "raw_response": response,  # Store complete response for full intelligence
                     "enhancement_confidence": 0.5
                 }
 
@@ -507,7 +507,7 @@ class EnhancedAnalysisHandler:
                 return {
                     "enhancement_applied": True,
                     "simulated_enhancement": True,
-                    "raw_response": response[:500],  # Store first 500 chars for debugging
+                    "raw_response": response,  # Store complete response for full intelligence
                     "enhancement_confidence": 0.5
                 }
 
@@ -562,7 +562,7 @@ class EnhancedAnalysisHandler:
                 return {
                     "enhancement_applied": True,
                     "simulated_enhancement": True,
-                    "raw_response": response[:500],  # Store first 500 chars for debugging
+                    "raw_response": response,  # Store complete response for full intelligence
                     "enhancement_confidence": 0.5
                 }
 
@@ -617,7 +617,7 @@ class EnhancedAnalysisHandler:
                 return {
                     "enhancement_applied": True,
                     "simulated_enhancement": True,
-                    "raw_response": response[:500],  # Store first 500 chars for debugging
+                    "raw_response": response,  # Store complete response for full intelligence
                     "enhancement_confidence": 0.5
                 }
 
@@ -672,7 +672,7 @@ class EnhancedAnalysisHandler:
                 return {
                     "enhancement_applied": True,
                     "simulated_enhancement": True,
-                    "raw_response": response[:500],  # Store first 500 chars for debugging
+                    "raw_response": response,  # Store complete response for full intelligence
                     "enhancement_confidence": 0.5
                 }
 
@@ -864,7 +864,7 @@ class EnhancedAnalysisHandler:
                     json={
                         "model": "deepseek-chat",
                         "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": 1500,
+                        "max_tokens": 4000,
                         "temperature": 0.1
                     },
                     timeout=30.0
@@ -888,7 +888,7 @@ class EnhancedAnalysisHandler:
                     json={
                         "model": "mixtral-8x7b-32768",
                         "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": 1500,
+                        "max_tokens": 4000,
                         "temperature": 0.1
                     },
                     timeout=30.0
@@ -912,7 +912,7 @@ class EnhancedAnalysisHandler:
                     json={
                         "model": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
                         "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": 1500,
+                        "max_tokens": 4000,
                         "temperature": 0.1
                     },
                     timeout=30.0
@@ -936,7 +936,7 @@ class EnhancedAnalysisHandler:
                     json={
                         "model": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
                         "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": 1500,
+                        "max_tokens": 4000,
                         "temperature": 0.1
                     },
                     timeout=30.0
@@ -960,7 +960,7 @@ class EnhancedAnalysisHandler:
                     json={
                         "model": "abab6.5s-chat",
                         "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": 1500,
+                        "max_tokens": 4000,
                         "temperature": 0.1
                     },
                     timeout=30.0
@@ -984,7 +984,7 @@ class EnhancedAnalysisHandler:
                     json={
                         "model": "command-r-plus",
                         "message": prompt,
-                        "max_tokens": 1500,
+                        "max_tokens": 4000,
                         "temperature": 0.1
                     },
                     timeout=30.0
@@ -1001,7 +1001,7 @@ class EnhancedAnalysisHandler:
             response = await self.openai_client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=1500,
+                max_tokens=4000,
                 temperature=0.1
             )
             return response.choices[0].message.content
@@ -1014,7 +1014,7 @@ class EnhancedAnalysisHandler:
         try:
             response = await self.anthropic_client.messages.create(
                 model="claude-3-haiku-20240307",
-                max_tokens=1500,  # Increased for enhancement responses
+                max_tokens=4000,  # Increased for enhancement responses
                 messages=[{"role": "user", "content": prompt}]
             )
             return response.content[0].text
