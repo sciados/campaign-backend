@@ -19,7 +19,7 @@ from src.core.shared.responses import StandardResponse
 from src.intelligence.services.product_creator_invite_service import ProductCreatorInviteService
 from src.intelligence.models.product_creator_invite import InviteStatus
 
-admin_router = APIRouter(prefix="/admin/product-creator-invites", tags=["Admin Product Creator Invites"])
+admin_router = APIRouter(prefix="/product-creator-invites", tags=["Admin Product Creator Invites"])
 public_router = APIRouter(prefix="/product-creator-invites", tags=["Product Creator Invites Public"])
 logger = logging.getLogger(__name__)
 
