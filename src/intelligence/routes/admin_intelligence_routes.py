@@ -16,7 +16,7 @@ from pydantic import BaseModel, HttpUrl, Field
 
 from src.core.database import get_async_db
 from src.core.auth.dependencies import get_current_user, require_admin, require_admin_or_product_creator
-from src.core.shared.response_models import StandardResponse
+from src.core.shared.responses import StandardResponse
 from src.intelligence.models.intelligence_models import AnalysisMethod
 from src.intelligence.services.admin_intelligence_service import AdminIntelligenceService
 
