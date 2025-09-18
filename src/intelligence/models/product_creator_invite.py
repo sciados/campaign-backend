@@ -9,7 +9,7 @@ Enables admins to create private invites for product creators to access
 the special free account system for URL pre-analysis.
 """
 
-from sqlalchemy import Column, String, Text, Boolean, DateTime
+from sqlalchemy import Column, String, Text, Boolean, DateTime, Integer
 from sqlalchemy.sql import func
 from datetime import datetime, timedelta
 import uuid
@@ -49,7 +49,7 @@ class ProductCreatorInvite(Base):
     admin_notes = Column(Text, nullable=True)  # Admin notes about the invite
 
     # Invite restrictions
-    max_url_submissions = Column(String, default="20")  # Max URLs they can submit
+    max_url_submissions = Column(Integer, default=20)  # Max URLs they can submit
     expires_at = Column(DateTime(timezone=True), nullable=False)  # Invite expiration
 
     # Status tracking
@@ -107,7 +107,7 @@ class ProductCreatorInvite(Base):
             company_name=company_name,
             invited_by_admin_id=invited_by_admin_id,
             admin_notes=admin_notes,
-            max_url_submissions=str(max_url_submissions),
+            max_url_submissions=max_url_submissions,
             expires_at=expires_at,
             usage_restrictions=usage_restrictions,
             status=InviteStatus.PENDING.value
