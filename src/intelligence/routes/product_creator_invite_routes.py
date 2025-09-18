@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, EmailStr, Field
+import logging
 
 from src.core.database import get_async_db
 from src.core.auth.dependencies import require_admin, get_current_user
@@ -21,6 +22,7 @@ from src.intelligence.services.product_creator_invite_service import ProductCrea
 from src.intelligence.models.product_creator_invite import InviteStatus
 
 router = APIRouter(prefix="/admin/product-creator-invites", tags=["Admin Product Creator Invites"])
+logger = logging.getLogger(__name__)
 
 
 class CreateInviteRequest(BaseModel):
@@ -138,6 +140,7 @@ async def list_product_creator_invites(
         )
 
     except Exception as e:
+        logger.error(f"Failed to list invites: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to list invites: {str(e)}")
 
 
