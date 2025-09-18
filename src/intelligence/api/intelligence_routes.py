@@ -23,6 +23,7 @@ from src.core.shared.exceptions import CampaignForgeException
 from src.intelligence.models.intelligence_models import IntelligenceRequest, IntelligenceResponse, AnalysisResult, AnalysisMethod
 from src.intelligence.services.intelligence_service import IntelligenceService
 from src.intelligence.services.intelligence_content_service import IntelligenceContentService, generate_intelligence_driven_content
+from src.intelligence.routes.admin_intelligence_routes import router as admin_router
 
 logger = logging.getLogger(__name__)
 
@@ -337,3 +338,7 @@ async def intelligence_health():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Intelligence health check failed"
         )
+
+
+# Include admin routes for URL pre-population system
+router.include_router(admin_router)
