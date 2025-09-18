@@ -16,8 +16,12 @@ from email.mime.multipart import MimeMultipart
 from typing import Optional, Dict, Any
 from datetime import datetime
 import os
-import aiohttp
-import json
+try:
+    import aiohttp
+    AIOHTTP_AVAILABLE = True
+except ImportError:
+    AIOHTTP_AVAILABLE = False
+    import requests
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +47,7 @@ class EmailService:
         self.frontend_url = os.getenv("FRONTEND_URL", "https://www.rodgersdigital.com")
 
         # Check if email is configured (prefer Resend API)
-        self.use_resend_api = bool(self.resend_api_key)
+        self.use_resend_api = bool(self.resend_api_key) and AIOHTTP_AVAILABLE
         self.is_configured = self.use_resend_api or bool(self.smtp_username and self.smtp_password)
 
         if not self.is_configured:
@@ -364,7 +368,36 @@ This email was sent because you were invited by {admin_name}
             bool: True if email sent successfully
         """
         try:
-            async with aiohttp.ClientSession() as session:
+            if AIOHTTP_AVAILABLE:
+                # Use aiohttp if available
+                async with aiohttp.ClientSession() as session:
+                    payload = {
+                        "from": f"{self.from_name} <{self.from_email}>",
+                        "to": [to_email],
+                        "subject": subject,
+                        "html": html_content,
+                        "text": text_content
+                    }
+
+                    headers = {
+                        "Authorization": f"Bearer {self.resend_api_key}",
+                        "Content-Type": "application/json"
+                    }
+
+                    async with session.post(
+                        "https://api.resend.com/emails",
+                        json=payload,
+                        headers=headers
+                    ) as response:
+                        if response.status == 200:
+                            logger.info(f"📧 EMAIL SENT (Resend API): {to_email}")
+                            return True
+                        else:
+                            error_text = await response.text()
+                            logger.error(f"Resend API error {response.status}: {error_text}")
+                            return False
+            else:
+                # Fallback to requests (sync)
                 payload = {
                     "from": f"{self.from_name} <{self.from_email}>",
                     "to": [to_email],
@@ -378,18 +411,18 @@ This email was sent because you were invited by {admin_name}
                     "Content-Type": "application/json"
                 }
 
-                async with session.post(
+                response = requests.post(
                     "https://api.resend.com/emails",
                     json=payload,
                     headers=headers
-                ) as response:
-                    if response.status == 200:
-                        logger.info(f"📧 EMAIL SENT (Resend API): {to_email}")
-                        return True
-                    else:
-                        error_text = await response.text()
-                        logger.error(f"Resend API error {response.status}: {error_text}")
-                        return False
+                )
+
+                if response.status_code == 200:
+                    logger.info(f"📧 EMAIL SENT (Resend API - requests): {to_email}")
+                    return True
+                else:
+                    logger.error(f"Resend API error {response.status_code}: {response.text}")
+                    return False
 
         except Exception as e:
             logger.error(f"Failed to send email via Resend API to {to_email}: {e}")
