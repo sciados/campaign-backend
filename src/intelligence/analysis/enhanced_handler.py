@@ -300,34 +300,37 @@ class EnhancedAnalysisHandler:
         return opportunities
     
     async def _generate_enhancements(self, base_intel: Dict[str, Any], opportunities: Dict[str, Any], providers: List[Any]) -> Dict[str, Any]:
-        """Generate enhancements using all 6 enhancers."""
-        
+        """Generate enhancements using all 6 enhancers with intelligent throttling."""
+
         enhancements = {}
-        
-        # Run all 6 enhancers concurrently with individual timeouts
-        enhancement_tasks = []
-        
-        for enhancer_name, enhancer_func in self.enhancers.items():
-            task = asyncio.create_task(
-                asyncio.wait_for(
+
+        # Run enhancers SEQUENTIALLY with throttling to prevent API rate limits
+        enhancer_delay = 2.0  # 2 second delay between enhancers
+
+        for i, (enhancer_name, enhancer_func) in enumerate(self.enhancers.items()):
+            try:
+                # Add delay between enhancers (except for the first one)
+                if i > 0:
+                    logger.info(f"Throttling: waiting {enhancer_delay}s before {enhancer_name} enhancer")
+                    await asyncio.sleep(enhancer_delay)
+
+                logger.info(f"Starting {enhancer_name} enhancer ({i+1}/6)")
+
+                # Run individual enhancer with timeout
+                result = await asyncio.wait_for(
                     enhancer_func(base_intel, opportunities, providers),
                     timeout=60  # Individual enhancer timeout for comprehensive analysis
                 )
-            )
-            enhancement_tasks.append((enhancer_name, task))
-        
-        # Collect results as they complete
-        for enhancer_name, task in enhancement_tasks:
-            try:
-                result = await task
+
                 enhancements[f"{enhancer_name}_enhancement"] = result
-                logger.info(f"{enhancer_name} enhancer completed successfully")
+                logger.info(f"{enhancer_name} enhancer completed successfully ({i+1}/6)")
+
             except asyncio.TimeoutError:
                 logger.warning(f"{enhancer_name} enhancer timed out")
-                enhancements[f"{enhancer_name}_enhancement"] = {"status": "timeout"}
+                enhancements[f"{enhancer_name}_enhancement"] = {"status": "timeout", "enhancement_applied": False}
             except Exception as e:
                 logger.error(f"{enhancer_name} enhancer failed: {e}")
-                enhancements[f"{enhancer_name}_enhancement"] = {"status": "failed", "error": str(e)}
+                enhancements[f"{enhancer_name}_enhancement"] = {"status": "failed", "error": str(e), "enhancement_applied": False}
         
         # Add enhancement metadata
         successful_enhancers = [name for name, result in enhancements.items() 
@@ -841,6 +844,9 @@ class EnhancedAnalysisHandler:
             except Exception as e:
                 logger.warning(f"Ultra-cheap provider {provider['name']} failed: {e}")
                 self._rotate_provider()
+                # Add small delay before trying next provider to prevent rapid API hammering
+                if attempt < len(self.available_providers) - 1:  # Don't delay on last attempt
+                    await asyncio.sleep(1.0)
                 continue
 
         # If all available providers failed, fallback to OpenAI

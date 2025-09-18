@@ -193,8 +193,16 @@ class AnalysisService:
             # STAGE 1: Base Analysis
             base_intelligence = await self.enhanced_handler.perform_base_analysis(content_text, source_url)
 
+            # Throttling between stages to prevent API overload
+            logger.info("Throttling: waiting 3s before Stage 2 (Enhancement Pipeline)")
+            await asyncio.sleep(3.0)
+
             # STAGE 2: Enhancement Pipeline (6 enhancers)
             enriched_intelligence = await self.enhanced_handler.perform_amplification(base_intelligence, source_url)
+
+            # Throttling between stages
+            logger.info("Throttling: waiting 2s before Stage 3 (RAG Integration)")
+            await asyncio.sleep(2.0)
 
             # STAGE 3: RAG Integration
             final_intelligence = await self.enhanced_handler.apply_rag_enhancement(enriched_intelligence, source_url)
