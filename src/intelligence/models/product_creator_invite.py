@@ -11,7 +11,7 @@ the special free account system for URL pre-analysis.
 
 from sqlalchemy import Column, String, Text, Boolean, DateTime, Integer, JSON
 from sqlalchemy.sql import func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 import secrets
 from enum import Enum
@@ -99,7 +99,7 @@ class ProductCreatorInvite(Base):
         Returns:
             ProductCreatorInvite: New invite instance
         """
-        expires_at = datetime.now() + timedelta(days=days_valid)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=days_valid)
 
         return cls(
             invite_token=cls.generate_invite_token(),
@@ -119,7 +119,7 @@ class ProductCreatorInvite(Base):
         """Check if invite is still valid."""
         return (
             self.status == InviteStatus.PENDING.value and
-            self.expires_at > datetime.now()
+            self.expires_at > datetime.now(timezone.utc)
         )
 
     def accept_invite(self, user_id: str) -> bool:
@@ -137,7 +137,7 @@ class ProductCreatorInvite(Base):
 
         self.status = InviteStatus.ACCEPTED.value
         self.created_user_id = user_id
-        self.accepted_at = datetime.now()
+        self.accepted_at = datetime.now(timezone.utc)
         return True
 
     def revoke_invite(self) -> bool:

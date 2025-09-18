@@ -13,7 +13,7 @@ import logging
 from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from src.intelligence.models.product_creator_invite import ProductCreatorInvite, InviteStatus
 
@@ -151,7 +151,7 @@ class ProductCreatorInviteService:
         if not invite.is_valid():
             if invite.status == InviteStatus.ACCEPTED.value:
                 reason = "Invite has already been used"
-            elif invite.status == InviteStatus.EXPIRED.value or invite.expires_at <= datetime.now():
+            elif invite.status == InviteStatus.EXPIRED.value or invite.expires_at <= datetime.now(timezone.utc):
                 reason = "Invite has expired"
             elif invite.status == InviteStatus.REVOKED.value:
                 reason = "Invite has been revoked"
@@ -277,7 +277,7 @@ class ProductCreatorInviteService:
         """
         stmt = update(ProductCreatorInvite).where(
             ProductCreatorInvite.status == InviteStatus.PENDING.value,
-            ProductCreatorInvite.expires_at <= datetime.now()
+            ProductCreatorInvite.expires_at <= datetime.now(timezone.utc)
         ).values(status=InviteStatus.EXPIRED.value)
 
         result = await session.execute(stmt)
