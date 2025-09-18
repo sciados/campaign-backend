@@ -307,7 +307,7 @@ CampaignForge Admin System
                 <div style="background: #f3f4f6; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
                     <p style="margin: 0; color: #6b7280; font-size: 12px;">
                         CampaignForge - AI-Powered Marketing Platform<br>
-                        This email was sent to {invitee_name.split('@')[0] if '@' in invitee_name else invitee_name} because you were invited by {admin_name}
+                        This email was sent to {invitee_name.split('@')[0] if '@' in str(invitee_name) else invitee_name} because you were invited by {admin_name}
                     </p>
                 </div>
             </div>
