@@ -354,7 +354,8 @@ class EnhancedAnalysisHandler:
             return {"enhancement_applied": False, "error": "No providers available"}
         
         try:
-            response = await self._query_ai_provider(prompt, provider.name)
+            provider_name = provider["name"] if isinstance(provider, dict) else provider.name
+            response = await self._query_ai_provider(prompt, provider_name)
             return json.loads(response)
         except Exception as e:
             return {"enhancement_applied": False, "error": str(e)}
@@ -386,7 +387,8 @@ class EnhancedAnalysisHandler:
             return {"enhancement_applied": False, "error": "No providers available"}
         
         try:
-            response = await self._query_ai_provider(prompt, provider.name)
+            provider_name = provider["name"] if isinstance(provider, dict) else provider.name
+            response = await self._query_ai_provider(prompt, provider_name)
             return json.loads(response)
         except Exception as e:
             return {"enhancement_applied": False, "error": str(e)}
@@ -418,7 +420,8 @@ class EnhancedAnalysisHandler:
             return {"enhancement_applied": False, "error": "No providers available"}
         
         try:
-            response = await self._query_ai_provider(prompt, provider.name)
+            provider_name = provider["name"] if isinstance(provider, dict) else provider.name
+            response = await self._query_ai_provider(prompt, provider_name)
             return json.loads(response)
         except Exception as e:
             return {"enhancement_applied": False, "error": str(e)}
@@ -450,7 +453,8 @@ class EnhancedAnalysisHandler:
             return {"enhancement_applied": False, "error": "No providers available"}
         
         try:
-            response = await self._query_ai_provider(prompt, provider.name)
+            provider_name = provider["name"] if isinstance(provider, dict) else provider.name
+            response = await self._query_ai_provider(prompt, provider_name)
             return json.loads(response)
         except Exception as e:
             return {"enhancement_applied": False, "error": str(e)}
@@ -482,7 +486,8 @@ class EnhancedAnalysisHandler:
             return {"enhancement_applied": False, "error": "No providers available"}
         
         try:
-            response = await self._query_ai_provider(prompt, provider.name)
+            provider_name = provider["name"] if isinstance(provider, dict) else provider.name
+            response = await self._query_ai_provider(prompt, provider_name)
             return json.loads(response)
         except Exception as e:
             return {"enhancement_applied": False, "error": str(e)}
@@ -514,7 +519,8 @@ class EnhancedAnalysisHandler:
             return {"enhancement_applied": False, "error": "No providers available"}
         
         try:
-            response = await self._query_ai_provider(prompt, provider.name)
+            provider_name = provider["name"] if isinstance(provider, dict) else provider.name
+            response = await self._query_ai_provider(prompt, provider_name)
             return json.loads(response)
         except Exception as e:
             return {"enhancement_applied": False, "error": str(e)}
