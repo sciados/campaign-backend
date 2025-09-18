@@ -24,7 +24,7 @@ from src.intelligence.services.admin_intelligence_service import AdminIntelligen
 from src.intelligence.routes.product_creator_invite_routes import router as invite_router
 from src.intelligence.routes.product_creator_dashboard_routes import router as dashboard_router
 
-router = APIRouter(prefix="/admin/intelligence", tags=["Admin Intelligence"])
+router = APIRouter(prefix="", tags=["Admin Intelligence"])
 
 
 class BulkAnalysisRequest(BaseModel):

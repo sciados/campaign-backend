@@ -167,6 +167,14 @@ async def create_campaignforge_app() -> FastAPI:
             intelligence_router = intelligence_module.get_api_router()
             if intelligence_router:
                 app.include_router(intelligence_router, prefix="/api/intelligence")
+
+                # Also include admin intelligence routes under /api/admin
+                try:
+                    from src.intelligence.routes.admin_intelligence_routes import router as admin_intelligence_router
+                    app.include_router(admin_intelligence_router, prefix="/api/admin/intelligence")
+                    logger.info("Admin intelligence routes included successfully")
+                except Exception as e:
+                    logger.error(f"Failed to include admin intelligence routes: {e}")
         else:
             logger.error("Intelligence Engine module initialization failed")
     except Exception as e:
