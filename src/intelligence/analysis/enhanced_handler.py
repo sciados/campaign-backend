@@ -156,35 +156,57 @@ class EnhancedAnalysisHandler:
           }}
         }}
 
-        Content: {content[:4000]}
-        
-        Return only valid JSON.
+        Content: {content[:3000]}
+
+        Return only valid JSON without markdown formatting.
         """
-        
+
         try:
             # Use available providers directly (simple approach like before modular structure)
             if not self.available_providers:
                 raise ServiceUnavailableError("No AI providers available")
 
+            # Log content details for debugging
+            logger.info(f"Analyzing content: {len(content)} characters, first 200: {content[:200]}")
+
             # Use the cheapest available provider
             provider = min(self.available_providers, key=lambda x: x["cost"])
+            logger.info(f"Using provider: {provider['name']} for base analysis")
+
             response = await self._query_ai_provider(prompt, provider["name"])
-            intelligence = json.loads(response)
-            
+
+            # Log response for debugging
+            logger.info(f"AI response length: {len(response) if response else 0}")
+            logger.debug(f"AI response preview: {response[:200] if response else 'Empty'}")
+
+            if not response or not response.strip():
+                logger.warning("Empty response from AI provider, using fallback")
+                return self._get_fallback_base_intelligence()
+
+            # Try to clean the response (remove markdown if present)
+            cleaned_response = response.strip()
+            if cleaned_response.startswith("```json"):
+                cleaned_response = cleaned_response.replace("```json", "").replace("```", "").strip()
+            elif cleaned_response.startswith("```"):
+                cleaned_response = cleaned_response.replace("```", "").strip()
+
+            intelligence = json.loads(cleaned_response)
+
             # Ensure all required sections exist
             required_sections = [
-                "offer_intelligence", "psychology_intelligence", 
+                "offer_intelligence", "psychology_intelligence",
                 "competitive_intelligence", "content_intelligence", "brand_intelligence"
             ]
-            
+
             for section in required_sections:
                 if section not in intelligence:
                     intelligence[section] = {}
-            
+
             return intelligence
-            
+
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse base intelligence JSON: {e}")
+            logger.debug(f"Raw response that failed to parse: {response[:500] if response else 'None'}")
             return self._get_fallback_base_intelligence()
         except Exception as e:
             logger.error(f"Base intelligence extraction failed: {e}")
