@@ -16,6 +16,8 @@ from email.mime.multipart import MimeMultipart
 from typing import Optional, Dict, Any
 from datetime import datetime
 import os
+import aiohttp
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -24,22 +26,32 @@ class EmailService:
     """Service for sending emails related to product creator invitations."""
 
     def __init__(self):
-        # Email configuration from environment variables
-        self.smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        # Resend API configuration (preferred)
+        self.resend_api_key = os.getenv("RESEND_API_KEY")
+
+        # Fallback to SMTP configuration
+        self.smtp_server = os.getenv("SMTP_SERVER", "smtp.resend.com")
         self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
         self.smtp_username = os.getenv("SMTP_USERNAME")
         self.smtp_password = os.getenv("SMTP_PASSWORD")
-        self.from_email = os.getenv("FROM_EMAIL", self.smtp_username)
+
+        # Email settings
+        self.from_email = os.getenv("FROM_EMAIL", "noreply@rodgersdigital.com")
         self.from_name = os.getenv("FROM_NAME", "CampaignForge")
 
         # Frontend URL for registration links
         self.frontend_url = os.getenv("FRONTEND_URL", "https://www.rodgersdigital.com")
 
-        # Check if email is configured
-        self.is_configured = bool(self.smtp_username and self.smtp_password)
+        # Check if email is configured (prefer Resend API)
+        self.use_resend_api = bool(self.resend_api_key)
+        self.is_configured = self.use_resend_api or bool(self.smtp_username and self.smtp_password)
 
         if not self.is_configured:
             logger.warning("Email service not configured - emails will be logged instead of sent")
+        elif self.use_resend_api:
+            logger.info("Email service configured with Resend API")
+        else:
+            logger.info("Email service configured with SMTP")
 
     async def send_product_creator_invitation(
         self,
@@ -332,7 +344,58 @@ CampaignForge - AI-Powered Marketing Platform
 This email was sent because you were invited by {admin_name}
         """
 
-    async def _send_email(
+    async def _send_email_resend_api(
+        self,
+        to_email: str,
+        subject: str,
+        html_content: str,
+        text_content: str
+    ) -> bool:
+        """
+        Send email using Resend API.
+
+        Args:
+            to_email: Recipient email address
+            subject: Email subject
+            html_content: HTML email content
+            text_content: Plain text email content
+
+        Returns:
+            bool: True if email sent successfully
+        """
+        try:
+            async with aiohttp.ClientSession() as session:
+                payload = {
+                    "from": f"{self.from_name} <{self.from_email}>",
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html_content,
+                    "text": text_content
+                }
+
+                headers = {
+                    "Authorization": f"Bearer {self.resend_api_key}",
+                    "Content-Type": "application/json"
+                }
+
+                async with session.post(
+                    "https://api.resend.com/emails",
+                    json=payload,
+                    headers=headers
+                ) as response:
+                    if response.status == 200:
+                        logger.info(f"📧 EMAIL SENT (Resend API): {to_email}")
+                        return True
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"Resend API error {response.status}: {error_text}")
+                        return False
+
+        except Exception as e:
+            logger.error(f"Failed to send email via Resend API to {to_email}: {e}")
+            return False
+
+    async def _send_email_smtp(
         self,
         to_email: str,
         subject: str,
@@ -351,13 +414,6 @@ This email was sent because you were invited by {admin_name}
         Returns:
             bool: True if email sent successfully
         """
-        if not self.is_configured:
-            # Log email instead of sending if not configured
-            logger.info(f"📧 EMAIL (NOT SENT - NO CONFIG): {to_email}")
-            logger.info(f"Subject: {subject}")
-            logger.info(f"Content: {text_content[:200]}...")
-            return True
-
         try:
             # Create message
             msg = MimeMultipart('alternative')
@@ -378,12 +434,44 @@ This email was sent because you were invited by {admin_name}
                 server.login(self.smtp_username, self.smtp_password)
                 server.send_message(msg)
 
-            logger.info(f"📧 EMAIL SENT: {to_email}")
+            logger.info(f"📧 EMAIL SENT (SMTP): {to_email}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to send email to {to_email}: {e}")
+            logger.error(f"Failed to send email via SMTP to {to_email}: {e}")
             return False
+
+    async def _send_email(
+        self,
+        to_email: str,
+        subject: str,
+        html_content: str,
+        text_content: str
+    ) -> bool:
+        """
+        Send email using the best available method.
+
+        Args:
+            to_email: Recipient email address
+            subject: Email subject
+            html_content: HTML email content
+            text_content: Plain text email content
+
+        Returns:
+            bool: True if email sent successfully
+        """
+        if not self.is_configured:
+            # Log email instead of sending if not configured
+            logger.info(f"📧 EMAIL (NOT SENT - NO CONFIG): {to_email}")
+            logger.info(f"Subject: {subject}")
+            logger.info(f"Content: {text_content[:200]}...")
+            return True
+
+        # Use Resend API if available, otherwise fall back to SMTP
+        if self.use_resend_api:
+            return await self._send_email_resend_api(to_email, subject, html_content, text_content)
+        else:
+            return await self._send_email_smtp(to_email, subject, html_content, text_content)
 
 
 # Global email service instance
