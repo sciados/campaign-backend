@@ -303,9 +303,5 @@ async def list_product_creator_submissions(
 router.include_router(invite_admin_router)
 router.include_router(invite_public_router)
 
-# Include product creator dashboard routes (separate prefix)
-from fastapi import APIRouter as FastAPIRouter
-dashboard_wrapper = FastAPIRouter(prefix="/api/intelligence")
-dashboard_wrapper.include_router(dashboard_router)
-
-# Note: dashboard_wrapper will be included in main intelligence router
+# Include product creator dashboard routes directly
+router.include_router(dashboard_router)
