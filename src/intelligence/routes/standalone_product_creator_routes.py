@@ -231,10 +231,18 @@ async def resend_product_creator_invite(
             raise HTTPException(status_code=400, detail="Can only resend pending invites")
 
         # Send invitation email to product creator
-        from src.intelligence.services.email_service import email_service
+        from src.intelligence.services.email_service_simple import email_service
+
+        # Debug: Log current_user to see available fields
+        logger.info(f"DEBUG current_user keys: {list(current_user.keys())}")
+        logger.info(f"DEBUG current_user data: {current_user}")
+
+        # Get admin's first name from user table
+        admin_first_name = current_user.get("first_name") or current_user.get("full_name") or "Admin"
+
         email_sent = await email_service.send_product_creator_invitation(
             invite_data=invite.to_dict(include_sensitive=True),
-            admin_name=current_user.get("name") or current_user.get("email", "Admin")
+            admin_name=admin_first_name
         )
 
         return StandardResponse(

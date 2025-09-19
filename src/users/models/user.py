@@ -20,6 +20,7 @@ from src.core.database.base import Base
 class UserTypeEnum(str, enum.Enum):
     AFFILIATE_MARKETER = "AFFILIATE_MARKETER"  # Change from "affiliate_marketer"
     CONTENT_CREATOR = "CONTENT_CREATOR"        # Change from "content_creator"
+    PRODUCT_CREATOR = "PRODUCT_CREATOR"        # Product creators for special invite system
     BUSINESS_OWNER = "BUSINESS_OWNER"          # Change from "business_owner"
 
 class UserRoleEnum(str, enum.Enum):

@@ -26,42 +26,74 @@ logger = logging.getLogger(__name__)
 
 @router.post("/api/auth/register")
 async def register_user(request: Dict[str, Any]):
-    """Enhanced user registration with proper service management"""
+    """Enhanced user registration with invite token support"""
     try:
         email = request.get("email")
         password = request.get("password")
         full_name = request.get("full_name")
         company_name = request.get("company_name", "Default Company")
         user_type = request.get("user_type")  # Get user_type from request
-        
+        invite_token = request.get("invite_token")  # Get invite token if provided
+
         if not all([email, password, full_name]):
             raise HTTPException(
                 status_code=400,
                 detail="email, password, and full_name are required"
             )
-        
+
+        # If invite token is provided, validate it and set user type
+        if invite_token:
+            from src.intelligence.services.product_creator_invite_service import ProductCreatorInviteService
+            from src.core.database import get_async_db
+
+            # Get database session for invite validation
+            db_gen = get_async_db()
+            session = await db_gen.__anext__()
+
+            try:
+                invite_service = ProductCreatorInviteService()
+                validation_result = await invite_service.validate_invite_token(
+                    invite_token=invite_token,
+                    session=session
+                )
+
+                if not validation_result["valid"]:
+                    raise HTTPException(status_code=400, detail=f"Invalid invite token: {validation_result['reason']}")
+
+                # Set user type to PRODUCT_CREATOR for product creator invites
+                user_type = "product_creator"
+
+                # Extract company name from invite if available
+                if validation_result.get("invite_data", {}).get("company_name"):
+                    company_name = validation_result["invite_data"]["company_name"]
+
+            finally:
+                await session.close()
+
         # Map frontend user types to backend enums if user_type is provided
         backend_user_type = None
         if user_type:
             user_type_mapping = {
                 "affiliate_marketer": "AFFILIATE_MARKETER",
                 "affiliate": "AFFILIATE_MARKETER",
-                "content_creator": "CONTENT_CREATOR", 
+                "content_creator": "CONTENT_CREATOR",
                 "creator": "CONTENT_CREATOR",
+                "product_creator": "PRODUCT_CREATOR",
                 "business_owner": "BUSINESS_OWNER",
                 "business": "BUSINESS_OWNER",
             }
             backend_user_type = user_type_mapping.get(user_type, user_type.upper())
-        
+
         async with ServiceFactory.create_transactional_service(AuthService) as auth_service:
             result = await auth_service.register(
                 email=email,
                 password=password,
                 full_name=full_name,
                 company_name=company_name,
-                user_type=backend_user_type  # Pass user_type to register method
+                user_type=backend_user_type,  # Pass user_type to register method
+                invite_token=invite_token  # Pass invite token for acceptance
             )
-        
+
         return result
         
     except Exception as e:
@@ -109,7 +141,8 @@ async def get_user_profile(token: str = Depends(security)):
                     # Map to frontend format
                     backend_to_frontend_mapping = {
                         "AFFILIATE_MARKETER": "affiliate_marketer",
-                        "CONTENT_CREATOR": "content_creator", 
+                        "CONTENT_CREATOR": "content_creator",
+                        "PRODUCT_CREATOR": "product_creator",
                         "BUSINESS_OWNER": "business_owner",
                     }
                     

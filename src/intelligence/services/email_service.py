@@ -11,8 +11,6 @@ for the admin-controlled product creator invitation workflow.
 
 import smtplib
 import logging
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
 from typing import Optional, Dict, Any
 from datetime import datetime
 import os
@@ -100,24 +98,28 @@ class EmailService:
             # Create email content
             subject = "🎯 You're Invited: Exclusive Product Creator Access - CampaignForge"
 
+            # Extract name safely outside f-string context
+            display_name = invitee_name or invitee_email.split('@')[0]
+            admin_display_name = admin_name or "CampaignForge Team"
+
             # HTML email template
             html_content = self._create_invitation_html_template(
-                invitee_name=invitee_name or invitee_email.split('@')[0],
+                invitee_name=display_name,
                 company_name=company_name,
                 registration_url=registration_url,
                 max_url_submissions=max_url_submissions,
                 expires_at=expires_at,
-                admin_name=admin_name or "CampaignForge Team"
+                admin_name=admin_display_name
             )
 
             # Plain text version
             text_content = self._create_invitation_text_template(
-                invitee_name=invitee_name or invitee_email.split('@')[0],
+                invitee_name=display_name,
                 company_name=company_name,
                 registration_url=registration_url,
                 max_url_submissions=max_url_submissions,
                 expires_at=expires_at,
-                admin_name=admin_name or "CampaignForge Team"
+                admin_name=admin_display_name
             )
 
             # Send email
@@ -229,7 +231,18 @@ CampaignForge Admin System
         admin_name: str
     ) -> str:
         """Create HTML email template for product creator invitation."""
-        return f"""
+        # Extract display name safely for footer
+        footer_name = invitee_name.split('@')[0] if '@' in invitee_name else invitee_name
+        # Extract expiry date safely
+        expiry_date = expires_at.split('T')[0] if expires_at else 'soon'
+
+        # Build company section if provided
+        company_section = ""
+        if company_name:
+            company_section = f'<p style="color: #374151;">We noticed you are with <strong>{company_name}</strong> - this invitation is specifically designed for product creators like you who want to get ahead of the game!</p>'
+
+        # Build the template using string concatenation to avoid f-string issues
+        html_content = """
         <!DOCTYPE html>
         <html>
         <head>
@@ -254,7 +267,7 @@ CampaignForge Admin System
                         <strong>Product Creator</strong> with special access to our pre-launch URL analysis system.
                     </p>
 
-                    {f'<p style="color: #374151;">We noticed you\'re with <strong>{company_name}</strong> - this invitation is specifically designed for product creators like you who want to get ahead of the game!</p>' if company_name else ''}
+                    {f'<p style="color: #374151;">We noticed you are with <strong>{company_name}</strong> - this invitation is specifically designed for product creators like you who want to get ahead of the game!</p>' if company_name else ''}
 
                     <!-- Benefits -->
                     <div style="background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
@@ -289,7 +302,7 @@ CampaignForge Admin System
                     <!-- Urgency -->
                     <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 8px; margin: 25px 0;">
                         <p style="margin: 0; color: #92400e;">
-                            ⏰ <strong>This invitation expires on {expires_at.split('T')[0] if expires_at else 'soon'}</strong> - claim your spot today!
+                            ⏰ <strong>This invitation expires on {expiry_date}</strong> - claim your spot today!
                         </p>
                     </div>
 
@@ -307,7 +320,7 @@ CampaignForge Admin System
                 <div style="background: #f3f4f6; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
                     <p style="margin: 0; color: #6b7280; font-size: 12px;">
                         CampaignForge - AI-Powered Marketing Platform<br>
-                        This email was sent to {invitee_name.split('@')[0] if '@' in str(invitee_name) else invitee_name} because you were invited by {admin_name}
+                        This email was sent to {footer_name} because you were invited by {admin_name}
                     </p>
                 </div>
             </div>
@@ -325,6 +338,9 @@ CampaignForge Admin System
         admin_name: str
     ) -> str:
         """Create plain text email template for product creator invitation."""
+        # Extract expiry date safely
+        expiry_date = expires_at.split('T')[0] if expires_at else 'soon'
+
         return f"""
 🎯 You're Invited: Exclusive Product Creator Access - CampaignForge
 
@@ -332,7 +348,7 @@ Hi {invitee_name}!
 
 You've been personally invited by {admin_name} to join CampaignForge as a Product Creator with special access to our pre-launch URL analysis system.
 
-{f"We noticed you're with {company_name} - this invitation is specifically designed for product creators like you who want to get ahead of the game!" if company_name else ""}
+{f"We noticed you are with {company_name} - this invitation is specifically designed for product creators like you who want to get ahead of the game!" if company_name else ""}
 
 🚀 What You Get:
 - Free Pre-Launch Analysis: Submit up to {max_url_submissions} sales page URLs
@@ -349,7 +365,7 @@ How It Works:
 Registration Link:
 {registration_url}
 
-⏰ This invitation expires on {expires_at.split('T')[0] if expires_at else 'soon'} - claim your spot today!
+⏰ This invitation expires on {expiry_date} - claim your spot today!
 
 This is a private invitation. If you have any questions, reply to this email or contact our support team.
 
@@ -504,6 +520,10 @@ This email was sent because you were invited by {admin_name}
             bool: True if email sent successfully
         """
         try:
+            # Import email modules only when needed for SMTP
+            from email.mime.text import MimeText
+            from email.mime.multipart import MimeMultipart
+
             # Create message
             msg = MimeMultipart('alternative')
             msg['Subject'] = subject

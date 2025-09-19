@@ -165,9 +165,10 @@ class AuthService:
         password: str,
         full_name: str,
         company_name: str = "Default Company",
-        user_type: Optional[str] = None
+        user_type: Optional[str] = None,
+        invite_token: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Complete registration process with auto-login"""
+        """Complete registration process with auto-login and invite acceptance"""
         try:
             # Create user
             user = await self.user_service.create_user(
@@ -177,13 +178,30 @@ class AuthService:
                 company_name=company_name,
                 user_type=user_type
             )
-            
+
+            # If invite token provided, accept the invite
+            if invite_token:
+                try:
+                    from src.intelligence.services.product_creator_invite_service import ProductCreatorInviteService
+                    invite_service = ProductCreatorInviteService()
+
+                    # Accept the invite (marks it as accepted and links to user)
+                    await invite_service.accept_invite(
+                        invite_token=invite_token,
+                        user_id=str(user.id),
+                        session=self.db
+                    )
+                    logger.info(f"Invite {invite_token} accepted for user {user.id}")
+                except Exception as e:
+                    logger.error(f"Failed to accept invite {invite_token}: {e}")
+                    # Don't fail registration if invite acceptance fails
+
             # Auto-login: create access token for the new user
             access_token = await self.create_access_token(user)
-            
+
             # NOTE: Demo campaigns are now handled via global demo system
             # No need to create individual demos per user
-            
+
             return {
                 "message": "User registered successfully",
                 "user_id": str(user.id),
@@ -193,7 +211,7 @@ class AuthService:
                 "token_type": "bearer",
                 "expires_in": self.access_token_expire_minutes * 60,
             }
-            
+
         except Exception as e:
             logger.error(f"Registration error: {e}")
             raise

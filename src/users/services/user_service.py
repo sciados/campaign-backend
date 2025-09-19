@@ -54,24 +54,38 @@ class UserService:
                 company_slug = f"{base_slug}-{counter}"
                 counter += 1
             
+            # Set higher limits for PRODUCT_CREATOR users
+            credits_limit = 5000 if user_type == "PRODUCT_CREATOR" else 1000
+
             company = Company(
                 company_name=company_name,
                 company_slug=company_slug,
                 subscription_tier=SubscriptionTierEnum.FREE,
-                monthly_credits_limit=1000,
+                monthly_credits_limit=credits_limit,
                 monthly_credits_used=0
             )
             self.db.add(company)
             await self.db.flush()  # Get the company ID
             
+            # Split full_name into first_name and last_name
+            name_parts = full_name.strip().split()
+            first_name = name_parts[0] if name_parts else ""
+            last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+
+            # Set special settings for PRODUCT_CREATOR users
+            is_verified = True if user_type == "PRODUCT_CREATOR" else False
+            onboarding_completed = True if user_type == "PRODUCT_CREATOR" else False
+
             # Create user
             user = User(
                 email=email,
                 full_name=full_name,
+                first_name=first_name,
+                last_name=last_name,
                 company_id=company.id,
                 is_active=True,
-                is_verified=False,
-                onboarding_completed=False,
+                is_verified=is_verified,
+                onboarding_completed=onboarding_completed,
                 onboarding_step=0
             )
             
@@ -81,7 +95,20 @@ class UserService:
             # Set user type if provided
             if user_type:
                 user.set_user_type(user_type)
-            
+
+            # Set default dashboard preferences for PRODUCT_CREATOR users
+            if user_type == "PRODUCT_CREATOR":
+                import json
+                dashboard_prefs = {
+                    "show_url_submission": True,
+                    "show_analysis_results": True,
+                    "show_submission_tracking": True,
+                    "hide_campaign_creation": True,
+                    "focus_mode": "analysis_only",
+                    "default_view": "url_submission"
+                }
+                user.dashboard_preferences = json.dumps(dashboard_prefs)
+
             # Set password using the User model's method
             user.set_password(password)
             

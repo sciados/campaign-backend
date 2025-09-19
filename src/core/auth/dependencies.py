@@ -57,6 +57,8 @@ async def get_current_user(
     return {
         "id": str(user.id),
         "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
         "full_name": user.full_name,
         "role": user.role,
         "user_type": user.user_type,
@@ -92,7 +94,7 @@ async def require_admin_or_product_creator(
     current_user: dict = Depends(get_current_user)
 ) -> dict:
     """
-    Require admin role OR content creator with special permissions.
+    Require admin role OR product creator with special permissions.
 
     This enables product creators to submit URLs through special accounts
     while maintaining admin oversight.
@@ -110,7 +112,11 @@ async def require_admin_or_product_creator(
     if current_user["role"] == UserRoleEnum.ADMIN.value:
         return current_user
 
-    # Content creators can submit URLs for pre-analysis
+    # Product creators can submit URLs for pre-analysis
+    if current_user["user_type"] == "PRODUCT_CREATOR":
+        return current_user
+
+    # Content creators can also submit URLs for pre-analysis (backward compatibility)
     if current_user["user_type"] == "CONTENT_CREATOR":
         return current_user
 
