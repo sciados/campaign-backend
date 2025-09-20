@@ -340,3 +340,11 @@ async def intelligence_health():
 
 
 # Admin routes are included separately in main.py under /api/admin/intelligence
+
+# Include ClickBank routes
+try:
+    from src.intelligence.routes.routes_clickbank import router as clickbank_router
+    router.include_router(clickbank_router)
+    logger.info("ClickBank routes included successfully")
+except ImportError as e:
+    logger.warning(f"Could not import ClickBank routes: {e}")

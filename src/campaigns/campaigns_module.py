@@ -50,15 +50,25 @@ class CampaignModule(ModuleInterface):
         
             # Initialize API router
             try:
-                from src.campaigns.api.routes import router, affiliate_router
-                # Create a combined router that includes both main campaigns and affiliate routes
-                combined_router = APIRouter()
-                combined_router.include_router(router)
-                combined_router.include_router(affiliate_router)
-                self._router = combined_router
-                logger.info("Both campaigns and affiliate routers loaded successfully")
+                from src.campaigns.api.routes import router
+                self._router = router
+                logger.info("Campaigns router loaded successfully")
+
+                # Try to import affiliate router separately to avoid breaking the main router
+                try:
+                    from src.campaigns.api.routes import affiliate_router
+                    # Create a combined router that includes both main campaigns and affiliate routes
+                    combined_router = APIRouter()
+                    combined_router.include_router(router)
+                    combined_router.include_router(affiliate_router)
+                    self._router = combined_router
+                    logger.info("Both campaigns and affiliate routers loaded successfully")
+                except ImportError as ae:
+                    logger.warning(f"Could not import affiliate router: {ae}, using main router only")
+                    # Keep the main router even if affiliate router fails
+
             except ImportError as e:
-                logger.warning(f"Could not import campaigns router: {e}")
+                logger.error(f"Could not import main campaigns router: {e}")
                 from fastapi import APIRouter
                 self._router = APIRouter()
         
