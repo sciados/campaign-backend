@@ -48,29 +48,44 @@ class CampaignModule(ModuleInterface):
         
             logger.info("Skipping service initialization - services will be created when needed")
         
-            # Initialize API router
+            # Initialize API router with improved error handling
             try:
+                logger.info("Attempting to import campaigns router...")
                 from src.campaigns.api.routes import router
                 self._router = router
-                logger.info("Campaigns router loaded successfully")
+                logger.info(f"Campaigns router loaded successfully with {len(router.routes)} routes")
 
                 # Try to import affiliate router separately to avoid breaking the main router
                 try:
+                    logger.info("Attempting to import affiliate router...")
                     from src.campaigns.api.routes import affiliate_router
                     # Create a combined router that includes both main campaigns and affiliate routes
+                    from fastapi import APIRouter
                     combined_router = APIRouter()
                     combined_router.include_router(router)
                     combined_router.include_router(affiliate_router)
                     self._router = combined_router
-                    logger.info("Both campaigns and affiliate routers loaded successfully")
+                    logger.info(f"Both campaigns and affiliate routers loaded successfully. Total routes: {len(combined_router.routes)}")
                 except ImportError as ae:
                     logger.warning(f"Could not import affiliate router: {ae}, using main router only")
                     # Keep the main router even if affiliate router fails
+                except Exception as ae:
+                    logger.error(f"Error creating combined router: {ae}, using main router only")
 
             except ImportError as e:
                 logger.error(f"Could not import main campaigns router: {e}")
+                import traceback
+                logger.error(f"Import traceback: {traceback.format_exc()}")
                 from fastapi import APIRouter
                 self._router = APIRouter()
+                logger.warning("Created empty fallback router")
+            except Exception as e:
+                logger.error(f"Unexpected error loading campaigns router: {e}")
+                import traceback
+                logger.error(f"Error traceback: {traceback.format_exc()}")
+                from fastapi import APIRouter
+                self._router = APIRouter()
+                logger.warning("Created empty fallback router due to unexpected error")
         
             self._initialized = True
             logger.info(f"{self.name} module initialized successfully")
@@ -206,59 +221,79 @@ class CampaignModule(ModuleInterface):
         """Check module health"""
         try:
             services_status = {}
-            
+
             # Check campaign service
             if self.campaign_service:
-                if hasattr(self.campaign_service, 'health_check'):
-                    campaign_health = await self.campaign_service.health_check()
-                    services_status["campaign_service"] = campaign_health.get("status", "unknown")
-                else:
-                    services_status["campaign_service"] = "operational"
+                try:
+                    if hasattr(self.campaign_service, 'health_check'):
+                        campaign_health = await self.campaign_service.health_check()
+                        services_status["campaign_service"] = campaign_health.get("status", "unknown")
+                    else:
+                        services_status["campaign_service"] = "operational"
+                except Exception as e:
+                    services_status["campaign_service"] = f"error: {str(e)}"
             else:
                 services_status["campaign_service"] = "not_loaded"
-            
+
             # Check workflow service
             if self.workflow_service:
-                if hasattr(self.workflow_service, 'health_check'):
-                    workflow_health = await self.workflow_service.health_check()
-                    services_status["workflow_service"] = workflow_health.get("status", "unknown")
-                else:
-                    services_status["workflow_service"] = "operational"
+                try:
+                    if hasattr(self.workflow_service, 'health_check'):
+                        workflow_health = await self.workflow_service.health_check()
+                        services_status["workflow_service"] = workflow_health.get("status", "unknown")
+                    else:
+                        services_status["workflow_service"] = "operational"
+                except Exception as e:
+                    services_status["workflow_service"] = f"error: {str(e)}"
             else:
                 services_status["workflow_service"] = "not_loaded"
-            
+
             # Check dashboard service
             if self.dashboard_service:
-                if hasattr(self.dashboard_service, 'health_check'):
-                    dashboard_health = await self.dashboard_service.health_check()
-                    services_status["dashboard_service"] = dashboard_health.get("status", "unknown")
-                else:
-                    services_status["dashboard_service"] = "operational"
+                try:
+                    if hasattr(self.dashboard_service, 'health_check'):
+                        dashboard_health = await self.dashboard_service.health_check()
+                        services_status["dashboard_service"] = dashboard_health.get("status", "unknown")
+                    else:
+                        services_status["dashboard_service"] = "operational"
+                except Exception as e:
+                    services_status["dashboard_service"] = f"error: {str(e)}"
             else:
                 services_status["dashboard_service"] = "not_loaded"
-            
+
+            # Check if router was loaded successfully
+            router_status = "loaded" if self._router and len(getattr(self._router, 'routes', [])) > 0 else "empty"
+
             return {
                 "module": self.name,
-                "status": "healthy" if self._initialized else "not_initialized",
+                "status": "healthy" if self._initialized and router_status == "loaded" else "not_initialized",
                 "version": self.version,
                 "description": self.description,
                 "services": services_status,
+                "router": router_status,
+                "router_routes": len(getattr(self._router, 'routes', [])) if self._router else 0,
                 "background_tasks": len(self._background_tasks),
                 "cache_entries": len(self._campaign_cache),
                 "features": [
                     "campaign_creation",
-                    "campaign_management", 
+                    "campaign_management",
                     "workflow_automation",
                     "intelligence_integration",
                     "dashboard_analytics"
-                ]
+                ] if self._initialized and router_status == "loaded" else []
             }
         except Exception as e:
+            logger.error(f"Campaigns module health check failed: {e}")
             return {
                 "module": self.name,
                 "status": "error",
                 "error": str(e),
-                "version": self.version
+                "version": self.version,
+                "debug_info": {
+                    "initialized": getattr(self, '_initialized', False),
+                    "router_exists": self._router is not None,
+                    "router_type": type(self._router).__name__ if self._router else None
+                }
             }
     
     def get_api_router(self) -> APIRouter:
