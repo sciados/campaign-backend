@@ -23,7 +23,7 @@ def test_analytics_endpoints():
         "/api/analytics/refresh"
     ]
 
-    print("🧪 Testing Analytics Endpoints")
+    print("Testing Analytics Endpoints")
     print("=" * 50)
 
     for endpoint in endpoints:
@@ -35,18 +35,18 @@ def test_analytics_endpoints():
             response = requests.get(url, timeout=5)
 
             if response.status_code == 404:
-                print(f"❌ {endpoint} - NOT FOUND (404)")
+                print(f"X {endpoint} - NOT FOUND (404)")
             elif response.status_code == 401:
-                print(f"✅ {endpoint} - EXISTS (needs auth)")
+                print(f"OK {endpoint} - EXISTS (needs auth)")
             elif response.status_code == 405:
-                print(f"✅ {endpoint} - EXISTS (wrong method)")
+                print(f"OK {endpoint} - EXISTS (wrong method)")
             else:
-                print(f"✅ {endpoint} - EXISTS (status: {response.status_code})")
+                print(f"OK {endpoint} - EXISTS (status: {response.status_code})")
 
         except requests.exceptions.RequestException as e:
-            print(f"❌ {endpoint} - ERROR: {e}")
+            print(f"X {endpoint} - ERROR: {e}")
 
-    print("\n🎯 Summary:")
+    print("\nSummary:")
     print("- If endpoints show '404', routes aren't registered")
     print("- If endpoints show '401', routes are working (need auth)")
     print("- If endpoints show '405', routes exist but wrong HTTP method")

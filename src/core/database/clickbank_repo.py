@@ -5,6 +5,8 @@ from src.core.database.session import AsyncSessionManager
 
 async def save_clickbank_creds(user_id: int, nickname: str, api_key: str):
     """Save ClickBank credentials using async session"""
+    print(f"DEBUG: Database save - user_id={user_id}, nickname={nickname}, api_key=***")
+
     query = text("""
     INSERT INTO clickbank_accounts (user_id, nickname, api_key)
     VALUES (:user_id, :nickname, :api_key)
@@ -12,9 +14,16 @@ async def save_clickbank_creds(user_id: int, nickname: str, api_key: str):
     SET nickname = :nickname, api_key = :api_key
     """)
 
-    async with AsyncSessionManager.get_session() as session:
-        await session.execute(query, {"user_id": user_id, "nickname": nickname, "api_key": api_key})
-        await session.commit()
+    try:
+        async with AsyncSessionManager.get_session() as session:
+            print(f"DEBUG: Got database session, executing query")
+            result = await session.execute(query, {"user_id": user_id, "nickname": nickname, "api_key": api_key})
+            print(f"DEBUG: Query executed, committing transaction")
+            await session.commit()
+            print(f"DEBUG: Transaction committed successfully")
+    except Exception as e:
+        print(f"ERROR: Database save failed: {e}")
+        raise e
 
 async def get_clickbank_creds(user_id: int):
     """Get ClickBank credentials using async session"""

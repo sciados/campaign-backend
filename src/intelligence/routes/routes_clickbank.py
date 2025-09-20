@@ -30,13 +30,19 @@ async def connect_clickbank(
     body: ConnectRequest,
     user_id: str = Depends(get_current_user_id)
 ):
+    print(f"DEBUG: ClickBank connect endpoint called by user_id={user_id}")
+    print(f"DEBUG: Request body - nickname={body.nickname}, api_key=***")
+
     try:
-        return clickbank_service.save_credentials(
+        result = clickbank_service.save_credentials(
             user_id=int(user_id),  # Convert string to int for service
             nickname=body.nickname,
             api_key=body.api_key
         )
+        print(f"DEBUG: ClickBank save_credentials returned: {result}")
+        return result
     except Exception as e:
+        print(f"ERROR: ClickBank connect failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/sales")

@@ -7,13 +7,21 @@ BASE_URL = "https://api.clickbank.com/rest/1.3"
 
 def save_credentials(user_id: int, nickname: str, api_key: str):
     """Save ClickBank credentials for a user (sync wrapper)"""
+    print(f"DEBUG: Attempting to save ClickBank credentials for user_id={user_id}, nickname={nickname}")
+
     # Use asyncio to run the async function
     try:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(save_clickbank_creds(user_id, nickname, api_key))
-    except RuntimeError:
+        print(f"DEBUG: ClickBank credentials saved successfully via existing loop")
+    except RuntimeError as e:
+        print(f"DEBUG: RuntimeError, creating new loop: {e}")
         # Create new loop if none exists
         asyncio.run(save_clickbank_creds(user_id, nickname, api_key))
+        print(f"DEBUG: ClickBank credentials saved successfully via new loop")
+    except Exception as e:
+        print(f"ERROR: Failed to save ClickBank credentials: {e}")
+        raise e
 
     return {"status": "success", "message": "ClickBank account connected."}
 
