@@ -348,7 +348,7 @@ async def get_affiliate_campaigns(
             "product_name": campaign.name,  # Use campaign name as product name for now
             "product_creator": "Creator",  # Placeholder - can be enhanced later
             "affiliate_link": f"https://affiliate.link/{campaign.id}",  # Placeholder
-            "shortened_link": f"https://cf.link/{campaign.id[:8]}",  # Placeholder
+            "shortened_link": f"https://cf.link/{str(campaign.id)[:8]}",  # Placeholder
             "content_type": campaign.campaign_type or "email",
             "target_audience": "General",  # Can be enhanced from campaign data
             "clicks": 0,  # Placeholder - integrate with analytics later
