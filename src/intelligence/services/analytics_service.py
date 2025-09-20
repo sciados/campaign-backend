@@ -9,7 +9,7 @@ from src.core.database.analytics_repo import (
     save_product_performance,
     get_product_performance
 )
-from src.intelligence.services.clickbank_service import fetch_sales as fetch_clickbank_sales
+from src.intelligence.services.clickbank_service import fetch_sales_async as fetch_clickbank_sales_async
 from src.core.database.clickbank_repo import get_clickbank_creds
 
 class PlatformAnalyticsProcessor:
@@ -148,8 +148,8 @@ class UnifiedAnalyticsService:
     async def _fetch_clickbank_data(self, user_id: str, days: int) -> dict:
         """Fetch ClickBank data using existing service"""
         try:
-            # Call the fetch_sales function directly - it's already designed to handle sync operations
-            return fetch_clickbank_sales(user_id, days)
+            # Use the async version to avoid event loop conflicts
+            return await fetch_clickbank_sales_async(user_id, days)
         except Exception as e:
             print(f"Error fetching ClickBank data: {e}")
             raise e

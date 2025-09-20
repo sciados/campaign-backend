@@ -54,3 +54,27 @@ def fetch_sales(user_id: str, days: int = 30):
         raise Exception(f"ClickBank API error: {r.text}")
 
     return r.json()
+
+async def fetch_sales_async(user_id: str, days: int = 30):
+    """Fetch sales data from ClickBank API (async version)"""
+    creds = await get_clickbank_creds(user_id)
+
+    if not creds:
+        raise Exception("ClickBank account not connected")
+
+    # New ClickBank API format: Use user's API key directly
+    # No more dev key needed as of August 2023
+    headers = {
+        "Authorization": f"Bearer {creds['api_key']}",
+        "Content-Type": "application/json"
+    }
+    params = {
+        "account": creds['nickname'],  # Updated parameter name
+        "days": days
+    }
+
+    r = requests.get(f"{BASE_URL}/analytics/summary", headers=headers, params=params)
+    if r.status_code != 200:
+        raise Exception(f"ClickBank API error: {r.text}")
+
+    return r.json()

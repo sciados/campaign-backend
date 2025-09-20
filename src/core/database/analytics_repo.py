@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, func
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+import json
 from src.core.database.session import AsyncSessionManager
 
 async def save_analytics_data(
@@ -29,8 +30,8 @@ async def save_analytics_data(
         await session.execute(query, {
             "user_id": user_id,
             "platform": platform,
-            "raw_data": raw_data,
-            "processed_metrics": processed_metrics
+            "raw_data": json.dumps(raw_data),
+            "processed_metrics": json.dumps(processed_metrics)
         })
         await session.commit()
 
@@ -59,8 +60,8 @@ async def get_user_analytics(user_id: str, platform: Optional[str] = None) -> Li
         return [
             {
                 "platform": row.platform,
-                "metrics": row.processed_metrics,
-                "raw_data": row.raw_data,
+                "metrics": json.loads(row.processed_metrics) if isinstance(row.processed_metrics, str) else row.processed_metrics,
+                "raw_data": json.loads(row.raw_data) if isinstance(row.raw_data, str) else row.raw_data,
                 "last_updated": row.updated_at
             }
             for row in rows
@@ -118,7 +119,7 @@ async def save_product_performance(
             "platform": platform,
             "product_id": product_id,
             "product_name": product_name,
-            "metrics": metrics
+            "metrics": json.dumps(metrics)
         })
         await session.commit()
 
@@ -160,7 +161,7 @@ async def get_product_performance(
                 "platform": row.platform,
                 "product_id": row.product_id,
                 "product_name": row.product_name,
-                "metrics": row.metrics,
+                "metrics": json.loads(row.metrics) if isinstance(row.metrics, str) else row.metrics,
                 "last_updated": row.updated_at
             }
             for row in rows
