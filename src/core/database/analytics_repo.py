@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 from src.core.database.session import AsyncSessionManager
 
 async def save_analytics_data(
-    user_id: int,
+    user_id: str,
     platform: str,
     raw_data: dict,
     processed_metrics: dict
@@ -34,7 +34,7 @@ async def save_analytics_data(
         })
         await session.commit()
 
-async def get_user_analytics(user_id: int, platform: Optional[str] = None) -> List[Dict]:
+async def get_user_analytics(user_id: str, platform: Optional[str] = None) -> List[Dict]:
     """Get analytics for user across all platforms or specific platform"""
     if platform:
         query = text("""
@@ -92,7 +92,7 @@ async def get_aggregated_platform_stats() -> Dict:
         }
 
 async def save_product_performance(
-    user_id: int,
+    user_id: str,
     platform: str,
     product_id: str,
     product_name: str,
@@ -123,7 +123,7 @@ async def save_product_performance(
         await session.commit()
 
 async def get_product_performance(
-    user_id: Optional[int] = None,
+    user_id: Optional[str] = None,
     platform: Optional[str] = None,
     product_id: Optional[str] = None
 ) -> List[Dict]:

@@ -32,7 +32,7 @@ async def get_user_analytics_dashboard(
 ):
     """Get comprehensive analytics dashboard data for the user"""
     try:
-        dashboard_data = await analytics_service.get_user_dashboard_data(int(user_id))
+        dashboard_data = await analytics_service.get_user_dashboard_data(user_id)
         return {
             "success": True,
             "data": dashboard_data
@@ -50,7 +50,7 @@ async def refresh_user_analytics(
         if body.platform:
             # Refresh specific platform
             result = await analytics_service.fetch_and_store_user_analytics(
-                int(user_id), body.platform, body.days
+                user_id, body.platform, body.days
             )
             return {
                 "success": True,
@@ -59,7 +59,7 @@ async def refresh_user_analytics(
             }
         else:
             # Refresh all platforms
-            results = await analytics_service.refresh_all_user_analytics(int(user_id))
+            results = await analytics_service.refresh_all_user_analytics(user_id)
             return {
                 "success": True,
                 "data": results,
@@ -78,7 +78,7 @@ async def get_platform_analytics(
     try:
         # Fetch fresh data
         result = await analytics_service.fetch_and_store_user_analytics(
-            int(user_id), platform, days
+            user_id, platform, days
         )
         return {
             "success": True,
@@ -99,7 +99,7 @@ async def get_product_analytics(
         from src.core.database.analytics_repo import get_product_performance
 
         products = await get_product_performance(
-            user_id=int(user_id),
+            user_id=user_id,
             platform=platform,
             product_id=product_id
         )

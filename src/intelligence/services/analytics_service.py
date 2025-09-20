@@ -103,7 +103,7 @@ class UnifiedAnalyticsService:
             # "warriorplus": WarriorPlusAnalyticsProcessor(),
         }
 
-    async def fetch_and_store_user_analytics(self, user_id: int, platform: str, days: int = 30) -> dict:
+    async def fetch_and_store_user_analytics(self, user_id: str, platform: str, days: int = 30) -> dict:
         """Fetch analytics from platform and store in database"""
         if platform not in self.processors:
             raise ValueError(f"Platform {platform} not supported")
@@ -145,7 +145,7 @@ class UnifiedAnalyticsService:
             await save_analytics_data(user_id, platform, {}, empty_metrics)
             return empty_metrics
 
-    async def _fetch_clickbank_data(self, user_id: int, days: int) -> dict:
+    async def _fetch_clickbank_data(self, user_id: str, days: int) -> dict:
         """Fetch ClickBank data using existing service"""
         try:
             # Use sync wrapper for async call
@@ -154,12 +154,12 @@ class UnifiedAnalyticsService:
         except RuntimeError:
             return asyncio.run(self._async_fetch_clickbank(user_id, days))
 
-    async def _async_fetch_clickbank(self, user_id: int, days: int) -> dict:
+    async def _async_fetch_clickbank(self, user_id: str, days: int) -> dict:
         """Async wrapper for ClickBank data fetching"""
         # This calls the existing sync function
         return fetch_clickbank_sales(user_id, days)
 
-    async def get_user_dashboard_data(self, user_id: int) -> dict:
+    async def get_user_dashboard_data(self, user_id: str) -> dict:
         """Get comprehensive analytics data for user dashboard"""
         analytics = await get_user_analytics(user_id)
 
@@ -206,7 +206,7 @@ class UnifiedAnalyticsService:
         """Get aggregated analytics for product creators"""
         return await get_aggregated_platform_stats()
 
-    async def refresh_all_user_analytics(self, user_id: int) -> dict:
+    async def refresh_all_user_analytics(self, user_id: str) -> dict:
         """Refresh analytics for all connected platforms for a user"""
         results = {}
 

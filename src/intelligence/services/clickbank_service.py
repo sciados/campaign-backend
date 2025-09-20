@@ -25,7 +25,7 @@ def save_credentials(user_id: str, nickname: str, api_key: str):
 
     return {"status": "success", "message": "ClickBank account connected."}
 
-def fetch_sales(user_id: int, days: int = 30):
+def fetch_sales(user_id: str, days: int = 30):
     """Fetch sales data from ClickBank API (sync wrapper)"""
     # Get credentials using sync wrapper
     try:
