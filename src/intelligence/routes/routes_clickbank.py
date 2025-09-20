@@ -50,12 +50,43 @@ async def connect_clickbank(
         print(f"ERROR: ClickBank connect failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.get("/credentials")
+async def get_clickbank_credentials(
+    user_id: str = Depends(get_current_user_id)
+):
+    """Get saved ClickBank credentials for the user"""
+    try:
+        from src.core.database.clickbank_repo import get_clickbank_creds
+
+        creds = await get_clickbank_creds(user_id)
+
+        if not creds:
+            return {
+                "connected": False,
+                "nickname": None,
+                "api_key": None
+            }
+
+        # Return credentials (API key partially masked for security)
+        masked_api_key = creds['api_key'][:8] + "..." + creds['api_key'][-8:] if len(creds['api_key']) > 16 else creds['api_key']
+
+        return {
+            "connected": True,
+            "nickname": creds['nickname'],
+            "api_key": masked_api_key,
+            "api_key_full": creds['api_key']  # For form population - remove in production
+        }
+
+    except Exception as e:
+        print(f"ERROR: ClickBank get credentials failed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.get("/sales")
 async def get_sales(
     days: int = 30,
     user_id: str = Depends(get_current_user_id)
 ):
     try:
-        return clickbank_service.fetch_sales(int(user_id), days)
+        return clickbank_service.fetch_sales(user_id, days)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
