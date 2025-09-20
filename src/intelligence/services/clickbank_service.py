@@ -5,7 +5,7 @@ from src.core.config import settings
 
 BASE_URL = "https://api.clickbank.com/rest/1.3"
 
-def save_credentials(user_id: int, nickname: str, api_key: str):
+def save_credentials(user_id: str, nickname: str, api_key: str):
     """Save ClickBank credentials for a user (sync wrapper)"""
     print(f"DEBUG: Attempting to save ClickBank credentials for user_id={user_id}, nickname={nickname}")
 

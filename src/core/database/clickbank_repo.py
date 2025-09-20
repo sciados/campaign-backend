@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from src.core.database.session import AsyncSessionManager
 
-async def save_clickbank_creds(user_id: int, nickname: str, api_key: str):
+async def save_clickbank_creds(user_id: str, nickname: str, api_key: str):
     """Save ClickBank credentials using async session"""
     print(f"DEBUG: Database save - user_id={user_id}, nickname={nickname}, api_key=***")
 
@@ -25,7 +25,7 @@ async def save_clickbank_creds(user_id: int, nickname: str, api_key: str):
         print(f"ERROR: Database save failed: {e}")
         raise e
 
-async def get_clickbank_creds(user_id: int):
+async def get_clickbank_creds(user_id: str):
     """Get ClickBank credentials using async session"""
     query = text("SELECT nickname, api_key FROM clickbank_accounts WHERE user_id = :user_id")
 

@@ -35,7 +35,7 @@ async def connect_clickbank(
 
     try:
         result = clickbank_service.save_credentials(
-            user_id=int(user_id),  # Convert string to int for service
+            user_id=user_id,  # Keep as string UUID
             nickname=body.nickname,
             api_key=body.api_key
         )
