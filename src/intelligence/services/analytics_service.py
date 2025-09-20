@@ -10,6 +10,8 @@ from src.core.database.analytics_repo import (
     get_product_performance
 )
 from src.intelligence.services.clickbank_service import fetch_sales_async as fetch_clickbank_sales_async
+from src.intelligence.services.clickbank_orders_service import get_user_product_performance
+from src.intelligence.services.product_creator_mapping_service import product_creator_mapping_service
 from src.core.database.clickbank_repo import get_clickbank_creds
 
 class PlatformAnalyticsProcessor:
@@ -34,20 +36,29 @@ class ClickBankAnalyticsProcessor(PlatformAnalyticsProcessor):
 
     def normalize_metrics(self, raw_data: dict) -> dict:
         """Convert ClickBank API response to standardized metrics"""
-        # ClickBank API structure may vary - adapt based on actual response
+        # Handle new product-level data structure
         if not raw_data:
             return self._empty_metrics()
 
-        # Extract key metrics from ClickBank response
         try:
+            # Extract from new product performance structure
+            product_performance = raw_data.get("product_performance", [])
+
+            total_sales = sum(p.get("total_sales", 0) for p in product_performance)
+            total_revenue = sum(p.get("total_revenue", 0.0) for p in product_performance)
+
+            # Calculate averages
+            avg_order_value = total_revenue / total_sales if total_sales > 0 else 0.0
+
             return {
-                "total_sales": raw_data.get("totalTransactions", 0),
-                "total_revenue": raw_data.get("totalRevenue", 0.0),
-                "conversion_rate": raw_data.get("conversionRate", 0.0),
-                "refund_rate": raw_data.get("refundRate", 0.0),
-                "avg_order_value": raw_data.get("averageOrderValue", 0.0),
+                "total_sales": total_sales,
+                "total_revenue": total_revenue,
+                "conversion_rate": 0.0,  # Will be calculated from orders data later
+                "refund_rate": 0.0,      # Will be calculated from orders data later
+                "avg_order_value": avg_order_value,
                 "platform": self.platform,
-                "period_days": raw_data.get("periodDays", 30),
+                "period_days": raw_data.get("period_days", 30),
+                "product_count": len(product_performance),
                 "last_updated": datetime.now().isoformat()
             }
         except Exception as e:
@@ -56,25 +67,28 @@ class ClickBankAnalyticsProcessor(PlatformAnalyticsProcessor):
 
     def extract_product_data(self, raw_data: dict) -> List[dict]:
         """Extract individual product performance from ClickBank data"""
-        products = []
-
         try:
-            # Adapt based on actual ClickBank API response structure
-            product_data = raw_data.get("productBreakdown", [])
+            # Get product performance data from new structure
+            product_performance = raw_data.get("product_performance", [])
 
-            for product in product_data:
+            # Convert to expected format for database storage
+            products = []
+            for product in product_performance:
                 products.append({
-                    "product_id": product.get("productId", "unknown"),
-                    "product_name": product.get("productName", "Unknown Product"),
-                    "sales": product.get("sales", 0),
-                    "revenue": product.get("revenue", 0.0),
-                    "conversion_rate": product.get("conversionRate", 0.0),
-                    "refunds": product.get("refunds", 0)
+                    "product_id": product.get("sku", "unknown"),
+                    "product_name": product.get("product_name", "Unknown Product"),
+                    "sales": product.get("total_sales", 0),
+                    "revenue": product.get("total_revenue", 0.0),
+                    "conversion_rate": 0.0,  # Will be calculated later
+                    "refunds": 0,  # Will be calculated later
+                    "vendor": product.get("vendor", ""),
+                    "quantity": product.get("total_quantity", 0)
                 })
+
+            return products
         except Exception as e:
             print(f"Error extracting ClickBank product data: {e}")
-
-        return products
+            return []
 
     def _empty_metrics(self) -> dict:
         """Return empty metrics structure"""
@@ -136,6 +150,17 @@ class UnifiedAnalyticsService:
                     metrics=product
                 )
 
+            # Funnel analytics to product creators
+            if product_data:
+                try:
+                    funnel_result = await product_creator_mapping_service.funnel_analytics_to_creators(
+                        affiliate_user_id=user_id,
+                        product_performance=raw_data.get("product_performance", [])
+                    )
+                    print(f"Analytics funneled to creators: {funnel_result}")
+                except Exception as e:
+                    print(f"Error funneling analytics to creators: {e}")
+
             return processed_metrics
 
         except Exception as e:
@@ -146,10 +171,10 @@ class UnifiedAnalyticsService:
             return empty_metrics
 
     async def _fetch_clickbank_data(self, user_id: str, days: int) -> dict:
-        """Fetch ClickBank data using existing service"""
+        """Fetch ClickBank data with product-level details"""
         try:
-            # Use the async version to avoid event loop conflicts
-            return await fetch_clickbank_sales_async(user_id, days)
+            # Get comprehensive product performance data
+            return await get_user_product_performance(user_id, days)
         except Exception as e:
             print(f"Error fetching ClickBank data: {e}")
             raise e
