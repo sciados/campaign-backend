@@ -34,11 +34,16 @@ async def connect_clickbank(
     print(f"DEBUG: Request body - nickname={body.nickname}, api_key=***")
 
     try:
-        result = clickbank_service.save_credentials(
-            user_id=user_id,  # Keep as string UUID
+        # Call the async database function directly instead of sync wrapper
+        from src.core.database.clickbank_repo import save_clickbank_creds
+
+        await save_clickbank_creds(
+            user_id=user_id,
             nickname=body.nickname,
             api_key=body.api_key
         )
+
+        result = {"status": "success", "message": "ClickBank account connected."}
         print(f"DEBUG: ClickBank save_credentials returned: {result}")
         return result
     except Exception as e:
