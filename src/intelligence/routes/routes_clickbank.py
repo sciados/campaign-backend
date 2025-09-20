@@ -23,7 +23,7 @@ async def get_current_user_id(
 
 class ConnectRequest(BaseModel):
     nickname: str
-    clerk_key: str
+    api_key: str
 
 @router.post("/connect")
 async def connect_clickbank(
@@ -34,7 +34,7 @@ async def connect_clickbank(
         return clickbank_service.save_credentials(
             user_id=int(user_id),  # Convert string to int for service
             nickname=body.nickname,
-            clerk_key=body.clerk_key
+            api_key=body.api_key
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

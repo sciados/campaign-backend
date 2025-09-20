@@ -5,15 +5,15 @@ from src.core.config import settings
 
 BASE_URL = "https://api.clickbank.com/rest/1.3"
 
-def save_credentials(user_id: int, nickname: str, clerk_key: str):
+def save_credentials(user_id: int, nickname: str, api_key: str):
     """Save ClickBank credentials for a user (sync wrapper)"""
     # Use asyncio to run the async function
     try:
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(save_clickbank_creds(user_id, nickname, clerk_key))
+        loop.run_until_complete(save_clickbank_creds(user_id, nickname, api_key))
     except RuntimeError:
         # Create new loop if none exists
-        asyncio.run(save_clickbank_creds(user_id, nickname, clerk_key))
+        asyncio.run(save_clickbank_creds(user_id, nickname, api_key))
 
     return {"status": "success", "message": "ClickBank account connected."}
 
@@ -30,11 +30,14 @@ def fetch_sales(user_id: int, days: int = 30):
     if not creds:
         raise Exception("ClickBank account not connected")
 
+    # New ClickBank API format: Use user's API key directly
+    # No more dev key needed as of August 2023
     headers = {
-        "Authorization": f"{settings.CLICKBANK_DEV_KEY}:{creds['clerk_key']}"
+        "Authorization": f"Bearer {creds['api_key']}",
+        "Content-Type": "application/json"
     }
     params = {
-        "accountId": creds['nickname'],
+        "account": creds['nickname'],  # Updated parameter name
         "days": days
     }
 

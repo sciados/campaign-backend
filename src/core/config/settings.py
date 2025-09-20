@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     AI_DISCOVERY_SERVICE_URL: str
 
     # ===== PLATFORMS =====
-    CLICKBANK_DEV_KEY: str
+    # CLICKBANK_DEV_KEY: str  # No longer required as of August 2023
     # JVZOO_API_KEY: Optional[str] = None  # Commented out until needed
     
     @field_validator("ALLOWED_ORIGINS")
@@ -211,9 +211,9 @@ def get_storage_config() -> dict:
 def get_platform_config() -> dict:
     """Get platform configuration (ClickBank)"""
     return {
-        "clickbank_dev_key": settings.CLICKBANK_DEV_KEY,
+        # "clickbank_dev_key": settings.CLICKBANK_DEV_KEY,  # No longer required as of August 2023
         # "jvzoo_api_key": settings.JVZOO_API_KEY,  # Commented out until needed
-        "clickbank_enabled": True,  # Always enabled since CLICKBANK_DEV_KEY is required
+        "clickbank_enabled": True,  # Always enabled - users provide their own API keys
         # "jvzoo_enabled": settings.JVZOO_API_KEY is not None,  # Commented out until needed
     }
 
