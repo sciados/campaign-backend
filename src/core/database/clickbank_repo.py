@@ -1,16 +1,28 @@
 # clickbank_module/db/clickbank_repo.py
-from src.core.database  import database
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
+from src.core.database.session import AsyncSessionManager
 
 async def save_clickbank_creds(user_id: int, nickname: str, clerk_key: str):
-    query = """
+    """Save ClickBank credentials using async session"""
+    query = text("""
     INSERT INTO clickbank_accounts (user_id, nickname, clerk_key)
     VALUES (:user_id, :nickname, :clerk_key)
     ON CONFLICT (user_id) DO UPDATE
     SET nickname = :nickname, clerk_key = :clerk_key
-    """
-    await database.execute(query, {"user_id": user_id, "nickname": nickname, "clerk_key": clerk_key})
+    """)
+
+    async with AsyncSessionManager.get_session() as session:
+        await session.execute(query, {"user_id": user_id, "nickname": nickname, "clerk_key": clerk_key})
+        await session.commit()
 
 async def get_clickbank_creds(user_id: int):
-    query = "SELECT nickname, clerk_key FROM clickbank_accounts WHERE user_id = :user_id"
-    row = await database.fetch_one(query, {"user_id": user_id})
-    return dict(row) if row else None
+    """Get ClickBank credentials using async session"""
+    query = text("SELECT nickname, clerk_key FROM clickbank_accounts WHERE user_id = :user_id")
+
+    async with AsyncSessionManager.get_session() as session:
+        result = await session.execute(query, {"user_id": user_id})
+        row = result.fetchone()
+        if row:
+            return {"nickname": row.nickname, "clerk_key": row.clerk_key}
+        return None
