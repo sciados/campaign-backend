@@ -148,16 +148,11 @@ class UnifiedAnalyticsService:
     async def _fetch_clickbank_data(self, user_id: str, days: int) -> dict:
         """Fetch ClickBank data using existing service"""
         try:
-            # Use sync wrapper for async call
-            loop = asyncio.get_event_loop()
-            return loop.run_until_complete(self._async_fetch_clickbank(user_id, days))
-        except RuntimeError:
-            return asyncio.run(self._async_fetch_clickbank(user_id, days))
-
-    async def _async_fetch_clickbank(self, user_id: str, days: int) -> dict:
-        """Async wrapper for ClickBank data fetching"""
-        # This calls the existing sync function
-        return fetch_clickbank_sales(user_id, days)
+            # Call the fetch_sales function directly - it's already designed to handle sync operations
+            return fetch_clickbank_sales(user_id, days)
+        except Exception as e:
+            print(f"Error fetching ClickBank data: {e}")
+            raise e
 
     async def get_user_dashboard_data(self, user_id: str) -> dict:
         """Get comprehensive analytics data for user dashboard"""
@@ -215,10 +210,10 @@ class UnifiedAnalyticsService:
 
         # Check ClickBank
         try:
-            loop = asyncio.get_event_loop()
-            clickbank_creds = loop.run_until_complete(get_clickbank_creds(user_id))
-        except RuntimeError:
-            clickbank_creds = asyncio.run(get_clickbank_creds(user_id))
+            clickbank_creds = await get_clickbank_creds(user_id)
+        except Exception as e:
+            print(f"Error checking ClickBank credentials: {e}")
+            clickbank_creds = None
 
         if clickbank_creds:
             connected_platforms.append("clickbank")
