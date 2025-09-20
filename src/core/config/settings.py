@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     AI_DISCOVERY_SERVICE_URL: str
 
     # ===== PLATFORMS =====
-    CLICKBANK_DEV_KEY: Optional[str] = None
+    CLICKBANK_DEV_KEY: str
     # JVZOO_API_KEY: Optional[str] = None  # Commented out until needed
     
     @field_validator("ALLOWED_ORIGINS")
@@ -213,7 +213,7 @@ def get_platform_config() -> dict:
     return {
         "clickbank_dev_key": settings.CLICKBANK_DEV_KEY,
         # "jvzoo_api_key": settings.JVZOO_API_KEY,  # Commented out until needed
-        "clickbank_enabled": settings.CLICKBANK_DEV_KEY is not None,
+        "clickbank_enabled": True,  # Always enabled since CLICKBANK_DEV_KEY is required
         # "jvzoo_enabled": settings.JVZOO_API_KEY is not None,  # Commented out until needed
     }
 
