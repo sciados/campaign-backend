@@ -297,20 +297,152 @@ async def get_generated_content(
 ):
     """Get generated content for campaign"""
     campaign_service = CampaignService(db)
-    
+
     campaign = await campaign_service.get_campaign_by_id(
         campaign_id=campaign_id,
         user_id=user_id
     )
-    
+
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    
+
     # For now, return empty content - this can be enhanced later
     return {
         "campaign_id": str(campaign.id),
         "content_items": [],
         "total_items": 0,
         "status": "pending"
+    }
+
+
+# ===== AFFILIATE-SPECIFIC ENDPOINTS =====
+
+# Create affiliate router to handle /api/affiliate/* routes
+affiliate_router = APIRouter(prefix="/api/affiliate", tags=["affiliate"])
+
+@affiliate_router.get("/campaigns")
+async def get_affiliate_campaigns(
+    limit: int = 10,
+    sort: Optional[str] = None,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Get affiliate campaigns"""
+    campaign_service = CampaignService(db)
+
+    campaigns = await campaign_service.get_user_campaigns(
+        user_id=user_id,
+        limit=limit
+    )
+
+    # Apply sorting if requested
+    if sort == "recent":
+        campaigns = sorted(campaigns, key=lambda x: x.created_at, reverse=True)
+
+    # Transform to affiliate-specific format
+    affiliate_campaigns = []
+    for campaign in campaigns:
+        affiliate_campaigns.append({
+            "id": str(campaign.id),
+            "name": campaign.name,
+            "product_name": campaign.name,  # Use campaign name as product name for now
+            "product_creator": "Creator",  # Placeholder - can be enhanced later
+            "affiliate_link": f"https://affiliate.link/{campaign.id}",  # Placeholder
+            "shortened_link": f"https://cf.link/{campaign.id[:8]}",  # Placeholder
+            "content_type": campaign.campaign_type or "email",
+            "target_audience": "General",  # Can be enhanced from campaign data
+            "clicks": 0,  # Placeholder - integrate with analytics later
+            "conversions": 0,  # Placeholder
+            "earnings": 0,  # Placeholder
+            "status": campaign.status or "active",
+            "created_at": campaign.created_at.isoformat() if campaign.created_at else "",
+            "last_updated": campaign.updated_at.isoformat() if campaign.updated_at else ""
+        })
+
+    return {
+        "campaigns": affiliate_campaigns,
+        "total": len(affiliate_campaigns)
+    }
+
+@affiliate_router.post("/campaigns")
+async def create_affiliate_campaign(
+    campaign_data: Dict[str, Any],
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Create affiliate campaign"""
+    campaign_service = CampaignService(db)
+
+    # Extract affiliate-specific data
+    name = campaign_data.get("name")
+    product_id = campaign_data.get("product_id")
+    content_type = campaign_data.get("content_type", "email")
+    target_audience = campaign_data.get("target_audience", "")
+    affiliate_link = campaign_data.get("affiliate_link")
+
+    if not name or not affiliate_link:
+        raise HTTPException(status_code=400, detail="Name and affiliate_link are required")
+
+    # Create campaign using existing service
+    campaign_data_formatted = {
+        "name": name,
+        "campaign_type": content_type,
+        "description": f"Affiliate campaign for {name}",
+        "target_audience": target_audience,
+        "company_id": "default",  # Will need to get from user context
+        "affiliate_link": affiliate_link,
+        "product_id": product_id
+    }
+
+    try:
+        # Use the existing enhanced campaign creation logic
+        async with ServiceFactory.create_transactional_service(EnhancedCampaignService) as enhanced_service:
+            result = await enhanced_service.create_campaign_with_content_generation(
+                user_id=user_id,
+                name=name,
+                campaign_type=content_type,
+                description=campaign_data_formatted["description"],
+                target_audience=target_audience,
+                goals=[],
+                keywords=[],
+                auto_generate_content=False,
+                content_types=[content_type],
+                company_id=campaign_data_formatted["company_id"]
+            )
+
+        return {
+            "id": result.get("campaign_id"),
+            "name": name,
+            "status": "active",
+            "message": "Campaign created successfully"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create campaign: {str(e)}")
+
+@affiliate_router.patch("/campaigns/{campaign_id}/status")
+async def update_affiliate_campaign_status(
+    campaign_id: str,
+    status_data: Dict[str, Any],
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Update affiliate campaign status"""
+    campaign_service = CampaignService(db)
+
+    new_status = status_data.get("status")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="Status is required")
+
+    campaign = await campaign_service.update_campaign(
+        campaign_id=campaign_id,
+        user_id=user_id,
+        status=new_status
+    )
+
+    return {
+        "id": str(campaign.id),
+        "status": campaign.status,
+        "message": f"Campaign status updated to {new_status}"
     }
 
