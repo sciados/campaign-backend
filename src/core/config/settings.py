@@ -61,9 +61,6 @@ class Settings(BaseSettings):
     CLOUDFLARE_R2_SECRET_ACCESS_KEY: str
     CLOUDFLARE_R2_BUCKET_NAME: str
     
-    # ===== EXTERNAL APIS =====
-    CLICKBANK_API_KEY: str
-    
     # ===== CORS =====
     ALLOWED_ORIGINS: str
     
@@ -82,6 +79,10 @@ class Settings(BaseSettings):
     # ===== EXTERNAL SERVICES =====
     AI_DISCOVERY_DATABASE_URL: str
     AI_DISCOVERY_SERVICE_URL: str
+
+    # ===== PLATFORMS =====
+    CLICKBANK_DEV_KEY: str
+    JVZOO_API_KEY: str
     
     @field_validator("ALLOWED_ORIGINS")
     @classmethod
@@ -207,6 +208,12 @@ def get_storage_config() -> dict:
         "account_id": settings.CLOUDFLARE_ACCOUNT_ID,
     }
 
+def get_platform_config() -> dict:
+    """Get Clickbank configuration"""
+    return {
+        "clickbank_dev_key": settings.CLICKBANK_DEV_KEY,
+        "jvzoo_api_key": settings.JVZOO_API_KEY,
+    }
 
 def get_cors_origins() -> List[str]:
     """Get CORS allowed origins as a list"""
