@@ -81,8 +81,8 @@ class Settings(BaseSettings):
     AI_DISCOVERY_SERVICE_URL: str
 
     # ===== PLATFORMS =====
-    CLICKBANK_DEV_KEY: str
-    JVZOO_API_KEY: str
+    CLICKBANK_DEV_KEY: Optional[str] = None
+    # JVZOO_API_KEY: Optional[str] = None  # Commented out until needed
     
     @field_validator("ALLOWED_ORIGINS")
     @classmethod
@@ -209,10 +209,12 @@ def get_storage_config() -> dict:
     }
 
 def get_platform_config() -> dict:
-    """Get Clickbank configuration"""
+    """Get platform configuration (ClickBank)"""
     return {
         "clickbank_dev_key": settings.CLICKBANK_DEV_KEY,
-        "jvzoo_api_key": settings.JVZOO_API_KEY,
+        # "jvzoo_api_key": settings.JVZOO_API_KEY,  # Commented out until needed
+        "clickbank_enabled": settings.CLICKBANK_DEV_KEY is not None,
+        # "jvzoo_enabled": settings.JVZOO_API_KEY is not None,  # Commented out until needed
     }
 
 def get_cors_origins() -> List[str]:
