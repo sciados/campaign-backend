@@ -23,6 +23,7 @@ from src.core.shared.exceptions import CampaignForgeException
 from src.intelligence.models.intelligence_models import IntelligenceRequest, IntelligenceResponse, AnalysisResult, AnalysisMethod
 from src.intelligence.services.intelligence_service import IntelligenceService
 from src.intelligence.services.intelligence_content_service import IntelligenceContentService, generate_intelligence_driven_content
+from src.intelligence.services.product_detection_service import product_detection_service
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,186 @@ async def analyze_url(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Intelligence analysis failed"
+        )
+
+@router.post("/analyze-with-product-detection", response_model=SuccessResponse[Dict[str, Any]])
+async def analyze_url_with_product_detection(
+    request: IntelligenceRequest,
+    campaign_id: Optional[str] = Body(None, description="Campaign ID for automatic product linking"),
+    credentials: HTTPBearer = Depends(security),
+    session: AsyncSession = Depends(get_async_db)
+):
+    """
+    Analyze a URL and automatically detect and link products to campaigns.
+
+    Enhanced URL analysis that identifies products from sales pages and
+    automatically establishes Campaign → Product → Creator relationships.
+    """
+    try:
+        user_id = AuthMiddleware.require_authentication(credentials)
+
+        logger.info(f"Enhanced analysis with product detection requested by user {user_id} for {request.source_url}")
+
+        # Perform standard intelligence analysis
+        intelligence_result = await intelligence_service.analyze_url(
+            request=request,
+            user_id=user_id,
+            session=session
+        )
+
+        # If campaign_id provided, attempt smart product detection and linking
+        product_detection_result = None
+        if campaign_id:
+            product_detection_result = await product_detection_service.detect_and_link_product_from_url(
+                source_url=request.source_url,
+                campaign_id=campaign_id,
+                user_id=user_id,
+                intelligence_result=intelligence_result.model_dump() if hasattr(intelligence_result, 'model_dump') else intelligence_result
+            )
+
+            logger.info(f"Product detection result for campaign {campaign_id}: {product_detection_result.get('status', 'unknown')}")
+
+        # Combine results
+        enhanced_result = {
+            "intelligence_analysis": intelligence_result,
+            "product_detection": product_detection_result,
+            "campaign_id": campaign_id,
+            "enhanced_analysis": True
+        }
+
+        return SuccessResponse(
+            data=enhanced_result,
+            message=f"Enhanced analysis completed for {request.source_url}"
+        )
+
+    except CampaignForgeException:
+        raise
+    except Exception as e:
+        logger.error(f"Enhanced intelligence analysis failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Enhanced intelligence analysis failed"
+        )
+
+@router.post("/link-campaign-to-product", response_model=SuccessResponse[Dict[str, Any]])
+async def link_campaign_to_product(
+    campaign_id: str = Body(..., description="Campaign ID"),
+    product_source: str = Body(..., description="Source of product: 'content_library' or 'manual'"),
+    product_id: Optional[str] = Body(None, description="Product ID from content library"),
+    platform: Optional[str] = Body(None, description="Platform (for manual linking)"),
+    product_sku: Optional[str] = Body(None, description="Product SKU (for manual linking)"),
+    product_name: Optional[str] = Body(None, description="Product name (for manual linking)"),
+    creator_user_id: Optional[str] = Body(None, description="Creator user ID (for manual linking)"),
+    credentials: HTTPBearer = Depends(security),
+    session: AsyncSession = Depends(get_async_db)
+):
+    """
+    Link a campaign to a product via content library selection or manual input.
+
+    Supports both content library selection and manual product specification
+    for establishing Campaign → Product → Creator relationships.
+    """
+    try:
+        user_id = AuthMiddleware.require_authentication(credentials)
+
+        logger.info(f"Product linking requested by user {user_id} for campaign {campaign_id} via {product_source}")
+
+        if product_source == "content_library":
+            if not product_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="product_id required for content_library source"
+                )
+
+            result = await product_detection_service.link_campaign_to_content_library_product(
+                campaign_id=campaign_id,
+                content_library_product_id=product_id,
+                user_id=user_id
+            )
+
+        elif product_source == "manual":
+            if not all([platform, product_sku, product_name, creator_user_id]):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="platform, product_sku, product_name, and creator_user_id required for manual linking"
+                )
+
+            from src.intelligence.services.campaign_product_analytics_service import campaign_product_analytics_service
+
+            result = await campaign_product_analytics_service.link_campaign_to_product(
+                campaign_id=campaign_id,
+                platform=platform,
+                product_sku=product_sku,
+                product_name=product_name,
+                creator_user_id=creator_user_id
+            )
+
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="product_source must be 'content_library' or 'manual'"
+            )
+
+        return SuccessResponse(
+            data=result,
+            message=f"Campaign {campaign_id} linked to product via {product_source}"
+        )
+
+    except CampaignForgeException:
+        raise
+    except Exception as e:
+        logger.error(f"Campaign product linking failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Campaign product linking failed"
+        )
+
+@router.post("/check-product-in-library", response_model=SuccessResponse[Dict[str, Any]])
+async def check_product_in_library(
+    source_url: str = Body(..., description="Sales page URL to check"),
+    campaign_id: Optional[str] = Body(None, description="Campaign ID for linking if product exists"),
+    credentials: HTTPBearer = Depends(security),
+    session: AsyncSession = Depends(get_async_db)
+):
+    """
+    Check if a product exists in the library by URL.
+
+    If product exists and campaign_id provided, automatically link them.
+    If product doesn't exist, return analysis_required status.
+    """
+    try:
+        user_id = AuthMiddleware.require_authentication(credentials)
+
+        logger.info(f"Library check requested by user {user_id} for URL: {source_url}")
+
+        # Use the smart detection with no intelligence result to just check library
+        result = await product_detection_service.detect_and_link_product_from_url(
+            source_url=source_url,
+            campaign_id=campaign_id,
+            user_id=user_id,
+            intelligence_result=None  # No analysis provided - just check library
+        )
+
+        # Determine if analysis is needed
+        analysis_needed = result.get("status") == "analysis_required"
+
+        return SuccessResponse(
+            data={
+                "library_check_result": result,
+                "analysis_needed": analysis_needed,
+                "product_exists_in_library": not analysis_needed,
+                "source_url": source_url
+            },
+            message="Library check completed"
+        )
+
+    except CampaignForgeException:
+        raise
+    except Exception as e:
+        logger.error(f"Library check failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Library check failed"
         )
 
 
@@ -340,6 +521,163 @@ async def intelligence_health():
 
 
 # Admin routes are included separately in main.py under /api/admin/intelligence
+
+# Value Attribution Routes
+@router.post("/track-campaign-usage", response_model=SuccessResponse[Dict[str, Any]])
+async def track_campaign_usage(
+    campaign_id: str = Body(..., description="Campaign ID"),
+    affiliate_user_id: str = Body(..., description="Affiliate user ID"),
+    product_sku: str = Body(..., description="Product SKU"),
+    platform: str = Body(..., description="Platform name"),
+    content_types_used: List[str] = Body(..., description="Content types used"),
+    ai_features_used: List[str] = Body(..., description="AI features used"),
+    credentials: HTTPBearer = Depends(security)
+):
+    """
+    Track CampaignForge usage for value attribution.
+
+    Records when affiliates use CampaignForge features for specific products,
+    enabling measurement of platform effectiveness and value delivery.
+    """
+    try:
+        user_id = AuthMiddleware.require_authentication(credentials)
+
+        from src.intelligence.services.campaignforge_value_attribution_service import campaignforge_value_attribution_service
+
+        result = await campaignforge_value_attribution_service.track_campaign_usage(
+            campaign_id=campaign_id,
+            affiliate_user_id=affiliate_user_id,
+            product_sku=product_sku,
+            platform=platform,
+            content_types_used=content_types_used,
+            ai_features_used=ai_features_used
+        )
+
+        return SuccessResponse(
+            data=result,
+            message="CampaignForge usage tracked successfully"
+        )
+
+    except CampaignForgeException:
+        raise
+    except Exception as e:
+        logger.error(f"Campaign usage tracking failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to track campaign usage"
+        )
+
+@router.post("/track-performance-attribution", response_model=SuccessResponse[Dict[str, Any]])
+async def track_performance_attribution(
+    campaign_id: str = Body(..., description="Campaign ID"),
+    performance_metrics: Dict[str, Any] = Body(..., description="Performance metrics"),
+    attribution_markers: Dict[str, Any] = Body(..., description="Attribution confidence markers"),
+    credentials: HTTPBearer = Depends(security)
+):
+    """
+    Track performance that can be attributed to CampaignForge platform.
+
+    Records performance metrics with attribution confidence to measure
+    the specific impact of CampaignForge features on campaign success.
+    """
+    try:
+        user_id = AuthMiddleware.require_authentication(credentials)
+
+        from src.intelligence.services.campaignforge_value_attribution_service import campaignforge_value_attribution_service
+
+        result = await campaignforge_value_attribution_service.track_performance_attribution(
+            campaign_id=campaign_id,
+            performance_metrics=performance_metrics,
+            attribution_markers=attribution_markers
+        )
+
+        return SuccessResponse(
+            data=result,
+            message="Performance attribution tracked successfully"
+        )
+
+    except CampaignForgeException:
+        raise
+    except Exception as e:
+        logger.error(f"Performance attribution tracking failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to track performance attribution"
+        )
+
+@router.get("/creator-value-report/{creator_user_id}", response_model=SuccessResponse[Dict[str, Any]])
+async def get_creator_value_report(
+    creator_user_id: str,
+    days: int = Query(30, description="Number of days for the report period"),
+    credentials: HTTPBearer = Depends(security)
+):
+    """
+    Generate CampaignForge value report for a product creator.
+
+    Shows how CampaignForge is benefiting the creator through:
+    - Platform adoption metrics
+    - AI feature utilization
+    - Attributed performance data
+    - Value indicators and confidence scores
+    """
+    try:
+        user_id = AuthMiddleware.require_authentication(credentials)
+
+        from src.intelligence.services.campaignforge_value_attribution_service import campaignforge_value_attribution_service
+
+        result = await campaignforge_value_attribution_service.generate_creator_value_report(
+            creator_user_id=creator_user_id,
+            days=days
+        )
+
+        return SuccessResponse(
+            data=result,
+            message=f"Creator value report generated for {days} days"
+        )
+
+    except CampaignForgeException:
+        raise
+    except Exception as e:
+        logger.error(f"Creator value report generation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate creator value report"
+        )
+
+@router.get("/platform-effectiveness-metrics/{creator_user_id}", response_model=SuccessResponse[Dict[str, Any]])
+async def get_platform_effectiveness_metrics(
+    creator_user_id: str,
+    credentials: HTTPBearer = Depends(security)
+):
+    """
+    Get CampaignForge platform effectiveness metrics for a creator.
+
+    Returns detailed analytics on how effectively the CampaignForge platform
+    is being utilized for the creator's products, including adoption trends
+    and feature usage patterns.
+    """
+    try:
+        user_id = AuthMiddleware.require_authentication(credentials)
+
+        from src.intelligence.services.campaignforge_value_attribution_service import campaignforge_value_attribution_service
+
+        result = await campaignforge_value_attribution_service.get_platform_effectiveness_metrics(
+            creator_user_id=creator_user_id
+        )
+
+        return SuccessResponse(
+            data=result,
+            message="Platform effectiveness metrics retrieved successfully"
+        )
+
+    except CampaignForgeException:
+        raise
+    except Exception as e:
+        logger.error(f"Platform effectiveness metrics retrieval failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve platform effectiveness metrics"
+        )
 
 # Include ClickBank routes
 try:
