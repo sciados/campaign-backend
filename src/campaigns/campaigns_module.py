@@ -3,7 +3,6 @@ import asyncio
 import logging
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter
-from src.core.database.session import AsyncSessionLocal
 from src.core.interfaces.module_interfaces import ModuleInterface
 from src.campaigns.services.campaign_service import CampaignService
 

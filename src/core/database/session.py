@@ -221,48 +221,6 @@ async def get_async_engine():
     return AsyncSessionManager._engine
 
 
-# Legacy compatibility exports
-engine = None
-async_engine = None
-AsyncSessionLocal = None
-
-def _get_legacy_engine():
-    """Get legacy sync engine for backward compatibility"""
-    global engine
-    if engine is None:
-        engine = get_engine()
-    return engine
-
-async def _get_legacy_async_engine():
-    """Get legacy async engine for backward compatibility"""
-    global async_engine
-    if async_engine is None:
-        async_engine = await get_async_engine()
-    return async_engine
-
-def _get_legacy_async_session_local():
-    """Get legacy async session factory for backward compatibility"""
-    global AsyncSessionLocal
-    if AsyncSessionLocal is None:
-        if not AsyncSessionManager._initialized:
-            # This will be called synchronously, so we can't await
-            # Return a factory that will initialize when needed
-            class LazyAsyncSessionLocal:
-                @staticmethod
-                async def __call__():
-                    async with AsyncSessionManager.get_session() as session:
-                        return session
-            AsyncSessionLocal = LazyAsyncSessionLocal()
-        else:
-            AsyncSessionLocal = AsyncSessionManager._session_factory
-    return AsyncSessionLocal
-
-# Initialize legacy objects
-engine = _get_legacy_engine()
-AsyncSessionLocal = _get_legacy_async_session_local()
-
-# async_engine needs to be initialized separately since it requires async
-# It will be set when first accessed
 
 
 async def test_database_connection() -> bool:
