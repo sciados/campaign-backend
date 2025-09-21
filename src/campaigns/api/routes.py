@@ -253,7 +253,18 @@ async def create_campaign_enhanced(
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        import logging
+
+        logger = logging.getLogger(__name__)
+        error_msg = str(e) if str(e) else f"Unknown error: {type(e).__name__}"
+
+        logger.error(f"Campaign creation failed: {error_msg}")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error traceback: {traceback.format_exc()}")
+        logger.error(f"Request data: {request}")
+
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @router.get("/{campaign_id}/workflow", response_model=Dict[str, Any])
 async def get_workflow_state(
