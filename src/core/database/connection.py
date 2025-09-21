@@ -58,7 +58,7 @@ AsyncSessionLocal = sessionmaker(
     bind=async_engine,
     class_=AsyncSession,
     expire_on_commit=False,
-    autoflush=True,  # Enable autoflush for immediate writes
+    autoflush=False,  # Prevent automatic flushes that can cause transaction conflicts
     autocommit=False  # Explicit transaction control
 )
 
