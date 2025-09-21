@@ -31,6 +31,17 @@ async def get_current_user_id(
         raise HTTPException(status_code=401, detail="Authentication required")
     return str(user.id)
 
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Get current user object from token"""
+    auth_service = AuthService(db)
+    user = await auth_service.get_current_user(credentials.credentials)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return user
+
 @router.get("/", response_model=CampaignListResponse)
 async def get_campaigns(
     status: Optional[str] = None,
@@ -206,31 +217,34 @@ async def delete_campaign(
 @router.post("/")
 async def create_campaign_enhanced(
     request: Dict[str, Any],
-    user_id: str = Depends(get_current_user_id),
+    user = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db)
 ):
     """Create campaign with optional content generation"""
     try:
-        # Extract request data - use authenticated user_id
-        company_id = request.get("company_id")
+        # Extract request data - use authenticated user info
         name = request.get("title") or request.get("name")
-        campaign_type = request.get("campaign_type", "universal")
+        campaign_type = request.get("campaign_type", "affiliate_promotion")
         description = request.get("description")
-        
+
         # Campaign form data
         target_audience = request.get("target_audience")
         goals = request.get("goals", [])
         keywords = request.get("keywords", [])
-        
+
         # Content generation options
         auto_generate_content = request.get("auto_generate_content", False)
         content_types = request.get("content_types", [])
-        
-        if not all([company_id, name]):
+
+        if not name:
             raise HTTPException(
                 status_code=400,
-                detail="company_id and name are required"
+                detail="name is required"
             )
+
+        # Get user's company_id automatically from user object
+        company_id = str(user.company_id) if user.company_id else None
+        user_id = str(user.id)
         
         async with ServiceFactory.create_transactional_service(EnhancedCampaignService) as campaign_service:
             result = await campaign_service.create_campaign_with_content_generation(
