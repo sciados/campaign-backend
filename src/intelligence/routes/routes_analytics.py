@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from typing import Optional, List
 from src.intelligence.services.analytics_service import analytics_service
-from src.core.database.connection import get_async_db
+from src.core.database.session import get_async_db
 from src.users.services.auth_service import AuthService
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])

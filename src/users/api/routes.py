@@ -15,7 +15,7 @@ import logging
 from src.core.factories.service_factory import ServiceFactory
 from src.users.services.auth_service import AuthService
 from src.users.services.user_service import UserService
-from src.core.database.connection import get_db
+from src.core.database.session import get_db
 from src.users.models.user import User, Company
 from src.campaigns.models.campaign import Campaign
 from src.core.database.models import IntelligenceCore, Waitlist

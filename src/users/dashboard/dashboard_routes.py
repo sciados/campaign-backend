@@ -6,7 +6,7 @@ from typing import Dict, Any
 
 from src.users.dashboard.dashboard_service import DashboardService
 from src.users.services.auth_service import AuthService
-from src.core.database.connection import get_db
+from src.core.database.session import get_db
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 security = HTTPBearer()

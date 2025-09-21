@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, List, Optional
 import logging
 
-from src.core.database.connection import get_async_db
+from src.core.database.session import get_async_db
 from src.users.services.auth_service import AuthService
 from src.content.services.video_generation_orchestrator import (
     create_video_generation_orchestrator,

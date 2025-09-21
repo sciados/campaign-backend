@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from src.intelligence.services import clickbank_service
-from src.core.database.connection import get_async_db
+from src.core.database.session import get_async_db
 from src.users.services.auth_service import AuthService
 
 router = APIRouter(prefix="/clickbank", tags=["ClickBank"])
