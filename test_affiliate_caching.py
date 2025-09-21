@@ -15,7 +15,7 @@ import os
 # Add the src directory to the path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from src.core.database.connection import get_async_session
+from src.core.database.session import get_async_session
 from src.intelligence.services.intelligence_service import IntelligenceService
 from src.intelligence.models.intelligence_models import IntelligenceRequest, AnalysisMethod
 
