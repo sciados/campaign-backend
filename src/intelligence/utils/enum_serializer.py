@@ -70,7 +70,7 @@ class EnumSerializerMixin:
         
         return {
             "id": str(source.id),
-            "source_url": source.source_url,
+            "salespage_url": source.salespage_url,
             "source_title": source.source_title,
             "confidence_score": source.confidence_score or 0.0,
             "created_at": source.created_at.isoformat() if source.created_at else None,

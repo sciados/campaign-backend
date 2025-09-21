@@ -902,7 +902,7 @@ Invest in your health. Invest in your future. Invest in {product_name}.
         try:
             intelligence_data = {
                 "source_type": "blog_post_generation",
-                "source_url": f"generated://blog_post/{campaign_id}",
+                "salespage_url": f"generated://blog_post/{campaign_id}",
                 "content_intelligence": {
                     "content_type": "blog_post",
                     "topic": topic,

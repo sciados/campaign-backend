@@ -71,7 +71,7 @@ class FallbackAnalyzer:
                 "Check Railway deployment logs for import errors",
                 "Verify requirements.txt contains all dependencies"
             ],
-            "source_url": url,
+            "salespage_url": url,
             "page_title": "Analysis Failed - Missing Dependencies",
             "analysis_timestamp": "2025-01-01T00:00:00Z",
             "confidence_score": 0.0,

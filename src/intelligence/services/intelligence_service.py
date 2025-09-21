@@ -79,11 +79,11 @@ class IntelligenceService:
             if not request.force_refresh:
                 # First check for GLOBAL analysis (any user who analyzed this URL)
                 global_existing = await self.intelligence_repo.find_by_url_global(
-                    request.source_url, session
+                    request.salespage_url, session
                 )
 
                 if global_existing:
-                    logger.info(f"🎯 AFFILIATE CACHE HIT: Returning shared intelligence for {request.source_url}")
+                    logger.info(f"🎯 AFFILIATE CACHE HIT: Returning shared intelligence for {request.salespage_url}")
                     logger.info(f"   📊 Original analysis by user: {global_existing.user_id}")
                     logger.info(f"   👤 Cloning for current user: {user_id}")
                     logger.info(f"   💾 Analysis method: {global_existing.analysis_method}")
@@ -106,11 +106,11 @@ class IntelligenceService:
 
                 # Fallback: Check user-specific analysis
                 user_existing = await self.intelligence_repo.find_by_url(
-                    request.source_url, user_id, session
+                    request.salespage_url, user_id, session
                 )
 
                 if user_existing:
-                    logger.info(f"Returning user-specific cached intelligence for {request.source_url}")
+                    logger.info(f"Returning user-specific cached intelligence for {request.salespage_url}")
                     analysis_result = await self._build_analysis_result(user_existing, session)
 
                     return IntelligenceResponse(
@@ -121,10 +121,10 @@ class IntelligenceService:
                     )
             
             # Perform new analysis
-            logger.info(f"Starting {request.analysis_method} analysis for {request.source_url}")
+            logger.info(f"Starting {request.analysis_method} analysis for {request.salespage_url}")
             
             analysis_result = await self.analysis_service.analyze_content(
-                source_url=request.source_url,
+                salespage_url=request.salespage_url,
                 analysis_method=request.analysis_method,
                 user_id=user_id,
                 company_id=company_id,
@@ -141,7 +141,7 @@ class IntelligenceService:
             )
             
         except Exception as e:
-            logger.error(f"Intelligence analysis failed for {request.source_url}: {e}")
+            logger.error(f"Intelligence analysis failed for {request.salespage_url}: {e}")
             raise
     
     async def get_intelligence(
@@ -301,7 +301,7 @@ class IntelligenceService:
 
         # Create a complete intelligence record for this user using the shared analysis
         cloned_intelligence = await self.intelligence_repo.create_complete_intelligence(
-            source_url=original_intelligence.source_url,
+            salespage_url=original_intelligence.salespage_url,
             product_name=original_intelligence.product_name,
             user_id=user_id,
             company_id=company_id,

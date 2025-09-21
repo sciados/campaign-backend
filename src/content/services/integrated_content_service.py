@@ -144,7 +144,7 @@ class IntegratedContentService:
         """Get campaign intelligence data from existing intelligence_core table"""
         try:
             query = text("""
-                SELECT ic.product_name, ic.source_url, ic.confidence_score,
+                SELECT ic.product_name, ic.salespage_url, ic.confidence_score,
                        pd.features, pd.benefits, pd.ingredients, pd.conditions,
                        md.category, md.positioning, md.competitive_advantages, md.target_audience
                 FROM intelligence_core ic
@@ -167,7 +167,7 @@ class IntegratedContentService:
             for row in rows:
                 data = {
                     "product_name": row.product_name,
-                    "source_url": row.source_url,
+                    "salespage_url": row.salespage_url,
                     "confidence_score": float(row.confidence_score) if row.confidence_score else 0.0,
                     "features": row.features if row.features else [],
                     "benefits": row.benefits if row.benefits else [],

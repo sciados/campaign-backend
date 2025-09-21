@@ -108,7 +108,7 @@ class TrulyDynamicContentService:
                 SELECT 
                     ic.id as intelligence_id,
                     ic.product_name,
-                    ic.source_url,
+                    ic.salespage_url,
                     ic.confidence_score,
                     ic.analysis_method,
                     pd.features,
@@ -145,7 +145,7 @@ class TrulyDynamicContentService:
                     intelligence_map[intel_id] = {
                         "intelligence_id": str(intel_id),
                         "product_name": row.product_name,
-                        "source_url": row.source_url,
+                        "salespage_url": row.salespage_url,
                         "confidence_score": float(row.confidence_score) if row.confidence_score else 0.0,
                         "analysis_method": row.analysis_method,
                         "features": row.features if row.features else [],

@@ -46,7 +46,7 @@ class EnhancedAnalysisService:
     @retry_on_failure(max_retries=2)
     async def analyze_content(
         self,
-        source_url: str,
+        salespage_url: str,
         analysis_method: AnalysisMethod,
         user_id: str,
         company_id: Optional[str] = None,
@@ -58,7 +58,7 @@ class EnhancedAnalysisService:
         Restores the full pipeline that was generating 12,000+ character intelligence.
         
         Args:
-            source_url: URL to analyze
+            salespage_url: URL to analyze
             analysis_method: Analysis method to use
             user_id: Requesting user ID
             company_id: Optional company ID
@@ -70,13 +70,13 @@ class EnhancedAnalysisService:
         pipeline_start = time.time()
         
         try:
-            logger.info(f"Starting enhanced analysis pipeline for {source_url}")
+            logger.info(f"Starting enhanced analysis pipeline for {salespage_url}")
             logger.info(f"Analysis method: {analysis_method}")
             
             # Step 1: Scrape and preprocess content
             logger.info("Phase 1: Content scraping...")
             scrape_start = time.time()
-            content_data = await self.content_analyzer.scrape_content(source_url)
+            content_data = await self.content_analyzer.scrape_content(salespage_url)
             scrape_time = time.time() - scrape_start
             logger.info(f"Content scraping completed in {scrape_time:.2f}s")
             logger.info(f"Scraped content size: {len(content_data.get('text', ''))} characters")
@@ -89,7 +89,7 @@ class EnhancedAnalysisService:
             stage1_start = time.time()
             base_intelligence = await self.enhanced_handler.perform_base_analysis(
                 content_data.get("text", ""), 
-                source_url
+                salespage_url
             )
             stage1_time = time.time() - stage1_start
             logger.info(f"Stage 1 completed in {stage1_time:.2f}s")
@@ -101,7 +101,7 @@ class EnhancedAnalysisService:
                 stage2_start = time.time()
                 enriched_intelligence = await self.enhanced_handler.perform_amplification(
                     base_intelligence, 
-                    source_url
+                    salespage_url
                 )
                 stage2_time = time.time() - stage2_start
                 logger.info(f"Stage 2 completed in {stage2_time:.2f}s")
@@ -117,7 +117,7 @@ class EnhancedAnalysisService:
                 stage3_start = time.time()
                 final_intelligence = await self.enhanced_handler.apply_rag_enhancement(
                     enriched_intelligence, 
-                    source_url
+                    salespage_url
                 )
                 stage3_time = time.time() - stage3_start
                 logger.info(f"Stage 3 completed in {stage3_time:.2f}s")
@@ -137,7 +137,7 @@ class EnhancedAnalysisService:
             logger.info("Phase 4: Storing complete analysis results...")
             storage_start = time.time()
             intelligence = await self._store_complete_analysis_results(
-                source_url=source_url,
+                salespage_url=salespage_url,
                 analysis_data=analysis_data,
                 full_intelligence=final_intelligence,  # Store complete intelligence
                 analysis_method=analysis_method.value,
@@ -172,7 +172,7 @@ class EnhancedAnalysisService:
             return analysis_result
             
         except Exception as e:
-            logger.error(f"Enhanced analysis pipeline failed for {source_url}: {e}")
+            logger.error(f"Enhanced analysis pipeline failed for {salespage_url}: {e}")
             raise
     
     async def _convert_intelligence_to_storage_format(
@@ -228,7 +228,7 @@ class EnhancedAnalysisService:
     
     async def _store_complete_analysis_results(
         self,
-        source_url: str,
+        salespage_url: str,
         analysis_data: Dict[str, Any],
         full_intelligence: Dict[str, Any],  # NEW: Store complete intelligence
         analysis_method: str,
@@ -240,7 +240,7 @@ class EnhancedAnalysisService:
         
         # **CRITICAL**: Use the new enhanced repository method for complete data storage
         intelligence = await self.intelligence_repo.create_complete_intelligence_with_full_data(
-            source_url=source_url,
+            salespage_url=salespage_url,
             product_name=analysis_data["product_name"],
             user_id=user_id,
             company_id=company_id,

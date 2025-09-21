@@ -58,7 +58,7 @@ class IntelligenceCore(Base, TimestampMixin, UserMixin):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     product_name = Column(String, nullable=False, index=True)
-    source_url = Column(Text, nullable=False)
+    salespage_url = Column(Text, nullable=False)
     confidence_score = Column(Float, default=0.0, index=True)
     analysis_method = Column(String, nullable=False)  # 'fast', 'deep', 'enhanced'
 

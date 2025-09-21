@@ -42,7 +42,7 @@ class AnalysisService:
     @retry_on_failure(max_retries=2)
     async def analyze_content(
         self,
-        source_url: str,
+        salespage_url: str,
         analysis_method: AnalysisMethod,
         user_id: str,
         company_id: Optional[str] = None,
@@ -52,7 +52,7 @@ class AnalysisService:
         Perform content analysis and return intelligence results.
         
         Args:
-            source_url: URL to analyze
+            salespage_url: URL to analyze
             analysis_method: Analysis method to use
             user_id: Requesting user ID
             company_id: Optional company ID
@@ -63,8 +63,8 @@ class AnalysisService:
         """
         try:
             # Step 1: Scrape and preprocess content
-            logger.info(f"Scraping content from {source_url}")
-            content_data = await self.content_analyzer.scrape_content(source_url)
+            logger.info(f"Scraping content from {salespage_url}")
+            content_data = await self.content_analyzer.scrape_content(salespage_url)
             
             # Step 2: Perform AI analysis based on method
             logger.info(f"Performing {analysis_method} analysis")
@@ -80,7 +80,7 @@ class AnalysisService:
             # Step 3: Store results in consolidated schema
             logger.info("Storing analysis results")
             intelligence = await self._store_analysis_results(
-                source_url=source_url,
+                salespage_url=salespage_url,
                 analysis_data=analysis_data,
                 analysis_method=analysis_method.value,
                 user_id=user_id,
@@ -99,11 +99,11 @@ class AnalysisService:
                 created_at=intelligence.created_at
             )
             
-            logger.info(f"Analysis completed for {source_url} with confidence {intelligence.confidence_score}")
+            logger.info(f"Analysis completed for {salespage_url} with confidence {intelligence.confidence_score}")
             return analysis_result
             
         except Exception as e:
-            logger.error(f"Analysis failed for {source_url}: {e}")
+            logger.error(f"Analysis failed for {salespage_url}: {e}")
             raise
     
     async def _fast_analysis(self, content_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -188,24 +188,24 @@ class AnalysisService:
         try:
             # Use our working enhanced handler with all providers available
             content_text = content_data["text"]
-            source_url = content_data.get("url", "unknown")
+            salespage_url = content_data.get("url", "unknown")
 
             # STAGE 1: Base Analysis
-            base_intelligence = await self.enhanced_handler.perform_base_analysis(content_text, source_url)
+            base_intelligence = await self.enhanced_handler.perform_base_analysis(content_text, salespage_url)
 
             # Throttling between stages to prevent API overload
             logger.info("Throttling: waiting 3s before Stage 2 (Enhancement Pipeline)")
             await asyncio.sleep(3.0)
 
             # STAGE 2: Enhancement Pipeline (6 enhancers)
-            enriched_intelligence = await self.enhanced_handler.perform_amplification(base_intelligence, source_url)
+            enriched_intelligence = await self.enhanced_handler.perform_amplification(base_intelligence, salespage_url)
 
             # Throttling between stages
             logger.info("Throttling: waiting 2s before Stage 3 (RAG Integration)")
             await asyncio.sleep(2.0)
 
             # STAGE 3: RAG Integration
-            final_intelligence = await self.enhanced_handler.apply_rag_enhancement(enriched_intelligence, source_url)
+            final_intelligence = await self.enhanced_handler.apply_rag_enhancement(enriched_intelligence, salespage_url)
 
             # Extract the needed format for the service
             products_list = final_intelligence.get("offer_intelligence", {}).get("products", ["Unknown Product"])
@@ -301,7 +301,7 @@ class AnalysisService:
 
     async def _store_analysis_results(
         self,
-        source_url: str,
+        salespage_url: str,
         analysis_data: Dict[str, Any],
         analysis_method: str,
         user_id: str,
@@ -312,7 +312,7 @@ class AnalysisService:
         
         # Create complete intelligence record
         intelligence = await self.intelligence_repo.create_complete_intelligence(
-            source_url=source_url,
+            salespage_url=salespage_url,
             product_name=analysis_data["product_name"],
             user_id=user_id,
             company_id=company_id,

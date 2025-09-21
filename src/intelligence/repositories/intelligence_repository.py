@@ -40,21 +40,21 @@ class IntelligenceRepository(RepositoryInterface[IntelligenceCore]):
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
     
-    async def find_by_url(self, source_url: str, user_id: str, session: AsyncSession) -> Optional[IntelligenceCore]:
+    async def find_by_url(self, salespage_url: str, user_id: str, session: AsyncSession) -> Optional[IntelligenceCore]:
         """Find intelligence by source URL and user."""
         stmt = select(IntelligenceCore).options(
             selectinload(IntelligenceCore.product_data),
             selectinload(IntelligenceCore.market_data),
             selectinload(IntelligenceCore.research_links)
         ).where(
-            IntelligenceCore.source_url == source_url,
+            IntelligenceCore.salespage_url == salespage_url,
             IntelligenceCore.user_id == user_id
         )
 
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def find_by_url_global(self, source_url: str, session: AsyncSession) -> Optional[IntelligenceCore]:
+    async def find_by_url_global(self, salespage_url: str, session: AsyncSession) -> Optional[IntelligenceCore]:
         """
         Find intelligence by source URL from ANY user (global cache for affiliate marketers).
 
@@ -63,7 +63,7 @@ class IntelligenceRepository(RepositoryInterface[IntelligenceCore]):
         analysis (best confidence score + most recent) for maximum value.
 
         Args:
-            source_url: The URL to look up
+            salespage_url: The URL to look up
             session: Database session
 
         Returns:
@@ -80,7 +80,7 @@ class IntelligenceRepository(RepositoryInterface[IntelligenceCore]):
             selectinload(IntelligenceCore.market_data),
             selectinload(IntelligenceCore.research_links)
         ).where(
-            IntelligenceCore.source_url == source_url
+            IntelligenceCore.salespage_url == salespage_url
         ).order_by(
             IntelligenceCore.confidence_score.desc(),  # Get highest quality analysis first
             IntelligenceCore.created_at.desc()  # Then most recent
@@ -138,7 +138,7 @@ class IntelligenceRepository(RepositoryInterface[IntelligenceCore]):
     
     async def create_complete_intelligence(
         self,
-        source_url: str,
+        salespage_url: str,
         product_name: str,
         user_id: str,
         analysis_method: str,
@@ -155,7 +155,7 @@ class IntelligenceRepository(RepositoryInterface[IntelligenceCore]):
         intelligence = IntelligenceCore(
             id=str(uuid.uuid4()),
             product_name=product_name,
-            source_url=source_url,
+            salespage_url=salespage_url,
             user_id=user_id,
             company_id=company_id,
             analysis_method=analysis_method,

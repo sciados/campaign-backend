@@ -112,7 +112,7 @@ class IntelligenceCore(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     product_name = Column(Text, nullable=False)
-    source_url = Column(Text, nullable=False)
+    salespage_url = Column(Text, nullable=False)
     confidence_score = Column(Float)
     analysis_method = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

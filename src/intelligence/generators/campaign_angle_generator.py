@@ -494,7 +494,7 @@ class CampaignAngleGenerator(BaseGenerator):
             # Create intelligence data for new schema
             intelligence_data = {
                 "product_name": product_name,
-                "source_url": f"generated://campaign_angles/{campaign_id}",
+                "salespage_url": f"generated://campaign_angles/{campaign_id}",
                 "confidence_score": 95.0,
                 "analysis_method": "campaign_angle_generation",
                 "offer_intelligence": {

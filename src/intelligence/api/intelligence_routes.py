@@ -65,7 +65,7 @@ async def analyze_url(
     try:
         user_id = AuthMiddleware.require_authentication(credentials)
         
-        logger.info(f"Intelligence analysis requested by user {user_id} for {request.source_url}")
+        logger.info(f"Intelligence analysis requested by user {user_id} for {request.salespage_url}")
         
         result = await intelligence_service.analyze_url(
             request=request,
@@ -75,7 +75,7 @@ async def analyze_url(
         
         return SuccessResponse(
             data=result,
-            message=f"Analysis completed for {request.source_url}"
+            message=f"Analysis completed for {request.salespage_url}"
         )
         
     except CampaignForgeException:
@@ -103,7 +103,7 @@ async def analyze_url_with_product_detection(
     try:
         user_id = AuthMiddleware.require_authentication(credentials)
 
-        logger.info(f"Enhanced analysis with product detection requested by user {user_id} for {request.source_url}")
+        logger.info(f"Enhanced analysis with product detection requested by user {user_id} for {request.salespage_url}")
 
         # Perform standard intelligence analysis
         intelligence_result = await intelligence_service.analyze_url(
@@ -116,7 +116,7 @@ async def analyze_url_with_product_detection(
         product_detection_result = None
         if campaign_id:
             product_detection_result = await product_detection_service.detect_and_link_product_from_url(
-                source_url=request.source_url,
+                salespage_url=request.salespage_url,
                 campaign_id=campaign_id,
                 user_id=user_id,
                 intelligence_result=intelligence_result.model_dump() if hasattr(intelligence_result, 'model_dump') else intelligence_result
@@ -134,7 +134,7 @@ async def analyze_url_with_product_detection(
 
         return SuccessResponse(
             data=enhanced_result,
-            message=f"Enhanced analysis completed for {request.source_url}"
+            message=f"Enhanced analysis completed for {request.salespage_url}"
         )
 
     except CampaignForgeException:
@@ -221,7 +221,7 @@ async def link_campaign_to_product(
 
 @router.post("/check-product-in-library", response_model=SuccessResponse[Dict[str, Any]])
 async def check_product_in_library(
-    source_url: str = Body(..., description="Sales page URL to check"),
+    salespage_url: str = Body(..., description="Sales page URL to check"),
     campaign_id: Optional[str] = Body(None, description="Campaign ID for linking if product exists"),
     credentials: HTTPBearer = Depends(security),
     session: AsyncSession = Depends(get_async_db)
@@ -235,11 +235,11 @@ async def check_product_in_library(
     try:
         user_id = AuthMiddleware.require_authentication(credentials)
 
-        logger.info(f"Library check requested by user {user_id} for URL: {source_url}")
+        logger.info(f"Library check requested by user {user_id} for URL: {salespage_url}")
 
         # Use the smart detection with no intelligence result to just check library
         result = await product_detection_service.detect_and_link_product_from_url(
-            source_url=source_url,
+            salespage_url=salespage_url,
             campaign_id=campaign_id,
             user_id=user_id,
             intelligence_result=None  # No analysis provided - just check library
@@ -253,7 +253,7 @@ async def check_product_in_library(
                 "library_check_result": result,
                 "analysis_needed": analysis_needed,
                 "product_exists_in_library": not analysis_needed,
-                "source_url": source_url
+                "salespage_url": salespage_url
             },
             message="Library check completed"
         )

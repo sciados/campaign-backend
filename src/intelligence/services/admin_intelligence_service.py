@@ -152,7 +152,7 @@ class AdminIntelligenceService:
     ) -> Dict[str, Any]:
         """Analyze a single URL for cache pre-population."""
         request = IntelligenceRequest(
-            source_url=url,
+            salespage_url=url,
             analysis_method=analysis_method,
             force_refresh=False  # Use cache if available
         )
@@ -186,7 +186,7 @@ class AdminIntelligenceService:
         # Group by URL to get unique URLs
         url_stats = {}
         for intel in all_intelligence:
-            url = intel.source_url
+            url = intel.salespage_url
             if url not in url_stats:
                 url_stats[url] = {
                     "url": url,
@@ -243,7 +243,7 @@ class AdminIntelligenceService:
         suggestions = []
         for intel in high_value_intelligence:
             suggestions.append({
-                "url": intel.source_url,
+                "url": intel.salespage_url,
                 "product_name": intel.product_name,
                 "confidence_score": intel.confidence_score,
                 "analysis_method": intel.analysis_method,

@@ -672,7 +672,7 @@ async def _create_intelligence_record(
         
         intelligence_data = {
             "product_name": product_name,
-            "source_url": f"generated://social_media/{campaign_id}",
+            "salespage_url": f"generated://social_media/{campaign_id}",
             "confidence_score": 95.0,
             "analysis_method": "social_media_generation",
             "offer_intelligence": {

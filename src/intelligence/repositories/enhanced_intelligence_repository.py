@@ -28,7 +28,7 @@ class EnhancedIntelligenceRepository:
     
     async def create_complete_intelligence_with_full_data(
         self,
-        source_url: str,
+        salespage_url: str,
         product_name: str,
         user_id: str,
         company_id: Optional[str],
@@ -47,7 +47,7 @@ class EnhancedIntelligenceRepository:
         2. Complete intelligence JSON in intelligence_core.full_analysis_data
         
         Args:
-            source_url: Source URL analyzed
+            salespage_url: Source URL analyzed
             product_name: Extracted product name
             user_id: User who requested analysis
             company_id: Optional company ID
@@ -71,7 +71,7 @@ class EnhancedIntelligenceRepository:
             intelligence = IntelligenceCore(
                 id=intelligence_id,
                 product_name=product_name,
-                source_url=source_url,
+                salespage_url=salespage_url,
                 confidence_score=confidence_score,
                 analysis_method=analysis_method,
                 user_id=user_id,
@@ -258,7 +258,7 @@ class EnhancedIntelligenceRepository:
             complete_data = {
                 "intelligence_id": intelligence.id,
                 "product_name": intelligence.product_name,
-                "source_url": intelligence.source_url,
+                "salespage_url": intelligence.salespage_url,
                 "confidence_score": intelligence.confidence_score,
                 "analysis_method": intelligence.analysis_method,
                 "created_at": intelligence.created_at,
@@ -358,7 +358,7 @@ class EnhancedIntelligenceRepository:
                 search_results.append({
                     "intelligence_id": record.id,
                     "product_name": record.product_name,
-                    "source_url": record.source_url,
+                    "salespage_url": record.salespage_url,
                     "confidence_score": record.confidence_score,
                     "analysis_method": record.analysis_method,
                     "created_at": record.created_at

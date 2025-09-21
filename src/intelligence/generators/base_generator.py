@@ -134,7 +134,7 @@ class BaseContentGenerator(ABC):
                 if hasattr(first_source, 'product_name') and first_source.product_name:
                     actual_product_name = first_source.product_name.strip()
                     logger.info(f"Using product_name from new schema: '{actual_product_name}'")
-                elif hasattr(first_source, 'source_url'):
+                elif hasattr(first_source, 'salespage_url'):
                     # Fallback to extracting from URL or other fields
                     actual_product_name = await self._extract_product_name_from_new_schema(first_source)
             
@@ -162,7 +162,7 @@ class BaseContentGenerator(ABC):
                     
                     source_data = {
                         "intelligence_id": str(source.id),
-                        "source_url": source.source_url,
+                        "salespage_url": source.salespage_url,
                         "confidence_score": source.confidence_score or 0.0,
                         "analysis_method": source.analysis_method,
                         "created_at": source.created_at,
@@ -213,9 +213,9 @@ class BaseContentGenerator(ABC):
                     return complete_intel["product_name"]
             
             # Fallback to extracting from URL
-            if hasattr(intelligence_source, 'source_url') and intelligence_source.source_url:
+            if hasattr(intelligence_source, 'salespage_url') and intelligence_source.salespage_url:
                 # Extract from URL - simplified version
-                url = intelligence_source.source_url
+                url = intelligence_source.salespage_url
                 # Remove common URL parts and extract potential product name
                 import re
                 # Extract potential product name from URL
@@ -278,7 +278,7 @@ class BaseContentGenerator(ABC):
         try:
             # ✅ PHASE 3: Prepare content data for new schema storage
             analysis_data = {
-                "source_url": f"generated://{content_type}/{self.generation_id}",
+                "salespage_url": f"generated://{content_type}/{self.generation_id}",
                 "product_name": intelligence_data.get("product_name", "Generated Content"),
                 "analysis_method": f"{self.generator_type}_content_generation",
                 "confidence_score": 0.9,  # High confidence for generated content

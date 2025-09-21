@@ -27,7 +27,7 @@ class AnalysisMethod(str, Enum):
 class IntelligenceRequest(BaseModel):
     """Request model for intelligence analysis."""
     
-    source_url: str = Field(..., description="URL to analyze")
+    salespage_url: str = Field(..., description="URL to analyze")
     analysis_method: AnalysisMethod = Field(
         default=AnalysisMethod.FAST,
         description="Analysis depth and method"
@@ -37,9 +37,9 @@ class IntelligenceRequest(BaseModel):
         description="Force new analysis even if cached data exists"
     )
     
-    @validator("source_url")
+    @validator("salespage_url")
     def validate_source_url(cls, v):
-        return validate_url(v, "source_url")
+        return validate_url(v, "salespage_url")
 
 
 class ProductInfo(BaseModel):

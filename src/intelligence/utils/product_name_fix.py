@@ -129,9 +129,9 @@ class UniversalProductExtractor:
         extraction_sources = {}
         
         # CRITICAL FIX: Strategy 1 - URL-based extraction (HIGHEST CONFIDENCE)
-        source_url = intelligence.get("source_url") or intelligence.get("url")
-        if source_url:
-            url_candidates = self._extract_from_url_fixed(source_url)
+        salespage_url = intelligence.get("salespage_url") or intelligence.get("url")
+        if salespage_url:
+            url_candidates = self._extract_from_url_fixed(salespage_url)
             if url_candidates:
                 all_candidates.extend(url_candidates)
                 extraction_sources["url"] = url_candidates
@@ -654,10 +654,10 @@ def extract_company_name_from_intelligence(intelligence: Dict[str, Any]) -> str:
                         return cleaned
     
     # Check URL for company indicators
-    source_url = intelligence.get("source_url", "")
-    if source_url:
+    salespage_url = intelligence.get("salespage_url", "")
+    if salespage_url:
         try:
-            parsed = urlparse(source_url.lower())
+            parsed = urlparse(salespage_url.lower())
             domain = parsed.netloc.replace('www.', '')
             
             # If domain looks like a company name (not generic)
@@ -834,7 +834,7 @@ def test_aquasculpt_extraction():
     """FIXED test specifically for AquaSculpt"""
     
     test_intelligence = {
-        "source_url": "https://getaquasculptnow.net/extraBottle",
+        "salespage_url": "https://getaquasculptnow.net/extraBottle",
         "raw_content": "Stock Up - Exclusive Offer Benefits The Proof Ingredients Success ORDER NOW SUPPORT HEALTHYWEIGHTLOSSNATURALLY Supports Healthy Weight Loss Maintains Slim Figure Supports Healthy Metabolism CLAIM YOURS RIGHT NOW 100% Natural & Effective! Get AquaSculpt Special Discount Today The Difference AquaSculpt May Make! Claim Discount Powerful Ingredients AquaSculpt Are you ready to support",
         "psychology_intelligence": {
             "emotional_triggers": [
@@ -852,7 +852,7 @@ def test_aquasculpt_extraction():
     print("=" * 50)
     
     # Test URL extraction
-    url_result = _universal_extractor._extract_from_url_fixed(test_intelligence["source_url"])
+    url_result = _universal_extractor._extract_from_url_fixed(test_intelligence["salespage_url"])
     print(f"URL extraction: {url_result}")
     
     # Test content extraction
@@ -890,12 +890,12 @@ def debug_product_extraction_fixed(intelligence: Dict[str, Any]) -> Dict[str, An
     }
     
     # Test each strategy individually
-    source_url = intelligence.get("source_url")
-    if source_url:
-        url_candidates = extractor._extract_from_url_fixed(source_url)
+    salespage_url = intelligence.get("salespage_url")
+    if salespage_url:
+        url_candidates = extractor._extract_from_url_fixed(salespage_url)
         debug_results["extraction_strategies"]["url"] = {
             "candidates": url_candidates,
-            "source": source_url
+            "source": salespage_url
         }
         
         # Check for known products in URL
@@ -953,7 +953,7 @@ def test_universal_extraction_fixed():
         {
             "name": "AquaSculpt (Fixed)",
             "intelligence": {
-                "source_url": "https://getaquasculptnow.net/extraBottle",
+                "salespage_url": "https://getaquasculptnow.net/extraBottle",
                 "raw_content": "The Difference AquaSculpt May Make! Powerful Ingredients AquaSculpt supports healthy weight loss",
                 "offer_intelligence": {"products": ["Island"]}  # AI hallucination
             },
@@ -962,7 +962,7 @@ def test_universal_extraction_fixed():
         {
             "name": "LiverPure",
             "intelligence": {
-                "source_url": "https://liverpureofficial.com",
+                "salespage_url": "https://liverpureofficial.com",
                 "raw_content": "Discover LiverPure today! LiverPure helps support liver health naturally.",
                 "page_title": "LiverPure - Official Website"
             },
@@ -971,7 +971,7 @@ def test_universal_extraction_fixed():
         {
             "name": "MetaboFlex",
             "intelligence": {
-                "source_url": "https://metaboflexsupplement.com",
+                "salespage_url": "https://metaboflexsupplement.com",
                 "raw_content": "MetaboFlex supports healthy metabolism. Get MetaboFlex now and feel the difference!",
                 "offer_intelligence": {"products": ["MetaboFlex"]}
             },

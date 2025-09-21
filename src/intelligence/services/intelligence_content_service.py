@@ -179,7 +179,7 @@ class IntelligenceContentService:
                 intelligence_item = {
                     "intelligence_id": record.id,
                     "product_name": record.product_name,
-                    "source_url": record.source_url,
+                    "salespage_url": record.salespage_url,
                     "confidence_score": record.confidence_score,
                     "analysis_method": record.analysis_method,
                     "created_at": record.created_at,

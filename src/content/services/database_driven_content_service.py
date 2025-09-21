@@ -110,7 +110,7 @@ class DatabaseDrivenContentService:
                 SELECT 
                     ic.id as intelligence_id,
                     ic.product_name,
-                    ic.source_url,
+                    ic.salespage_url,
                     ic.confidence_score,
                     ic.analysis_method,
                     pd.features,
@@ -156,7 +156,7 @@ class DatabaseDrivenContentService:
                     intelligence_map[intel_id] = {
                         "intelligence_id": str(intel_id),
                         "product_name": row.product_name,
-                        "source_url": row.source_url,
+                        "salespage_url": row.salespage_url,
                         "confidence_score": float(row.confidence_score) if row.confidence_score else 0.0,
                         "analysis_method": row.analysis_method,
                         "features": row.features if row.features else [],
@@ -311,7 +311,7 @@ class DatabaseDrivenContentService:
             "series_info": {
                 "total_emails": len(emails),
                 "product_name": product_name,
-                "primary_intelligence_source": primary_intel["source_url"],
+                "primary_intelligence_source": primary_intel["salespage_url"],
                 "intelligence_confidence": primary_intel["confidence_score"],
                 "templates_used": len(set(email["template_used"]["template_id"] for email in emails))
             },
@@ -974,7 +974,7 @@ Worth checking out if you're looking for real solutions."""
             "intelligence_source": {
                 "intelligence_id": primary_intel["intelligence_id"],
                 "confidence_score": primary_intel["confidence_score"],
-                "source_url": primary_intel.get("source_url")
+                "salespage_url": primary_intel.get("salespage_url")
             }
         }
     

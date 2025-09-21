@@ -15,7 +15,7 @@ class ProductDetectionService:
 
     async def detect_and_link_product_from_url(
         self,
-        source_url: str,
+        salespage_url: str,
         campaign_id: str,
         user_id: str,
         intelligence_result: dict = None
@@ -25,7 +25,7 @@ class ProductDetectionService:
         """
         try:
             # Step 1: Check if product already exists in library by URL
-            existing_product = await self._find_product_in_library_by_url(source_url)
+            existing_product = await self._find_product_in_library_by_url(salespage_url)
 
             if existing_product:
                 # Product exists - direct link to creator (no analysis needed)
@@ -62,12 +62,12 @@ class ProductDetectionService:
                 }
 
             # Step 4: Identify platform and creator
-            platform_info = self._identify_platform_from_url(source_url)
+            platform_info = self._identify_platform_from_url(salespage_url)
             creator_info = await self._identify_product_creator(product_info, platform_info)
 
             if not creator_info:
                 # Add to library without creator link for manual assignment later
-                await self._add_product_to_library(product_info, platform_info, source_url)
+                await self._add_product_to_library(product_info, platform_info, salespage_url)
 
                 return {
                     "status": "product_added_pending_creator",
@@ -78,7 +78,7 @@ class ProductDetectionService:
                 }
 
             # Step 5: Add to library and link campaign
-            await self._add_product_to_library(product_info, platform_info, source_url, creator_info["creator_user_id"])
+            await self._add_product_to_library(product_info, platform_info, salespage_url, creator_info["creator_user_id"])
 
             link_result = await campaign_product_analytics_service.link_campaign_to_product(
                 campaign_id=campaign_id,
@@ -243,11 +243,11 @@ class ProductDetectionService:
                 pcm.product_sku as sku,
                 pcm.product_name as name,
                 pcm.creator_user_id,
-                pl.source_url,
+                pl.salespage_url,
                 pl.description
             FROM product_creator_mappings pcm
             JOIN product_library pl ON (pcm.platform = pl.platform AND pcm.product_sku = pl.product_sku)
-            WHERE pl.source_url = :url
+            WHERE pl.salespage_url = :url
             LIMIT 1
             """)
 
@@ -262,7 +262,7 @@ class ProductDetectionService:
                             "sku": row.sku,
                             "name": row.name,
                             "creator_user_id": row.creator_user_id,
-                            "source_url": row.source_url,
+                            "salespage_url": row.salespage_url,
                             "description": row.description,
                             "source": "library"
                         }
@@ -281,7 +281,7 @@ class ProductDetectionService:
         self,
         product_info: dict,
         platform_info: dict,
-        source_url: str,
+        salespage_url: str,
         creator_user_id: str = None
     ):
         """Add product to the content library"""
@@ -292,14 +292,14 @@ class ProductDetectionService:
             # Add to product library table
             query = text("""
             INSERT INTO product_library (
-                platform, product_sku, product_name, source_url, description,
+                platform, product_sku, product_name, salespage_url, description,
                 price, added_at, creator_user_id
             ) VALUES (
-                :platform, :product_sku, :product_name, :source_url, :description,
+                :platform, :product_sku, :product_name, :salespage_url, :description,
                 :price, NOW(), :creator_user_id
             ) ON CONFLICT (platform, product_sku) DO UPDATE
             SET product_name = :product_name,
-                source_url = :source_url,
+                salespage_url = :salespage_url,
                 description = :description,
                 price = :price,
                 creator_user_id = :creator_user_id,
@@ -311,7 +311,7 @@ class ProductDetectionService:
                     "platform": platform_info["platform"],
                     "product_sku": product_info["sku"],
                     "product_name": product_info["name"],
-                    "source_url": source_url,
+                    "salespage_url": salespage_url,
                     "description": product_info.get("description", ""),
                     "price": product_info.get("price", 0.0),
                     "creator_user_id": creator_user_id
@@ -323,7 +323,7 @@ class ProductDetectionService:
             # Create table if it doesn't exist
             await self._create_product_library_table()
             # Retry the insert
-            await self._add_product_to_library(product_info, platform_info, source_url, creator_user_id)
+            await self._add_product_to_library(product_info, platform_info, salespage_url, creator_user_id)
 
     async def _create_product_library_table(self):
         """Create the product library table if it doesn't exist"""
@@ -333,7 +333,7 @@ class ProductDetectionService:
             platform VARCHAR(50) NOT NULL,
             product_sku VARCHAR(255) NOT NULL,
             product_name VARCHAR(500) NOT NULL,
-            source_url TEXT NOT NULL,
+            salespage_url TEXT NOT NULL,
             description TEXT,
             price DECIMAL(10,2) DEFAULT 0.00,
             creator_user_id UUID,
@@ -344,10 +344,10 @@ class ProductDetectionService:
             UNIQUE (platform, product_sku),
 
             -- Index for URL lookups
-            UNIQUE (source_url)
+            UNIQUE (salespage_url)
         );
 
-        CREATE INDEX IF NOT EXISTS idx_product_library_url ON product_library(source_url);
+        CREATE INDEX IF NOT EXISTS idx_product_library_url ON product_library(salespage_url);
         CREATE INDEX IF NOT EXISTS idx_product_library_creator ON product_library(creator_user_id);
         CREATE INDEX IF NOT EXISTS idx_product_library_platform ON product_library(platform, product_sku);
 

@@ -170,7 +170,7 @@ class UserSpecificRAGSystem:
                 logger.warning("SalesPageAnalyzer not available, using fallback analysis")
                 base_analysis = {
                     'product_name': product_name or 'Product',
-                    'source_url': sales_page_url,
+                    'salespage_url': sales_page_url,
                     'analysis_timestamp': datetime.now(timezone.utc).isoformat(),
                     'offer_intelligence': {'products': [], 'pricing': []},
                     'psychology_intelligence': {'pain_points': [], 'target_audience': 'Unknown'},

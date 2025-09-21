@@ -241,7 +241,7 @@ def format_intelligence_for_export(intelligence_sources: list) -> dict:
         try:
             formatted_source = {
                 "id": str(source.id),
-                "source_url": source.source_url,
+                "salespage_url": source.salespage_url,
                 "source_title": source.source_title,
                 "source_type": source.source_type.value if source.source_type else "unknown",
                 "confidence_score": source.confidence_score,

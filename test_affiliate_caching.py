@@ -37,7 +37,7 @@ async def test_affiliate_caching():
         # Test Case 1: First user analyzes the URL
         print("👤 USER 1: Performing initial analysis...")
         user1_request = IntelligenceRequest(
-            source_url=test_url,
+            salespage_url=test_url,
             analysis_method=AnalysisMethod.ENHANCED,
             force_refresh=False
         )
@@ -64,7 +64,7 @@ async def test_affiliate_caching():
         # Test Case 2: Second user analyzes the same URL
         print("👤 USER 2: Requesting same URL (should be cached)...")
         user2_request = IntelligenceRequest(
-            source_url=test_url,
+            salespage_url=test_url,
             analysis_method=AnalysisMethod.ENHANCED,
             force_refresh=False
         )
