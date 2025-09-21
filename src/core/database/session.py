@@ -36,7 +36,14 @@ class AsyncSessionManager:
                 pool_pre_ping=True,
                 pool_recycle=300,
                 echo=False,  # Set to True for SQL debugging
-                future=True
+                future=True,
+                # Prevent transaction conflicts on Railway
+                isolation_level="READ_COMMITTED",
+                connect_args={
+                    "server_settings": {
+                        "application_name": "campaignforge_backend",
+                    }
+                }
             )
             
             # Create session factory
@@ -44,8 +51,8 @@ class AsyncSessionManager:
                 bind=cls._engine,
                 class_=AsyncSession,
                 expire_on_commit=False,
-                autoflush=True,
-                autocommit=False
+                autoflush=False,  # Prevent automatic flushes that can cause transaction conflicts
+                autocommit=False  # Explicit transaction control
             )
             
             cls._initialized = True
@@ -134,8 +141,8 @@ class SessionManager:
             # Create session factory
             cls._session_factory = sessionmaker(
                 bind=cls._engine,
-                autoflush=True,
-                autocommit=False
+                autoflush=False,  # Prevent automatic flushes that can cause transaction conflicts
+                autocommit=False  # Explicit transaction control
             )
             
             cls._initialized = True
