@@ -78,8 +78,14 @@ class AsyncSessionManager:
                 logger.debug("Created new async database session")
                 yield session
             except Exception as e:
+                import traceback
                 logger.error(f"Async session error: {e}")
-                await session.rollback()
+                logger.error(f"Error type: {type(e).__name__}")
+                logger.error(f"Error traceback: {traceback.format_exc()}")
+                try:
+                    await session.rollback()
+                except Exception as rollback_error:
+                    logger.error(f"Rollback failed: {rollback_error}")
                 raise
             finally:
                 await session.close()
@@ -95,8 +101,15 @@ class AsyncSessionManager:
                 await session.commit()
                 logger.debug("Async transaction committed")
             except Exception as e:
-                await session.rollback()
-                logger.error(f"Async transaction rolled back due to error: {e}")
+                import traceback
+                try:
+                    await session.rollback()
+                    logger.error(f"Async transaction rolled back due to error: {e}")
+                    logger.error(f"Transaction error type: {type(e).__name__}")
+                    logger.error(f"Transaction error traceback: {traceback.format_exc()}")
+                except Exception as rollback_error:
+                    logger.error(f"Transaction rollback failed: {rollback_error}")
+                    logger.error(f"Rollback error traceback: {traceback.format_exc()}")
                 raise
     
     @classmethod
