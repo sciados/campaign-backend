@@ -10,7 +10,7 @@ from src.campaigns.schemas.campaign import (
     CampaignCreate, CampaignUpdate, CampaignResponse, 
     CampaignListResponse, CampaignStatsResponse
 )
-from src.core.database.connection import get_async_db
+from src.core.database.session import get_async_db
 from src.core.shared.responses import success_response, error_response
 from src.users.services.auth_service import AuthService
 
