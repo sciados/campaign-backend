@@ -336,24 +336,27 @@ class AnalysisService:
 
             # Build product info from enhanced intelligence
             offer_intel = ultra_enhanced.get("offer_intelligence", {})
-            market_intel = ultra_enhanced.get("market_intelligence", {})
+            market_enhancement = ultra_enhanced.get("market_enhancement", {})
+            competitive_intel = ultra_enhanced.get("competitive_intelligence", {})
+            psychology_intel = ultra_enhanced.get("psychology_intelligence", {})
 
+            # Map the actual data fields from our analysis results
             product_info = ProductInfo(
                 name=product_name,
-                features=offer_intel.get("features", []),
-                benefits=offer_intel.get("benefits", []),
-                target_audience=offer_intel.get("target_audience", []),
-                price_points=offer_intel.get("price_points", []),
-                ingredients=offer_intel.get("ingredients", []),
-                usage_instructions=offer_intel.get("usage_instructions") or [],
-                contraindications=offer_intel.get("contraindications", [])
+                features=offer_intel.get("key_features", []),
+                benefits=offer_intel.get("primary_benefits", []),
+                target_audience=psychology_intel.get("target_audience", ""),
+                price_points=[offer_intel.get("pricing_info", "")],
+                ingredients=[],  # Not extracted in current analysis
+                usage_instructions=offer_intel.get("value_propositions", []),
+                contraindications=[]  # Not available in current analysis
             )
 
             market_info = MarketInfo(
-                category=market_intel.get("category", "Unknown"),
-                competitive_advantages=market_intel.get("competitive_advantages", []),
-                positioning=market_intel.get("positioning", "Unknown"),
-                market_trends=market_intel.get("market_trends", [])
+                category=competitive_intel.get("market_positioning", "Unknown"),
+                competitive_advantages=competitive_intel.get("competitive_advantages", []),
+                positioning=competitive_intel.get("market_positioning", "Unknown"),
+                market_trends=market_enhancement.get("market_opportunities", [])
             )
 
             confidence_score = ultra_enhanced.get("confidence_score", 0.85)
