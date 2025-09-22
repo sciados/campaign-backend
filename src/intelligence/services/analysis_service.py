@@ -18,7 +18,7 @@ import time
 from src.core.config import ai_provider_config
 from src.core.shared.decorators import retry_on_failure, log_execution_time
 from src.core.shared.exceptions import ServiceUnavailableError, ValidationError
-from src.intelligence.models.intelligence_models import AnalysisResult, AnalysisMethod, ProductInfo, MarketInfo
+from src.intelligence.models.intelligence_models import AnalysisResult, AnalysisMethod, ProductInfo, MarketInfo, ResearchInfo
 from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
 from src.intelligence.repositories.research_repository import ResearchRepository
 from src.intelligence.analysis.analyzers import ContentAnalyzer
@@ -91,13 +91,22 @@ class AnalysisService:
             )
             
             # Step 4: Build and return result
+            # Convert research data to ResearchInfo objects
+            research_objects = []
+            for research_item in analysis_data.get("research", []):
+                try:
+                    research_objects.append(ResearchInfo(**research_item))
+                except Exception as e:
+                    logger.warning(f"Failed to convert research item to ResearchInfo: {e}")
+                    continue
+
             analysis_result = AnalysisResult(
                 intelligence_id=intelligence.id,
                 product_name=intelligence.product_name,
                 confidence_score=intelligence.confidence_score,
                 product_info=analysis_data["product_info"],
                 market_info=analysis_data["market_info"],
-                research=analysis_data.get("research", []),
+                research=research_objects,
                 created_at=intelligence.created_at
             )
             
@@ -236,7 +245,7 @@ class AnalysisService:
             # Prepare research data from the comprehensive analysis
             research_data = [
                 {
-                    "research_id": "enhanced_3stage_analysis",
+                    "research_id": f"enhanced_3stage_analysis_{int(time.time())}",
                     "content": f"Complete intelligence analysis for {product_name} with {len(str(final_intelligence))} characters of data",
                     "research_type": "enhanced_analysis",
                     "relevance_score": confidence_score,
@@ -326,8 +335,10 @@ class AnalysisService:
             # Include maximum research data
             research_data = [
                 {
+                    "research_id": f"maximum_analysis_{int(time.time())}",
                     "content": "MAXIMUM analysis completed with 4-stage quality-focused pipeline",
                     "research_type": "library_quality",
+                    "relevance_score": confidence_score,
                     "source_metadata": {
                         "pipeline": "4-stage",
                         "enhancers": 12,
@@ -386,7 +397,7 @@ class AnalysisService:
             ),
             "confidence_score": 0.3,
             "research": [{
-                "research_id": "fallback_analysis",
+                "research_id": f"fallback_analysis_{int(time.time())}",
                 "content": "Basic fallback analysis - enhanced pipeline failed",
                 "research_type": "fallback",
                 "relevance_score": 0.1,
