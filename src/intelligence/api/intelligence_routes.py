@@ -12,7 +12,7 @@ Enhanced with 3-step intelligence-driven content generation.
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 import logging
 
@@ -50,7 +50,7 @@ class IntelligenceContentResponse(BaseModel):
     metadata: Dict[str, Any]
 
 
-@router.post("/analyze", response_model=SuccessResponse[Union[IntelligenceResponse, AsyncAnalysisResponse]])
+@router.post("/analyze", response_model=SuccessResponse[Dict[str, Any]])
 async def analyze_url(
     request: IntelligenceRequest,
     credentials: HTTPBearer = Depends(security),
