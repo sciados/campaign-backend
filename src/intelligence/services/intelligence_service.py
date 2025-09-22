@@ -201,8 +201,8 @@ class IntelligenceService:
     async def _run_background_analysis(self, analysis_id: str, salespage_url: str, analysis_method, user_id: str, company_id: str = None):
         """Run analysis in background with progress updates."""
         try:
-            from src.core.database.connection import AsyncSessionLocal
-            async with AsyncSessionLocal() as session:
+            from src.core.database.background_session import get_background_session
+            async with get_background_session() as session:
                 # Update progress through each stage
                 stages = [
                     (10, "ai_enhancement", "Running AI enhancement pipeline (1/6 enhancers)..."),
