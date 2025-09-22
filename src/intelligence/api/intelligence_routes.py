@@ -11,9 +11,11 @@ Enhanced with 3-step intelligence-driven content generation.
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from fastapi.security import HTTPBearer
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
+from datetime import datetime
 import logging
 
 from src.core.database import get_async_db
@@ -48,6 +50,18 @@ class IntelligenceContentResponse(BaseModel):
     intelligence_driven: bool
     three_step_process: Dict[str, Any]
     metadata: Dict[str, Any]
+
+class PDFReportRequest(BaseModel):
+    """Request model for PDF report generation"""
+    format: str = Field("pdf", description="Report format (currently only PDF supported)")
+    include_sections: List[str] = Field(
+        default=[
+            'executive_summary', 'product_analysis', 'target_audience',
+            'competition_analysis', 'marketing_strategy', 'content_recommendations',
+            'sales_psychology', 'conversion_opportunities', 'actionable_insights'
+        ],
+        description="Sections to include in the report"
+    )
 
 
 @router.post("/analyze", response_model=SuccessResponse[Dict[str, Any]])
@@ -756,6 +770,79 @@ async def get_analysis_progress(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve analysis progress"
+        )
+
+
+@router.post("/campaigns/{campaign_id}/report")
+async def generate_campaign_report(
+    campaign_id: str,
+    request: PDFReportRequest,
+    credentials: HTTPBearer = Depends(security),
+    session: AsyncSession = Depends(get_async_db)
+):
+    """
+    Generate a comprehensive PDF report for a campaign's intelligence analysis.
+
+    Creates a detailed PDF report containing intelligence insights, marketing strategies,
+    and actionable recommendations based on the campaign's analysis data.
+
+    Args:
+        campaign_id: The campaign identifier
+        request: Report generation parameters including format and sections
+        credentials: Authentication credentials
+        session: Database session
+
+    Returns:
+        PDF file as response with appropriate headers for download
+    """
+    try:
+        user_id = AuthMiddleware.require_authentication(credentials)
+
+        logger.info(f"PDF report generation requested by user {user_id} for campaign {campaign_id}")
+
+        # Get campaign intelligence data
+        intelligence_data = await intelligence_service.get_campaign_intelligence(campaign_id, user_id)
+
+        if not intelligence_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No intelligence data found for this campaign"
+            )
+
+        # Import PDF service
+        from src.intelligence.services.pdf_report_service import pdf_report_service
+
+        # Generate PDF report
+        pdf_bytes = await pdf_report_service.generate_intelligence_report(
+            campaign_id=campaign_id,
+            intelligence_data=intelligence_data[0] if isinstance(intelligence_data, list) and intelligence_data else intelligence_data,
+            include_sections=request.include_sections,
+            format=request.format
+        )
+
+        # Create filename
+        filename = f"intelligence_report_campaign_{campaign_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+
+        logger.info(f"PDF report generated successfully: {len(pdf_bytes)} bytes")
+
+        # Return PDF as downloadable response
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Length": str(len(pdf_bytes)),
+                "Cache-Control": "no-cache"
+            }
+        )
+
+    except CampaignForgeException:
+        raise
+    except Exception as e:
+        logger.error(f"PDF report generation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate PDF report"
         )
 
 
