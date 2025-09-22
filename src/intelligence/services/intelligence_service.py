@@ -203,22 +203,9 @@ class IntelligenceService:
         try:
             from src.core.database.background_session import get_background_session
             async with get_background_session() as session:
-                # Update progress through each stage
-                stages = [
-                    (10, "ai_enhancement", "Running AI enhancement pipeline (1/6 enhancers)..."),
-                    (25, "ai_enhancement", "Running AI enhancement pipeline (2/6 enhancers)..."),
-                    (40, "ai_enhancement", "Running AI enhancement pipeline (3/6 enhancers)..."),
-                    (55, "ai_enhancement", "Running AI enhancement pipeline (4/6 enhancers)..."),
-                    (70, "ai_enhancement", "Running AI enhancement pipeline (5/6 enhancers)..."),
-                    (85, "ai_enhancement", "Running AI enhancement pipeline (6/6 enhancers)..."),
-                    (90, "rag_integration", "Applying RAG integration and research..."),
-                    (95, "data_storage", "Storing analysis results...")
-                ]
-
-                # Simulate progress updates (in real implementation, integrate with actual analysis stages)
-                import asyncio
-                for progress, stage, message in stages:
-                    await asyncio.sleep(5)  # Give time for actual analysis
+                # Set up progress callback to track real analysis progress
+                def progress_callback(stage: str, progress: int, message: str):
+                    """Callback to update progress during real analysis."""
                     self._store_analysis_progress(analysis_id, {
                         "stage": stage,
                         "progress": progress,
@@ -229,7 +216,11 @@ class IntelligenceService:
                         "started_at": self._analysis_progress[analysis_id]["started_at"]
                     })
 
-                # Run actual analysis
+                # Pass progress callback to analysis service
+                # We'll need to modify the analysis service to accept this callback
+                self.analysis_service.set_progress_callback(progress_callback)
+
+                # Run actual analysis with real progress tracking
                 analysis_result = await self.analysis_service.analyze_content(
                     salespage_url=salespage_url,
                     analysis_method=analysis_method,

@@ -30,13 +30,18 @@ logger = logging.getLogger(__name__)
 
 class AnalysisService:
     """Service for content analysis and intelligence extraction."""
-    
+
     def __init__(self):
         self.intelligence_repo = IntelligenceRepository()
         self.research_repo = ResearchRepository()
         self.content_analyzer = ContentAnalyzer()
         self.analysis_handler = AnalysisHandler()
         self.enhanced_handler = EnhancedAnalysisHandler()
+        self.progress_callback = None
+
+    def set_progress_callback(self, callback):
+        """Set progress callback for real-time progress tracking."""
+        self.progress_callback = callback
     
     @log_execution_time()
     @retry_on_failure(max_retries=2)
@@ -62,10 +67,16 @@ class AnalysisService:
             AnalysisResult: Complete analysis results
         """
         try:
+            # Progress callback helper
+            def progress_update(stage: str, progress: int, message: str):
+                if self.progress_callback:
+                    self.progress_callback(stage, progress, message)
+
             # Step 1: Scrape and preprocess content
+            progress_update("content_extraction", 5, "Extracting content from sales page...")
             logger.info(f"Scraping content from {salespage_url}")
             content_data = await self.content_analyzer.scrape_content(salespage_url)
-            
+
             # Step 2: Perform AI analysis based on method
             logger.info(f"Performing {analysis_method} analysis")
             if analysis_method == AnalysisMethod.FAST:
@@ -78,8 +89,9 @@ class AnalysisService:
                 analysis_data = await self._maximum_analysis(content_data)
             else:
                 raise ValidationError(f"Unsupported analysis method: {analysis_method}")
-            
+
             # Step 3: Store results in consolidated schema
+            progress_update("data_storage", 95, "Storing intelligence data...")
             logger.info("Storing analysis results")
             intelligence = await self._store_analysis_results(
                 salespage_url=salespage_url,
@@ -276,33 +288,47 @@ class AnalysisService:
             content_text = content_data["text"]
             salespage_url = content_data.get("url", "unknown")
 
+            # Progress callback helper
+            def progress_update(stage: str, progress: int, message: str):
+                if self.progress_callback:
+                    self.progress_callback(stage, progress, message)
+
             # STAGE 1: Base Analysis
+            progress_update("base_analysis", 10, "Performing base content analysis...")
             logger.info("MAXIMUM: Stage 1 - Base Analysis")
             base_intelligence = await self.enhanced_handler.perform_base_analysis(content_text, salespage_url)
 
             # GENEROUS THROTTLING - Quality over speed for one-time library extraction
+            progress_update("base_analysis", 20, "Base analysis complete, preparing for enhancement...")
             logger.info("MAXIMUM: Throttling 5s before Stage 2 for optimal API stability")
             await asyncio.sleep(5.0)
 
             # STAGE 2: Enhancement Pipeline (6 enhancers) with extra throttling
+            progress_update("ai_enhancement", 25, "Starting AI enhancement pipeline (6 enhancers)...")
             logger.info("MAXIMUM: Stage 2 - Enhancement Pipeline (6 enhancers) - QUALITY FOCUSED")
             enriched_intelligence = await self.enhanced_handler.perform_amplification(base_intelligence, salespage_url)
 
             # Extra throttling between stages for maximum quality
+            progress_update("ai_enhancement", 60, "Enhancement pipeline complete, preparing for RAG research...")
             logger.info("MAXIMUM: Throttling 4s before Stage 3 for comprehensive extraction")
             await asyncio.sleep(4.0)
 
             # STAGE 3: RAG Integration
+            progress_update("rag_research", 65, "Performing business intelligence RAG research...")
             logger.info("MAXIMUM: Stage 3 - RAG Integration with enhanced processing")
             final_intelligence = await self.enhanced_handler.apply_rag_enhancement(enriched_intelligence, salespage_url)
 
             # Extra throttling before second pass
+            progress_update("rag_research", 75, "RAG research complete, preparing for ultra-enhancement...")
             logger.info("MAXIMUM: Throttling 3s before Stage 4 for ultra-enhancement")
             await asyncio.sleep(3.0)
 
             # STAGE 4: MAXIMUM ONLY - Second pass enhancement for library quality
+            progress_update("ai_enhancement", 80, "Performing second-pass enhancement for library quality...")
             logger.info("MAXIMUM: Stage 4 - Second Pass Enhancement (LIBRARY QUALITY)")
             ultra_enhanced = await self.enhanced_handler.perform_amplification(final_intelligence, salespage_url)
+
+            progress_update("data_storage", 90, "Processing complete, preparing data storage...")
 
             # Extract the needed format for the service
             products_list = ultra_enhanced.get("offer_intelligence", {}).get("products", ["Unknown Product"])
