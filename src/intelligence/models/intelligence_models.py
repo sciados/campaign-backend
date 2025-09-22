@@ -22,6 +22,7 @@ class AnalysisMethod(str, Enum):
     FAST = "fast"
     DEEP = "deep"
     ENHANCED = "enhanced"
+    MAXIMUM = "maximum"
 
 
 class IntelligenceRequest(BaseModel):
@@ -29,7 +30,7 @@ class IntelligenceRequest(BaseModel):
     
     salespage_url: str = Field(..., description="URL to analyze")
     analysis_method: AnalysisMethod = Field(
-        default=AnalysisMethod.FAST,
+        default=AnalysisMethod.MAXIMUM,
         description="Analysis depth and method"
     )
     force_refresh: bool = Field(

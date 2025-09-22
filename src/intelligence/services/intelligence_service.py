@@ -401,7 +401,7 @@ class IntelligenceService:
         try:
             # For now, get all intelligence for the user
             # Later this can be enhanced to link intelligence to specific campaigns
-            intelligence_results = await self.get_intelligence_results(
+            intelligence_results = await self.list_intelligence(
                 user_id=user_id,
                 session=session,
                 limit=50

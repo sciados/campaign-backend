@@ -74,6 +74,8 @@ class AnalysisService:
                 analysis_data = await self._deep_analysis(content_data)
             elif analysis_method == AnalysisMethod.ENHANCED:
                 analysis_data = await self._enhanced_analysis(content_data)
+            elif analysis_method == AnalysisMethod.MAXIMUM:
+                analysis_data = await self._maximum_analysis(content_data)
             else:
                 raise ValidationError(f"Unsupported analysis method: {analysis_method}")
             
@@ -255,6 +257,100 @@ class AnalysisService:
             logger.error(f"Enhanced analysis failed: {e}")
             # Fallback to basic analysis if enhanced fails
             return await self._basic_fallback_analysis(content_data)
+
+    async def _maximum_analysis(self, content_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Perform MAXIMUM analysis - library-quality extraction with zero throttling."""
+        logger.info("Running MAXIMUM analysis pipeline for library-quality extraction")
+
+        try:
+            # Use our working enhanced handler with all providers available
+            content_text = content_data["text"]
+            salespage_url = content_data.get("url", "unknown")
+
+            # STAGE 1: Base Analysis
+            logger.info("MAXIMUM: Stage 1 - Base Analysis")
+            base_intelligence = await self.enhanced_handler.perform_base_analysis(content_text, salespage_url)
+
+            # GENEROUS THROTTLING - Quality over speed for one-time library extraction
+            logger.info("MAXIMUM: Throttling 5s before Stage 2 for optimal API stability")
+            await asyncio.sleep(5.0)
+
+            # STAGE 2: Enhancement Pipeline (6 enhancers) with extra throttling
+            logger.info("MAXIMUM: Stage 2 - Enhancement Pipeline (6 enhancers) - QUALITY FOCUSED")
+            enriched_intelligence = await self.enhanced_handler.perform_amplification(base_intelligence, salespage_url)
+
+            # Extra throttling between stages for maximum quality
+            logger.info("MAXIMUM: Throttling 4s before Stage 3 for comprehensive extraction")
+            await asyncio.sleep(4.0)
+
+            # STAGE 3: RAG Integration
+            logger.info("MAXIMUM: Stage 3 - RAG Integration with enhanced processing")
+            final_intelligence = await self.enhanced_handler.apply_rag_enhancement(enriched_intelligence, salespage_url)
+
+            # Extra throttling before second pass
+            logger.info("MAXIMUM: Throttling 3s before Stage 4 for ultra-enhancement")
+            await asyncio.sleep(3.0)
+
+            # STAGE 4: MAXIMUM ONLY - Second pass enhancement for library quality
+            logger.info("MAXIMUM: Stage 4 - Second Pass Enhancement (LIBRARY QUALITY)")
+            ultra_enhanced = await self.enhanced_handler.perform_amplification(final_intelligence, salespage_url)
+
+            # Extract the needed format for the service
+            products_list = ultra_enhanced.get("offer_intelligence", {}).get("products", ["Unknown Product"])
+            product_name = products_list[0] if products_list else "Unknown Product"
+
+            # Build product info from enhanced intelligence
+            offer_intel = ultra_enhanced.get("offer_intelligence", {})
+            market_intel = ultra_enhanced.get("market_intelligence", {})
+
+            product_info = ProductInfo(
+                name=product_name,
+                features=offer_intel.get("features", []),
+                benefits=offer_intel.get("benefits", []),
+                target_audience=offer_intel.get("target_audience", []),
+                price_points=offer_intel.get("price_points", []),
+                ingredients=offer_intel.get("ingredients", []),
+                usage_instructions=offer_intel.get("usage_instructions") or [],
+                contraindications=offer_intel.get("contraindications", [])
+            )
+
+            market_info = MarketInfo(
+                category=market_intel.get("category", "Unknown"),
+                competitive_advantages=market_intel.get("competitive_advantages", []),
+                positioning=market_intel.get("positioning", "Unknown"),
+                market_trends=market_intel.get("market_trends", [])
+            )
+
+            confidence_score = ultra_enhanced.get("confidence_score", 0.85)
+
+            # Include maximum research data
+            research_data = [
+                {
+                    "content": "MAXIMUM analysis completed with 4-stage quality-focused pipeline",
+                    "research_type": "library_quality",
+                    "source_metadata": {
+                        "pipeline": "4-stage",
+                        "enhancers": 12,
+                        "stages": ["base", "amplification", "rag", "ultra_enhanced"],
+                        "throttling": "generous_quality_focused",
+                        "total_processing_time": "~3-5 minutes",
+                        "quality_priority": "maximum"
+                    }
+                }
+            ]
+
+            return {
+                "product_name": product_name,
+                "product_info": product_info,
+                "market_info": market_info,
+                "confidence_score": confidence_score,
+                "research": research_data
+            }
+
+        except Exception as e:
+            logger.error(f"Maximum analysis failed: {e}")
+            # Fallback to enhanced analysis if maximum fails
+            return await self._enhanced_analysis(content_data)
 
     async def _basic_fallback_analysis(self, content_data: Dict[str, Any]) -> Dict[str, Any]:
         """Basic fallback analysis when enhanced pipeline fails."""

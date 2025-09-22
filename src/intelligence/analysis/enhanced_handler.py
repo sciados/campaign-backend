@@ -723,36 +723,120 @@ class EnhancedAnalysisHandler:
             return enriched_intelligence
     
     def _generate_research_queries(self, intelligence: Dict[str, Any]) -> List[str]:
-        """Generate autonomous research queries based on intelligence."""
-        
+        """Generate business intelligence focused research queries for premium sources."""
+
         queries = []
-        
-        # Extract product names for research
+
+        # Extract product names for business intelligence research
         products = intelligence.get("offer_intelligence", {}).get("products", [])
-        for product in products[:3]:  # Limit to top 3 products
-            queries.append(f"{product} scientific research")
-            queries.append(f"{product} market analysis")
-        
-        # Extract categories for research
+        for product in products[:2]:  # Focus on top 2 products for quality
+            # Business intelligence focused queries
+            queries.append(f"{product} market research report statista forrester")
+            queries.append(f"{product} industry analysis competitive landscape")
+            queries.append(f"{product} market size growth trends 2024")
+
+        # Extract categories for premium business research
         category = intelligence.get("competitive_intelligence", {}).get("market_positioning", "")
         if category:
-            queries.append(f"{category} industry trends")
-        
-        return queries[:6]  # Limit to 6 queries
+            queries.append(f"{category} industry trends gartner mckinsey")
+            queries.append(f"{category} market analysis competitive intelligence")
+
+        # Add general business intelligence queries if we have fewer than 6
+        if len(queries) < 6:
+            # Generic high-value business intelligence queries
+            queries.extend([
+                "market research competitive analysis business intelligence",
+                "industry trends market size growth rate analysis"
+            ])
+
+        # Prioritize business intelligence source quality
+        premium_queries = []
+        for query in queries[:6]:
+            # Add source quality indicators to improve targeting
+            if "statista" not in query and "forrester" not in query:
+                query += " market research report"
+            premium_queries.append(query)
+
+        return premium_queries[:6]  # Limit to 6 premium queries
     
     async def _gather_rag_research(self, queries: List[str], intelligence: Dict[str, Any]) -> Dict[str, Any]:
-        """Gather research using RAG system (placeholder for actual implementation)."""
-        
-        # Placeholder research enhancement
-        # In actual implementation, this would query your RAG system
-        
-        return {
-            "research_applied": True,
-            "queries_processed": len(queries),
-            "research_summary": f"Processed {len(queries)} research queries",
-            "confidence_boost": 0.1,
-            "research_categories": ["market_research", "scientific_validation"]
-        }
+        """Gather research using COMPLETE internet search RAG system focused on Business Intelligence."""
+
+        try:
+            # Import the complete RAG system focused on business intelligence
+            from src.intelligence.utils.user_specific_rag import UserSpecificRAGSystem
+            import aiohttp
+            import asyncio
+
+            logger.info(f"🔍 Starting BUSINESS INTELLIGENCE focused RAG research with {len(queries)} queries")
+
+            # Initialize business-focused RAG system
+            business_rag = UserSpecificRAGSystem("business_owner")
+
+            research_results = []
+            total_sources = 0
+
+            # Use async context manager for HTTP session
+            async with business_rag:
+                for i, query in enumerate(queries[:6]):  # Limit to 6 queries for quality
+                    try:
+                        logger.info(f"📊 Processing business intelligence query {i+1}/6: {query}")
+
+                        # Focus on business intelligence sources
+                        business_intel = await business_rag._discover_business_intelligence(query)
+
+                        if business_intel:
+                            research_results.extend(business_intel)
+                            total_sources += len(business_intel)
+                            logger.info(f"✅ Found {len(business_intel)} business intelligence sources for: {query}")
+
+                            # Throttle between queries to respect API limits
+                            if i < len(queries) - 1:  # Don't delay after last query
+                                await asyncio.sleep(2.0)
+                        else:
+                            logger.warning(f"⚠️ No business intelligence found for: {query}")
+
+                    except Exception as e:
+                        logger.error(f"❌ Business intelligence query failed for '{query}': {str(e)}")
+                        continue
+
+            # Process and categorize research results
+            research_categories = self._categorize_business_research(research_results)
+
+            # Extract key business insights
+            business_insights = self._extract_business_insights(research_results)
+
+            # Calculate research confidence boost based on source quality
+            confidence_boost = min(0.3, total_sources * 0.05)  # Up to 0.3 boost
+
+            logger.info(f"🎯 BUSINESS RAG COMPLETE: {total_sources} sources, confidence boost: +{confidence_boost:.2f}")
+
+            return {
+                "research_applied": True,
+                "total_sources": total_sources,
+                "queries_processed": len(queries),
+                "research_results": research_results,
+                "research_categories": research_categories,
+                "business_insights": business_insights,
+                "confidence_boost": confidence_boost,
+                "research_summary": f"Gathered {total_sources} business intelligence sources from {len(research_categories)} categories",
+                "source_quality": "business_intelligence_focused",
+                "methodology": "internet_search_rag_business_intelligence"
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Business intelligence RAG research failed: {str(e)}")
+
+            # Fallback to placeholder response
+            return {
+                "research_applied": False,
+                "error": str(e),
+                "queries_processed": len(queries),
+                "research_summary": f"Business RAG failed, processed {len(queries)} queries with error",
+                "confidence_boost": 0.0,
+                "research_categories": ["error_fallback"],
+                "fallback_used": True
+            }
     
     # =====================================
     # HELPER METHODS
@@ -1135,3 +1219,81 @@ class EnhancedAnalysisHandler:
             },
             "confidence_score": 0.1
         }
+
+    def _categorize_business_research(self, research_results: List[Dict[str, Any]]) -> List[str]:
+        """Categorize business research results by intelligence type."""
+
+        categories = set()
+
+        for result in research_results:
+            intel_type = result.get('intelligence_type', 'general')
+            source_type = result.get('type', 'unknown')
+
+            # Map to business intelligence categories
+            if intel_type == 'market_research' or 'market' in source_type:
+                categories.add('market_analysis')
+            elif intel_type == 'competitor_intelligence' or 'competitive' in source_type:
+                categories.add('competitive_analysis')
+            elif intel_type == 'customer_insights' or 'sentiment' in source_type:
+                categories.add('customer_intelligence')
+            elif 'pricing' in str(result.get('pricing_data', '')):
+                categories.add('pricing_intelligence')
+            elif 'research_report' in source_type:
+                categories.add('industry_research')
+            else:
+                categories.add('general_business_intelligence')
+
+        return list(categories)
+
+    def _extract_business_insights(self, research_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Extract key business insights from research results."""
+
+        insights = []
+
+        for result in research_results:
+            insight = {
+                'source': result.get('url', 'unknown'),
+                'type': result.get('intelligence_type', 'general'),
+                'relevance_score': result.get('relevance_score', 0.5),
+                'insights': []
+            }
+
+            # Extract market data insights
+            if 'market_data' in result:
+                market_data = result['market_data']
+                if isinstance(market_data, dict):
+                    for key, value in market_data.items():
+                        if value:
+                            insight['insights'].append(f"Market {key}: {value}")
+
+            # Extract pricing insights
+            if 'pricing_data' in result:
+                pricing_data = result['pricing_data']
+                if isinstance(pricing_data, dict) and pricing_data.get('prices'):
+                    prices = pricing_data['prices'][:3]  # Top 3 prices
+                    insight['insights'].append(f"Competitive pricing: {', '.join(prices)}")
+
+            # Extract competitive insights
+            if 'competitive_insights' in result:
+                comp_insights = result['competitive_insights']
+                if isinstance(comp_insights, list):
+                    insight['insights'].extend(comp_insights[:2])  # Top 2 insights
+
+            # Extract sentiment insights
+            if 'sentiment_data' in result:
+                sentiment = result['sentiment_data']
+                if isinstance(sentiment, dict):
+                    overall = sentiment.get('overall', 'neutral')
+                    rating = sentiment.get('average_rating', '')
+                    insight_text = f"Customer sentiment: {overall}"
+                    if rating:
+                        insight_text += f" (Rating: {rating})"
+                    insight['insights'].append(insight_text)
+
+            # Only include insights with actual data
+            if insight['insights']:
+                insights.append(insight)
+
+        # Sort by relevance score and return top insights
+        insights.sort(key=lambda x: x['relevance_score'], reverse=True)
+        return insights[:10]  # Top 10 business insights
