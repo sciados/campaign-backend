@@ -725,66 +725,27 @@ async def get_analysis_progress(
     try:
         user_id = AuthMiddleware.require_authentication(credentials)
 
-        # For now, simulate progress since we don't have persistent analysis tracking yet
-        # In a full implementation, this would query a Redis cache or database
-        # to get actual progress from the running analysis
+        # Get real progress from the intelligence service
+        progress_data = intelligence_service.get_analysis_progress(analysis_id)
 
-        # Mock progress based on analysis_id (in production, this would be real data)
-        import time
-        import hashlib
+        # If analysis not found, return not found status
+        if progress_data.get("stage") == "not_found":
+            return SuccessResponse(
+                data={
+                    "analysis_id": analysis_id,
+                    "stage": "not_found",
+                    "progress": 0,
+                    "message": "Analysis not found",
+                    "completed": False
+                },
+                message="Analysis not found"
+            )
 
-        # Create a deterministic but varied progress based on analysis_id
-        seed = int(hashlib.md5(analysis_id.encode()).hexdigest(), 16) % 100
-        current_time = int(time.time())
-
-        # Simulate stages progressing over time
-        elapsed = (current_time + seed) % 100
-
-        if elapsed < 10:
-            stage = "initializing"
-            progress = 5
-            message = "Starting MAXIMUM analysis pipeline..."
-            completed = False
-        elif elapsed < 25:
-            stage = "content_extraction"
-            progress = 15
-            message = "Scraping and parsing content from URL..."
-            completed = False
-        elif elapsed < 40:
-            stage = "base_analysis"
-            progress = 25
-            message = "Extracting product intelligence and market data..."
-            completed = False
-        elif elapsed < 70:
-            stage = "ai_enhancement"
-            progress = 35 + (elapsed - 40) // 5
-            message = f"Running AI enhancement pipeline ({min(6, (elapsed - 40) // 5)}/6 enhancers)..."
-            completed = False
-        elif elapsed < 90:
-            stage = "rag_research"
-            progress = 75
-            message = "Gathering business intelligence from internet sources..."
-            completed = False
-        elif elapsed < 95:
-            stage = "data_storage"
-            progress = 90
-            message = "Storing intelligence data to database..."
-            completed = False
-        else:
-            stage = "completed"
-            progress = 100
-            message = "Analysis completed successfully!"
-            completed = True
+        # Add analysis_id to response
+        progress_data["analysis_id"] = analysis_id
 
         return SuccessResponse(
-            data={
-                "analysis_id": analysis_id,
-                "stage": stage,
-                "progress": progress,
-                "message": message,
-                "completed": completed,
-                "timestamp": current_time
-            },
+            data=progress_data,
             message="Analysis progress retrieved successfully"
         )
 

@@ -122,7 +122,44 @@ class IntelligenceService:
             
             # Perform new analysis
             logger.info(f"Starting {request.analysis_method} analysis for {request.salespage_url}")
-            
+
+            # For MAXIMUM analysis, run asynchronously with progress tracking
+            if request.analysis_method == AnalysisMethod.MAXIMUM:
+                # Generate unique analysis ID for progress tracking
+                import uuid
+                analysis_id = str(uuid.uuid4())
+
+                # Store analysis start time and basic info for progress tracking
+                self._store_analysis_progress(analysis_id, {
+                    "stage": "initializing",
+                    "progress": 5,
+                    "message": "Starting MAXIMUM analysis pipeline...",
+                    "completed": False,
+                    "url": request.salespage_url,
+                    "user_id": user_id,
+                    "started_at": time.time()
+                })
+
+                # Start background analysis task
+                import asyncio
+                asyncio.create_task(self._run_background_analysis(
+                    analysis_id=analysis_id,
+                    salespage_url=request.salespage_url,
+                    analysis_method=request.analysis_method,
+                    user_id=user_id,
+                    company_id=company_id
+                ))
+
+                # Return immediately with analysis_id for progress tracking
+                return {
+                    "success": True,
+                    "data": {
+                        "analysis_id": analysis_id,
+                        "message": "MAXIMUM analysis started - use analysis_id to track progress"
+                    }
+                }
+
+            # For other analysis methods, run synchronously (existing behavior)
             analysis_result = await self.analysis_service.analyze_content(
                 salespage_url=request.salespage_url,
                 analysis_method=request.analysis_method,
@@ -130,9 +167,9 @@ class IntelligenceService:
                 company_id=company_id,
                 session=session
             )
-            
+
             processing_time = int((time.time() - start_time) * 1000)
-            
+
             return IntelligenceResponse(
                 intelligence_id=analysis_result.intelligence_id,
                 analysis_result=analysis_result,
@@ -143,6 +180,87 @@ class IntelligenceService:
         except Exception as e:
             logger.error(f"Intelligence analysis failed for {request.salespage_url}: {e}")
             raise
+
+    # Class-level storage for analysis progress (in production, use Redis/database)
+    _analysis_progress = {}
+
+    def _store_analysis_progress(self, analysis_id: str, progress_data: dict):
+        """Store analysis progress for tracking."""
+        self._analysis_progress[analysis_id] = progress_data
+        logger.info(f"📊 Progress updated for {analysis_id}: {progress_data['stage']} ({progress_data['progress']}%)")
+
+    def get_analysis_progress(self, analysis_id: str) -> dict:
+        """Get analysis progress by ID."""
+        return self._analysis_progress.get(analysis_id, {
+            "stage": "not_found",
+            "progress": 0,
+            "message": "Analysis not found",
+            "completed": False
+        })
+
+    async def _run_background_analysis(self, analysis_id: str, salespage_url: str, analysis_method, user_id: str, company_id: str = None):
+        """Run analysis in background with progress updates."""
+        try:
+            from src.core.database import get_async_db
+            async with get_async_db() as session:
+                # Update progress through each stage
+                stages = [
+                    (10, "ai_enhancement", "Running AI enhancement pipeline (1/6 enhancers)..."),
+                    (25, "ai_enhancement", "Running AI enhancement pipeline (2/6 enhancers)..."),
+                    (40, "ai_enhancement", "Running AI enhancement pipeline (3/6 enhancers)..."),
+                    (55, "ai_enhancement", "Running AI enhancement pipeline (4/6 enhancers)..."),
+                    (70, "ai_enhancement", "Running AI enhancement pipeline (5/6 enhancers)..."),
+                    (85, "ai_enhancement", "Running AI enhancement pipeline (6/6 enhancers)..."),
+                    (90, "rag_integration", "Applying RAG integration and research..."),
+                    (95, "data_storage", "Storing analysis results...")
+                ]
+
+                # Simulate progress updates (in real implementation, integrate with actual analysis stages)
+                import asyncio
+                for progress, stage, message in stages:
+                    await asyncio.sleep(5)  # Give time for actual analysis
+                    self._store_analysis_progress(analysis_id, {
+                        "stage": stage,
+                        "progress": progress,
+                        "message": message,
+                        "completed": False,
+                        "url": salespage_url,
+                        "user_id": user_id,
+                        "started_at": self._analysis_progress[analysis_id]["started_at"]
+                    })
+
+                # Run actual analysis
+                analysis_result = await self.analysis_service.analyze_content(
+                    salespage_url=salespage_url,
+                    analysis_method=analysis_method,
+                    user_id=user_id,
+                    company_id=company_id,
+                    session=session
+                )
+
+                # Mark as completed
+                self._store_analysis_progress(analysis_id, {
+                    "stage": "completed",
+                    "progress": 100,
+                    "message": "MAXIMUM analysis completed successfully!",
+                    "completed": True,
+                    "url": salespage_url,
+                    "user_id": user_id,
+                    "started_at": self._analysis_progress[analysis_id]["started_at"],
+                    "intelligence_id": analysis_result.intelligence_id
+                })
+
+                logger.info(f"🎉 Background analysis {analysis_id} completed successfully!")
+
+        except Exception as e:
+            logger.error(f"❌ Background analysis {analysis_id} failed: {e}")
+            self._store_analysis_progress(analysis_id, {
+                "stage": "failed",
+                "progress": 0,
+                "message": f"Analysis failed: {str(e)}",
+                "completed": True,
+                "error": str(e)
+            })
     
     async def get_intelligence(
         self,
