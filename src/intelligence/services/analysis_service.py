@@ -376,12 +376,36 @@ class AnalysisService:
                 }
             ]
 
+            # Ensure full_analysis_data is JSON serializable
+            import json
+            try:
+                # Convert to dict if it's a Pydantic object, then test JSON serialization
+                if hasattr(ultra_enhanced, 'dict'):
+                    full_analysis_data = ultra_enhanced.dict()
+                else:
+                    full_analysis_data = ultra_enhanced
+
+                # Test JSON serialization to catch any non-serializable data
+                json.dumps(full_analysis_data, default=str)
+                logger.info(f"✅ Full analysis data is JSON serializable ({len(str(full_analysis_data))} chars)")
+
+            except Exception as e:
+                logger.error(f"❌ Full analysis data serialization failed: {e}")
+                # Fallback to a safe serializable version
+                full_analysis_data = {
+                    "serialization_error": str(e),
+                    "data_type": str(type(ultra_enhanced)),
+                    "data_size": len(str(ultra_enhanced)),
+                    "timestamp": time.time()
+                }
+
             return {
                 "product_name": product_name,
                 "product_info": product_info,
                 "market_info": market_info,
                 "confidence_score": confidence_score,
-                "research": research_data
+                "research": research_data,
+                "full_analysis_data": full_analysis_data  # Store the complete 4-stage analysis
             }
 
         except Exception as e:
@@ -445,6 +469,22 @@ class AnalysisService:
         
         # Create complete intelligence record
         logger.info(f"📊 Creating intelligence record for user {user_id}, product: {analysis_data['product_name']}")
+        logger.info(f"🔍 Analysis data keys: {list(analysis_data.keys())}")
+        logger.info(f"🔍 Product info type: {type(analysis_data.get('product_info'))}")
+        logger.info(f"🔍 Market info type: {type(analysis_data.get('market_info'))}")
+        if 'product_info' in analysis_data:
+            logger.info(f"🔍 Product info content: {analysis_data['product_info']}")
+        if 'market_info' in analysis_data:
+            logger.info(f"🔍 Market info content: {analysis_data['market_info']}")
+        if 'full_analysis_data' in analysis_data:
+            full_data = analysis_data['full_analysis_data']
+            logger.info(f"🔍 Full analysis data type: {type(full_data)}")
+            logger.info(f"🔍 Full analysis data size: {len(str(full_data)) if full_data else 0} characters")
+            if isinstance(full_data, dict):
+                logger.info(f"🔍 Full analysis data keys: {list(full_data.keys())}")
+        else:
+            logger.error("❌ full_analysis_data is MISSING from analysis_data!")
+
         intelligence = await self.intelligence_repo.create_complete_intelligence(
             salespage_url=salespage_url,
             product_name=analysis_data["product_name"],
