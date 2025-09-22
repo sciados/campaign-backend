@@ -12,7 +12,7 @@ Enhanced with 3-step intelligence-driven content generation.
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field
 import logging
 
@@ -20,7 +20,7 @@ from src.core.database import get_async_db
 from src.users.middleware.auth_middleware import AuthMiddleware
 from src.core.shared.responses import SuccessResponse, PaginatedResponse
 from src.core.shared.exceptions import CampaignForgeException
-from src.intelligence.models.intelligence_models import IntelligenceRequest, IntelligenceResponse, AnalysisResult, AnalysisMethod
+from src.intelligence.models.intelligence_models import IntelligenceRequest, IntelligenceResponse, AsyncAnalysisResponse, AnalysisResult, AnalysisMethod
 from src.intelligence.services.intelligence_service import IntelligenceService
 from src.intelligence.services.intelligence_content_service import IntelligenceContentService, generate_intelligence_driven_content
 from src.intelligence.services.product_detection_service import product_detection_service
@@ -50,7 +50,7 @@ class IntelligenceContentResponse(BaseModel):
     metadata: Dict[str, Any]
 
 
-@router.post("/analyze", response_model=SuccessResponse[IntelligenceResponse])
+@router.post("/analyze", response_model=SuccessResponse[Union[IntelligenceResponse, AsyncAnalysisResponse]])
 async def analyze_url(
     request: IntelligenceRequest,
     credentials: HTTPBearer = Depends(security),

@@ -86,9 +86,17 @@ class AnalysisResult(BaseModel):
 
 class IntelligenceResponse(BaseModel):
     """Response model for intelligence operations."""
-    
+
     success: bool = Field(True, description="Operation success status")
     intelligence_id: str = Field(..., description="Intelligence record ID")
     analysis_result: AnalysisResult = Field(..., description="Analysis results")
     cached: bool = Field(False, description="Whether result was from cache")
     processing_time_ms: int = Field(..., description="Processing time in milliseconds")
+
+
+class AsyncAnalysisResponse(BaseModel):
+    """Response model for asynchronous analysis operations."""
+
+    success: bool = Field(True, description="Operation success status")
+    analysis_id: str = Field(..., description="Analysis tracking ID")
+    message: str = Field(..., description="Status message")
