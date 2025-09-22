@@ -36,23 +36,24 @@ class IntegratedContentService:
             
             # Initialize available generators
             available = get_available_generators()
-            
-            if available.get("email_sequence", False):
+
+            # available is a list of generator class names, not a dict
+            if "EmailGenerator" in available:
                 self._generators["email"] = EmailGenerator()
                 self._generators["email_sequence"] = EmailGenerator()
                 logger.info("Email sequence generator loaded")
-            
-            if available.get("ad_copy", False):
+
+            if "AdCopyGenerator" in available:
                 self._generators["ad_copy"] = AdCopyGenerator()
                 self._generators["advertisement"] = AdCopyGenerator()
                 logger.info("Ad copy generator loaded")
 
-            if available.get("blog_post", False):
+            if "BlogContentGenerator" in available:
                 self._generators["blog_post"] = BlogContentGenerator()
                 self._generators["blogposts"] = BlogContentGenerator()
                 logger.info("Blog Post generator loaded")
-            
-            if available.get("social_media", False):
+
+            if "SocialMediaGenerator" in available:
                 self._generators["social_post"] = SocialMediaGenerator()
                 self._generators["social_media"] = SocialMediaGenerator()
                 logger.info("Social media generator loaded")

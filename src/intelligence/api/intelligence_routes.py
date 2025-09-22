@@ -679,6 +679,37 @@ async def get_platform_effectiveness_metrics(
             detail="Failed to retrieve platform effectiveness metrics"
         )
 
+
+@router.get("/campaigns/{campaign_id}", response_model=SuccessResponse[List[Dict[str, Any]]])
+async def get_campaign_intelligence(
+    campaign_id: str,
+    credentials: HTTPBearer = Depends(security)
+):
+    """Get intelligence data for a specific campaign"""
+    try:
+        user_id = AuthMiddleware.require_authentication(credentials)
+
+        from src.intelligence.services.intelligence_service import IntelligenceService
+
+        intelligence_service = IntelligenceService()
+
+        # Get intelligence data linked to this campaign
+        intelligence_data = await intelligence_service.get_campaign_intelligence(campaign_id, user_id)
+
+        return SuccessResponse(
+            data=intelligence_data,
+            message="Campaign intelligence retrieved successfully"
+        )
+
+    except CampaignForgeException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get campaign intelligence: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve campaign intelligence"
+        )
+
 # Include ClickBank routes
 try:
     from src.intelligence.routes.routes_clickbank import router as clickbank_router

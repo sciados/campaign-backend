@@ -390,3 +390,38 @@ class IntelligenceService:
             research=research_info,
             created_at=intelligence.created_at
         )
+
+    async def get_campaign_intelligence(
+        self,
+        campaign_id: str,
+        user_id: str,
+        session: AsyncSession = None
+    ) -> List[Dict[str, Any]]:
+        """Get intelligence data linked to a specific campaign"""
+        try:
+            # For now, get all intelligence for the user
+            # Later this can be enhanced to link intelligence to specific campaigns
+            intelligence_results = await self.get_intelligence_results(
+                user_id=user_id,
+                session=session,
+                limit=50
+            )
+
+            # Convert to the format expected by frontend
+            intelligence_data = []
+            for result in intelligence_results:
+                intelligence_data.append({
+                    "id": str(result.intelligence_id),
+                    "product_name": result.product_name,
+                    "confidence_score": result.confidence_score,
+                    "created_at": result.created_at.isoformat() if result.created_at else None,
+                    "product_info": result.product_info,
+                    "market_info": result.market_info,
+                    "research": result.research
+                })
+
+            return intelligence_data
+
+        except Exception as e:
+            logger.error(f"Failed to get campaign intelligence: {e}")
+            return []
