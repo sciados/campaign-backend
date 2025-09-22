@@ -444,6 +444,7 @@ class AnalysisService:
         """Store analysis results in consolidated schema."""
         
         # Create complete intelligence record
+        logger.info(f"📊 Creating intelligence record for user {user_id}, product: {analysis_data['product_name']}")
         intelligence = await self.intelligence_repo.create_complete_intelligence(
             salespage_url=salespage_url,
             product_name=analysis_data["product_name"],
@@ -456,6 +457,7 @@ class AnalysisService:
             full_analysis_data=analysis_data.get("full_analysis_data"),  # Store complete 3-stage analysis
             session=session
         )
+        logger.info(f"✅ Intelligence record created with ID: {intelligence.id}")
         
         # Store research data if available
         for research_item in analysis_data.get("research", []):
@@ -478,8 +480,8 @@ class AnalysisService:
             except Exception as e:
                 logger.warning(f"Failed to store research item: {e}")
                 continue
-        
-        await session.commit()
+
+        # Note: session.commit() is handled by background session manager
         return intelligence
     
     def _calculate_confidence_score(self, content_data: Dict[str, Any], analysis_type: str) -> float:
