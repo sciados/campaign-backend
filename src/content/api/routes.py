@@ -40,24 +40,28 @@ async def _generate_content_direct(
         try:
             logger.info(f"Attempting to get intelligence data for campaign: {campaign_id}")
 
-            # Simple query to get intelligence data
-            query = text("""
-                SELECT ic.product_name, ic.salespage_url, ic.confidence_score,
-                       ic.full_analysis_data
-                FROM intelligence_core ic
-                WHERE ic.user_id = (
-                    SELECT user_id FROM campaigns WHERE id = :campaign_id
-                )
-                ORDER BY ic.confidence_score DESC
-                LIMIT 1
-            """)
+            # Get campaign user_id first, then query intelligence data
+            campaign_query = text("SELECT user_id FROM campaigns WHERE id = :campaign_id")
+            campaign_result = await db.execute(campaign_query, {"campaign_id": campaign_id})
+            campaign_row = campaign_result.fetchone()
 
-            result = await db.execute(query, {"campaign_id": UUID(campaign_id)})
-            row = result.fetchone()
+            if campaign_row:
+                # Query intelligence data using the user_id
+                intelligence_query = text("""
+                    SELECT ic.product_name, ic.salespage_url, ic.confidence_score,
+                           ic.full_analysis_data
+                    FROM intelligence_core ic
+                    WHERE ic.user_id = :user_id
+                    ORDER BY ic.confidence_score DESC
+                    LIMIT 1
+                """)
 
-            if row and row.product_name:
-                product_name = row.product_name
-                logger.info(f"Found intelligence data for content generation: product={product_name}")
+                result = await db.execute(intelligence_query, {"user_id": str(campaign_row.user_id)})
+                row = result.fetchone()
+
+                if row and row.product_name:
+                    product_name = row.product_name
+                    logger.info(f"Found intelligence data for content generation: product={product_name}")
 
         except Exception as e:
             logger.warning(f"Could not get intelligence data, using fallback: {e}")
