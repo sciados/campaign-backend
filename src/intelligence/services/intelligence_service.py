@@ -508,25 +508,26 @@ class IntelligenceService:
     ) -> List[Dict[str, Any]]:
         """Get intelligence data linked to a specific campaign"""
         try:
-            # For now, get all intelligence for the user
-            # Later this can be enhanced to link intelligence to specific campaigns
-            intelligence_results = await self.list_intelligence(
-                user_id=user_id,
-                session=session,
-                limit=50
-            )
+            # Direct database query to bypass complex service logic temporarily
+            # This is a simplified version to isolate the async issue
+            from sqlalchemy import select
+            from src.core.database.models import IntelligenceCore
 
-            # Convert to the format expected by frontend
+            stmt = select(IntelligenceCore).where(IntelligenceCore.user_id == user_id).limit(50)
+            result = await session.execute(stmt)
+            intelligence_records = list(result.scalars().unique())
+
+            # Convert to the format expected by frontend with minimal processing
             intelligence_data = []
-            for result in intelligence_results:
+            for intelligence in intelligence_records:
                 intelligence_data.append({
-                    "id": str(result.intelligence_id),
-                    "product_name": result.product_name,
-                    "confidence_score": result.confidence_score,
-                    "created_at": result.created_at.isoformat() if result.created_at else None,
-                    "product_info": result.product_info,
-                    "market_info": result.market_info,
-                    "research": result.research
+                    "id": str(intelligence.id),
+                    "product_name": intelligence.product_name or "Unknown Product",
+                    "confidence_score": intelligence.confidence_score or 0.0,
+                    "created_at": intelligence.created_at.isoformat() if intelligence.created_at else None,
+                    "product_info": {},  # Simplified
+                    "market_info": {},   # Simplified
+                    "research": []       # Simplified
                 })
 
             return intelligence_data
