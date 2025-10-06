@@ -600,6 +600,47 @@ async def generate_content_integrated(request: Dict[str, Any], db: AsyncSession 
         logger.error(f"Content generation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/test-storage")
+async def test_storage_debug(db: AsyncSession = Depends(get_async_db)):
+    """Debug endpoint to test basic storage operations"""
+    try:
+        from uuid import uuid4
+        from datetime import datetime, timezone
+
+        # Try the simplest possible insert
+        test_id = uuid4()
+        test_campaign_id = UUID("a6566fe3-7183-4c7a-a98e-dd2787a05cf5")
+        test_user_id = UUID("2c3d7631-3d6f-4f3a-bc49-d0ad1e283e0e")
+
+        simple_query = text("""
+            INSERT INTO generated_content (id, campaign_id, user_id, content_type, content_title, content_body, created_at, updated_at)
+            VALUES (:id, :campaign_id, :user_id, :content_type, :content_title, :content_body, :created_at, :updated_at)
+        """)
+
+        await db.execute(simple_query, {
+            "id": test_id,
+            "campaign_id": test_campaign_id,
+            "user_id": test_user_id,
+            "content_type": "test",
+            "content_title": "Test Content",
+            "content_body": "This is a test",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        })
+
+        await db.commit()
+
+        # Verify it was inserted
+        verify_query = text("SELECT COUNT(*) FROM generated_content WHERE id = :id")
+        result = await db.execute(verify_query, {"id": test_id})
+        count = result.scalar()
+
+        return {"success": True, "message": f"Test storage successful. Found {count} records."}
+
+    except Exception as e:
+        await db.rollback()
+        return {"success": False, "error": str(e), "error_type": type(e).__name__}
+
 # ============================================================================
 # EMAIL CONTENT ENDPOINTS (Enhanced)
 # ============================================================================
