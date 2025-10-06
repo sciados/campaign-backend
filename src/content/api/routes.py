@@ -394,14 +394,20 @@ async def _store_generated_content(
             content_title = f"{content_type.title()} Content"
             content_body = f"Generated {content_type} content"
 
-        # Try a minimal insert first to identify the issue
+        # Try inserting with all visible required columns from schema
         insert_query = text("""
             INSERT INTO generated_content
             (id, user_id, campaign_id, content_type, content_title, content_body,
-             created_at, updated_at)
+             content_metadata, generation_settings, intelligence_used, is_published,
+             user_rating, created_at, updated_at, published_at, performance_score,
+             view_count, company_id, performance_data, intelligence_id,
+             generation_method, content_status, sequence_info)
             VALUES
             (:id, :user_id, :campaign_id, :content_type, :content_title, :content_body,
-             :created_at, :updated_at)
+             :content_metadata, :generation_settings, :intelligence_used, :is_published,
+             :user_rating, :created_at, :updated_at, :published_at, :performance_score,
+             :view_count, :company_id, :performance_data, :intelligence_id,
+             :generation_method, :content_status, :sequence_info)
         """)
 
         content_id = uuid4()
@@ -414,8 +420,22 @@ async def _store_generated_content(
             "content_type": content_type,
             "content_title": content_title,
             "content_body": content_body,
+            "content_metadata": json.dumps(content_data),
+            "generation_settings": json.dumps({"generator": content_data.get("generator_used", "DirectGenerator")}),
+            "intelligence_used": True,
+            "is_published": False,
+            "user_rating": None,
             "created_at": now,
-            "updated_at": now
+            "updated_at": now,
+            "published_at": None,
+            "performance_score": None,
+            "view_count": 0,
+            "company_id": UUID(company_id),
+            "performance_data": None,
+            "intelligence_id": None,
+            "generation_method": "direct_generation",
+            "content_status": "generated",
+            "sequence_info": json.dumps(generated_content.get("sequence_info", {})) if content_type.lower() in ["email", "email_sequence"] else None
         })
 
         await db.commit()
@@ -426,6 +446,22 @@ async def _store_generated_content(
         verify_result = await db.execute(verify_query, {"campaign_id": UUID(campaign_id)})
         count = verify_result.scalar()
         logger.info(f"Verification: Found {count} records for campaign {campaign_id}")
+
+        # Also update any existing workflow records to show completion
+        try:
+            workflow_update_query = text("""
+                UPDATE content_generation_workflows
+                SET workflow_status = 'completed',
+                    items_completed = 1,
+                    completed_at = NOW(),
+                    updated_at = NOW()
+                WHERE campaign_id = :campaign_id AND workflow_status = 'processing'
+            """)
+            workflow_result = await db.execute(workflow_update_query, {"campaign_id": UUID(campaign_id)})
+            logger.info(f"Updated {workflow_result.rowcount} workflow records for campaign {campaign_id}")
+            await db.commit()
+        except Exception as workflow_error:
+            logger.warning(f"Could not update workflow status: {workflow_error}")
 
     except Exception as e:
         logger.error(f"Failed to store generated content: {e}")
