@@ -59,6 +59,11 @@ class Campaign(Base):
     workflow_data = Column(JSONB, nullable=True)
     is_workflow_complete = Column(Boolean, default=False)
     
+    # Campaign content tracking
+    sources_count = Column(Integer, default=0)  # Number of input sources
+    intelligence_count = Column(Integer, default=0)  # Number of intelligence analyses
+    generated_content_count = Column(Integer, default=0)  # Number of generated content pieces
+
     # Performance metrics
     impressions = Column(Integer, default=0)
     clicks = Column(Integer, default=0)
