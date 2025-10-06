@@ -697,7 +697,8 @@ async def get_platform_effectiveness_metrics(
 @router.get("/campaigns/{campaign_id}", response_model=SuccessResponse[List[Dict[str, Any]]])
 async def get_campaign_intelligence(
     campaign_id: str,
-    credentials: HTTPBearer = Depends(security)
+    credentials: HTTPBearer = Depends(security),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Get intelligence data for a specific campaign"""
     try:
@@ -708,7 +709,7 @@ async def get_campaign_intelligence(
         intelligence_service = IntelligenceService()
 
         # Get intelligence data linked to this campaign
-        intelligence_data = await intelligence_service.get_campaign_intelligence(campaign_id, user_id)
+        intelligence_data = await intelligence_service.get_campaign_intelligence(campaign_id, user_id, session=db)
 
         return SuccessResponse(
             data=intelligence_data,
