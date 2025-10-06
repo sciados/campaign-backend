@@ -802,7 +802,7 @@ async def generate_campaign_report(
         logger.info(f"PDF report generation requested by user {user_id} for campaign {campaign_id}")
 
         # Get campaign intelligence data
-        intelligence_data = await intelligence_service.get_campaign_intelligence(campaign_id, user_id)
+        intelligence_data = await intelligence_service.get_campaign_intelligence(campaign_id, user_id, session=session)
 
         if not intelligence_data:
             raise HTTPException(
