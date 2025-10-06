@@ -31,8 +31,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="", tags=["Intelligence"])
 security = HTTPBearer()
-intelligence_service = IntelligenceService()
-intelligence_content_service = IntelligenceContentService()
+# Note: Service instances created in route functions to ensure proper async context
 
 # Request models for 3-step content generation
 class IntelligenceContentRequest(BaseModel):
@@ -78,9 +77,11 @@ async def analyze_url(
     """
     try:
         user_id = AuthMiddleware.require_authentication(credentials)
-        
+
         logger.info(f"Intelligence analysis requested by user {user_id} for {request.salespage_url}")
-        
+
+        # Create service instance in async context
+        intelligence_service = IntelligenceService()
         result = await intelligence_service.analyze_url(
             request=request,
             user_id=user_id,
@@ -118,6 +119,9 @@ async def analyze_url_with_product_detection(
         user_id = AuthMiddleware.require_authentication(credentials)
 
         logger.info(f"Enhanced analysis with product detection requested by user {user_id} for {request.salespage_url}")
+
+        # Create service instance in async context
+        intelligence_service = IntelligenceService()
 
         # Perform standard intelligence analysis
         intelligence_result = await intelligence_service.analyze_url(
@@ -296,7 +300,9 @@ async def get_intelligence(
     """
     try:
         user_id = AuthMiddleware.require_authentication(credentials)
-        
+
+        # Create service instance in async context
+        intelligence_service = IntelligenceService()
         result = await intelligence_service.get_intelligence(
             intelligence_id=intelligence_id,
             user_id=user_id,
@@ -334,7 +340,9 @@ async def list_intelligence(
     """
     try:
         user_id = AuthMiddleware.require_authentication(credentials)
-        
+
+        # Create service instance in async context
+        intelligence_service = IntelligenceService()
         results = await intelligence_service.list_intelligence(
             user_id=user_id,
             analysis_method=analysis_method,
@@ -388,7 +396,10 @@ async def generate_intelligence_driven_content_endpoint(
         
         logger.info(f"3-step intelligence content generation requested by user {user_id}")
         logger.info(f"Content type: {request.content_type}, Campaign: {request.campaign_id}")
-        
+
+        # Create service instance in async context
+        intelligence_content_service = IntelligenceContentService()
+
         # Generate using the 3-step service
         result = await intelligence_content_service.generate_intelligence_driven_content(
             content_type=request.content_type,
@@ -441,7 +452,9 @@ async def get_intelligence_content_service_metrics(
     """
     try:
         user_id = AuthMiddleware.require_authentication(credentials)
-        
+
+        # Create service instance in async context
+        intelligence_content_service = IntelligenceContentService()
         metrics = intelligence_content_service.get_service_metrics()
         
         return SuccessResponse(
@@ -471,7 +484,9 @@ async def delete_intelligence(
     """
     try:
         user_id = AuthMiddleware.require_authentication(credentials)
-        
+
+        # Create service instance in async context
+        intelligence_service = IntelligenceService()
         success = await intelligence_service.delete_intelligence(
             intelligence_id=intelligence_id,
             user_id=user_id,
@@ -708,6 +723,9 @@ async def get_campaign_intelligence(
 
         intelligence_service = IntelligenceService()
 
+        # Create service instance in async context
+        intelligence_service = IntelligenceService()
+
         # Get intelligence data linked to this campaign
         intelligence_data = await intelligence_service.get_campaign_intelligence(campaign_id, user_id, session=db)
 
@@ -739,6 +757,9 @@ async def get_analysis_progress(
     """
     try:
         user_id = AuthMiddleware.require_authentication(credentials)
+
+        # Create service instance in async context
+        intelligence_service = IntelligenceService()
 
         # Get real progress from the intelligence service
         progress_data = intelligence_service.get_analysis_progress(analysis_id)
@@ -800,6 +821,9 @@ async def generate_campaign_report(
         user_id = AuthMiddleware.require_authentication(credentials)
 
         logger.info(f"PDF report generation requested by user {user_id} for campaign {campaign_id}")
+
+        # Create service instance in async context
+        intelligence_service = IntelligenceService()
 
         # Get campaign intelligence data
         intelligence_data = await intelligence_service.get_campaign_intelligence(campaign_id, user_id, session=session)
