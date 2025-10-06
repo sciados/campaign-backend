@@ -33,7 +33,7 @@ class IntegratedContentService:
                 get_available_generators,
                 BlogContentGenerator
             )
-            
+
             # Initialize available generators
             available = get_available_generators()
 
@@ -57,16 +57,12 @@ class IntegratedContentService:
                 self._generators["social_post"] = SocialMediaGenerator()
                 self._generators["social_media"] = SocialMediaGenerator()
                 logger.info("Social media generator loaded")
-            
-            # Try to use factory if available
-            # if available.get("factory", False):
-            #    self._factory = ContentGeneratorFactory()
-            #    logger.info("Content generator factory loaded")
-            # else:
-            #    self._factory = None
-            
+
+            # Always set factory to None to avoid errors
+            self._factory = None
+
             logger.info(f"Initialized {len(self._generators)} content generators")
-            
+
         except ImportError as e:
             logger.warning(f"Could not import existing generators: {e}")
             self._generators = {}
@@ -322,7 +318,7 @@ class IntegratedContentService:
     
     def _get_generator_name(self, content_type: str) -> str:
         """Get the name of the generator used"""
-        if self._factory:
+        if hasattr(self, '_factory') and self._factory:
             return "ContentGeneratorFactory"
         elif content_type.lower() in self._generators:
             return f"{content_type}Generator"
@@ -558,19 +554,19 @@ class IntegratedContentService:
         """Get status of available generators"""
         try:
             from src.intelligence.generators import get_available_generators, get_generator_status
-            
+
             existing_status = get_generator_status()
-            
+
             return {
                 "integrated_service": True,
                 "existing_generators": existing_status,
                 "loaded_generators": list(self._generators.keys()),
-                "factory_available": self._factory is not None,
+                "factory_available": hasattr(self, '_factory') and self._factory is not None,
                 "total_available": len(self._generators),
                 "railway_compatible": existing_status.get("railway_compatible", False),
                 "ultra_cheap_ai_enabled": existing_status.get("ultra_cheap_ai_enabled", False)
             }
-            
+
         except ImportError:
             return {
                 "integrated_service": True,
