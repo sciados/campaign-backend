@@ -421,6 +421,12 @@ async def _store_generated_content(
         await db.commit()
         logger.info(f"Stored content with ID {content_id} for campaign {campaign_id}")
 
+        # Verify the data was actually stored
+        verify_query = text("SELECT COUNT(*) FROM generated_content WHERE campaign_id = :campaign_id")
+        verify_result = await db.execute(verify_query, {"campaign_id": UUID(campaign_id)})
+        count = verify_result.scalar()
+        logger.info(f"Verification: Found {count} records for campaign {campaign_id}")
+
     except Exception as e:
         logger.error(f"Failed to store generated content: {e}")
         await db.rollback()
