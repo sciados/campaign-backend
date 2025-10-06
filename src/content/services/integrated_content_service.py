@@ -585,3 +585,74 @@ class IntegratedContentService:
                 "total_available": len(self._generators),
                 "error": "Could not import existing generator status"
             }
+
+    async def get_campaign_content(
+        self,
+        campaign_id: str,
+        content_type: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Retrieve generated content for a campaign"""
+        try:
+            # Build dynamic query with optional content_type filter
+            base_query = """
+                SELECT id, content_type, content_title, content_body, content_metadata,
+                       created_at, updated_at, is_published, user_rating, generation_method, content_status
+                FROM generated_content
+                WHERE campaign_id::text = :campaign_id
+            """
+
+            params = {"campaign_id": campaign_id}
+
+            # Add content_type filter if specified
+            if content_type:
+                base_query += " AND content_type = :content_type"
+                params["content_type"] = content_type
+
+            # Add ordering and pagination
+            base_query += " ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
+            params["limit"] = limit
+            params["offset"] = offset
+
+            query = text(base_query)
+            result = await self.db.execute(query, params)
+            rows = result.fetchall()
+
+            content_list = []
+            for row in rows:
+                try:
+                    # Parse metadata safely
+                    metadata = {}
+                    if row.content_metadata:
+                        if isinstance(row.content_metadata, str):
+                            metadata = json.loads(row.content_metadata)
+                        else:
+                            metadata = row.content_metadata
+
+                    content_item = {
+                        "content_id": str(row.id),
+                        "content_type": row.content_type,
+                        "title": row.content_title,
+                        "body": row.content_body,
+                        "metadata": metadata,
+                        "created_at": row.created_at.isoformat() if row.created_at else None,
+                        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                        "is_published": row.is_published,
+                        "user_rating": row.user_rating,
+                        "generation_method": row.generation_method,
+                        "content_status": row.content_status,
+                        "generated_content": metadata.get("generated_content", {}),
+                        "source": "integrated_content_service"
+                    }
+                    content_list.append(content_item)
+                except Exception as parse_error:
+                    logger.warning(f"Error parsing content row: {parse_error}")
+                    continue
+
+            logger.info(f"Retrieved {len(content_list)} content items for campaign {campaign_id}")
+            return content_list
+
+        except Exception as e:
+            logger.error(f"Error retrieving content for campaign {campaign_id}: {e}")
+            return []

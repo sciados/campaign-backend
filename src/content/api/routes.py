@@ -12,12 +12,342 @@ from datetime import datetime, timezone
 
 from src.core.factories.service_factory import ServiceFactory
 from src.content.services.integrated_content_service import IntegratedContentService
+# Import the robust content storage service - embedded for deployment reliability
 from src.core.shared.responses import create_success_response, create_error_response
 from src.core.database.session import get_async_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/content", tags=["content"])
+
+# ============================================================================
+# EMBEDDED CONTENT STORAGE SERVICE (Deployment Reliability)
+# ============================================================================
+
+class ContentStorageService:
+    """Robust service for storing generated content with proper error handling"""
+
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
+    async def store_generated_content(
+        self,
+        session: AsyncSession,
+        campaign_id: str,
+        user_id: str,
+        content_type: str,
+        content_data: Dict[str, Any],
+        title: Optional[str] = None,
+        word_count: Optional[int] = None,
+        tokens_used: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Store generated content using the SIMPLE content_generations table"""
+        try:
+            import uuid
+            import json
+            from datetime import datetime
+
+            # Generate unique ID
+            content_id = str(uuid.uuid4())
+
+            self.logger.info(f"Storing content for campaign {campaign_id}, type {content_type}")
+
+            # Try the simpler content_generations table first
+            try:
+                insert_stmt = text("""
+                    INSERT INTO content_generations (
+                        id, campaign_id, user_id, content_type, content_data, created_at
+                    ) VALUES (
+                        :id, :campaign_id, :user_id, :content_type, :content_data, :created_at
+                    )
+                """)
+
+                now = datetime.utcnow()
+
+                # Map content type to valid values
+                valid_content_type = self._map_content_type(content_type)
+
+                await session.execute(insert_stmt, {
+                    "id": content_id,
+                    "campaign_id": campaign_id,
+                    "user_id": user_id,
+                    "content_type": valid_content_type,
+                    "content_data": json.dumps(content_data),
+                    "created_at": now
+                })
+
+                # Update campaign counters
+                await self._update_campaign_counters(session, campaign_id)
+
+                # Commit the transaction
+                await session.commit()
+
+                self.logger.info(f"Successfully stored content {content_id} in content_generations for campaign {campaign_id}")
+
+                return {
+                    "success": True,
+                    "content_id": content_id,
+                    "table_used": "content_generations",
+                    "message": "Content stored successfully"
+                }
+
+            except Exception as simple_error:
+                await session.rollback()
+                self.logger.warning(f"content_generations table failed: {simple_error}")
+
+                # Fallback to generated_content table with boolean fix
+                return await self._store_in_generated_content_table(
+                    session, campaign_id, user_id, content_type, content_data, content_id
+                )
+
+        except Exception as e:
+            await session.rollback()
+            error_msg = f"Storage error: {str(e)}"
+            self.logger.error(error_msg)
+            return {"success": False, "error": error_msg}
+
+    async def _store_in_generated_content_table(
+        self,
+        session: AsyncSession,
+        campaign_id: str,
+        user_id: str,
+        content_type: str,
+        content_data: Dict[str, Any],
+        content_id: str
+    ) -> Dict[str, Any]:
+        """Fallback method to store in generated_content table with proper boolean handling"""
+        try:
+            import json
+            from datetime import datetime
+
+            # Extract content details from the generated data
+            generated_content = content_data.get("generated_content", {})
+
+            # Create content title and body based on content type
+            if content_type.lower() in ["email", "email_sequence"]:
+                emails = generated_content.get("emails", [])
+                if emails:
+                    content_title = f"Email Sequence ({len(emails)} emails)"
+                    content_body = f"Generated {len(emails)} email sequence for {generated_content.get('sequence_info', {}).get('product_name', 'Product')}"
+                else:
+                    content_title = "Email Sequence"
+                    content_body = "Generated email sequence"
+            else:
+                content_title = f"{content_type.title()} Content"
+                content_body = f"Generated {content_type} content"
+
+            # Try with minimal columns first
+            insert_stmt = text("""
+                INSERT INTO generated_content (
+                    id, user_id, campaign_id, content_type, content_title, content_body,
+                    content_metadata, created_at, updated_at
+                ) VALUES (
+                    :id, :user_id, :campaign_id, :content_type, :content_title, :content_body,
+                    :content_metadata, :created_at, :updated_at
+                )
+            """)
+
+            now = datetime.utcnow()
+
+            # Map content type to valid values for database constraint
+            valid_content_type = self._map_content_type(content_type)
+
+            await session.execute(insert_stmt, {
+                "id": content_id,
+                "user_id": user_id,
+                "campaign_id": campaign_id,
+                "content_type": valid_content_type,
+                "content_title": content_title,
+                "content_body": content_body,
+                "content_metadata": json.dumps(content_data),
+                "created_at": now,
+                "updated_at": now
+            })
+
+            # Update campaign counters
+            await self._update_campaign_counters(session, campaign_id)
+
+            # Commit the transaction
+            await session.commit()
+
+            self.logger.info(f"Successfully stored content {content_id} in generated_content for campaign {campaign_id}")
+
+            return {
+                "success": True,
+                "content_id": content_id,
+                "table_used": "generated_content",
+                "message": "Content stored successfully"
+            }
+
+        except Exception as e:
+            await session.rollback()
+            error_msg = f"Fallback storage error: {str(e)}"
+            self.logger.error(error_msg)
+            return {"success": False, "error": error_msg}
+
+    def _map_content_type(self, content_type: str) -> str:
+        """Map content type string to database enum value"""
+        mapping = {
+            "email": "email_sequence",
+            "email_sequence": "email_sequence",
+            "social": "social_posts",
+            "social_posts": "social_posts",
+            "ad_copy": "ad_copy",
+            "blog": "blog_articles",
+            "blog_articles": "blog_articles",
+            "video_script": "video_scripts",
+            "video_scripts": "video_scripts"
+        }
+        return mapping.get(content_type.lower(), "email_sequence")
+
+    def _calculate_word_count(self, content_data: Dict[str, Any]) -> int:
+        """Calculate word count from content data"""
+        if isinstance(content_data, dict):
+            if "content" in content_data:
+                return len(str(content_data["content"]).split())
+            elif "body" in content_data:
+                return len(str(content_data["body"]).split())
+            else:
+                total_words = 0
+                for value in content_data.values():
+                    if isinstance(value, str):
+                        total_words += len(value.split())
+                return total_words
+        return 0
+
+    async def _update_campaign_counters(self, session: AsyncSession, campaign_id: str):
+        """Update campaign generated_content_count"""
+        try:
+            # Use proper UUID casting for PostgreSQL
+            update_stmt = text("""
+                UPDATE campaigns
+                SET generated_content_count = (
+                    SELECT COUNT(*) FROM generated_content
+                    WHERE campaign_id::text = :campaign_id
+                ),
+                updated_at = :updated_at
+                WHERE id::text = :campaign_id
+            """)
+
+            await session.execute(update_stmt, {
+                "campaign_id": campaign_id,
+                "updated_at": datetime.utcnow()
+            })
+
+            self.logger.info(f"Updated campaign counters for {campaign_id}")
+
+        except Exception as e:
+            self.logger.warning(f"Failed to update campaign counters: {e}")
+
+    async def get_campaign_content(
+        self,
+        session: AsyncSession,
+        campaign_id: str,
+        content_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Retrieve generated content from both content_generations and generated_content tables"""
+        try:
+            content_list = []
+
+            # First try content_generations table (simpler structure)
+            try:
+                query = """
+                    SELECT id, content_type, content_data, created_at
+                    FROM content_generations
+                    WHERE campaign_id = :campaign_id
+                """
+
+                params = {"campaign_id": campaign_id}
+
+                if content_type:
+                    query += " AND content_type = :content_type"
+                    params["content_type"] = content_type
+
+                query += " ORDER BY created_at DESC"
+
+                result = await session.execute(text(query), params)
+
+                for row in result:
+                    try:
+                        import json
+                        # Parse content data safely
+                        content_data = {}
+                        if row.content_data:
+                            if isinstance(row.content_data, str):
+                                content_data = json.loads(row.content_data)
+                            else:
+                                content_data = row.content_data
+
+                        content_item = {
+                            "content_id": row.id,
+                            "content_type": row.content_type,
+                            "content_data": content_data,
+                            "created_at": row.created_at.isoformat() if row.created_at else None,
+                            "source_table": "content_generations"
+                        }
+                        content_list.append(content_item)
+                    except Exception as parse_error:
+                        self.logger.warning(f"Error parsing content_generations row: {parse_error}")
+                        continue
+
+            except Exception as e:
+                self.logger.warning(f"content_generations table query failed: {e}")
+
+            # Also try generated_content table as fallback
+            try:
+                query = """
+                    SELECT id, content_type, content_title, content_body, content_metadata,
+                           created_at
+                    FROM generated_content
+                    WHERE campaign_id = :campaign_id
+                """
+
+                params = {"campaign_id": campaign_id}
+
+                if content_type:
+                    query += " AND content_type = :content_type"
+                    params["content_type"] = content_type
+
+                query += " ORDER BY created_at DESC"
+
+                result = await session.execute(text(query), params)
+
+                for row in result:
+                    try:
+                        import json
+                        # Parse metadata safely
+                        metadata = {}
+                        if row.content_metadata:
+                            if isinstance(row.content_metadata, str):
+                                metadata = json.loads(row.content_metadata)
+                            else:
+                                metadata = row.content_metadata
+
+                        content_item = {
+                            "content_id": row.id,
+                            "content_type": row.content_type,
+                            "title": row.content_title,
+                            "body": row.content_body,
+                            "metadata": metadata,
+                            "created_at": row.created_at.isoformat() if row.created_at else None,
+                            "source_table": "generated_content"
+                        }
+                        content_list.append(content_item)
+                    except Exception as parse_error:
+                        self.logger.warning(f"Error parsing generated_content row: {parse_error}")
+                        continue
+
+            except Exception as e:
+                self.logger.warning(f"generated_content table query failed: {e}")
+
+            # Sort by created_at if we have multiple sources
+            content_list.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+
+            return content_list
+
+        except Exception as e:
+            self.logger.error(f"Error retrieving content: {e}")
+            return []
 
 # ============================================================================
 # DIRECT CONTENT GENERATION (SIMPLIFIED)
@@ -523,6 +853,612 @@ class BulkContentRequest(BaseModel):
     batch_preferences: Optional[Dict[str, Any]] = Field(default=None, description="Batch processing preferences")
 
 # ============================================================================
+# CONTENT RETRIEVAL AND DEBUG ENDPOINTS
+# ============================================================================
+
+@router.get("/test-retrieval/{campaign_id}")
+async def test_content_retrieval(campaign_id: str, db: AsyncSession = Depends(get_async_db)):
+    """Test endpoint for content retrieval"""
+    try:
+        # Simple, direct query
+        result = await db.execute(
+            text("SELECT COUNT(*) as count FROM generated_content WHERE campaign_id::text = :campaign_id"),
+            {"campaign_id": campaign_id}
+        )
+        count = result.scalar()
+
+        # Get the actual content
+        result = await db.execute(
+            text("SELECT id, content_title, created_at FROM generated_content WHERE campaign_id::text = :campaign_id"),
+            {"campaign_id": campaign_id}
+        )
+        rows = result.fetchall()
+
+        content_items = [
+            {
+                "id": str(row.id),
+                "title": row.content_title,
+                "created_at": row.created_at.isoformat() if row.created_at else None
+            }
+            for row in rows
+        ]
+
+        return {
+            "success": True,
+            "campaign_id": campaign_id,
+            "count": count,
+            "content_items": content_items,
+            "message": f"Found {count} items"
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "campaign_id": campaign_id
+        }
+
+@router.get("/campaigns/{campaign_id}/generated")
+async def get_generated_content(campaign_id: str, db: AsyncSession = Depends(get_async_db)):
+    """Retrieve all generated content for a campaign"""
+    try:
+        # Direct query to get the content that we know was stored
+        query = text("""
+            SELECT id, content_type, content_title, content_body, content_metadata,
+                   created_at, updated_at, is_published, user_rating, generation_method, content_status
+            FROM generated_content
+            WHERE campaign_id = :campaign_id
+            ORDER BY created_at DESC
+        """)
+
+        result = await db.execute(query, {"campaign_id": campaign_id})
+
+        content_list = []
+        for row in result:
+            try:
+                import json
+                # Parse metadata safely
+                metadata = {}
+                if row.content_metadata:
+                    if isinstance(row.content_metadata, str):
+                        metadata = json.loads(row.content_metadata)
+                    else:
+                        metadata = row.content_metadata
+
+                content_item = {
+                    "content_id": row.id,
+                    "content_type": row.content_type,
+                    "title": row.content_title,
+                    "body": row.content_body,
+                    "metadata": metadata,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                    "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                    "is_published": row.is_published,
+                    "user_rating": row.user_rating,
+                    "generation_method": row.generation_method,
+                    "content_status": row.content_status,
+                    "generated_content": metadata.get("generated_content", {}),
+                    "source_table": "generated_content"
+                }
+                content_list.append(content_item)
+            except Exception as parse_error:
+                logger.warning(f"Error parsing content row: {parse_error}")
+                continue
+
+        logger.info(f"Retrieved {len(content_list)} content items for campaign {campaign_id}")
+
+        return create_success_response(
+            data={
+                "campaign_id": campaign_id,
+                "content": content_list,
+                "total_count": len(content_list)
+            },
+            message=f"Retrieved {len(content_list)} content items for campaign"
+        )
+
+    except Exception as e:
+        logger.error(f"Error retrieving content for campaign {campaign_id}: {e}")
+        return create_error_response(
+            message=f"Failed to retrieve content: {str(e)}",
+            status_code=500
+        )
+
+@router.get("/content/{content_id}")
+async def get_content_by_id(content_id: str, db: AsyncSession = Depends(get_async_db)):
+    """Retrieve a specific content item by ID for testing"""
+    try:
+        query = text("""
+            SELECT id, content_type, content_title, content_body, content_metadata,
+                   created_at, updated_at, is_published, user_rating, generation_method, content_status,
+                   campaign_id, user_id
+            FROM generated_content
+            WHERE id = :content_id
+        """)
+
+        result = await db.execute(query, {"content_id": content_id})
+        row = result.fetchone()
+
+        if not row:
+            return create_error_response(
+                message=f"Content with ID {content_id} not found",
+                status_code=404
+            )
+
+        import json
+        # Parse metadata safely
+        metadata = {}
+        if row.content_metadata:
+            if isinstance(row.content_metadata, str):
+                metadata = json.loads(row.content_metadata)
+            else:
+                metadata = row.content_metadata
+
+        content_item = {
+            "content_id": row.id,
+            "content_type": row.content_type,
+            "title": row.content_title,
+            "body": row.content_body,
+            "metadata": metadata,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+            "is_published": row.is_published,
+            "user_rating": row.user_rating,
+            "generation_method": row.generation_method,
+            "content_status": row.content_status,
+            "campaign_id": row.campaign_id,
+            "user_id": row.user_id,
+            "generated_content": metadata.get("generated_content", {}),
+            "source_table": "generated_content"
+        }
+
+        return create_success_response(
+            data=content_item,
+            message=f"Retrieved content {content_id}"
+        )
+
+    except Exception as e:
+        logger.error(f"Error retrieving content {content_id}: {e}")
+        return create_error_response(
+            message=f"Failed to retrieve content: {str(e)}",
+            status_code=500
+        )
+
+@router.get("/debug/raw-content/{campaign_id}")
+async def debug_raw_content(campaign_id: str, db: AsyncSession = Depends(get_async_db)):
+    """Debug endpoint to check raw database content"""
+    try:
+        # Check if the content exists with various queries
+        queries = {
+            "exact_match": """
+                SELECT id, campaign_id, content_type, content_title, created_at
+                FROM generated_content
+                WHERE campaign_id = :campaign_id
+            """,
+            "cast_uuid": """
+                SELECT id, campaign_id, content_type, content_title, created_at
+                FROM generated_content
+                WHERE campaign_id = :campaign_id::uuid
+            """,
+            "string_match": """
+                SELECT id, campaign_id::text, content_type, content_title, created_at
+                FROM generated_content
+                WHERE campaign_id::text = :campaign_id
+            """,
+            "all_content": """
+                SELECT id, campaign_id::text, content_type, content_title, created_at
+                FROM generated_content
+                ORDER BY created_at DESC
+                LIMIT 10
+            """
+        }
+
+        results = {}
+        for query_name, query_sql in queries.items():
+            try:
+                result = await db.execute(text(query_sql), {"campaign_id": campaign_id})
+                rows = result.fetchall()
+                results[query_name] = [
+                    {
+                        "id": str(row.id),
+                        "campaign_id": str(row.campaign_id) if hasattr(row, 'campaign_id') else None,
+                        "content_type": row.content_type,
+                        "title": row.content_title,
+                        "created_at": row.created_at.isoformat() if row.created_at else None
+                    }
+                    for row in rows
+                ]
+            except Exception as e:
+                results[query_name] = f"Error: {str(e)}"
+
+        return create_success_response(
+            data={
+                "campaign_id": campaign_id,
+                "debug_queries": results,
+                "target_content_id": "b650e253-50e0-4988-949f-3fd0bb24c7dd"
+            },
+            message="Debug query results"
+        )
+
+    except Exception as e:
+        logger.error(f"Debug query failed: {e}")
+        return create_error_response(
+            message=f"Debug failed: {str(e)}",
+            status_code=500
+        )
+
+@router.post("/debug/fix-workflows-and-stats/{campaign_id}")
+async def fix_workflows_and_stats(campaign_id: str, db: AsyncSession = Depends(get_async_db)):
+    """Fix stuck workflows and campaign stats comprehensively"""
+    try:
+        from datetime import datetime
+
+        # 1. Get actual content count
+        content_count_query = text("""
+            SELECT COUNT(*) as content_count
+            FROM generated_content
+            WHERE campaign_id::text = :campaign_id
+        """)
+        content_result = await db.execute(content_count_query, {"campaign_id": campaign_id})
+        content_count = content_result.scalar() or 0
+
+        # 2. Fix stuck workflows - mark as completed if content exists
+        if content_count > 0:
+            workflow_update_query = text("""
+                UPDATE content_generation_workflows
+                SET workflow_status = 'completed',
+                    items_completed = :items_completed,
+                    completed_at = :completed_at,
+                    updated_at = :updated_at
+                WHERE campaign_id::text = :campaign_id
+                AND workflow_status = 'processing'
+                RETURNING id, workflow_type, items_requested, items_completed
+            """)
+
+            workflow_result = await db.execute(workflow_update_query, {
+                "campaign_id": campaign_id,
+                "items_completed": content_count,
+                "completed_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            })
+            updated_workflows = workflow_result.fetchall()
+        else:
+            updated_workflows = []
+
+        # 3. Update campaign counters
+        campaign_update_query = text("""
+            UPDATE campaigns
+            SET generated_content_count = :content_count,
+                updated_at = :updated_at
+            WHERE id::text = :campaign_id
+            RETURNING id, name, generated_content_count, intelligence_count, sources_count
+        """)
+
+        campaign_result = await db.execute(campaign_update_query, {
+            "campaign_id": campaign_id,
+            "content_count": content_count,
+            "updated_at": datetime.utcnow()
+        })
+
+        updated_campaign = campaign_result.fetchone()
+        await db.commit()
+
+        return create_success_response(
+            data={
+                "campaign_id": campaign_id,
+                "fixes_applied": {
+                    "workflows_fixed": len(updated_workflows),
+                    "campaign_stats_updated": bool(updated_campaign),
+                    "actual_content_count": content_count
+                },
+                "updated_stats": {
+                    "generated_content_count": updated_campaign.generated_content_count if updated_campaign else 0,
+                    "intelligence_count": updated_campaign.intelligence_count if updated_campaign else 0,
+                    "sources_count": updated_campaign.sources_count if updated_campaign else 0
+                } if updated_campaign else {},
+                "workflow_details": [
+                    {
+                        "id": str(wf.id),
+                        "type": wf.workflow_type,
+                        "requested": wf.items_requested,
+                        "completed": wf.items_completed
+                    }
+                    for wf in updated_workflows
+                ]
+            },
+            message=f"Fixed {len(updated_workflows)} workflows and updated campaign stats. Found {content_count} content items."
+        )
+
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error fixing workflows and stats: {e}")
+        return create_error_response(
+            message=f"Failed to fix workflows and stats: {str(e)}",
+            status_code=500
+        )
+
+@router.post("/debug/fix-campaign-stats/{campaign_id}")
+async def fix_campaign_stats(campaign_id: str, db: AsyncSession = Depends(get_async_db)):
+    """Fix campaign stats by recalculating counters from actual database content"""
+    try:
+        # Get actual counts from database
+        content_count_query = text("""
+            SELECT COUNT(*) as content_count
+            FROM generated_content
+            WHERE campaign_id::text = :campaign_id
+        """)
+
+        content_result = await db.execute(content_count_query, {"campaign_id": campaign_id})
+        content_count = content_result.scalar() or 0
+
+        # Update campaign with correct counts
+        update_query = text("""
+            UPDATE campaigns
+            SET generated_content_count = :content_count,
+                updated_at = :updated_at
+            WHERE id::text = :campaign_id
+            RETURNING id, name, generated_content_count, intelligence_count, sources_count
+        """)
+
+        from datetime import datetime
+        update_result = await db.execute(update_query, {
+            "campaign_id": campaign_id,
+            "content_count": content_count,
+            "updated_at": datetime.utcnow()
+        })
+
+        updated_campaign = update_result.fetchone()
+        await db.commit()
+
+        if updated_campaign:
+            return create_success_response(
+                data={
+                    "campaign_id": campaign_id,
+                    "updated_stats": {
+                        "generated_content_count": updated_campaign.generated_content_count,
+                        "intelligence_count": updated_campaign.intelligence_count,
+                        "sources_count": updated_campaign.sources_count
+                    },
+                    "actual_content_count": content_count,
+                    "fix_applied": True
+                },
+                message=f"Campaign stats fixed: {content_count} content items found"
+            )
+        else:
+            return create_error_response(
+                message=f"Campaign {campaign_id} not found",
+                status_code=404
+            )
+
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error fixing campaign stats: {e}")
+        return create_error_response(
+            message=f"Failed to fix campaign stats: {str(e)}",
+            status_code=500
+        )
+
+@router.get("/direct-content/{campaign_id}")
+async def get_content_direct(campaign_id: str, db: AsyncSession = Depends(get_async_db)):
+    """Direct database query to get content - bypasses service layer"""
+    try:
+        # Direct query to database
+        query = text("""
+            SELECT id, content_type, content_title, content_body, content_metadata,
+                   created_at, updated_at, is_published, user_rating, generation_method, content_status
+            FROM generated_content
+            WHERE campaign_id::text = :campaign_id
+            ORDER BY created_at DESC
+        """)
+
+        result = await db.execute(query, {"campaign_id": campaign_id})
+        rows = result.fetchall()
+
+        content_list = []
+        for row in rows:
+            try:
+                import json
+                # Parse metadata safely
+                metadata = {}
+                if row.content_metadata:
+                    if isinstance(row.content_metadata, str):
+                        metadata = json.loads(row.content_metadata)
+                    else:
+                        metadata = row.content_metadata
+
+                content_item = {
+                    "content_id": str(row.id),
+                    "content_type": row.content_type,
+                    "title": row.content_title,
+                    "body": row.content_body,
+                    "metadata": metadata,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                    "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                    "is_published": row.is_published,
+                    "user_rating": row.user_rating,
+                    "generation_method": row.generation_method,
+                    "content_status": row.content_status,
+                    "generated_content": metadata.get("generated_content", {}),
+                    "source": "direct_query"
+                }
+                content_list.append(content_item)
+            except Exception as parse_error:
+                logger.warning(f"Error parsing content row: {parse_error}")
+                continue
+
+        return create_success_response(
+            data={
+                "campaign_id": campaign_id,
+                "content": content_list,
+                "total_count": len(content_list),
+                "query_method": "direct_database"
+            },
+            message=f"Retrieved {len(content_list)} content items directly from database"
+        )
+
+    except Exception as e:
+        logger.error(f"Direct content query failed: {e}")
+        return create_error_response(
+            message=f"Direct query failed: {str(e)}",
+            status_code=500
+        )
+
+@router.post("/fix-all/{campaign_id}")
+async def fix_campaign_everything(campaign_id: str, db: AsyncSession = Depends(get_async_db)):
+    """Comprehensive fix for campaign content, workflows, and stats"""
+    try:
+        from datetime import datetime
+
+        # Get actual content count
+        content_query = text("""
+            SELECT COUNT(*) as count,
+                   array_agg(id::text) as content_ids
+            FROM generated_content
+            WHERE campaign_id::text = :campaign_id
+        """)
+        content_result = await db.execute(content_query, {"campaign_id": campaign_id})
+        content_row = content_result.fetchone()
+        content_count = content_row.count or 0
+        content_ids = content_row.content_ids or []
+
+        # Update workflows
+        workflow_update = text("""
+            UPDATE content_generation_workflows
+            SET workflow_status = 'completed',
+                items_completed = :items_completed,
+                completed_at = :completed_at,
+                updated_at = :updated_at
+            WHERE campaign_id::text = :campaign_id
+            AND workflow_status = 'processing'
+            RETURNING id
+        """)
+
+        workflow_result = await db.execute(workflow_update, {
+            "campaign_id": campaign_id,
+            "items_completed": content_count,
+            "completed_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        })
+        workflows_fixed = len(workflow_result.fetchall())
+
+        # Update campaign stats
+        campaign_update = text("""
+            UPDATE campaigns
+            SET generated_content_count = :content_count,
+                updated_at = :updated_at
+            WHERE id::text = :campaign_id
+            RETURNING name, generated_content_count
+        """)
+
+        campaign_result = await db.execute(campaign_update, {
+            "campaign_id": campaign_id,
+            "content_count": content_count,
+            "updated_at": datetime.utcnow()
+        })
+
+        campaign_row = campaign_result.fetchone()
+        await db.commit()
+
+        return create_success_response(
+            data={
+                "campaign_id": campaign_id,
+                "fixes_applied": {
+                    "content_found": content_count,
+                    "content_ids": content_ids,
+                    "workflows_fixed": workflows_fixed,
+                    "campaign_updated": bool(campaign_row)
+                },
+                "final_stats": {
+                    "generated_content_count": campaign_row.generated_content_count if campaign_row else 0,
+                    "campaign_name": campaign_row.name if campaign_row else "Unknown"
+                }
+            },
+            message=f"Complete fix applied: {content_count} content items, {workflows_fixed} workflows fixed"
+        )
+
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Comprehensive fix failed: {e}")
+        return create_error_response(
+            message=f"Fix failed: {str(e)}",
+            status_code=500
+        )
+
+@router.get("/debug/check-tables")
+async def check_database_tables(db: AsyncSession = Depends(get_async_db)):
+    """Check what tables exist in the database"""
+    try:
+        # Check for content-related tables
+        check_query = text("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name LIKE '%content%'
+            ORDER BY table_name;
+        """)
+
+        result = await db.execute(check_query)
+        content_tables = [row.table_name for row in result]
+
+        # Check for campaign-related tables
+        campaign_query = text("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND (table_name LIKE '%campaign%' OR table_name LIKE '%generated%')
+            ORDER BY table_name;
+        """)
+
+        result = await db.execute(campaign_query)
+        campaign_tables = [row.table_name for row in result]
+
+        # Get all public tables
+        all_query = text("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            ORDER BY table_name;
+        """)
+
+        result = await db.execute(all_query)
+        all_tables = [row.table_name for row in result]
+
+        return create_success_response(
+            data={
+                "content_tables": content_tables,
+                "campaign_tables": campaign_tables,
+                "all_public_tables": all_tables,
+                "total_tables": len(all_tables)
+            },
+            message="Database tables checked successfully"
+        )
+
+    except Exception as e:
+        logger.error(f"Database check failed: {e}")
+        return create_error_response(
+            message=f"Database check failed: {str(e)}",
+            status_code=500
+        )
+
+@router.post("/debug/test-storage")
+async def test_storage_system(db: AsyncSession = Depends(get_async_db)):
+    """Debug endpoint to test the storage system"""
+    try:
+        storage_service = ContentStorageService()
+        result = await storage_service.test_storage_capability(db)
+
+        return create_success_response(
+            data=result,
+            message="Storage test completed"
+        )
+
+    except Exception as e:
+        logger.error(f"Storage test failed: {e}")
+        return create_error_response(
+            message=f"Storage test failed: {str(e)}",
+            status_code=500
+        )
+
+# ============================================================================
 # INTEGRATED CONTENT GENERATION ENDPOINT (Enhanced)
 # ============================================================================
 
@@ -568,30 +1504,40 @@ async def generate_content_integrated(request: Dict[str, Any], db: AsyncSession 
             db=db
         )
 
-        # Store the generated content in the database
+        # Store the generated content using robust storage service
+        storage_result = {"success": False}
         content_stored = False
         if result.get("success"):
             try:
-                await _store_generated_content(
+                storage_service = ContentStorageService()
+                storage_result = await storage_service.store_generated_content(
+                    session=db,
                     campaign_id=campaign_id,
                     user_id=user_id,
-                    company_id=company_id,
                     content_type=content_type,
                     content_data=result,
-                    db=db
+                    title=f"{content_type.title()} Content",
+                    word_count=result.get("word_count", 100),
+                    tokens_used=result.get("tokens_used", 150)
                 )
-                logger.info(f"Successfully stored generated content for campaign {campaign_id}")
-                content_stored = True
+
+                if storage_result["success"]:
+                    logger.info(f"Successfully stored content {storage_result['content_id']} for campaign {campaign_id}")
+                    content_stored = True
+                else:
+                    logger.error(f"Storage failed: {storage_result.get('error', 'Unknown error')}")
             except Exception as storage_error:
-                logger.error(f"Failed to store generated content: {storage_error}")
-                # Don't fail the generation if storage fails
+                logger.error(f"Storage service error: {storage_error}")
+                storage_result = {"success": False, "error": str(storage_error)}
 
             result["session_info"] = {
-                "session": "5_simplified",
+                "session": "6_robust_storage",
                 "direct_generation": True,
                 "generation_timestamp": request.get("timestamp"),
                 "content_stored": content_stored,
-                "storage_error": "See logs for details" if not content_stored else None
+                "storage_result": storage_result,
+                "content_id": storage_result.get("content_id") if content_stored else None,
+                "job_id": storage_result.get("job_id") if content_stored else None
             }
 
         return result
