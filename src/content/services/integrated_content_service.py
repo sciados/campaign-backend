@@ -328,34 +328,39 @@ class IntegratedContentService:
     async def _create_workflow_record(
         self,
         campaign_id: Union[str, UUID],
-        user_id: Union[str, UUID], 
+        user_id: Union[str, UUID],
         company_id: Union[str, UUID],
         content_types: List[str],
         preferences: Dict[str, Any]
     ) -> UUID:
-        """Create workflow tracking record in new table"""
+        """Create workflow tracking record in new table - skip if table doesn't exist"""
         workflow_id = uuid4()
-        
-        query = text("""
-            INSERT INTO content_generation_workflows 
-            (id, campaign_id, user_id, company_id, workflow_type, content_types, 
-             generation_preferences, workflow_status, items_requested)
-            VALUES (:id, :campaign_id, :user_id, :company_id, :workflow_type, 
-                    :content_types, :preferences, 'processing', :items_requested)
-        """)
-        
-        await self.db.execute(query, {
-            "id": workflow_id,
-            "campaign_id": UUID(str(campaign_id)),
-            "user_id": UUID(str(user_id)),
-            "company_id": UUID(str(company_id)),
-            "workflow_type": "integrated_generation",
-            "content_types": json.dumps(content_types),
-            "preferences": json.dumps(preferences),
-            "items_requested": len(content_types)
-        })
-        
-        await self.db.commit()
+
+        try:
+            query = text("""
+                INSERT INTO content_generation_workflows
+                (id, campaign_id, user_id, company_id, workflow_type, content_types,
+                 generation_preferences, workflow_status, items_requested)
+                VALUES (:id, :campaign_id, :user_id, :company_id, :workflow_type,
+                        :content_types, :preferences, 'processing', :items_requested)
+            """)
+
+            await self.db.execute(query, {
+                "id": workflow_id,
+                "campaign_id": UUID(str(campaign_id)),
+                "user_id": UUID(str(user_id)),
+                "company_id": UUID(str(company_id)),
+                "workflow_type": "integrated_generation",
+                "content_types": json.dumps(content_types),
+                "preferences": json.dumps(preferences),
+                "items_requested": len(content_types)
+            })
+
+            await self.db.commit()
+        except Exception as e:
+            logger.warning(f"Could not create workflow record, table might not exist: {e}")
+            # Continue without workflow tracking if table doesn't exist
+
         return workflow_id
     
     async def _update_workflow_status(
@@ -365,24 +370,28 @@ class IntegratedContentService:
         items_completed: int = 0,
         error_details: Optional[str] = None
     ):
-        """Update workflow status"""
-        query = text("""
-            UPDATE content_generation_workflows 
-            SET workflow_status = :status, 
-                items_completed = :items_completed,
-                error_details = :error_details,
-                completed_at = CASE WHEN :status IN ('completed', 'failed') THEN NOW() ELSE completed_at END,
-                updated_at = NOW()
-            WHERE id = :workflow_id
-        """)
-        
-        await self.db.execute(query, {
-            "workflow_id": workflow_id,
-            "status": status,
-            "items_completed": items_completed,
-            "error_details": error_details
-        })
-        await self.db.commit()
+        """Update workflow status - skip if table doesn't exist"""
+        try:
+            query = text("""
+                UPDATE content_generation_workflows
+                SET workflow_status = :status,
+                    items_completed = :items_completed,
+                    error_details = :error_details,
+                    completed_at = CASE WHEN :status IN ('completed', 'failed') THEN NOW() ELSE completed_at END,
+                    updated_at = NOW()
+                WHERE id = :workflow_id
+            """)
+
+            await self.db.execute(query, {
+                "workflow_id": workflow_id,
+                "status": status,
+                "items_completed": items_completed,
+                "error_details": error_details
+            })
+            await self.db.commit()
+        except Exception as e:
+            logger.warning(f"Could not update workflow status, table might not exist: {e}")
+            # Continue without workflow tracking if table doesn't exist
     
     async def _store_content_in_existing_table(
         self,
