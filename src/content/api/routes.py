@@ -37,6 +37,7 @@ async def _generate_content_direct(
         product_name = "Your Product"
 
         # Try to get intelligence data using passed db session
+        intelligence_analysis = None
         try:
             logger.info(f"Attempting to get intelligence data for campaign: {campaign_id}")
 
@@ -46,6 +47,8 @@ async def _generate_content_direct(
             campaign_row = campaign_result.fetchone()
 
             if campaign_row:
+                logger.info(f"Found campaign user_id: {campaign_row.user_id}")
+
                 # Query intelligence data using the user_id
                 intelligence_query = text("""
                     SELECT ic.product_name, ic.salespage_url, ic.confidence_score,
@@ -64,20 +67,23 @@ async def _generate_content_direct(
                     logger.info(f"Found intelligence data for content generation: product={product_name}")
 
                     # Try to parse the full analysis data
-                    intelligence_analysis = None
                     if row.full_analysis_data:
                         try:
                             intelligence_analysis = row.full_analysis_data
-                            logger.info("Successfully parsed intelligence analysis data")
+                            logger.info(f"Successfully parsed intelligence analysis data with keys: {list(intelligence_analysis.keys()) if isinstance(intelligence_analysis, dict) else 'Not a dict'}")
                         except Exception as parse_error:
                             logger.warning(f"Could not parse intelligence analysis: {parse_error}")
+                else:
+                    logger.warning("No intelligence data found for user")
+            else:
+                logger.warning("Campaign not found")
 
         except Exception as e:
             logger.warning(f"Could not get intelligence data, using fallback: {e}")
 
         # Generate content based on type
         if content_type.lower() in ["email", "email_sequence"]:
-            return await _generate_email_content(product_name, preferences, intelligence_analysis if 'intelligence_analysis' in locals() else None)
+            return await _generate_email_content(product_name, preferences, intelligence_analysis)
         elif content_type.lower() in ["social_media", "social_post"]:
             return await _generate_social_content(product_name, preferences)
         elif content_type.lower() in ["ad_copy", "advertisement"]:
