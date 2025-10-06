@@ -29,12 +29,19 @@ class IntelligenceModule(ModuleInterface):
     """Intelligence Engine module implementation with Session 5 async fixes."""
     
     def __init__(self):
-        self.intelligence_service = IntelligenceService()
+        self._intelligence_service = None  # Lazy initialization to avoid async context issues
         self.ai_router = AIProviderRouter()
         self._initialized = False
         self._healthy = False
         self._cache_cleanup_task = None  # Track cleanup task for proper shutdown
     
+    @property
+    def intelligence_service(self) -> IntelligenceService:
+        """Lazy initialization of intelligence service to ensure proper async context."""
+        if self._intelligence_service is None:
+            self._intelligence_service = IntelligenceService()
+        return self._intelligence_service
+
     @property
     def name(self) -> str:
         """Return the module name."""
