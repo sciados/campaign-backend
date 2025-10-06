@@ -306,7 +306,7 @@ class BulkContentRequest(BaseModel):
 # ============================================================================
 
 @router.post("/generate")
-async def generate_content_integrated(request: Dict[str, Any]):
+async def generate_content_integrated(request: Dict[str, Any], db: AsyncSession = Depends(get_async_db)):
     """Generate content using simplified direct approach to avoid async context issues"""
     try:
         campaign_id = request.get("campaign_id")
@@ -315,11 +315,27 @@ async def generate_content_integrated(request: Dict[str, Any]):
         company_id = request.get("company_id")
         preferences = request.get("preferences", {})
 
-        if not all([campaign_id, content_type, user_id, company_id]):
+        # If user_id and company_id are not provided, get them from the campaign
+        if not user_id or not company_id:
+            campaign_query = text("SELECT user_id, company_id FROM campaigns WHERE id = :campaign_id")
+            result = await db.execute(campaign_query, {"campaign_id": UUID(campaign_id)})
+            campaign_row = result.fetchone()
+
+            if not campaign_row:
+                raise HTTPException(status_code=404, detail="Campaign not found")
+
+            user_id = str(campaign_row.user_id)
+            company_id = str(campaign_row.company_id)
+
+        if not all([campaign_id, content_type]):
             raise HTTPException(
                 status_code=400,
-                detail="campaign_id, content_type, user_id, and company_id are required"
+                detail="campaign_id and content_type are required"
             )
+
+        # Add frontend fields to preferences
+        if "target_audience" in request:
+            preferences["target_audience"] = request["target_audience"]
 
         # Simplified direct content generation to avoid service factory async issues
         result = await _generate_content_direct(
