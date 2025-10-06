@@ -352,6 +352,87 @@ async def _generate_generic_content(content_type: str, product_name: str, prefer
         "message": f"{content_type} content generated successfully"
     }
 
+async def _store_generated_content(
+    campaign_id: str,
+    user_id: str,
+    company_id: str,
+    content_type: str,
+    content_data: Dict[str, Any],
+    db: AsyncSession
+) -> None:
+    """Store generated content in the database"""
+    try:
+        from uuid import uuid4
+        import json
+        from datetime import datetime, timezone
+
+        # Extract content details from the generated data
+        generated_content = content_data.get("generated_content", {})
+
+        # Create content title and body based on content type
+        if content_type.lower() in ["email", "email_sequence"]:
+            emails = generated_content.get("emails", [])
+            if emails:
+                content_title = f"Email Sequence ({len(emails)} emails)"
+                content_body = f"Generated {len(emails)} email sequence for {generated_content.get('sequence_info', {}).get('product_name', 'Product')}"
+            else:
+                content_title = "Email Sequence"
+                content_body = "Generated email sequence"
+        elif content_type.lower() in ["social_media", "social_post"]:
+            posts = generated_content.get("posts", [])
+            platforms = generated_content.get("platforms_covered", [])
+            content_title = f"Social Media Posts ({len(posts)} posts)"
+            content_body = f"Generated {len(posts)} social media posts for {', '.join(platforms)}"
+        elif content_type.lower() in ["ad_copy", "advertisement"]:
+            ads = generated_content.get("ads", [])
+            content_title = f"Ad Copy ({len(ads)} variations)"
+            content_body = f"Generated {len(ads)} ad copy variations"
+        elif content_type.lower() in ["blog_post", "blog"]:
+            content_title = generated_content.get("title", "Blog Post")
+            content_body = f"Generated blog post: {content_title}"
+        else:
+            content_title = f"{content_type.title()} Content"
+            content_body = f"Generated {content_type} content"
+
+        # Insert into generated_content table
+        insert_query = text("""
+            INSERT INTO generated_content
+            (id, campaign_id, user_id, company_id, content_type, content_title,
+             content_body, content_metadata, generation_settings, content_status,
+             generation_method, created_at, updated_at)
+            VALUES
+            (:id, :campaign_id, :user_id, :company_id, :content_type, :content_title,
+             :content_body, :content_metadata, :generation_settings, :content_status,
+             :generation_method, :created_at, :updated_at)
+        """)
+
+        content_id = uuid4()
+        now = datetime.now(timezone.utc)
+
+        await db.execute(insert_query, {
+            "id": content_id,
+            "campaign_id": UUID(campaign_id),
+            "user_id": UUID(user_id),
+            "company_id": UUID(company_id),
+            "content_type": content_type,
+            "content_title": content_title,
+            "content_body": content_body,
+            "content_metadata": json.dumps(content_data),
+            "generation_settings": json.dumps({"generator": content_data.get("generator_used", "DirectGenerator")}),
+            "content_status": "generated",
+            "generation_method": "direct_generation",
+            "created_at": now,
+            "updated_at": now
+        })
+
+        await db.commit()
+        logger.info(f"Stored content with ID {content_id} for campaign {campaign_id}")
+
+    except Exception as e:
+        logger.error(f"Failed to store generated content: {e}")
+        await db.rollback()
+        raise
+
 # ============================================================================
 # REQUEST MODELS
 # ============================================================================
@@ -452,12 +533,27 @@ async def generate_content_integrated(request: Dict[str, Any], db: AsyncSession 
             db=db
         )
 
-        # Add generation metadata
+        # Store the generated content in the database
         if result.get("success"):
+            try:
+                await _store_generated_content(
+                    campaign_id=campaign_id,
+                    user_id=user_id,
+                    company_id=company_id,
+                    content_type=content_type,
+                    content_data=result,
+                    db=db
+                )
+                logger.info(f"Successfully stored generated content for campaign {campaign_id}")
+            except Exception as storage_error:
+                logger.warning(f"Failed to store generated content: {storage_error}")
+                # Don't fail the generation if storage fails
+
             result["session_info"] = {
                 "session": "5_simplified",
                 "direct_generation": True,
-                "generation_timestamp": request.get("timestamp")
+                "generation_timestamp": request.get("timestamp"),
+                "content_stored": True
             }
 
         return result
