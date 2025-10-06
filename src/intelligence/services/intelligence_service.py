@@ -508,49 +508,45 @@ class IntelligenceService:
     ) -> List[Dict[str, Any]]:
         """Get intelligence data linked to a specific campaign"""
         try:
-            # Direct database query with full data but avoiding complex service layer
+            # Simplified direct database query to avoid all async context issues
             from sqlalchemy import select
-            from sqlalchemy.orm import selectinload
             from src.core.database.models import IntelligenceCore
 
-            stmt = select(IntelligenceCore).options(
-                selectinload(IntelligenceCore.product_data),
-                selectinload(IntelligenceCore.market_data)
-            ).where(IntelligenceCore.user_id == user_id).limit(50)
-
+            stmt = select(IntelligenceCore).where(IntelligenceCore.user_id == user_id).limit(50)
             result = await session.execute(stmt)
             intelligence_records = list(result.scalars().unique())
 
-            # Convert to the format expected by frontend with full data extraction
+            # Convert to the format expected by frontend with essential data for content generation
             intelligence_data = []
             for intelligence in intelligence_records:
-                # Extract product info safely
-                product_info = {}
-                if intelligence.product_data:
-                    first_product = intelligence.product_data[0] if intelligence.product_data else None
-                    if first_product:
-                        product_info = {
-                            "features": first_product.features or [],
-                            "benefits": first_product.benefits or [],
-                            "ingredients": first_product.ingredients or [],
-                            "conditions": first_product.conditions or [],
-                            "usage_instructions": first_product.usage_instructions or []
-                        }
-
-                # Extract market info safely
-                market_info = {}
-                if intelligence.market_data:
-                    first_market = intelligence.market_data[0] if intelligence.market_data else None
-                    if first_market:
-                        market_info = {
-                            "category": first_market.category,
-                            "positioning": first_market.positioning,
-                            "competitive_advantages": first_market.competitive_advantages or [],
-                            "target_audience": first_market.target_audience
-                        }
-
-                # Extract full_analysis_data if available
+                # Get the full_analysis_data which contains all the intelligence needed for content generation
                 full_analysis = intelligence.full_analysis_data or {}
+
+                # Extract basic product info from full_analysis_data if available
+                product_info = {}
+                market_info = {}
+
+                if full_analysis:
+                    # Extract product info from full analysis
+                    if "product_analysis" in full_analysis:
+                        product_analysis = full_analysis["product_analysis"]
+                        product_info = {
+                            "features": product_analysis.get("features", []),
+                            "benefits": product_analysis.get("benefits", []),
+                            "ingredients": product_analysis.get("ingredients", []),
+                            "conditions": product_analysis.get("conditions", []),
+                            "usage_instructions": product_analysis.get("usage_instructions", [])
+                        }
+
+                    # Extract market info from full analysis
+                    if "market_enhancement" in full_analysis:
+                        market_analysis = full_analysis["market_enhancement"]
+                        market_info = {
+                            "category": market_analysis.get("category"),
+                            "positioning": market_analysis.get("positioning"),
+                            "competitive_advantages": market_analysis.get("competitive_advantages", []),
+                            "target_audience": market_analysis.get("target_audience")
+                        }
 
                 intelligence_data.append({
                     "id": str(intelligence.id),
@@ -559,8 +555,8 @@ class IntelligenceService:
                     "created_at": intelligence.created_at.isoformat() if intelligence.created_at else None,
                     "product_info": product_info,
                     "market_info": market_info,
-                    "research": [],  # Skip research links to avoid async issues
-                    "full_analysis_data": full_analysis  # Include full analysis data for content generation
+                    "research": [],  # Empty to avoid async issues
+                    "full_analysis_data": full_analysis  # Critical for content generation
                 })
 
             return intelligence_data
