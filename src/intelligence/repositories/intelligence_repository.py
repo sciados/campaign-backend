@@ -99,7 +99,8 @@ class IntelligenceRepository(RepositoryInterface[IntelligenceCore]):
         """Find all intelligence records with optional filtering."""
         stmt = select(IntelligenceCore).options(
             selectinload(IntelligenceCore.product_data),
-            selectinload(IntelligenceCore.market_data)
+            selectinload(IntelligenceCore.market_data),
+            selectinload(IntelligenceCore.research_links)
         )
         
         if filters:
@@ -114,7 +115,7 @@ class IntelligenceRepository(RepositoryInterface[IntelligenceCore]):
         
         stmt = stmt.offset(offset).limit(limit)
         result = await session.execute(stmt)
-        return result.scalars().all()
+        return list(result.scalars().unique())
     
     async def update(
         self, 
