@@ -394,16 +394,20 @@ async def _store_generated_content(
             content_title = f"{content_type.title()} Content"
             content_body = f"Generated {content_type} content"
 
-        # Insert into generated_content table
+        # Insert into generated_content table - match exact schema from database
         insert_query = text("""
             INSERT INTO generated_content
-            (id, campaign_id, user_id, company_id, content_type, content_title,
-             content_body, content_metadata, generation_settings, content_status,
-             generation_method, created_at, updated_at)
+            (id, user_id, campaign_id, content_type, content_title, content_body,
+             content_metadata, generation_settings, intelligence_used, is_published,
+             user_rating, created_at, updated_at, performance_score, view_count,
+             company_id, performance_data, intelligence_id, generation_method,
+             content_status, sequence_info)
             VALUES
-            (:id, :campaign_id, :user_id, :company_id, :content_type, :content_title,
-             :content_body, :content_metadata, :generation_settings, :content_status,
-             :generation_method, :created_at, :updated_at)
+            (:id, :user_id, :campaign_id, :content_type, :content_title, :content_body,
+             :content_metadata, :generation_settings, :intelligence_used, :is_published,
+             :user_rating, :created_at, :updated_at, :performance_score, :view_count,
+             :company_id, :performance_data, :intelligence_id, :generation_method,
+             :content_status, :sequence_info)
         """)
 
         content_id = uuid4()
@@ -411,18 +415,26 @@ async def _store_generated_content(
 
         await db.execute(insert_query, {
             "id": content_id,
-            "campaign_id": UUID(campaign_id),
             "user_id": UUID(user_id),
-            "company_id": UUID(company_id),
+            "campaign_id": UUID(campaign_id),
             "content_type": content_type,
             "content_title": content_title,
             "content_body": content_body,
             "content_metadata": json.dumps(content_data),
             "generation_settings": json.dumps({"generator": content_data.get("generator_used", "DirectGenerator")}),
-            "content_status": "generated",
-            "generation_method": "direct_generation",
+            "intelligence_used": True,
+            "is_published": False,
+            "user_rating": None,
             "created_at": now,
-            "updated_at": now
+            "updated_at": now,
+            "performance_score": None,
+            "view_count": 0,
+            "company_id": UUID(company_id),
+            "performance_data": None,
+            "intelligence_id": None,
+            "generation_method": "direct_generation",
+            "content_status": "generated",
+            "sequence_info": json.dumps(generated_content.get("sequence_info", {})) if content_type.lower() in ["email", "email_sequence"] else None
         })
 
         await db.commit()
