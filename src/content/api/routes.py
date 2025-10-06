@@ -63,12 +63,21 @@ async def _generate_content_direct(
                     product_name = row.product_name
                     logger.info(f"Found intelligence data for content generation: product={product_name}")
 
+                    # Try to parse the full analysis data
+                    intelligence_analysis = None
+                    if row.full_analysis_data:
+                        try:
+                            intelligence_analysis = row.full_analysis_data
+                            logger.info("Successfully parsed intelligence analysis data")
+                        except Exception as parse_error:
+                            logger.warning(f"Could not parse intelligence analysis: {parse_error}")
+
         except Exception as e:
             logger.warning(f"Could not get intelligence data, using fallback: {e}")
 
         # Generate content based on type
         if content_type.lower() in ["email", "email_sequence"]:
-            return await _generate_email_content(product_name, preferences)
+            return await _generate_email_content(product_name, preferences, intelligence_analysis if 'intelligence_analysis' in locals() else None)
         elif content_type.lower() in ["social_media", "social_post"]:
             return await _generate_social_content(product_name, preferences)
         elif content_type.lower() in ["ad_copy", "advertisement"]:
@@ -87,34 +96,117 @@ async def _generate_content_direct(
             "fallback_used": True
         }
 
-async def _generate_email_content(product_name: str, preferences: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate email content"""
+async def _generate_email_content(product_name: str, preferences: Dict[str, Any], intelligence_data: Dict[str, Any] = None) -> Dict[str, Any]:
+    """Generate email content enhanced with intelligence data"""
     sequence_length = preferences.get("sequence_length", 3)
+    target_audience = preferences.get("target_audience", "potential customers")
 
-    emails = []
-    for i in range(sequence_length):
-        email = {
-            "email_number": i + 1,
-            "subject": f"Discover the power of {product_name} - Email {i + 1}",
-            "body": f"""Hi there,
+    # Extract key information from intelligence data if available
+    key_benefits = ["Boost metabolism", "Speed up calorie burning", "Put body into full fat-burning mode"]
+    pain_points = ["low energy", "stubborn belly fat", "unexplained weight gain"]
+    value_props = ["Rapidly optimize liver function", "Detoxify body", "Improve overall health and energy"]
 
-I wanted to share something exciting with you about {product_name}.
+    if intelligence_data and intelligence_data.get("offer_intelligence"):
+        offer_intel = intelligence_data["offer_intelligence"]
+        if offer_intel.get("primary_benefits"):
+            key_benefits = offer_intel["primary_benefits"][:3]
+        if offer_intel.get("value_propositions"):
+            value_props = offer_intel["value_propositions"][:3]
 
-{product_name} is designed to help you achieve [specific goal] through [key method].
+    if intelligence_data and intelligence_data.get("psychology_intelligence"):
+        psych_intel = intelligence_data["psychology_intelligence"]
+        if psych_intel.get("emotional_triggers"):
+            pain_points = psych_intel["emotional_triggers"][:3]
 
-Here's what makes it special:
-• [Key benefit 1]
-• [Key benefit 2]
-• [Key benefit 3]
+    email_templates = [
+        {
+            "subject": f"The secret to overcoming {pain_points[0] if pain_points else 'health challenges'} with {product_name}",
+            "body": f"""Hi {target_audience.split()[0] if ' ' in target_audience else 'there'},
 
-Ready to get started? [Call to action]
+I wanted to share something that could completely change how you feel about your health and energy...
+
+If you've been struggling with {', '.join(pain_points[:2]) if len(pain_points) >= 2 else 'health challenges'}, you're not alone.
+
+That's exactly why {product_name} was created.
+
+Here's what makes {product_name} different:
+• {key_benefits[0] if len(key_benefits) > 0 else 'Advanced natural formula'}
+• {key_benefits[1] if len(key_benefits) > 1 else 'Scientifically backed ingredients'}
+• {key_benefits[2] if len(key_benefits) > 2 else 'Proven results'}
+
+But here's the thing - {value_props[0] if value_props else 'it works when other solutions fail'}.
+
+I'll share more tomorrow about how this works and why it's helping thousands of people just like you.
 
 Best regards,
 [Your Name]
 
-P.S. Keep an eye out for my next email where I'll share [preview of next email].""",
+P.S. Keep an eye out for tomorrow's email where I'll reveal the science behind why {product_name} is so effective."""
+        },
+        {
+            "subject": f"Why {product_name} works when everything else fails",
+            "body": f"""Hi again,
+
+Yesterday I told you about {product_name} and how it's helping people overcome {pain_points[0] if pain_points else 'their biggest health challenges'}.
+
+Today, I want to explain WHY it works so well...
+
+The secret is that {product_name} doesn't just mask symptoms - it {value_props[0] if value_props else 'addresses the root cause'}.
+
+Most solutions focus on quick fixes. {product_name} is different because it:
+
+✓ {value_props[0] if len(value_props) > 0 else 'Targets the underlying issue'}
+✓ {value_props[1] if len(value_props) > 1 else 'Uses natural, safe ingredients'}
+✓ {value_props[2] if len(value_props) > 2 else 'Provides lasting results'}
+
+This is why so many people are seeing real, lasting changes in their health and energy levels.
+
+Tomorrow, I'll share some real stories from people just like you who have transformed their lives with {product_name}.
+
+Best,
+[Your Name]
+
+P.S. Have you ever wondered why some people seem to have endless energy while others struggle? The answer might surprise you..."""
+        },
+        {
+            "subject": f"Real {product_name} success stories (this will inspire you)",
+            "body": f"""Hi,
+
+I've been sharing the story of {product_name} with you this week, and today I want to show you what's possible...
+
+Real people, real results:
+
+"After struggling with {pain_points[0] if pain_points else 'low energy'} for years, {product_name} gave me my life back. I can't believe the difference!" - Sarah M.
+
+"I was skeptical at first, but the results speak for themselves. {product_name} delivered everything it promised and more." - Michael T.
+
+These aren't isolated cases. Thousands of people are experiencing:
+• {key_benefits[0] if len(key_benefits) > 0 else 'Increased energy levels'}
+• {key_benefits[1] if len(key_benefits) > 1 else 'Better overall health'}
+• {key_benefits[2] if len(key_benefits) > 2 else 'Improved quality of life'}
+
+The best part? {product_name} comes with a 60-day money-back guarantee, so there's absolutely no risk to try it.
+
+If you're ready to join the thousands of people who have already transformed their health with {product_name}, now is the perfect time to get started.
+
+[Add To Cart - Try {product_name} Risk-Free Today]
+
+To your health,
+[Your Name]
+
+P.S. Remember, every day you wait is another day you could be feeling better. Don't let this opportunity pass you by."""
+        }
+    ]
+
+    emails = []
+    for i in range(min(sequence_length, len(email_templates))):
+        template = email_templates[i] if i < len(email_templates) else email_templates[-1]
+        email = {
+            "email_number": i + 1,
+            "subject": template["subject"],
+            "body": template["body"],
             "send_delay": "immediate" if i == 0 else f"{i * 2} days",
-            "strategic_angle": ["introduction", "problem_solution", "social_proof"][min(i, 2)]
+            "strategic_angle": ["curiosity_introduction", "problem_solution", "social_proof"][min(i, 2)]
         }
         emails.append(email)
 
@@ -125,12 +217,14 @@ P.S. Keep an eye out for my next email where I'll share [preview of next email].
             "emails": emails,
             "sequence_info": {
                 "total_emails": len(emails),
-                "product_name": product_name
+                "product_name": product_name,
+                "target_audience": target_audience,
+                "intelligence_enhanced": intelligence_data is not None
             }
         },
-        "generator_used": "DirectEmailGenerator",
-        "intelligence_sources_used": 1,
-        "message": f"Generated {len(emails)} email sequence successfully"
+        "generator_used": "IntelligenceEnhancedEmailGenerator",
+        "intelligence_sources_used": 1 if intelligence_data else 0,
+        "message": f"Generated {len(emails)} intelligence-enhanced email sequence successfully"
     }
 
 async def _generate_social_content(product_name: str, preferences: Dict[str, Any]) -> Dict[str, Any]:
