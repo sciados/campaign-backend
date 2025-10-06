@@ -28,34 +28,35 @@ async def _generate_content_direct(
     content_type: str,
     user_id: str,
     company_id: str,
-    preferences: Dict[str, Any]
+    preferences: Dict[str, Any],
+    db: AsyncSession
 ) -> Dict[str, Any]:
     """Generate content directly without complex service factory to avoid async issues"""
     try:
         # Get basic intelligence data from the campaign
         product_name = "Your Product"
 
-        # Try to get intelligence data using direct query
+        # Try to get intelligence data using passed db session
         try:
-            async with get_async_db() as db:
-                # Simple query to get intelligence data
-                query = text("""
-                    SELECT ic.product_name, ic.salespage_url, ic.confidence_score,
-                           ic.full_analysis_data
-                    FROM intelligence_core ic
-                    WHERE ic.user_id = (
-                        SELECT user_id FROM campaigns WHERE id = :campaign_id
-                    )
-                    ORDER BY ic.confidence_score DESC
-                    LIMIT 1
-                """)
+            logger.info(f"Attempting to get intelligence data for campaign: {campaign_id}")
 
-                result = await db.execute(query, {"campaign_id": UUID(campaign_id)})
-                row = result.fetchone()
+            # Simple query to get intelligence data
+            query = text("""
+                SELECT ic.product_name, ic.salespage_url, ic.confidence_score,
+                       ic.full_analysis_data
+                FROM intelligence_core ic
+                WHERE ic.user_id = (
+                    SELECT user_id FROM campaigns WHERE id = :campaign_id
+                )
+                ORDER BY ic.confidence_score DESC
+                LIMIT 1
+            """)
 
-                if row and row.product_name:
-                    product_name = row.product_name
+            result = await db.execute(query, {"campaign_id": UUID(campaign_id)})
+            row = result.fetchone()
 
+            if row and row.product_name:
+                product_name = row.product_name
                 logger.info(f"Found intelligence data for content generation: product={product_name}")
 
         except Exception as e:
@@ -343,7 +344,8 @@ async def generate_content_integrated(request: Dict[str, Any], db: AsyncSession 
             content_type=content_type,
             user_id=user_id,
             company_id=company_id,
-            preferences=preferences
+            preferences=preferences,
+            db=db
         )
 
         # Add generation metadata
