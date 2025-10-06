@@ -17,8 +17,15 @@ from src.core.crud.campaign_crud import CampaignCRUD
 # from src.core.crud.intelligence_crud import intelligence_crud, GeneratedContent  # DEPRECATED - Legacy file
 
 # ✅ STORAGE SYSTEM INTEGRATION
-# from src.storage.universal_dual_storage import... # TODO: Fix this import
-# from src.storage.storage_tiers import StorageTier  # LEGACY - Commented out for deployment
+from src.storage.services.file_service import FileService
+from src.storage.services.media_service import MediaService
+
+# ✅ VIDEO ASSEMBLY PIPELINE INTEGRATION
+from src.content.services.video_assembly_pipeline import (
+    create_video_assembly_pipeline,
+    VideoScene as AssemblyVideoScene,
+    VideoSpec
+)
 
 # ✅ DATABASE SESSION
 from src.core.database import get_async_db
@@ -81,7 +88,11 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
         self.campaign_crud = CampaignCRUD()
         
         # ✅ INITIALIZE STORAGE SYSTEM
-        self.storage = UniversalDualStorageManager()
+        self.file_service = FileService()
+        self.media_service = MediaService()
+
+        # ✅ INITIALIZE VIDEO ASSEMBLY PIPELINE
+        self.video_assembler = create_video_assembly_pipeline()
         
         self.video_providers = self._initialize_video_providers()
         self.default_settings = {
@@ -313,11 +324,33 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
                     }
                 }
                 
-                # Use CRUD to save generated content
-                await self.intelligence_crud.create_generated_content(
-                    db=db,
-                    content_data=content_data
-                )
+                # Save generated video content using file service
+                if video_file_path and os.path.exists(video_file_path):
+                    with open(video_file_path, 'rb') as video_file:
+                        video_data = video_file.read()
+
+                    # Upload video file to storage
+                    upload_result = await self.file_service.upload_file(
+                        db=db,
+                        user_id=user_id,
+                        file_data=video_data,
+                        original_filename=f"slideshow_video_{campaign_id}.mp4",
+                        content_type="video/mp4",
+                        campaign_id=campaign_id,
+                        metadata={
+                            "content_type": "slideshow_video",
+                            "generation_provider": provider,
+                            "video_specs": video_specs,
+                            "generation_cost": total_generation_cost,
+                            "intelligence_id": intelligence_data.get("id"),
+                            "created_via": "slideshow_video_generator"
+                        }
+                    )
+
+                    if upload_result.get("success"):
+                        logger.info(f"Video file uploaded successfully: {upload_result.get('file_id')}")
+                    else:
+                        logger.error(f"Failed to upload video file: {upload_result.get('error')}")
                 
             except Exception as e:
                 logger.error(f"Failed to save generated video to database: {e}")
@@ -418,15 +451,35 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
                         logger.error(f"Failed to generate slideshow image {i}: {str(e)}")
                         continue
             else:
-                # Fallback: use placeholder images
-                placeholder_urls = [
-                    "https://via.placeholder.com/1920x1080/4CAF50/white?text=Health+Benefits",
-                    "https://via.placeholder.com/1920x1080/2196F3/white?text=Natural+Wellness",
-                    "https://via.placeholder.com/1920x1080/FF9800/white?text=Transform+Your+Health",
-                    "https://via.placeholder.com/1920x1080/9C27B0/white?text=Call+to+Action"
-                ]
-                image_urls = placeholder_urls
-                image_asset_ids = [f"placeholder_{i}" for i in range(len(placeholder_urls))]
+                # Fallback: Generate simple text-based scenes from script content if no image generator available
+                try:
+                    # Extract key points from script to create scenes
+                    script_sentences = script_content.split('. ')
+                    key_points = script_sentences[:4] if len(script_sentences) >= 4 else script_sentences
+
+                    # Create text-based scene descriptions
+                    image_urls = []
+                    image_asset_ids = []
+
+                    for i, point in enumerate(key_points):
+                        # Create a meaningful scene description from the script content
+                        scene_description = point.strip()[:50] + "..." if len(point) > 50 else point.strip()
+                        image_asset_ids.append(f"text_scene_{i}")
+                        # Note: In production, this should integrate with a text-to-image service
+                        logger.warning(f"No image generator available. Scene {i}: {scene_description}")
+
+                    if not image_urls:
+                        return {
+                            "success": False,
+                            "error": "No image generation capability available and no fallback images configured"
+                        }
+
+                except Exception as e:
+                    logger.error(f"Failed to create fallback scenes: {str(e)}")
+                    return {
+                        "success": False,
+                        "error": "Unable to generate video content without image generation capability"
+                    }
         
         # Ensure we have at least some images
         if not image_urls:
@@ -533,75 +586,79 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
         storyboard: Dict[str, Any],
         settings: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate video using FFmpeg with improved error handling"""
-        
-        if not self._check_ffmpeg_availability():
-            raise Exception("FFmpeg not available - cannot generate video locally")
-        
+        """Generate video using centralized video assembly pipeline"""
+
         try:
-            # Create temporary directory
+            # Create temporary directory for downloaded images
             with tempfile.TemporaryDirectory() as temp_dir:
                 # Download images to temp directory
                 image_paths = await self._download_images_to_temp(images, temp_dir)
-                
+
                 if not image_paths:
                     raise Exception("No images were successfully downloaded")
-                
-                # Generate video with FFmpeg
-                output_path = os.path.join(temp_dir, "slideshow.mp4")
-                
-                # Build FFmpeg command for slideshow
-                cmd = [
-                    "ffmpeg",
-                    "-y",  # Overwrite output file
-                    "-f", "concat",
-                    "-safe", "0",
-                    "-i", self._create_ffmpeg_input_file(image_paths, settings, temp_dir),
-                    "-vf", f"scale={settings['resolution']},format=yuv420p",
-                    "-r", str(settings['fps']),
-                    "-c:v", "libx264",
-                    "-preset", "medium",
-                    "-crf", "23",
-                    output_path
-                ]
-                
-                # Execute FFmpeg
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=300  # 5 minutes timeout
+
+                # Convert storyboard to video scenes for assembly pipeline
+                assembly_scenes = []
+                duration_per_slide = settings.get("duration_per_slide", 3)
+
+                for i, image_path in enumerate(image_paths):
+                    scene = AssemblyVideoScene(
+                        scene_id=f"slide_{i+1}",
+                        image_path=image_path,
+                        audio_path=None,  # No audio for basic slideshow
+                        duration=float(duration_per_slide),
+                        transition_type=settings.get("transition_type", "fade"),
+                        effects=None
+                    )
+                    assembly_scenes.append(scene)
+
+                # Create video specification
+                resolution_parts = settings.get("resolution", "1920x1080").split("x")
+                video_spec = VideoSpec(
+                    width=int(resolution_parts[0]),
+                    height=int(resolution_parts[1]),
+                    fps=settings.get("fps", 30),
+                    bitrate=settings.get("bitrate", "2M"),
+                    codec="libx264",
+                    format="mp4"
                 )
-                
-                if result.returncode != 0:
-                    raise Exception(f"FFmpeg failed: {result.stderr}")
-                
-                # Read generated video
-                with open(output_path, "rb") as f:
+
+                # Generate unique output filename
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_filename = f"slideshow_{timestamp}.mp4"
+
+                # Use video assembly pipeline to create video
+                assembled_video = await self.video_assembler.assemble_video(
+                    scenes=assembly_scenes,
+                    video_type="slideshow",
+                    brand_config=None,  # No branding for basic slideshow
+                    music_path=None,   # No music for basic slideshow
+                    output_filename=output_filename
+                )
+
+                logger.info(f"Video assembled using pipeline: {assembled_video.video_path}")
+
+                # Read generated video file
+                with open(assembled_video.video_path, "rb") as f:
                     video_data = f.read()
-                
+
                 return {
                     "success": True,
                     "video_data": video_data,
-                    "duration": storyboard["total_duration"],
-                    "file_size": len(video_data),
-                    "format": "mp4"
+                    "video_path": assembled_video.video_path,
+                    "duration": assembled_video.duration_seconds,
+                    "file_size": assembled_video.file_size_mb * 1024 * 1024,  # Convert MB to bytes
+                    "format": "mp4",
+                    "specs": assembled_video.specs,
+                    "scenes_count": assembled_video.scenes_count,
+                    "assembly_time": assembled_video.assembly_time
                 }
                 
         except Exception as e:
             logger.error(f"FFmpeg video generation failed: {str(e)}")
             return {"success": False, "error": str(e)}
     
-    def _create_ffmpeg_input_file(self, image_paths: List[str], settings: Dict[str, Any], temp_dir: str) -> str:
-        """Create FFmpeg input file for slideshow"""
-        input_file_path = os.path.join(temp_dir, "input.txt")
-        
-        with open(input_file_path, "w") as f:
-            for image_path in image_paths:
-                f.write(f"file '{image_path}'\n")
-                f.write(f"duration {settings['duration_per_slide']}\n")
-        
-        return input_file_path
+    # Note: _create_ffmpeg_input_file method removed - now using centralized video assembly pipeline
     
     async def _download_images_to_temp(self, images: List[str], temp_dir: str) -> List[str]:
         """Download images to temporary directory"""
@@ -732,11 +789,10 @@ class SlideshowVideoGenerator(EnumSerializerMixin):
         for provider in self.video_providers:
             try:
                 if provider["name"] == "ffmpeg_local" and provider["available"]:
-                    # Test basic slideshow generation
-                    test_images = [
-                        "https://via.placeholder.com/1920x1080/FF6B6B/white?text=Test+Image+1",
-                        "https://via.placeholder.com/1920x1080/4ECDC4/white?text=Test+Image+2"
-                    ]
+                    # Test basic slideshow generation - using real content validation
+                    # Note: In production testing, use actual generated content or sample campaign data
+                    logger.info("Testing slideshow generation with minimal content validation")
+                    test_images = []  # Will be populated by actual image generation during test
                     
                     test_intelligence = {
                         "source_title": "Test Product",

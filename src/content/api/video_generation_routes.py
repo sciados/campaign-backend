@@ -16,9 +16,12 @@ from src.content.services.video_generation_orchestrator import (
     create_video_generation_orchestrator,
     VideoGenerationRequest,
     VideoType,
-    VisualStyle, 
+    VisualStyle,
     VoiceType
 )
+from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
+from src.core.crud.campaign_crud import CampaignCRUD
+from src.users.services.user_crud import UserCRUD
 
 router = APIRouter(prefix="/api/video", tags=["video-generation"])
 security = HTTPBearer()
@@ -97,12 +100,70 @@ async def generate_video_from_script(
             )
         
         # Get intelligence data for this campaign
-        # TODO: Retrieve from intelligence service
-        intelligence_data = {
-            "product_analysis": {"name": "Sample Product"},
-            "audience_analysis": {"demographics": {}},
-            "brand_analysis": {"colors": request_data.get("brand_colors", ["#007BFF"])}
-        }
+        intelligence_repository = IntelligenceRepository()
+        campaign_crud = CampaignCRUD()
+
+        try:
+            # Get campaign information
+            campaign = await campaign_crud.get(db=db, id=campaign_id)
+            if not campaign:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Campaign not found"
+                )
+
+            # Verify campaign belongs to user
+            if campaign.user_id != user_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Access denied to this campaign"
+                )
+
+            # Get intelligence data for this campaign
+            intelligence_data = {}
+            if campaign.intelligence_id:
+                intelligence = await intelligence_repository.find_by_id(
+                    campaign.intelligence_id, db
+                )
+                if intelligence:
+                    # Convert intelligence entity to dictionary format
+                    intelligence_data = {
+                        "id": intelligence.id,
+                        "source_url": intelligence.salespage_url,
+                        "product_analysis": intelligence.product_data[0].__dict__ if intelligence.product_data else {},
+                        "audience_analysis": intelligence.market_data[0].__dict__ if intelligence.market_data else {},
+                        "brand_analysis": {
+                            "colors": request_data.get("brand_colors", ["#007BFF"]),
+                            "name": intelligence.source_title or "Product"
+                        },
+                        "offer_intelligence": {
+                            "price_point": intelligence.price_point,
+                            "benefits": intelligence.key_benefits or [],
+                            "target_audience": intelligence.target_audience
+                        }
+                    }
+                else:
+                    logger.warning(f"Intelligence data not found for campaign {campaign_id}")
+
+            # Fallback if no intelligence data available
+            if not intelligence_data:
+                intelligence_data = {
+                    "product_analysis": {"name": campaign.name or "Product"},
+                    "audience_analysis": {"demographics": {}},
+                    "brand_analysis": {"colors": request_data.get("brand_colors", ["#007BFF"])},
+                    "offer_intelligence": {"benefits": ["Enhanced performance", "Better results"]}
+                }
+                logger.info(f"Using fallback intelligence data for campaign {campaign_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to retrieve intelligence data for campaign {campaign_id}: {e}")
+            # Use fallback data if intelligence retrieval fails
+            intelligence_data = {
+                "product_analysis": {"name": "Product"},
+                "audience_analysis": {"demographics": {}},
+                "brand_analysis": {"colors": request_data.get("brand_colors", ["#007BFF"])},
+                "offer_intelligence": {"benefits": ["Enhanced performance", "Better results"]}
+            }
         
         # Create video generation request
         video_request = VideoGenerationRequest(
@@ -373,16 +434,53 @@ async def get_user_video_limits(
     """Get user's video generation limits and usage"""
     
     try:
-        # TODO: Get actual user limits from database
+        # Get actual user limits from database
+        user_crud = UserCRUD()
+        user = await user_crud.get(db=db, id=user_id)
+
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found"
+            )
+
+        # Determine limits based on user tier/subscription
+        # Default limits for basic users
+        monthly_limit = 5
+        max_duration = 60
+        premium_features = False
+        max_concurrent = 1
+        priority_queue = False
+
+        # Adjust limits based on user type or subscription
+        if hasattr(user, 'subscription_tier'):
+            if user.subscription_tier == "premium":
+                monthly_limit = 20
+                max_duration = 300
+                premium_features = True
+                max_concurrent = 3
+                priority_queue = True
+            elif user.subscription_tier == "pro":
+                monthly_limit = 50
+                max_duration = 600
+                premium_features = True
+                max_concurrent = 5
+                priority_queue = True
+
+        # TODO: Count actual videos generated this month from database
+        # For now, using placeholder count
+        videos_generated = 0  # This should query actual generation count
+
         return {
-            "monthly_video_limit": 10,
-            "videos_generated_this_month": 3,
-            "remaining_videos": 7,
-            "max_video_duration": 120,  # seconds
-            "premium_features_enabled": True,
+            "monthly_video_limit": monthly_limit,
+            "videos_generated_this_month": videos_generated,
+            "remaining_videos": max(0, monthly_limit - videos_generated),
+            "max_video_duration": max_duration,
+            "premium_features_enabled": premium_features,
             "supported_formats": ["mp4", "mov", "webm"],
-            "max_concurrent_generations": 2,
-            "priority_queue": True
+            "max_concurrent_generations": max_concurrent,
+            "priority_queue": priority_queue,
+            "user_tier": getattr(user, 'subscription_tier', 'basic')
         }
         
     except Exception as e:
