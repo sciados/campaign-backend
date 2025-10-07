@@ -209,7 +209,7 @@ class IntegratedContentService:
                     result = await generator.generate_email_sequence(
                         campaign_id=campaign_id,
                         intelligence_data=transformed_intelligence,
-                        email_count=preferences.get("email_count", 3),
+                        email_count=preferences.get("email_count", 5),
                         tone=preferences.get("tone", "persuasive"),
                         target_audience=preferences.get("target_audience"),
                         preferences=preferences
