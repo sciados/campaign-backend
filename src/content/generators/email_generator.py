@@ -29,7 +29,7 @@ class EmailGenerator:
     Implements modular architecture from content-generation-implementation-plan.md
     """
 
-    def __init__(self):
+    def __init__(self, db_session=None):
         self.name = "email_generator"
         self.version = "3.0.0"
 
@@ -37,11 +37,19 @@ class EmailGenerator:
         self.prompt_service = PromptGenerationService()
         self.ai_service = AIProviderService()
 
+        # Optional: Prompt storage service (if db session provided)
+        self.db_session = db_session
+        self.prompt_storage = None
+        if db_session:
+            from src.content.services.prompt_storage_service import PromptStorageService
+            self.prompt_storage = PromptStorageService(db_session)
+
         self._generation_stats = {
             "sequences_generated": 0,
             "total_emails_created": 0,
             "ai_generations": 0,
-            "total_cost": 0.0
+            "total_cost": 0.0,
+            "prompts_saved": 0
         }
 
         logger.info(f"✅ EmailGenerator v{self.version} - Modular architecture with AI")
@@ -103,6 +111,26 @@ class EmailGenerator:
                 raise Exception(f"AI generation failed: {ai_result.get('error')}")
 
             logger.info(f"✅ AI generated content using {ai_result['provider_name']} (cost: ${ai_result['cost']:.4f})")
+
+            # Save prompt to database for future reuse (if storage available)
+            prompt_id = None
+            if self.prompt_storage:
+                try:
+                    prompt_id = await self.prompt_storage.save_prompt(
+                        campaign_id=str(campaign_id),
+                        user_id="system",  # Will be updated by caller if user_id available
+                        content_type="email_sequence" if sequence_length > 1 else "email",
+                        user_prompt=prompt_result["prompt"],
+                        system_message=prompt_result["system_message"],
+                        intelligence_variables=prompt_result["variables"],
+                        prompt_result=prompt_result,
+                        ai_result=ai_result,
+                        content_id=None  # Will be linked later when content is saved
+                    )
+                    self._generation_stats["prompts_saved"] += 1
+                    logger.info(f"✅ Saved prompt {prompt_id} for future reuse")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to save prompt (non-critical): {e}")
 
             # Step 3: Parse email sequence from AI response
             emails = self._parse_email_sequence(

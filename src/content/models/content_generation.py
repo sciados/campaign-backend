@@ -202,33 +202,108 @@ class UserContentUsage(Base):
             "premium_content_count": self.premium_content_count
         }
 
+class GeneratedPrompt(Base):
+    """
+    Stores AI-generated prompts for reuse and analytics
+    Links prompts to campaigns and content types for easy retrieval
+    """
+    __tablename__ = "generated_prompts"
+
+    # Primary identifiers
+    prompt_id = Column(String(255), primary_key=True)
+    campaign_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    content_id = Column(String(255), ForeignKey("generated_content.content_id"), nullable=True)
+
+    # Prompt details
+    content_type = Column(SQLEnum(ContentType), nullable=False, index=True)
+    psychology_stage = Column(String(50))  # e.g., "solution_reveal", "problem_agitation"
+
+    # The prompts
+    user_prompt = Column(Text, nullable=False)  # The actual prompt sent to AI
+    system_message = Column(Text)  # System message for context
+
+    # Intelligence variables used
+    intelligence_variables = Column(JSON)  # Variables extracted from intelligence
+    prompt_template_id = Column(String(100))  # Which template was used
+
+    # Quality metrics
+    quality_score = Column(Integer)  # Prompt quality score (0-100)
+    variable_count = Column(Integer)  # Number of variables utilized
+    prompt_length = Column(Integer)  # Character length
+
+    # AI generation metadata
+    ai_provider = Column(String(50))  # e.g., "deepseek", "gpt4o_mini", "claude"
+    ai_model = Column(String(100))  # Specific model used
+    tokens_used = Column(Integer)  # Total tokens (prompt + completion)
+    generation_cost = Column(String(20))  # Cost in dollars (stored as string for precision)
+    generation_time = Column(String(20))  # Time taken in seconds
+
+    # Performance tracking
+    content_quality_score = Column(Integer)  # Quality of content generated from this prompt
+    user_satisfaction = Column(Integer)  # User rating of the generated content (1-5)
+    was_regenerated = Column(Boolean, default=False)  # Whether user requested regeneration
+
+    # Reuse tracking
+    reuse_count = Column(Integer, default=0)  # Times this prompt was reused
+    is_favorite = Column(Boolean, default=False)  # User marked as favorite
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    last_used_at = Column(DateTime)
+
+    def to_dict(self):
+        return {
+            "prompt_id": self.prompt_id,
+            "campaign_id": self.campaign_id,
+            "content_id": self.content_id,
+            "content_type": self.content_type.value if self.content_type else None,
+            "psychology_stage": self.psychology_stage,
+            "user_prompt": self.user_prompt,
+            "system_message": self.system_message,
+            "intelligence_variables": self.intelligence_variables,
+            "quality_score": self.quality_score,
+            "variable_count": self.variable_count,
+            "ai_provider": self.ai_provider,
+            "ai_model": self.ai_model,
+            "tokens_used": self.tokens_used,
+            "generation_cost": self.generation_cost,
+            "generation_time": self.generation_time,
+            "content_quality_score": self.content_quality_score,
+            "user_satisfaction": self.user_satisfaction,
+            "reuse_count": self.reuse_count,
+            "is_favorite": self.is_favorite,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "last_used_at": self.last_used_at.isoformat() if self.last_used_at else None
+        }
+
 class ContentTemplate(Base):
     """
     Stores reusable content templates and user favorites
     """
     __tablename__ = "content_templates"
-    
+
     template_id = Column(String(255), primary_key=True)
     user_id = Column(String(255), nullable=False, index=True)
-    
+
     # Template details
     name = Column(String(255), nullable=False)
     description = Column(Text)
     content_type = Column(SQLEnum(ContentType), nullable=False)
     template_data = Column(JSON, nullable=False)
-    
+
     # Usage tracking
     usage_count = Column(Integer, default=0)
     success_rate = Column(Integer)  # Percentage of successful uses
-    
+
     # Sharing
     is_public = Column(Boolean, default=False)
     is_featured = Column(Boolean, default=False)
-    
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def to_dict(self):
         return {
             "template_id": self.template_id,
