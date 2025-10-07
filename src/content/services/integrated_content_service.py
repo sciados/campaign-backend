@@ -210,11 +210,15 @@ class IntegratedContentService:
         # Normalize content type
         content_type_normalized = content_type.lower()
 
+        logger.info(f"🔍 Looking for generator: '{content_type_normalized}'")
+        logger.info(f"📋 Available generators: {list(self._generators.keys())}")
+
         # Transform intelligence data to the format expected by new generators
         transformed_intelligence = self._transform_intelligence_for_ai_generators(intelligence_data)
 
         # Use AI-powered generators with new methods
         if content_type_normalized in self._generators:
+            logger.info(f"✅ Found generator for: '{content_type_normalized}'")
             generator = self._generators[content_type_normalized]
 
             try:
@@ -285,8 +289,11 @@ class IntegratedContentService:
                 logger.error(f"❌ AI generator {content_type} failed: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
+        else:
+            logger.warning(f"⚠️ No generator found for '{content_type_normalized}', using fallback")
 
         # Ultimate fallback - create basic content
+        logger.info(f"📝 Creating fallback content for: {content_type}")
         return await self._create_fallback_content(content_type, intelligence_data, preferences)
 
     def _transform_intelligence_for_ai_generators(self, intelligence_data: List[Dict]) -> Dict[str, Any]:
