@@ -9,6 +9,7 @@ Provides common model patterns and the consolidated intelligence schema.
 """
 
 from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, Float, Boolean, ForeignKey, Index
+from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
@@ -56,7 +57,9 @@ class IntelligenceCore(Base, TimestampMixin, UserMixin):
     """
     __tablename__ = "intelligence_core"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(PostgreSQLUUID(as_uuid=True), nullable=False, index=True)
+    company_id = Column(PostgreSQLUUID(as_uuid=True), nullable=True, index=True)
     product_name = Column(String, nullable=False, index=True)
     salespage_url = Column(Text, nullable=False)
     confidence_score = Column(Float, default=0.0, index=True)
@@ -81,9 +84,9 @@ class IntelligenceCore(Base, TimestampMixin, UserMixin):
 class ProductData(Base):
     """Normalized product information table."""
     __tablename__ = "product_data"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    intelligence_id = Column(String, ForeignKey("intelligence_core.id", ondelete="CASCADE"), nullable=False)
+
+    id = Column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    intelligence_id = Column(PostgreSQLUUID(as_uuid=True), ForeignKey("intelligence_core.id", ondelete="CASCADE"), nullable=False)
     
     # Product attributes as JSON arrays for flexibility
     features = Column(JSON, default=list)  # List of product features
@@ -103,9 +106,9 @@ class ProductData(Base):
 class MarketData(Base):
     """Market and positioning data table."""
     __tablename__ = "market_data"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    intelligence_id = Column(String, ForeignKey("intelligence_core.id", ondelete="CASCADE"), nullable=False)
+
+    id = Column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    intelligence_id = Column(PostgreSQLUUID(as_uuid=True), ForeignKey("intelligence_core.id", ondelete="CASCADE"), nullable=False)
     
     category = Column(String, nullable=True, index=True)
     positioning = Column(Text, nullable=True)
