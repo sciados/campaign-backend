@@ -2183,28 +2183,7 @@ async def get_content_results_alias(
         sort_order=sort_order
     )
 
-@router.get("/content/{content_id}")
-async def get_content_by_id(content_id: str):
-    """Get specific content by ID"""
-    try:
-        async with ServiceFactory.create_named_service("integrated_content") as content_service:
-            # This would retrieve specific content
-            content_data = {
-                "content_id": content_id,
-                "status": "found",
-                "session": "5_enhanced"
-            }
-            
-            return create_success_response(
-                data=content_data,
-                message="Content retrieved successfully"
-            )
-            
-    except Exception as e:
-        return create_error_response(
-            message=f"Failed to get content: {str(e)}",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+# Duplicate endpoint removed - proper implementation exists at line 966
 
 @router.put("/content/{content_id}")
 async def update_content(content_id: str, updates: Dict[str, Any]):
