@@ -72,6 +72,15 @@ class PromptStorageService:
             variable_count = len(intelligence_variables)
             prompt_length = len(user_prompt)
 
+            # Debug: Log all values and their lengths
+            logger.info(f"🔍 Prompt storage values:")
+            logger.info(f"  psychology_stage: '{psychology_stage}' (len={len(psychology_stage)})")
+            logger.info(f"  prompt_template_id: '{prompt_template_id}' (len={len(prompt_template_id)})")
+            logger.info(f"  ai_provider: '{ai_provider}' (len={len(ai_provider)})")
+            logger.info(f"  ai_model: '{ai_model}' (len={len(ai_model)})")
+            logger.info(f"  generation_cost: '{generation_cost}' (len={len(generation_cost)})")
+            logger.info(f"  generation_time: '{generation_time}' (len={len(generation_time)})")
+
             query = text("""
                 INSERT INTO generated_prompts (
                     prompt_id, campaign_id, user_id, content_id,
