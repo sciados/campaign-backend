@@ -206,10 +206,13 @@ class IntegratedContentService:
             try:
                 # Email sequence generation
                 if 'email' in content_type_normalized:
+                    # Support both 'email_count' and 'sequence_length' for backward compatibility
+                    email_count = preferences.get("email_count") or preferences.get("sequence_length", 5)
+
                     result = await generator.generate_email_sequence(
                         campaign_id=campaign_id,
                         intelligence_data=transformed_intelligence,
-                        email_count=preferences.get("email_count", 5),
+                        email_count=email_count,
                         tone=preferences.get("tone", "persuasive"),
                         target_audience=preferences.get("target_audience"),
                         preferences=preferences
