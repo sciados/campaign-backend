@@ -692,8 +692,15 @@ Create a compelling background image that enhances the sales message.
 class EnhancedVideoScriptGenerator:
     """Enhanced video generator that creates both scripts AND actual video files"""
 
-    def __init__(self):
+    def __init__(self, db_session=None):
         self.video_generator = AIVideoGenerator()
+
+        # Optional: Prompt storage service (if db session provided)
+        self.db_session = db_session
+        self.prompt_storage = None
+        if db_session:
+            from src.content.services.prompt_storage_service import PromptStorageService
+            self.prompt_storage = PromptStorageService(db_session)
 
     async def generate(
         self,
@@ -782,9 +789,9 @@ class EnhancedVideoScriptGenerator:
             }
 
     async def _generate_script(self, sales_variables, user_context, psychology_stage, ai_provider, specific_requirements):
-        """Generate the video script (existing functionality)"""
+        """Generate the video script with prompt storage support"""
 
-        # Implementation from previous VideoScriptGenerator
+        # Build comprehensive prompt
         script_prompt = f"""
 CREATE A SALES-FOCUSED VIDEO SCRIPT
 
@@ -798,20 +805,77 @@ Create a compelling video script that applies {psychology_stage.value} psycholog
 Include scene directions, timing, and visual cues.
 """
 
+        system_message = "Create engaging video scripts that combine visual storytelling with sales psychology."
+
+        # Generate script using AI
         result = await ai_provider.unified_generate(
             content_type="video_script",
             prompt=script_prompt,
-            system_message="Create engaging video scripts that combine visual storytelling with sales psychology.",
+            system_message=system_message,
             max_tokens=1200,
             temperature=0.7,
             task_complexity="complex"
         )
 
         if result.get("success"):
+            # Save prompt to database for future reuse (if storage available)
+            campaign_id = user_context.get("campaign_id", "unknown")
+            if self.prompt_storage and campaign_id != "unknown":
+                try:
+                    # Build intelligence variables for tracking
+                    intelligence_variables = {
+                        "PRODUCT_NAME": sales_variables.product_name,
+                        "PRIMARY_BENEFIT": sales_variables.primary_benefit,
+                        "TARGET_AUDIENCE": sales_variables.target_audience,
+                        "PSYCHOLOGY_STAGE": psychology_stage.value,
+                        "DURATION": specific_requirements.get('duration', 60)
+                    }
+
+                    # Build prompt_result structure
+                    prompt_result = {
+                        "success": True,
+                        "prompt": script_prompt,
+                        "system_message": system_message,
+                        "variables": intelligence_variables,
+                        "quality_score": 85,  # Default quality score for video scripts
+                        "psychology_stage": psychology_stage.value
+                    }
+
+                    # Build ai_result structure
+                    ai_result = {
+                        "success": True,
+                        "content": result["content"],
+                        "provider": result.get("provider_used", "unknown"),
+                        "provider_name": result.get("provider_used", "unknown"),
+                        "cost": result.get("cost", 0.0),
+                        "generation_time": result.get("generation_time", 0.0),
+                        "estimated_tokens": result.get("estimated_tokens", 0)
+                    }
+
+                    prompt_id = await self.prompt_storage.save_prompt(
+                        campaign_id=str(campaign_id),
+                        user_id=user_context.get("user_id", "system"),
+                        content_type="video_script",
+                        user_prompt=script_prompt,
+                        system_message=system_message,
+                        intelligence_variables=intelligence_variables,
+                        prompt_result=prompt_result,
+                        ai_result=ai_result,
+                        content_id=None
+                    )
+                    logger.info(f"✅ Saved video script prompt {prompt_id} for campaign {campaign_id}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to save video script prompt (non-critical): {e}")
+
             return {
                 "success": True,
                 "script": result["content"],
-                "ai_provider": result.get("provider_used")
+                "ai_provider": result.get("provider_used"),
+                "generation_metadata": {
+                    "cost": result.get("cost", 0.0),
+                    "generation_time": result.get("generation_time", 0.0),
+                    "estimated_tokens": result.get("estimated_tokens", 0)
+                }
             }
         else:
             return {

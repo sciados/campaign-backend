@@ -142,20 +142,28 @@ class UniversalSalesEngine:
         # Import enhanced video generator
         from src.content.services.video_generation_service import EnhancedVideoScriptGenerator
 
-        # Import AI-powered email generator (refactored modular architecture)
+        # Import AI-powered generators (refactored modular architecture)
         from src.content.generators.email_generator import EmailGenerator as AIEmailGenerator
+        from src.content.generators.social_media_generator import SocialMediaGenerator as AISocialMediaGenerator
+        from src.content.generators.blog_content_generator import BlogContentGenerator as AIBlogContentGenerator
+        from src.content.generators.ad_copy_generator import AdCopyGenerator as AIAdCopyGenerator
 
         self.content_generators = {
+            # AI-powered generators with adapters
             ContentFormat.EMAIL: EmailGeneratorAdapter(AIEmailGenerator()),
             ContentFormat.EMAIL_SEQUENCE: EmailSequenceAdapter(AIEmailGenerator()),
-            ContentFormat.SOCIAL_POST: SocialPostGenerator(),
-            ContentFormat.BLOG_ARTICLE: BlogArticleGenerator(),
+            ContentFormat.SOCIAL_POST: SocialMediaGeneratorAdapter(AISocialMediaGenerator()),
+            ContentFormat.BLOG_ARTICLE: BlogContentGeneratorAdapter(AIBlogContentGenerator()),
+            ContentFormat.AD_COPY: AdCopyGeneratorAdapter(AIAdCopyGenerator()),
+
+            # Video generators (already AI-powered)
             ContentFormat.VIDEO_SCRIPT: VideoScriptGenerator(),
             ContentFormat.VIDEO_SLIDESHOW: EnhancedVideoScriptGenerator(),    # Creates script + slideshow video
             ContentFormat.VIDEO_TALKING_HEAD: EnhancedVideoScriptGenerator(), # Creates script + AI avatar video
             ContentFormat.VIDEO_ANIMATED: EnhancedVideoScriptGenerator(),     # Creates script + animated video
             ContentFormat.VIDEO_KINETIC_TEXT: EnhancedVideoScriptGenerator(), # Creates script + kinetic text video
-            ContentFormat.AD_COPY: AdCopyGenerator(),
+
+            # Placeholder generators (to be implemented later)
             ContentFormat.IMAGE: ImageGenerator(),
             ContentFormat.INFOGRAPHIC: InfographicGenerator(),
             ContentFormat.LANDING_PAGE: LandingPageGenerator(),
@@ -808,6 +816,275 @@ class EmailSequenceAdapter(ContentGenerator):
         return {
             "sequence_length": "3-7 emails",
             "psychology_stages": "7-stage framework",
+            "ai_powered": True,
+            "intelligence_driven": True
+        }
+
+
+class SocialMediaGeneratorAdapter(ContentGenerator):
+    """
+    Adapter for the new AI-powered SocialMediaGenerator
+    Converts UniversalSalesEngine's SalesVariables to the new SocialMediaGenerator's intelligence_data format
+    """
+
+    def __init__(self, social_generator):
+        self.social_generator = social_generator
+
+    async def generate(
+        self,
+        sales_variables: SalesVariables,
+        user_context: Dict[str, Any],
+        psychology_stage: SalesPsychologyStage,
+        ai_provider: UnifiedUltraCheapProvider,
+        specific_requirements: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate social media posts using new AI-powered generator"""
+
+        # Convert SalesVariables to intelligence_data format
+        intelligence_data = self._convert_sales_variables_to_intelligence(sales_variables)
+
+        # Generate social content
+        result = await self.social_generator.generate_social_content(
+            campaign_id=user_context.get("campaign_id", "social_post"),
+            intelligence_data=intelligence_data,
+            platform=specific_requirements.get("platform", "instagram"),
+            post_count=specific_requirements.get("post_count", 5),
+            tone=specific_requirements.get("tone", "engaging"),
+            target_audience=sales_variables.target_audience,
+            preferences=specific_requirements
+        )
+
+        if result.get("success"):
+            return {
+                "content": {
+                    "posts": result.get("posts", []),
+                    "content_info": result.get("content_info", {}),
+                    "total_posts": len(result.get("posts", []))
+                },
+                "generation_metadata": result.get("generation_metadata", {}),
+                "format_metadata": {
+                    "post_count": len(result.get("posts", [])),
+                    "ai_generated": True,
+                    "intelligence_enhanced": True,
+                    "platform": specific_requirements.get("platform", "instagram")
+                }
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.get("error", "Social media generation failed")
+            }
+
+    def _convert_sales_variables_to_intelligence(self, sales_variables: SalesVariables) -> Dict[str, Any]:
+        """Convert SalesVariables to intelligence_data format"""
+        return {
+            "product_name": sales_variables.product_name,
+            "offer_intelligence": {
+                "key_features": sales_variables.all_features,
+                "benefits": sales_variables.all_benefits,
+                "value_proposition": sales_variables.primary_benefit
+            },
+            "psychology_intelligence": {
+                "pain_points": sales_variables.all_pain_points,
+                "target_audience": sales_variables.target_audience,
+                "emotional_triggers": [sales_variables.emotional_trigger]
+            },
+            "competitive_intelligence": {
+                "differentiation_factors": sales_variables.all_competitive_advantages
+            },
+            "brand_intelligence": {
+                "brand_voice": "engaging",
+                "tone": "conversational"
+            }
+        }
+
+    def get_format_requirements(self) -> Dict[str, Any]:
+        return {
+            "supported_platforms": ["instagram", "linkedin", "twitter", "facebook"],
+            "post_count": "3-10 posts",
+            "ai_powered": True,
+            "intelligence_driven": True
+        }
+
+
+class BlogContentGeneratorAdapter(ContentGenerator):
+    """
+    Adapter for the new AI-powered BlogContentGenerator
+    Converts UniversalSalesEngine's SalesVariables to the new BlogContentGenerator's intelligence_data format
+    """
+
+    def __init__(self, blog_generator):
+        self.blog_generator = blog_generator
+
+    async def generate(
+        self,
+        sales_variables: SalesVariables,
+        user_context: Dict[str, Any],
+        psychology_stage: SalesPsychologyStage,
+        ai_provider: UnifiedUltraCheapProvider,
+        specific_requirements: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate blog article using new AI-powered generator"""
+
+        # Convert SalesVariables to intelligence_data format
+        intelligence_data = self._convert_sales_variables_to_intelligence(sales_variables)
+
+        # Generate blog post
+        result = await self.blog_generator.generate_blog_post(
+            campaign_id=user_context.get("campaign_id", "blog_article"),
+            intelligence_data=intelligence_data,
+            topic=specific_requirements.get("topic"),
+            word_count=specific_requirements.get("word_count", 1500),
+            tone=specific_requirements.get("tone", "informative"),
+            target_audience=sales_variables.target_audience,
+            preferences=specific_requirements
+        )
+
+        if result.get("success"):
+            article = result.get("article", {})
+            return {
+                "content": {
+                    "title": article.get("title"),
+                    "content": article.get("content"),
+                    "sections": article.get("sections", []),
+                    "word_count": article.get("word_count"),
+                    "reading_time_minutes": article.get("reading_time_minutes"),
+                    "seo_elements": article.get("seo_elements", {})
+                },
+                "generation_metadata": result.get("generation_metadata", {}),
+                "format_metadata": {
+                    "word_count": article.get("word_count"),
+                    "ai_generated": True,
+                    "intelligence_enhanced": True,
+                    "seo_optimized": True
+                }
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.get("error", "Blog generation failed")
+            }
+
+    def _convert_sales_variables_to_intelligence(self, sales_variables: SalesVariables) -> Dict[str, Any]:
+        """Convert SalesVariables to intelligence_data format"""
+        return {
+            "product_name": sales_variables.product_name,
+            "offer_intelligence": {
+                "key_features": sales_variables.all_features,
+                "benefits": sales_variables.all_benefits,
+                "value_proposition": sales_variables.primary_benefit
+            },
+            "psychology_intelligence": {
+                "pain_points": sales_variables.all_pain_points,
+                "target_audience": sales_variables.target_audience,
+                "emotional_triggers": [sales_variables.emotional_trigger]
+            },
+            "competitive_intelligence": {
+                "differentiation_factors": sales_variables.all_competitive_advantages
+            },
+            "brand_intelligence": {
+                "brand_voice": "authoritative",
+                "tone": "informative"
+            }
+        }
+
+    def get_format_requirements(self) -> Dict[str, Any]:
+        return {
+            "word_count": "800-2000 words",
+            "seo_optimized": True,
+            "ai_powered": True,
+            "intelligence_driven": True
+        }
+
+
+class AdCopyGeneratorAdapter(ContentGenerator):
+    """
+    Adapter for the new AI-powered AdCopyGenerator
+    Converts UniversalSalesEngine's SalesVariables to the new AdCopyGenerator's intelligence_data format
+    """
+
+    def __init__(self, ad_generator):
+        self.ad_generator = ad_generator
+
+    async def generate(
+        self,
+        sales_variables: SalesVariables,
+        user_context: Dict[str, Any],
+        psychology_stage: SalesPsychologyStage,
+        ai_provider: UnifiedUltraCheapProvider,
+        specific_requirements: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate ad copy using new AI-powered generator"""
+
+        # Convert SalesVariables to intelligence_data format
+        intelligence_data = self._convert_sales_variables_to_intelligence(sales_variables)
+
+        # Generate ad copy
+        result = await self.ad_generator.generate_ad_copy(
+            campaign_id=user_context.get("campaign_id", "ad_copy"),
+            intelligence_data=intelligence_data,
+            platform=specific_requirements.get("platform", "google"),
+            ad_format=specific_requirements.get("ad_format", "responsive"),
+            variation_count=specific_requirements.get("variation_count", 3),
+            tone=specific_requirements.get("tone", "persuasive"),
+            target_audience=sales_variables.target_audience,
+            preferences=specific_requirements
+        )
+
+        if result.get("success"):
+            return {
+                "content": {
+                    "ads": result.get("ads", []),
+                    "content_info": result.get("content_info", {}),
+                    "total_variations": len(result.get("ads", []))
+                },
+                "generation_metadata": result.get("generation_metadata", {}),
+                "format_metadata": {
+                    "variation_count": len(result.get("ads", [])),
+                    "ai_generated": True,
+                    "intelligence_enhanced": True,
+                    "platform": specific_requirements.get("platform", "google"),
+                    "ad_format": specific_requirements.get("ad_format", "responsive")
+                }
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.get("error", "Ad copy generation failed")
+            }
+
+    def _convert_sales_variables_to_intelligence(self, sales_variables: SalesVariables) -> Dict[str, Any]:
+        """Convert SalesVariables to intelligence_data format"""
+        return {
+            "product_name": sales_variables.product_name,
+            "offer_intelligence": {
+                "key_features": sales_variables.all_features,
+                "benefits": sales_variables.all_benefits,
+                "value_proposition": sales_variables.primary_benefit,
+                "pricing_info": sales_variables.price_point
+            },
+            "psychology_intelligence": {
+                "pain_points": sales_variables.all_pain_points,
+                "target_audience": sales_variables.target_audience,
+                "emotional_triggers": [sales_variables.emotional_trigger],
+                "urgency_factors": [sales_variables.scarcity_indicator]
+            },
+            "competitive_intelligence": {
+                "differentiation_factors": sales_variables.all_competitive_advantages,
+                "unique_selling_points": [sales_variables.competitive_advantage]
+            },
+            "brand_intelligence": {
+                "brand_voice": "persuasive",
+                "tone": "urgent"
+            }
+        }
+
+    def get_format_requirements(self) -> Dict[str, Any]:
+        return {
+            "supported_platforms": ["google", "facebook", "instagram", "linkedin"],
+            "headline_length": "30-40 chars",
+            "description_length": "90 chars",
+            "variation_count": "3-5 variations",
             "ai_powered": True,
             "intelligence_driven": True
         }
