@@ -142,9 +142,15 @@ class EmailGenerator:
             if not emails or len(emails) < sequence_length:
                 logger.warning(f"⚠️ Only parsed {len(emails)} emails, expected {sequence_length}")
 
-            # Step 4: Enhance emails with metadata
-            enhanced_emails = self._enhance_emails_with_metadata(
+            # Step 4: Add greeting and signature to emails
+            formatted_emails = self._format_emails_with_greeting_and_signature(
                 emails=emails,
+                preferences=preferences
+            )
+
+            # Step 5: Enhance emails with metadata
+            enhanced_emails = self._enhance_emails_with_metadata(
+                emails=formatted_emails,
                 intelligence_data=intelligence_data,
                 prompt_result=prompt_result
             )
@@ -302,6 +308,32 @@ class EmailGenerator:
         except Exception as e:
             logger.warning(f"⚠️ Failed to extract email {email_number}: {e}")
             return None
+
+    def _format_emails_with_greeting_and_signature(
+        self,
+        emails: List[Dict[str, Any]],
+        preferences: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Add greeting and signature to email bodies"""
+
+        # Get greeting and signature from preferences, or use defaults
+        greeting = preferences.get("email_greeting", "Hi,")
+        signature = preferences.get("email_signature", "Best regards,\n[Your Name]")
+
+        formatted_emails = []
+
+        for email in emails:
+            # Add greeting at the start and signature at the end of the body
+            formatted_body = f"{greeting}\n\n{email['body']}\n\n{signature}"
+
+            formatted_email = {
+                **email,
+                "body": formatted_body
+            }
+            formatted_emails.append(formatted_email)
+
+        logger.info(f"✅ Added greeting and signature to {len(formatted_emails)} emails")
+        return formatted_emails
 
     def _enhance_emails_with_metadata(
         self,
