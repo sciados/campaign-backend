@@ -126,9 +126,22 @@ class IntegratedContentService:
             
         except Exception as e:
             logger.error(f"Content generation failed: {e}")
+
+            # Rollback the transaction to clear failed state
+            try:
+                await self.db.rollback()
+                logger.info("Transaction rolled back after error")
+            except Exception as rollback_error:
+                logger.error(f"Rollback failed: {rollback_error}")
+
+            # Try to update workflow status after rollback
             if 'workflow_id' in locals():
-                await self._update_workflow_status(workflow_id, "failed", error_details=str(e))
-            
+                try:
+                    await self._update_workflow_status(workflow_id, "failed", error_details=str(e))
+                    await self.db.commit()
+                except Exception as workflow_error:
+                    logger.error(f"Failed to update workflow status: {workflow_error}")
+
             return {
                 "success": False,
                 "error": str(e),
@@ -148,10 +161,10 @@ class IntegratedContentService:
                 LEFT JOIN product_data pd ON ic.id = pd.intelligence_id
                 LEFT JOIN market_data md ON ic.id = md.intelligence_id
                 WHERE ic.user_id IN (
-                    SELECT user_id FROM campaigns WHERE id = :campaign_id
+                    SELECT user_id FROM campaigns WHERE id = :campaign_id::uuid
                 ) OR ic.id IN (
-                    SELECT intelligence_id FROM campaign_intelligence 
-                    WHERE campaign_id = :campaign_id
+                    SELECT intelligence_id FROM campaign_intelligence
+                    WHERE campaign_id = :campaign_id::uuid
                 )
                 ORDER BY ic.confidence_score DESC
                 LIMIT 10
@@ -207,12 +220,12 @@ class IntegratedContentService:
                 # Email sequence generation
                 if 'email' in content_type_normalized:
                     # Support both 'email_count' and 'sequence_length' for backward compatibility
-                    email_count = preferences.get("email_count") or preferences.get("sequence_length", 5)
+                    sequence_length = preferences.get("email_count") or preferences.get("sequence_length", 5)
 
                     result = await generator.generate_email_sequence(
                         campaign_id=campaign_id,
                         intelligence_data=transformed_intelligence,
-                        email_count=email_count,
+                        sequence_length=sequence_length,
                         tone=preferences.get("tone", "persuasive"),
                         target_audience=preferences.get("target_audience"),
                         preferences=preferences
