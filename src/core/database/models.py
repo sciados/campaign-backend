@@ -127,8 +127,8 @@ class MarketData(Base):
 class KnowledgeBase(Base, TimestampMixin):
     """Centralized research repository with deduplication."""
     __tablename__ = "knowledge_base"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    id = Column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     content_hash = Column(String, unique=True, nullable=False, index=True)  # For deduplication
     content = Column(Text, nullable=False)
     research_type = Column(String, nullable=False, index=True)  # 'scientific', 'market', 'competitor'
@@ -146,10 +146,10 @@ class KnowledgeBase(Base, TimestampMixin):
 class IntelligenceResearch(Base):
     """Many-to-many relationship between intelligence and research."""
     __tablename__ = "intelligence_research"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    intelligence_id = Column(String, ForeignKey("intelligence_core.id", ondelete="CASCADE"), nullable=False)
-    research_id = Column(String, ForeignKey("knowledge_base.id", ondelete="CASCADE"), nullable=False)
+
+    id = Column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    intelligence_id = Column(PostgreSQLUUID(as_uuid=True), ForeignKey("intelligence_core.id", ondelete="CASCADE"), nullable=False)
+    research_id = Column(PostgreSQLUUID(as_uuid=True), ForeignKey("knowledge_base.id", ondelete="CASCADE"), nullable=False)
     relevance_score = Column(Float, default=0.0, index=True)
     
     # Relationships
