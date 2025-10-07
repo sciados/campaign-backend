@@ -475,10 +475,10 @@ class IntegratedContentService:
         try:
             query = text("""
                 UPDATE content_generation_workflows
-                SET workflow_status = :status,
+                SET workflow_status = CAST(:status AS VARCHAR),
                     items_completed = :items_completed,
                     error_details = :error_details,
-                    completed_at = CASE WHEN :status IN ('completed', 'failed') THEN NOW() ELSE completed_at END,
+                    completed_at = CASE WHEN CAST(:status AS VARCHAR) IN ('completed', 'failed') THEN NOW() ELSE completed_at END,
                     updated_at = NOW()
                 WHERE id = :workflow_id
             """)
