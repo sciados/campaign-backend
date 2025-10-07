@@ -78,6 +78,7 @@ class IntegratedContentService:
     ) -> Dict[str, Any]:
         """Generate content using existing generator system"""
         try:
+            logger.info(f"🎯 IntegratedContentService.generate_content called with user_id={user_id}, campaign_id={campaign_id}")
             logger.info(f"Generating {content_type} content for campaign {campaign_id}")
             
             # Create workflow tracking
@@ -93,6 +94,7 @@ class IntegratedContentService:
             intelligence_data = await self._get_campaign_intelligence(campaign_id)
             
             # Generate content using existing generators
+            logger.info(f"🔄 Calling _generate_with_existing_system with user_id={user_id}")
             result = await self._generate_with_existing_system(
                 content_type=content_type,
                 intelligence_data=intelligence_data,

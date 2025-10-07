@@ -119,6 +119,7 @@ class EmailGenerator:
                 try:
                     # Use provided user_id or fallback to system UUID if not provided
                     storage_user_id = str(user_id) if user_id else "00000000-0000-0000-0000-000000000000"
+                    logger.info(f"💾 EmailGenerator saving prompt with user_id={user_id} -> storage_user_id={storage_user_id}")
 
                     prompt_id = await self.prompt_storage.save_prompt(
                         campaign_id=str(campaign_id),
