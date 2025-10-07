@@ -97,7 +97,8 @@ class IntegratedContentService:
                 content_type=content_type,
                 intelligence_data=intelligence_data,
                 preferences=preferences or {},
-                campaign_id=campaign_id
+                campaign_id=campaign_id,
+                user_id=user_id
             )
             
             # Store in existing generated_content table
@@ -201,7 +202,8 @@ class IntegratedContentService:
         content_type: str,
         intelligence_data: List[Dict],
         preferences: Dict[str, Any],
-        campaign_id: Union[str, UUID]
+        campaign_id: Union[str, UUID],
+        user_id: Union[str, UUID]
     ) -> Dict[str, Any]:
         """Generate content using AI-powered generator system with Intelligence → Prompt → AI pipeline"""
 
