@@ -1,282 +1,344 @@
 # src/content/generators/email_generator.py
-"""Remove ALL tempalate mock data and generate content using the campaign intelligence data"""
+"""
+AI-Powered Email Generator with Intelligence Integration
+Uses modular architecture: Intelligence → Prompt → AI → Content
+"""
 
 import logging
+import re
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime, timezone
 from uuid import UUID
 
+from src.content.services.prompt_generation_service import (
+    PromptGenerationService,
+    ContentType,
+    SalesPsychologyStage
+)
+from src.content.services.ai_provider_service import (
+    AIProviderService,
+    TaskComplexity
+)
+
 logger = logging.getLogger(__name__)
 
+
 class EmailGenerator:
-    """Enhanced Email Generator integrating with Intelligence Engine"""
-    
+    """
+    AI-powered Email Generator integrating with Intelligence Engine
+    Implements modular architecture from content-generation-implementation-plan.md
+    """
+
     def __init__(self):
         self.name = "email_generator"
-        self.version = "2.0.0"
+        self.version = "3.0.0"
+
+        # Initialize modular services
+        self.prompt_service = PromptGenerationService()
+        self.ai_service = AIProviderService()
+
         self._generation_stats = {
             "sequences_generated": 0,
             "total_emails_created": 0,
-            "learning_enabled_count": 0
+            "ai_generations": 0,
+            "total_cost": 0.0
         }
-    
+
+        logger.info(f"✅ EmailGenerator v{self.version} - Modular architecture with AI")
+
     async def generate_email_sequence(
         self,
         campaign_id: Union[str, UUID],
-        product_name: str,
-        sequence_length: int = 5,
+        intelligence_data: Dict[str, Any],
+        sequence_length: int = 7,
         tone: str = "conversational",
         target_audience: Optional[str] = None,
-        use_intelligence: bool = True,
-        enable_learning: bool = True
+        preferences: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Generate complete email sequence with intelligence integration"""
+        """
+        Generate complete 7-email sales psychology sequence using AI
+        Implements Intelligence → Prompt → AI → Content pipeline
+        """
+
+        if preferences is None:
+            preferences = {}
+
         try:
-            logger.info(f"Generating email sequence for campaign {campaign_id}")
-            
-            # Get campaign intelligence if available
-            campaign_intelligence = None
-            if use_intelligence:
-                campaign_intelligence = await self._get_campaign_intelligence(campaign_id)
-            
-            # Generate sequence
-            emails = []
-            for i in range(sequence_length):
-                email = await self._generate_single_email(
-                    email_number=i + 1,
-                    product_name=product_name,
-                    tone=tone,
-                    target_audience=target_audience,
-                    campaign_intelligence=campaign_intelligence,
-                    total_in_sequence=sequence_length
-                )
-                emails.append(email)
-            
+            logger.info(f"🎯 Generating {sequence_length}-email sequence for campaign {campaign_id}")
+
+            # Enhance intelligence data with preferences
+            if target_audience:
+                if "psychology_intelligence" not in intelligence_data:
+                    intelligence_data["psychology_intelligence"] = {}
+                intelligence_data["psychology_intelligence"]["target_audience"] = target_audience
+
+            if tone:
+                if "brand_intelligence" not in intelligence_data:
+                    intelligence_data["brand_intelligence"] = {}
+                intelligence_data["brand_intelligence"]["tone"] = tone
+
+            # Step 1: Generate optimized prompt from intelligence
+            prompt_result = await self.prompt_service.generate_prompt(
+                content_type=ContentType.EMAIL_SEQUENCE,
+                intelligence_data=intelligence_data,
+                psychology_stage=SalesPsychologyStage.SOLUTION_REVEAL,
+                preferences=preferences
+            )
+
+            if not prompt_result["success"]:
+                raise Exception(f"Prompt generation failed: {prompt_result.get('error')}")
+
+            logger.info(f"✅ Generated prompt with quality score: {prompt_result['quality_score']}")
+
+            # Step 2: Generate content using AI
+            ai_result = await self.ai_service.generate_text(
+                prompt=prompt_result["prompt"],
+                system_message=prompt_result["system_message"],
+                max_tokens=4000,
+                temperature=0.8,
+                task_complexity=TaskComplexity.STANDARD
+            )
+
+            if not ai_result["success"]:
+                raise Exception(f"AI generation failed: {ai_result.get('error')}")
+
+            logger.info(f"✅ AI generated content using {ai_result['provider_name']} (cost: ${ai_result['cost']:.4f})")
+
+            # Step 3: Parse email sequence from AI response
+            emails = self._parse_email_sequence(
+                ai_response=ai_result["content"],
+                sequence_length=sequence_length,
+                product_name=prompt_result["variables"].get("PRODUCT_NAME", "this product")
+            )
+
+            if not emails or len(emails) < sequence_length:
+                logger.warning(f"⚠️ Only parsed {len(emails)} emails, expected {sequence_length}")
+
+            # Step 4: Enhance emails with metadata
+            enhanced_emails = self._enhance_emails_with_metadata(
+                emails=emails,
+                intelligence_data=intelligence_data,
+                prompt_result=prompt_result
+            )
+
             # Update stats
             self._generation_stats["sequences_generated"] += 1
-            self._generation_stats["total_emails_created"] += len(emails)
-            if enable_learning:
-                self._generation_stats["learning_enabled_count"] += 1
-            
+            self._generation_stats["total_emails_created"] += len(enhanced_emails)
+            self._generation_stats["ai_generations"] += 1
+            self._generation_stats["total_cost"] += ai_result["cost"]
+
             return {
                 "success": True,
                 "campaign_id": str(campaign_id),
-                "emails": emails,
+                "emails": enhanced_emails,
                 "sequence_info": {
-                    "total_emails": len(emails),
-                    "product_name": product_name,
+                    "total_emails": len(enhanced_emails),
+                    "product_name": prompt_result["variables"].get("PRODUCT_NAME"),
                     "tone": tone,
-                    "intelligence_used": use_intelligence,
-                    "learning_enabled": enable_learning,
-                    "generation_method": "enhanced_ai"
+                    "target_audience": target_audience,
+                    "generation_method": "ai_with_intelligence",
+                    "ai_provider": ai_result["provider_name"]
                 },
                 "generation_metadata": {
                     "generated_at": datetime.now(timezone.utc).isoformat(),
                     "generator_version": self.version,
-                    "intelligence_sources": len(campaign_intelligence) if campaign_intelligence else 0
+                    "prompt_quality_score": prompt_result["quality_score"],
+                    "ai_cost": ai_result["cost"],
+                    "ai_provider": ai_result["provider"],
+                    "generation_time": ai_result["generation_time"],
+                    "intelligence_sources": len(intelligence_data.get("intelligence_sources", [])),
+                    "variables_used": len(prompt_result["variables"])
                 }
             }
-            
+
         except Exception as e:
-            logger.error(f"Email sequence generation failed: {e}")
+            logger.error(f"❌ Email sequence generation failed: {e}")
             return {
                 "success": False,
                 "error": str(e),
                 "campaign_id": str(campaign_id)
             }
-    
-    async def _get_campaign_intelligence(self, campaign_id: Union[str, UUID]) -> Optional[List[Dict]]:
-        """Get campaign intelligence for email generation"""
+
+    def _parse_email_sequence(
+        self,
+        ai_response: str,
+        sequence_length: int,
+        product_name: str
+    ) -> List[Dict[str, Any]]:
+        """Parse AI response into structured email sequence"""
+
+        emails = []
+
+        # Try to parse structured format
         try:
-            # This would integrate with the Intelligence Module
-            # For now, return None - will be implemented when services are re-enabled
-            return None
+            email_pattern = r'EMAIL_(\d+)\s*\n(.*?)(?=EMAIL_\d+|$)'
+            matches = re.findall(email_pattern, ai_response, re.DOTALL | re.IGNORECASE)
+
+            for match in matches:
+                email_num = int(match[0])
+                email_content = match[1].strip()
+
+                email_data = self._extract_email_components(
+                    content=email_content,
+                    email_number=email_num,
+                    product_name=product_name
+                )
+
+                if email_data:
+                    emails.append(email_data)
+
+            if emails:
+                logger.info(f"✅ Parsed {len(emails)} emails using structured format")
+                return emails[:sequence_length]
+
         except Exception as e:
-            logger.error(f"Failed to get campaign intelligence: {e}")
-            return None
-    
-    async def _generate_single_email(
+            logger.warning(f"⚠️ Structured parsing failed: {e}")
+
+        # Fallback: split by separators
+        try:
+            sections = re.split(r'\n---+\n|\n===+\n', ai_response)
+
+            for idx, section in enumerate(sections):
+                if len(section.strip()) < 50:
+                    continue
+
+                email_data = self._extract_email_components(
+                    content=section,
+                    email_number=idx + 1,
+                    product_name=product_name
+                )
+
+                if email_data:
+                    emails.append(email_data)
+
+            if emails:
+                logger.info(f"✅ Parsed {len(emails)} emails using fallback method")
+                return emails[:sequence_length]
+
+        except Exception as e:
+            logger.error(f"❌ Fallback parsing failed: {e}")
+
+        logger.warning("⚠️ Using emergency placeholder emails")
+        return self._generate_placeholder_emails(sequence_length, product_name)
+
+    def _extract_email_components(
         self,
+        content: str,
         email_number: int,
-        product_name: str,
-        tone: str,
-        target_audience: Optional[str],
-        campaign_intelligence: Optional[List[Dict]],
-        total_in_sequence: int
-    ) -> Dict[str, Any]:
-        """Generate a single email in the sequence"""
-        
-        # Email timing strategy
-        send_delays = ["immediate", "2 days", "4 days", "7 days", "10 days", "14 days", "21 days"]
-        strategic_angles = [
-            "curiosity_introduction",
-            "problem_awareness", 
-            "solution_presentation",
-            "social_proof",
-            "urgency_close",
-            "bonus_offer",
-            "final_opportunity"
-        ]
-        
-        delay = send_delays[min(email_number - 1, len(send_delays) - 1)]
-        angle = strategic_angles[min(email_number - 1, len(strategic_angles) - 1)]
-        
-        # Generate subject line
-        subject = await self._generate_subject_line(
-            email_number=email_number,
-            product_name=product_name,
-            strategic_angle=angle,
-            intelligence=campaign_intelligence
-        )
-        
-        # Generate email body
-        body = await self._generate_email_body(
-            email_number=email_number,
-            product_name=product_name,
-            tone=tone,
-            target_audience=target_audience,
-            strategic_angle=angle,
-            intelligence=campaign_intelligence
-        )
-        
-        return {
-            "email_number": email_number,
-            "subject": subject,
-            "body": body,
-            "send_delay": delay,
-            "strategic_angle": angle,
-            "metadata": {
-                "total_in_sequence": total_in_sequence,
-                "intelligence_enhanced": campaign_intelligence is not None,
-                "generated_at": datetime.now(timezone.utc).isoformat()
+        product_name: str
+    ) -> Optional[Dict[str, Any]]:
+        """Extract subject, body, and metadata from email content"""
+
+        try:
+            lines = content.split('\n')
+            subject = ""
+            body_lines = []
+            send_delay = f"Day {email_number * 2 - 1}"
+            psychology_stage = "solution_reveal"
+
+            for line in lines:
+                line_stripped = line.strip()
+
+                if not line_stripped:
+                    continue
+
+                if line_stripped.lower().startswith('subject:'):
+                    subject = line_stripped[8:].strip()
+                elif line_stripped.lower().startswith('body:'):
+                    body_lines.append(line_stripped[5:].strip())
+                elif line_stripped.lower().startswith(('send_delay:', 'send delay:')):
+                    send_delay = line_stripped.split(':', 1)[1].strip()
+                elif line_stripped.lower().startswith(('psychology_stage:', 'psychology stage:')):
+                    psychology_stage = line_stripped.split(':', 1)[1].strip()
+                elif not any(line_stripped.lower().startswith(p) for p in ['email_', 'email ', '---', '===']):
+                    if subject:
+                        body_lines.append(line_stripped)
+                    elif not subject and len(line_stripped) < 100:
+                        subject = line_stripped
+
+            body = '\n'.join(body_lines).strip()
+
+            if not subject or not body:
+                return None
+
+            return {
+                "email_number": email_number,
+                "subject": subject,
+                "body": body,
+                "send_delay": send_delay,
+                "psychology_stage": psychology_stage,
+                "product_name": product_name,
+                "generation_method": "ai"
             }
-        }
-    
-    async def _generate_subject_line(
+
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to extract email {email_number}: {e}")
+            return None
+
+    def _enhance_emails_with_metadata(
         self,
-        email_number: int,
-        product_name: str,
-        strategic_angle: str,
-        intelligence: Optional[List[Dict]]
-    ) -> str:
-        """Last resort fallback is to generate subject line using templates and intelligence"""
-        """Ai should always generate subject lines using the stored campaign intelligence and introduce the product_name"""
-        
-        # Subject line templates by strategic angle
-        templates = {
-            "curiosity_introduction": [
-                f"The {product_name} secret nobody talks about",
-                f"What {product_name} users wish they knew sooner",
-                f"Inside: The {product_name} approach that changes everything"
-            ],
-            "problem_awareness": [
-                f"Why {product_name} might not work for you (unless...)",
-                f"The {product_name} mistake 90% of people make",
-                f"Warning: Don't try {product_name} until you read this"
-            ],
-            "solution_presentation": [
-                f"How {product_name} solves your biggest challenge",
-                f"The {product_name} method that actually works",
-                f"{product_name}: Your step-by-step solution"
-            ],
-            "social_proof": [
-                f"Why thousands choose {product_name} over alternatives",
-                f"Real {product_name} results from real people",
-                f"Case study: How {product_name} transformed [specific result]"
-            ],
-            "urgency_close": [
-                f"Last chance for {product_name} at this price",
-                f"Your {product_name} discount expires tomorrow",
-                f"Final hours: {product_name} limited availability"
-            ]
-        }
-        
-        # Select template based on angle
-        angle_templates = templates.get(strategic_angle, templates["curiosity_introduction"])
-        
-        # For now, return first template - in full implementation, would use AI
-        return angle_templates[0]
-    
-    async def _generate_email_body(
+        emails: List[Dict[str, Any]],
+        intelligence_data: Dict[str, Any],
+        prompt_result: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Add rich metadata to each email"""
+
+        enhanced = []
+
+        for email in emails:
+            enhanced_email = {
+                **email,
+                "metadata": {
+                    "intelligence_enhanced": True,
+                    "variables_used": prompt_result.get("variables", {}),
+                    "prompt_quality_score": prompt_result.get("quality_score", 0),
+                    "intelligence_sources": len(intelligence_data.get("intelligence_sources", [])),
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                    "generator_version": self.version
+                }
+            }
+            enhanced.append(enhanced_email)
+
+        return enhanced
+
+    def _generate_placeholder_emails(
         self,
-        email_number: int,
-        product_name: str,
-        tone: str,
-        target_audience: Optional[str],
-        strategic_angle: str,
-        intelligence: Optional[List[Dict]]
-    ) -> str:
-        """Generate email body content"""
-        
-        # Email structure templates
-        if strategic_angle == "curiosity_introduction":
-            body = f"""Hi there,
+        count: int,
+        product_name: str
+    ) -> List[Dict[str, Any]]:
+        """Generate placeholder emails as emergency fallback"""
 
-I wanted to share something with you about {product_name} that most people don't realize...
+        psychology_stages = [
+            "problem_awareness",
+            "problem_agitation",
+            "solution_reveal",
+            "benefit_proof",
+            "social_validation",
+            "urgency_creation",
+            "objection_handling"
+        ]
 
-[Opening hook based on intelligence insights]
+        emails = []
+        for i in range(count):
+            stage = psychology_stages[i % len(psychology_stages)]
 
-The truth is, {product_name} isn't just another solution. It's designed specifically for people who [target audience insight].
+            emails.append({
+                "email_number": i + 1,
+                "subject": f"Important Update About {product_name}",
+                "body": f"Discover how {product_name} can help you achieve your goals.\n\nLearn more about the benefits and see why thousands of customers trust {product_name}.",
+                "send_delay": f"Day {i * 2 + 1}",
+                "psychology_stage": stage,
+                "product_name": product_name,
+                "generation_method": "placeholder_fallback"
+            })
 
-Here's what makes it different:
+        return emails
 
-• [Key differentiator 1]
-• [Key differentiator 2]  
-• [Key differentiator 3]
-
-I'll share more details in my next email, including [specific benefit preview].
-
-Talk soon,
-[Sender Name]
-
-P.S. Keep an eye out for tomorrow's email - I'm sharing [curiosity hook for next email]."""
-
-        elif strategic_angle == "problem_awareness":
-            body = f"""Hi [Name],
-
-Yesterday I introduced you to {product_name}, and I want to address something important...
-
-Most people try {product_name} and don't get the results they expect. Here's why:
-
-[Problem identification based on intelligence]
-
-The issue isn't with {product_name} itself - it's how people approach it.
-
-Common mistakes I see:
-1. [Mistake 1 from intelligence insights]
-2. [Mistake 2 from audience analysis]
-3. [Mistake 3 from market research]
-
-But here's the good news...
-
-When you use {product_name} correctly, [specific transformation promise].
-
-Tomorrow, I'll show you exactly how to avoid these pitfalls and get maximum results.
-
-Best,
-[Sender Name]"""
-
-        else:
-            # Default template
-            body = f"""Hi [Name],
-
-Here's what I want to share with you about {product_name}...
-
-[Content based on strategic angle and intelligence]
-
-[Main message body]
-
-[Call to action]
-
-Best regards,
-[Sender Name]"""
-
-        return body
-    
     def get_stats(self) -> Dict[str, Any]:
         """Get email generator statistics"""
         return {
             "generator": self.name,
             "version": self.version,
-            "stats": self._generation_stats
+            "stats": self._generation_stats,
+            "ai_service_stats": self.ai_service.get_stats()
         }
