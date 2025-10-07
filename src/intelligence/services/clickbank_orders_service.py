@@ -1,7 +1,7 @@
 import requests
 import asyncio
 from datetime import datetime, timedelta
-from src.core.database.clickbank_repo import get_clickbank_creds
+from src.platforms.clickbank.services.clickbank_service import get_clickbank_creds
 
 BASE_URL = "https://api.clickbank.com/rest/1.3"
 
@@ -82,7 +82,7 @@ async def get_user_product_performance(user_id: str, days: int = 30) -> dict:
     """Get comprehensive product performance data for a user"""
     try:
         # Fetch both summary analytics and detailed orders
-        from src.intelligence.services.clickbank_service import fetch_sales_async
+        from src.platforms.clickbank.services.clickbank_service import fetch_sales_async
 
         summary_data = await fetch_sales_async(user_id, days)
         orders_data = await fetch_orders_async(user_id, days)

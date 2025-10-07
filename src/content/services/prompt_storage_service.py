@@ -4,6 +4,7 @@ Prompt Storage Service
 Handles saving, retrieving, and managing AI-generated prompts
 """
 
+import json
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -100,7 +101,7 @@ class PromptStorageService:
                 "psychology_stage": psychology_stage,
                 "user_prompt": user_prompt,
                 "system_message": system_message,
-                "intelligence_variables": str(intelligence_variables),
+                "intelligence_variables": json.dumps(intelligence_variables),
                 "prompt_template_id": prompt_template_id,
                 "quality_score": quality_score,
                 "variable_count": variable_count,
