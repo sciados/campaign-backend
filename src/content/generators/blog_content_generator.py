@@ -137,7 +137,7 @@ class BlogContentGenerator:
                 try:
                     prompt_id = await self.prompt_storage.save_prompt(
                         campaign_id=str(campaign_id),
-                        user_id="system",
+                        user_id="00000000-0000-0000-0000-000000000000",  # System user UUID placeholder
                         content_type="blog_article",
                         user_prompt=prompt_result["prompt"],
                         system_message=prompt_result["system_message"],

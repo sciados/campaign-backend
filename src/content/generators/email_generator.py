@@ -118,7 +118,7 @@ class EmailGenerator:
                 try:
                     prompt_id = await self.prompt_storage.save_prompt(
                         campaign_id=str(campaign_id),
-                        user_id="system",  # Will be updated by caller if user_id available
+                        user_id="00000000-0000-0000-0000-000000000000",  # System user UUID placeholder
                         content_type="email_sequence" if sequence_length > 1 else "email",
                         user_prompt=prompt_result["prompt"],
                         system_message=prompt_result["system_message"],
