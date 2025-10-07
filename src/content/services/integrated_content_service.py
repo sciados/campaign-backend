@@ -161,10 +161,10 @@ class IntegratedContentService:
                 LEFT JOIN product_data pd ON ic.id = pd.intelligence_id
                 LEFT JOIN market_data md ON ic.id = md.intelligence_id
                 WHERE ic.user_id IN (
-                    SELECT user_id FROM campaigns WHERE id = :campaign_id::uuid
+                    SELECT user_id FROM campaigns WHERE id = CAST(:campaign_id AS UUID)
                 ) OR ic.id IN (
                     SELECT intelligence_id FROM campaign_intelligence
-                    WHERE campaign_id = :campaign_id::uuid
+                    WHERE campaign_id = CAST(:campaign_id AS UUID)
                 )
                 ORDER BY ic.confidence_score DESC
                 LIMIT 10
