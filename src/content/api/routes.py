@@ -2687,3 +2687,17 @@ async def get_content_stats(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/version")
+async def get_version():
+    """Get current code version for debugging"""
+    import subprocess
+    try:
+        commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
+    except:
+        commit_hash = "unknown"
+    
+    return {
+        "commit": commit_hash,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "user_id_fix_deployed": True  # Marker to confirm our fix is live
+    }
