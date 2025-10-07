@@ -603,7 +603,8 @@ class IntegratedContentService:
                 WHERE campaign_id::text = :campaign_id
             """
 
-            params = {"campaign_id": campaign_id}
+            params = {"campaign_id": str(campaign_id)}  # Ensure string conversion
+            print(f"DEBUG: get_campaign_content called with campaign_id={campaign_id}, content_type={content_type}")
 
             # Add content_type filter if specified
             if content_type:
@@ -616,8 +617,11 @@ class IntegratedContentService:
             params["offset"] = offset
 
             query = text(base_query)
+            print(f"DEBUG: Executing query: {base_query}")
+            print(f"DEBUG: With params: {params}")
             result = await self.db.execute(query, params)
             rows = result.fetchall()
+            print(f"DEBUG: Query returned {len(rows)} rows")
 
             content_list = []
             for row in rows:
@@ -631,11 +635,15 @@ class IntegratedContentService:
                             metadata = row.content_metadata
 
                     content_item = {
+                        "id": str(row.id),  # Add both for compatibility
                         "content_id": str(row.id),
                         "content_type": row.content_type,
                         "title": row.content_title,
+                        "content_title": row.content_title,  # Add both for compatibility
                         "body": row.content_body,
+                        "content": row.content_body,  # Add both for compatibility
                         "metadata": metadata,
+                        "content_metadata": metadata,  # Add both for compatibility
                         "created_at": row.created_at.isoformat() if row.created_at else None,
                         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
                         "is_published": row.is_published,
@@ -646,6 +654,7 @@ class IntegratedContentService:
                         "source": "integrated_content_service"
                     }
                     content_list.append(content_item)
+                    print(f"DEBUG: Added content item with id={content_item['content_id']}, type={content_item['content_type']}")
                 except Exception as parse_error:
                     logger.warning(f"Error parsing content row: {parse_error}")
                     continue

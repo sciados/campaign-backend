@@ -142,9 +142,12 @@ class UniversalSalesEngine:
         # Import enhanced video generator
         from src.content.services.video_generation_service import EnhancedVideoScriptGenerator
 
+        # Import AI-powered email generator (refactored modular architecture)
+        from src.content.generators.email_generator import EmailGenerator as AIEmailGenerator
+
         self.content_generators = {
-            ContentFormat.EMAIL: EmailGenerator(),
-            ContentFormat.EMAIL_SEQUENCE: EmailSequenceGenerator(),
+            ContentFormat.EMAIL: EmailGeneratorAdapter(AIEmailGenerator()),
+            ContentFormat.EMAIL_SEQUENCE: EmailSequenceAdapter(AIEmailGenerator()),
             ContentFormat.SOCIAL_POST: SocialPostGenerator(),
             ContentFormat.BLOG_ARTICLE: BlogArticleGenerator(),
             ContentFormat.VIDEO_SCRIPT: VideoScriptGenerator(),
@@ -602,6 +605,212 @@ class UniversalSalesEngine:
 
         await self.db.commit()
         return content_id
+
+
+# Adapter Classes - Bridge between UniversalSalesEngine and new AI-powered generators
+class EmailGeneratorAdapter(ContentGenerator):
+    """
+    Adapter for the new AI-powered EmailGenerator
+    Converts UniversalSalesEngine's SalesVariables to the new EmailGenerator's intelligence_data format
+    """
+
+    def __init__(self, email_generator):
+        self.email_generator = email_generator
+
+    async def generate(
+        self,
+        sales_variables: SalesVariables,
+        user_context: Dict[str, Any],
+        psychology_stage: SalesPsychologyStage,
+        ai_provider: UnifiedUltraCheapProvider,
+        specific_requirements: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate single email using new AI-powered generator"""
+
+        # Convert SalesVariables to intelligence_data format
+        intelligence_data = self._convert_sales_variables_to_intelligence(sales_variables)
+
+        # Map psychology stage
+        from src.content.services.prompt_generation_service import SalesPsychologyStage as PromptPsychologyStage
+        psychology_stage_map = {
+            SalesPsychologyStage.PROBLEM_AWARENESS: PromptPsychologyStage.PROBLEM_AWARENESS,
+            SalesPsychologyStage.PROBLEM_AGITATION: PromptPsychologyStage.PROBLEM_AGITATION,
+            SalesPsychologyStage.SOLUTION_REVEAL: PromptPsychologyStage.SOLUTION_REVEAL,
+            SalesPsychologyStage.BENEFIT_PROOF: PromptPsychologyStage.BENEFIT_PROOF,
+            SalesPsychologyStage.SOCIAL_VALIDATION: PromptPsychologyStage.SOCIAL_VALIDATION,
+            SalesPsychologyStage.URGENCY_CREATION: PromptPsychologyStage.URGENCY_CREATION,
+            SalesPsychologyStage.OBJECTION_HANDLING: PromptPsychologyStage.OBJECTION_HANDLING,
+            SalesPsychologyStage.CALL_TO_ACTION: PromptPsychologyStage.CALL_TO_ACTION,
+        }
+
+        mapped_stage = psychology_stage_map.get(psychology_stage, PromptPsychologyStage.SOLUTION_REVEAL)
+
+        # Generate single email (first email of sequence)
+        result = await self.email_generator.generate_email_sequence(
+            campaign_id="single_email",
+            intelligence_data=intelligence_data,
+            sequence_length=1,
+            tone=specific_requirements.get("tone", "conversational"),
+            target_audience=sales_variables.target_audience,
+            preferences=specific_requirements
+        )
+
+        if result.get("success") and result.get("emails"):
+            email = result["emails"][0]
+
+            return {
+                "content": {
+                    "subject": email.get("subject"),
+                    "body": email.get("body"),
+                    "cta": "Learn More",
+                    "product_name": email.get("product_name"),
+                    "psychology_stage": email.get("psychology_stage")
+                },
+                "generation_metadata": result.get("generation_metadata", {}),
+                "format_metadata": {
+                    "word_count": len(email.get("body", "").split()),
+                    "estimated_read_time": "2-3 minutes",
+                    "ai_generated": True,
+                    "intelligence_enhanced": True
+                }
+            }
+
+        raise Exception(f"Email generation failed: {result.get('error', 'Unknown error')}")
+
+    def _convert_sales_variables_to_intelligence(self, sales_variables: SalesVariables) -> Dict[str, Any]:
+        """Convert SalesVariables to intelligence_data format"""
+        return {
+            "product_name": sales_variables.product_name,
+            "offer_intelligence": {
+                "key_features": sales_variables.all_features,
+                "benefits": sales_variables.all_benefits,
+                "value_proposition": sales_variables.primary_benefit,
+                "pricing_info": sales_variables.price_point,
+                "guarantee_terms": sales_variables.guarantee_terms
+            },
+            "psychology_intelligence": {
+                "pain_points": sales_variables.all_pain_points,
+                "target_audience": sales_variables.target_audience,
+                "emotional_triggers": [sales_variables.emotional_trigger],
+                "desire_states": [sales_variables.primary_benefit]
+            },
+            "competitive_intelligence": {
+                "differentiation_factors": sales_variables.all_competitive_advantages,
+                "unique_selling_points": [sales_variables.competitive_advantage],
+                "market_positioning": sales_variables.authority_indicator
+            },
+            "brand_intelligence": {
+                "brand_voice": "professional",
+                "tone": "conversational"
+            },
+            "content_intelligence": {
+                "key_messages": sales_variables.all_benefits
+            }
+        }
+
+    def get_format_requirements(self) -> Dict[str, Any]:
+        return {
+            "max_subject_length": 60,
+            "max_body_length": 2000,
+            "required_elements": ["subject", "body", "cta"],
+            "tone": "persuasive",
+            "focus": "conversion",
+            "ai_powered": True
+        }
+
+
+class EmailSequenceAdapter(ContentGenerator):
+    """
+    Adapter for the new AI-powered EmailGenerator (sequence mode)
+    Generates complete 7-email sales psychology sequence
+    """
+
+    def __init__(self, email_generator):
+        self.email_generator = email_generator
+
+    async def generate(
+        self,
+        sales_variables: SalesVariables,
+        user_context: Dict[str, Any],
+        psychology_stage: SalesPsychologyStage,
+        ai_provider: UnifiedUltraCheapProvider,
+        specific_requirements: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate complete 7-email sequence using new AI-powered generator"""
+
+        # Convert SalesVariables to intelligence_data format
+        intelligence_data = self._convert_sales_variables_to_intelligence(sales_variables)
+
+        # Get sequence length from requirements
+        sequence_length = specific_requirements.get("sequence_length", 7)
+
+        # Generate complete email sequence
+        result = await self.email_generator.generate_email_sequence(
+            campaign_id="email_sequence",
+            intelligence_data=intelligence_data,
+            sequence_length=sequence_length,
+            tone=specific_requirements.get("tone", "conversational"),
+            target_audience=sales_variables.target_audience,
+            preferences=specific_requirements
+        )
+
+        if result.get("success"):
+            return {
+                "content": {
+                    "emails": result.get("emails", []),
+                    "sequence_info": result.get("sequence_info", {}),
+                    "total_emails": len(result.get("emails", [])),
+                    "psychology_sequence": "7-stage sales framework"
+                },
+                "generation_metadata": result.get("generation_metadata", {}),
+                "format_metadata": {
+                    "sequence_length": len(result.get("emails", [])),
+                    "ai_generated": True,
+                    "intelligence_enhanced": True,
+                    "follows_framework": "universal_sales_framework"
+                }
+            }
+
+        raise Exception(f"Email sequence generation failed: {result.get('error', 'Unknown error')}")
+
+    def _convert_sales_variables_to_intelligence(self, sales_variables: SalesVariables) -> Dict[str, Any]:
+        """Convert SalesVariables to intelligence_data format"""
+        return {
+            "product_name": sales_variables.product_name,
+            "offer_intelligence": {
+                "key_features": sales_variables.all_features,
+                "benefits": sales_variables.all_benefits,
+                "value_proposition": sales_variables.primary_benefit,
+                "pricing_info": sales_variables.price_point,
+                "guarantee_terms": sales_variables.guarantee_terms
+            },
+            "psychology_intelligence": {
+                "pain_points": sales_variables.all_pain_points,
+                "target_audience": sales_variables.target_audience,
+                "emotional_triggers": [sales_variables.emotional_trigger],
+                "desire_states": [sales_variables.primary_benefit]
+            },
+            "competitive_intelligence": {
+                "differentiation_factors": sales_variables.all_competitive_advantages,
+                "unique_selling_points": [sales_variables.competitive_advantage],
+                "market_positioning": sales_variables.authority_indicator
+            },
+            "brand_intelligence": {
+                "brand_voice": "professional",
+                "tone": "conversational"
+            },
+            "content_intelligence": {
+                "key_messages": sales_variables.all_benefits
+            }
+        }
+
+    def get_format_requirements(self) -> Dict[str, Any]:
+        return {
+            "sequence_length": "3-7 emails",
+            "psychology_stages": "7-stage framework",
+            "ai_powered": True,
+            "intelligence_driven": True
+        }
 
 
 # Content Generator Implementations for different formats

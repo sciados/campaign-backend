@@ -2040,6 +2040,108 @@ async def get_campaign_content(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+@router.get("/debug/campaign/{campaign_id}/query")
+async def debug_campaign_content_query(campaign_id: UUID):
+    """Debug endpoint to test campaign content query"""
+    try:
+        from sqlalchemy import text
+        import json
+
+        # Test direct database query
+        async with ServiceFactory.create_named_service("integrated_content") as content_service:
+            # Test with both string and UUID
+            test_queries = []
+
+            # Query 1: Using string campaign_id
+            query1 = text("""
+                SELECT id, campaign_id, content_type, content_title, content_body, content_metadata,
+                       created_at, updated_at, is_published
+                FROM generated_content
+                WHERE campaign_id::text = :campaign_id
+                ORDER BY created_at DESC
+                LIMIT 10
+            """)
+            result1 = await content_service.db.execute(query1, {"campaign_id": str(campaign_id)})
+            rows1 = result1.fetchall()
+            test_queries.append({
+                "query_type": "string_match",
+                "campaign_id": str(campaign_id),
+                "rows_found": len(rows1),
+                "sample_data": [dict(row._mapping) for row in rows1[:3]] if rows1 else []
+            })
+
+            # Query 2: Using direct UUID comparison
+            query2 = text("""
+                SELECT id, campaign_id, content_type, content_title, content_body, content_metadata,
+                       created_at, updated_at, is_published
+                FROM generated_content
+                WHERE campaign_id = :campaign_id
+                ORDER BY created_at DESC
+                LIMIT 10
+            """)
+            result2 = await content_service.db.execute(query2, {"campaign_id": campaign_id})
+            rows2 = result2.fetchall()
+            test_queries.append({
+                "query_type": "uuid_match",
+                "campaign_id": str(campaign_id),
+                "rows_found": len(rows2),
+                "sample_data": [dict(row._mapping) for row in rows2[:3]] if rows2 else []
+            })
+
+            # Query 3: Show all content in table
+            query3 = text("""
+                SELECT id, campaign_id, content_type, content_title, created_at
+                FROM generated_content
+                ORDER BY created_at DESC
+                LIMIT 5
+            """)
+            result3 = await content_service.db.execute(query3)
+            rows3 = result3.fetchall()
+            test_queries.append({
+                "query_type": "all_content",
+                "rows_found": len(rows3),
+                "sample_data": [dict(row._mapping) for row in rows3]
+            })
+
+            # Query 4: Check content_generations table if it exists
+            try:
+                query4 = text("""
+                    SELECT id, campaign_id, content_type, created_at
+                    FROM content_generations
+                    WHERE campaign_id = :campaign_id
+                    ORDER BY created_at DESC
+                    LIMIT 5
+                """)
+                result4 = await content_service.db.execute(query4, {"campaign_id": campaign_id})
+                rows4 = result4.fetchall()
+                test_queries.append({
+                    "query_type": "content_generations_table",
+                    "campaign_id": str(campaign_id),
+                    "rows_found": len(rows4),
+                    "sample_data": [dict(row._mapping) for row in rows4[:3]] if rows4 else []
+                })
+            except Exception as e:
+                test_queries.append({
+                    "query_type": "content_generations_table",
+                    "error": f"Table may not exist: {str(e)}",
+                    "rows_found": 0
+                })
+
+        return create_success_response(
+            data={
+                "campaign_id": str(campaign_id),
+                "test_results": test_queries,
+                "timestamp": "2025-10-06T22:43:00Z"
+            },
+            message="Debug query results"
+        )
+
+    except Exception as e:
+        return create_error_response(
+            message=f"Debug query failed: {str(e)}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 @router.get("/results/{campaign_id}")
 async def get_content_results_alias(
     campaign_id: UUID,
