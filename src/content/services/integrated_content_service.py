@@ -154,7 +154,7 @@ class IntegratedContentService:
         """Get campaign intelligence data from existing intelligence_core table"""
         try:
             # Note: campaigns.id and campaign_intelligence.campaign_id are UUID type
-            # We need to cast the string parameter to UUID for comparison
+            # Cast all ID columns to text for consistent comparison
             query = text("""
                 SELECT ic.product_name, ic.salespage_url, ic.confidence_score,
                        pd.features, pd.benefits, pd.ingredients, pd.conditions,
@@ -162,10 +162,10 @@ class IntegratedContentService:
                 FROM intelligence_core ic
                 LEFT JOIN product_data pd ON ic.id = pd.intelligence_id
                 LEFT JOIN market_data md ON ic.id = md.intelligence_id
-                WHERE ic.user_id IN (
-                    SELECT user_id FROM campaigns WHERE id::text = :campaign_id
-                ) OR ic.id IN (
-                    SELECT intelligence_id FROM campaign_intelligence
+                WHERE ic.user_id::text IN (
+                    SELECT user_id::text FROM campaigns WHERE id::text = :campaign_id
+                ) OR ic.id::text IN (
+                    SELECT intelligence_id::text FROM campaign_intelligence
                     WHERE campaign_id::text = :campaign_id
                 )
                 ORDER BY ic.confidence_score DESC
