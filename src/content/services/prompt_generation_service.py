@@ -425,6 +425,12 @@ Focus on {PRIMARY_BENEFIT} and maintain {TONE} tone.
             placeholder = "{" + key + "}"
             prompt = prompt.replace(placeholder, str(value))
 
+        # Add uniqueness instruction to prevent repetitive content
+        import time
+        variation_seed = int(time.time() * 1000) % 1000  # Millisecond-based variation
+        prompt += f"\n\nIMPORTANT: Create completely unique and original content. Variation seed: {variation_seed}"
+        prompt += "\nAvoid repetitive phrases, vary sentence structure, and use diverse vocabulary and approaches."
+
         # Add any additional preferences
         if preferences.get("additional_instructions"):
             prompt += f"\n\nADDITIONAL INSTRUCTIONS:\n{preferences['additional_instructions']}"
