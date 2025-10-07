@@ -1512,10 +1512,23 @@ async def generate_content_integrated(request: Dict[str, Any], db: AsyncSession 
             preferences=preferences
         )
 
-        # Store the generated content using robust storage service
+        # IntegratedContentService already stores content - skip duplicate storage
         storage_result = {"success": False}
         content_stored = False
-        if result.get("success"):
+
+        # Check if IntegratedContentService already stored the content
+        if result.get("success") and result.get("content_id"):
+            # Content already stored by IntegratedContentService
+            logger.info(f"Content already stored by IntegratedContentService: {result['content_id']}")
+            content_stored = True
+            storage_result = {
+                "success": True,
+                "content_id": result["content_id"],
+                "table_used": "generated_content",
+                "stored_by": "IntegratedContentService"
+            }
+        elif result.get("success"):
+            # Fallback: use ContentStorageService if IntegratedContentService didn't store
             try:
                 storage_service = ContentStorageService()
                 storage_result = await storage_service.store_generated_content(
@@ -1538,15 +1551,15 @@ async def generate_content_integrated(request: Dict[str, Any], db: AsyncSession 
                 logger.error(f"Storage service error: {storage_error}")
                 storage_result = {"success": False, "error": str(storage_error)}
 
-            result["session_info"] = {
-                "session": "6_robust_storage",
-                "direct_generation": True,
-                "generation_timestamp": request.get("timestamp"),
-                "content_stored": content_stored,
-                "storage_result": storage_result,
-                "content_id": storage_result.get("content_id") if content_stored else None,
-                "job_id": storage_result.get("job_id") if content_stored else None
-            }
+        result["session_info"] = {
+            "session": "6_ai_with_integrated_service",
+            "direct_generation": True,
+            "generation_timestamp": request.get("timestamp"),
+            "content_stored": content_stored,
+            "storage_result": storage_result,
+            "content_id": storage_result.get("content_id") if content_stored else None,
+            "job_id": storage_result.get("job_id") if content_stored else None
+        }
 
         return result
 
