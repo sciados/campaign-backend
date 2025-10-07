@@ -61,7 +61,8 @@ class SocialMediaGenerator:
         post_count: int = 5,
         tone: str = "engaging",
         target_audience: Optional[str] = None,
-        preferences: Optional[Dict[str, Any]] = None
+        preferences: Optional[Dict[str, Any]] = None,
+        user_id: Optional[Union[str, UUID]] = None
     ) -> Dict[str, Any]:
         """
         Generate social media content using AI
@@ -133,9 +134,11 @@ class SocialMediaGenerator:
             prompt_id = None
             if self.prompt_storage:
                 try:
+                    storage_user_id = str(user_id) if user_id else "00000000-0000-0000-0000-000000000000"
+
                     prompt_id = await self.prompt_storage.save_prompt(
                         campaign_id=str(campaign_id),
-                        user_id="00000000-0000-0000-0000-000000000000",  # System user UUID placeholder
+                        user_id=storage_user_id,
                         content_type=platform.lower(),
                         user_prompt=prompt_result["prompt"],
                         system_message=prompt_result["system_message"],

@@ -61,7 +61,8 @@ class EmailGenerator:
         sequence_length: int = 7,
         tone: str = "conversational",
         target_audience: Optional[str] = None,
-        preferences: Optional[Dict[str, Any]] = None
+        preferences: Optional[Dict[str, Any]] = None,
+        user_id: Optional[Union[str, UUID]] = None
     ) -> Dict[str, Any]:
         """
         Generate complete 7-email sales psychology sequence using AI
@@ -116,9 +117,12 @@ class EmailGenerator:
             prompt_id = None
             if self.prompt_storage:
                 try:
+                    # Use provided user_id or fallback to system UUID if not provided
+                    storage_user_id = str(user_id) if user_id else "00000000-0000-0000-0000-000000000000"
+
                     prompt_id = await self.prompt_storage.save_prompt(
                         campaign_id=str(campaign_id),
-                        user_id="00000000-0000-0000-0000-000000000000",  # System user UUID placeholder
+                        user_id=storage_user_id,
                         content_type="email_sequence" if sequence_length > 1 else "email",
                         user_prompt=prompt_result["prompt"],
                         system_message=prompt_result["system_message"],

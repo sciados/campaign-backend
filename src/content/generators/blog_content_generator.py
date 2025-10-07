@@ -62,7 +62,8 @@ class BlogContentGenerator:
         tone: str = "informative",
         target_audience: Optional[str] = None,
         include_sections: Optional[List[str]] = None,
-        preferences: Optional[Dict[str, Any]] = None
+        preferences: Optional[Dict[str, Any]] = None,
+        user_id: Optional[Union[str, UUID]] = None
     ) -> Dict[str, Any]:
         """
         Generate blog article using AI
@@ -135,9 +136,11 @@ class BlogContentGenerator:
             prompt_id = None
             if self.prompt_storage:
                 try:
+                    storage_user_id = str(user_id) if user_id else "00000000-0000-0000-0000-000000000000"
+
                     prompt_id = await self.prompt_storage.save_prompt(
                         campaign_id=str(campaign_id),
-                        user_id="00000000-0000-0000-0000-000000000000",  # System user UUID placeholder
+                        user_id=storage_user_id,
                         content_type="blog_article",
                         user_prompt=prompt_result["prompt"],
                         system_message=prompt_result["system_message"],

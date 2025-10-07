@@ -227,7 +227,8 @@ class IntegratedContentService:
                         sequence_length=sequence_length,
                         tone=preferences.get("tone", "persuasive"),
                         target_audience=preferences.get("target_audience"),
-                        preferences=preferences
+                        preferences=preferences,
+                        user_id=user_id
                     )
 
                 # Ad copy generation
@@ -240,7 +241,8 @@ class IntegratedContentService:
                         variation_count=preferences.get("variation_count", 3),
                         tone=preferences.get("tone", "persuasive"),
                         target_audience=preferences.get("target_audience"),
-                        preferences=preferences
+                        preferences=preferences,
+                        user_id=user_id
                     )
 
                 # Social media generation
@@ -252,7 +254,8 @@ class IntegratedContentService:
                         post_count=preferences.get("post_count", 5),
                         tone=preferences.get("tone", "engaging"),
                         target_audience=preferences.get("target_audience"),
-                        preferences=preferences
+                        preferences=preferences,
+                        user_id=user_id
                     )
 
                 # Blog post generation
@@ -265,7 +268,8 @@ class IntegratedContentService:
                         tone=preferences.get("tone", "informative"),
                         target_audience=preferences.get("target_audience"),
                         include_sections=preferences.get("include_sections"),
-                        preferences=preferences
+                        preferences=preferences,
+                        user_id=user_id
                     )
 
                 else:
