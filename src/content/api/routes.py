@@ -1464,7 +1464,7 @@ async def test_storage_system(db: AsyncSession = Depends(get_async_db)):
 
 @router.post("/generate")
 async def generate_content_integrated(request: Dict[str, Any], db: AsyncSession = Depends(get_async_db)):
-    """Generate content using simplified direct approach to avoid async context issues"""
+    """Generate content using AI-powered IntegratedContentService"""
     try:
         campaign_id = request.get("campaign_id")
         content_type = request.get("content_type")
@@ -1494,14 +1494,22 @@ async def generate_content_integrated(request: Dict[str, Any], db: AsyncSession 
         if "target_audience" in request:
             preferences["target_audience"] = request["target_audience"]
 
-        # Simplified direct content generation to avoid service factory async issues
-        result = await _generate_content_direct(
+        # Add email_count/sequence_length support
+        if "email_count" in request:
+            preferences["email_count"] = request["email_count"]
+        if "sequence_length" in request:
+            preferences["sequence_length"] = request["sequence_length"]
+
+        # USE AI-POWERED IntegratedContentService instead of old mock templates
+        from src.content.services.integrated_content_service import IntegratedContentService
+
+        content_service = IntegratedContentService(db)
+        result = await content_service.generate_content(
             campaign_id=campaign_id,
             content_type=content_type,
             user_id=user_id,
             company_id=company_id,
-            preferences=preferences,
-            db=db
+            preferences=preferences
         )
 
         # Store the generated content using robust storage service
