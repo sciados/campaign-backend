@@ -23,9 +23,9 @@ class IntegratedContentService:
         self._initialize_generators()
     
     def _initialize_generators(self):
-        """Initialize existing generators from intelligence module"""
+        """Initialize AI-powered generators with database session for prompt storage"""
         try:
-            # Import your existing generators
+            # Import AI-powered generators with Intelligence → Prompt → AI pipeline
             from src.content.generators import (
                 EmailGenerator,
                 AdCopyGenerator,
@@ -34,28 +34,28 @@ class IntegratedContentService:
                 BlogContentGenerator
             )
 
-            # Initialize available generators
+            # Initialize available generators WITH db_session for prompt storage
             available = get_available_generators()
 
             # available is a list of generator class names, not a dict
             if "EmailGenerator" in available:
-                self._generators["email"] = EmailGenerator()
-                self._generators["email_sequence"] = EmailGenerator()
+                self._generators["email"] = EmailGenerator(db_session=self.db)
+                self._generators["email_sequence"] = EmailGenerator(db_session=self.db)
                 logger.info("Email sequence generator loaded")
 
             if "AdCopyGenerator" in available:
-                self._generators["ad_copy"] = AdCopyGenerator()
-                self._generators["advertisement"] = AdCopyGenerator()
+                self._generators["ad_copy"] = AdCopyGenerator(db_session=self.db)
+                self._generators["advertisement"] = AdCopyGenerator(db_session=self.db)
                 logger.info("Ad copy generator loaded")
 
             if "BlogContentGenerator" in available:
-                self._generators["blog_post"] = BlogContentGenerator()
-                self._generators["blogposts"] = BlogContentGenerator()
+                self._generators["blog_post"] = BlogContentGenerator(db_session=self.db)
+                self._generators["blogposts"] = BlogContentGenerator(db_session=self.db)
                 logger.info("Blog Post generator loaded")
 
             if "SocialMediaGenerator" in available:
-                self._generators["social_post"] = SocialMediaGenerator()
-                self._generators["social_media"] = SocialMediaGenerator()
+                self._generators["social_post"] = SocialMediaGenerator(db_session=self.db)
+                self._generators["social_media"] = SocialMediaGenerator(db_session=self.db)
                 logger.info("Social media generator loaded")
 
             # Always set factory to None to avoid errors
@@ -191,52 +191,137 @@ class IntegratedContentService:
         preferences: Dict[str, Any],
         campaign_id: Union[str, UUID]
     ) -> Dict[str, Any]:
-        """Generate content using existing generator system"""
-        
+        """Generate content using AI-powered generator system with Intelligence → Prompt → AI pipeline"""
+
         # Normalize content type
         content_type_normalized = content_type.lower()
-        
-        # Try factory first if available
-        if self._factory:
-            try:
-                result = await self._factory.generate_content(
-                    content_type=content_type_normalized,
-                    intelligence_data=intelligence_data,
-                    preferences=preferences
-                )
-                
-                if not result.get("error") and not result.get("fallback"):
-                    logger.info(f"Content generated using factory for {content_type}")
-                    return result
-                    
-            except Exception as e:
-                logger.warning(f"Factory generation failed: {e}")
-        
-        # Fallback to direct generator access
+
+        # Transform intelligence data to the format expected by new generators
+        transformed_intelligence = self._transform_intelligence_for_ai_generators(intelligence_data)
+
+        # Use AI-powered generators with new methods
         if content_type_normalized in self._generators:
             generator = self._generators[content_type_normalized]
-            
+
             try:
-                if hasattr(generator, 'generate_content'):
-                    result = await generator.generate_content(intelligence_data, preferences)
-                elif hasattr(generator, 'generate_email_sequence') and 'email' in content_type_normalized:
-                    result = await generator.generate_email_sequence(intelligence_data, preferences)
-                elif hasattr(generator, 'generate_ad_copy') and 'ad' in content_type_normalized:
-                    result = await generator.generate_ad_copy(intelligence_data, preferences)
-                elif hasattr(generator, 'generate_social_posts') and 'social' in content_type_normalized:
-                    result = await generator.generate_social_posts(intelligence_data, preferences)
+                # Email sequence generation
+                if 'email' in content_type_normalized:
+                    result = await generator.generate_email_sequence(
+                        campaign_id=campaign_id,
+                        intelligence_data=transformed_intelligence,
+                        email_count=preferences.get("email_count", 3),
+                        tone=preferences.get("tone", "persuasive"),
+                        target_audience=preferences.get("target_audience"),
+                        preferences=preferences
+                    )
+
+                # Ad copy generation
+                elif 'ad' in content_type_normalized:
+                    result = await generator.generate_ad_copy(
+                        campaign_id=campaign_id,
+                        intelligence_data=transformed_intelligence,
+                        platform=preferences.get("platform", "google"),
+                        ad_format=preferences.get("ad_format", "responsive"),
+                        variation_count=preferences.get("variation_count", 3),
+                        tone=preferences.get("tone", "persuasive"),
+                        target_audience=preferences.get("target_audience"),
+                        preferences=preferences
+                    )
+
+                # Social media generation
+                elif 'social' in content_type_normalized:
+                    result = await generator.generate_social_content(
+                        campaign_id=campaign_id,
+                        intelligence_data=transformed_intelligence,
+                        platform=preferences.get("platform", "instagram"),
+                        post_count=preferences.get("post_count", 5),
+                        tone=preferences.get("tone", "engaging"),
+                        target_audience=preferences.get("target_audience"),
+                        preferences=preferences
+                    )
+
+                # Blog post generation
+                elif 'blog' in content_type_normalized:
+                    result = await generator.generate_blog_post(
+                        campaign_id=campaign_id,
+                        intelligence_data=transformed_intelligence,
+                        topic=preferences.get("topic"),
+                        word_count=preferences.get("word_count", 1500),
+                        tone=preferences.get("tone", "informative"),
+                        target_audience=preferences.get("target_audience"),
+                        include_sections=preferences.get("include_sections"),
+                        preferences=preferences
+                    )
+
                 else:
-                    # Try generic generate method
-                    result = await generator.generate_content(intelligence_data, preferences)
-                
-                logger.info(f"Content generated using {content_type} generator")
+                    # Generic fallback
+                    result = await generator.generate_content(transformed_intelligence, preferences)
+
+                logger.info(f"✅ AI-powered content generated using {content_type} generator")
                 return result
-                
+
             except Exception as e:
-                logger.error(f"Generator {content_type} failed: {e}")
-        
+                logger.error(f"❌ AI generator {content_type} failed: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+
         # Ultimate fallback - create basic content
         return await self._create_fallback_content(content_type, intelligence_data, preferences)
+
+    def _transform_intelligence_for_ai_generators(self, intelligence_data: List[Dict]) -> Dict[str, Any]:
+        """Transform old intelligence format to new Intelligence → Prompt → AI format"""
+
+        if not intelligence_data:
+            return {
+                "product_name": "Product",
+                "offer_intelligence": {},
+                "psychology_intelligence": {},
+                "brand_intelligence": {},
+                "market_intelligence": {}
+            }
+
+        # Use first intelligence record (highest confidence)
+        intel = intelligence_data[0]
+
+        return {
+            "product_name": intel.get("product_name", "Product"),
+            "salespage_url": intel.get("salespage_url"),
+            "confidence_score": intel.get("confidence_score", 0.0),
+
+            # Offer intelligence
+            "offer_intelligence": {
+                "key_features": intel.get("features", []),
+                "benefits": intel.get("benefits", []),
+                "ingredients": intel.get("ingredients", []),
+                "conditions": intel.get("conditions", []),
+                "competitive_advantages": intel.get("competitive_advantages", []),
+                "value_proposition": intel.get("positioning", "")
+            },
+
+            # Psychology intelligence
+            "psychology_intelligence": {
+                "target_audience": intel.get("target_audience", "general audience"),
+                "pain_points": intel.get("conditions", []),
+                "emotional_triggers": ["transformation", "improvement"],
+                "objections": []
+            },
+
+            # Brand intelligence
+            "brand_intelligence": {
+                "category": intel.get("category", ""),
+                "positioning": intel.get("positioning", ""),
+                "tone": "professional"
+            },
+
+            # Market intelligence
+            "market_intelligence": {
+                "category": intel.get("category", ""),
+                "competitive_advantages": intel.get("competitive_advantages", [])
+            },
+
+            # Intelligence sources (for metadata)
+            "intelligence_sources": ["campaign_intelligence"]
+        }
     
     async def _create_fallback_content(
         self,
