@@ -161,16 +161,16 @@ class IntegratedContentService:
                 LEFT JOIN product_data pd ON ic.id = pd.intelligence_id
                 LEFT JOIN market_data md ON ic.id = md.intelligence_id
                 WHERE ic.user_id IN (
-                    SELECT user_id FROM campaigns WHERE id = CAST(:campaign_id AS UUID)
+                    SELECT user_id FROM campaigns WHERE id = :campaign_id
                 ) OR ic.id IN (
                     SELECT intelligence_id FROM campaign_intelligence
-                    WHERE campaign_id = CAST(:campaign_id AS UUID)
+                    WHERE campaign_id = :campaign_id
                 )
                 ORDER BY ic.confidence_score DESC
                 LIMIT 10
             """)
-            
-            result = await self.db.execute(query, {"campaign_id": UUID(str(campaign_id))})
+
+            result = await self.db.execute(query, {"campaign_id": str(campaign_id)})
             rows = result.fetchall()
             
             intelligence_data = []
