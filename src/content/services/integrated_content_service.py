@@ -504,13 +504,24 @@ class IntegratedContentService:
         generation_settings: Dict[str, Any]
     ) -> UUID:
         """Store content in existing generated_content table"""
-        
+
         content_id = uuid4()
-        
+
+        # Normalize content_type to match database check constraint
+        normalized_content_type = content_type
+        if content_type.lower() in ['email', 'email_sequence']:
+            normalized_content_type = 'email_sequence'
+        elif content_type.lower() in ['social', 'social_post', 'social_media']:
+            normalized_content_type = 'social_media'
+        elif content_type.lower() in ['ad', 'ad_copy', 'advertisement']:
+            normalized_content_type = 'advertisement'
+        elif content_type.lower() in ['blog', 'blog_post', 'blog_article']:
+            normalized_content_type = 'blog_post'
+
         # Extract title and body from generated content
-        content_title = f"{content_type.title()} Content"
+        content_title = f"{normalized_content_type.replace('_', ' ').title()}"
         content_body = ""
-        
+
         if content_data.get("content"):
             if isinstance(content_data["content"], dict):
                 if "emails" in content_data["content"]:
@@ -547,7 +558,7 @@ class IntegratedContentService:
             "user_id": UUID(str(user_id)),
             "campaign_id": UUID(str(campaign_id)),
             "company_id": UUID(str(company_id)),
-            "content_type": content_type,
+            "content_type": normalized_content_type,
             "content_title": content_title,
             "content_body": content_body,
             "content_metadata": json.dumps(content_metadata),

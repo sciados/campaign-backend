@@ -84,7 +84,7 @@ class PromptStorageService:
                     :prompt_id, :campaign_id, :user_id, :content_id,
                     :content_type, :psychology_stage,
                     :user_prompt, :system_message,
-                    :intelligence_variables::jsonb, :prompt_template_id,
+                    CAST(:intelligence_variables AS jsonb), :prompt_template_id,
                     :quality_score, :variable_count, :prompt_length,
                     :ai_provider, :ai_model, :tokens_used, :generation_cost, :generation_time,
                     :created_at
