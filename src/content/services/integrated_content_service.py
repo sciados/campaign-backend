@@ -522,7 +522,29 @@ class IntegratedContentService:
         content_title = f"{normalized_content_type.replace('_', ' ').title()}"
         content_body = ""
 
-        if content_data.get("content"):
+        # Handle different generator response structures
+        # New AI generators return: {emails: [], ads: [], posts: [], article: {}}
+        # Legacy generators return: {content: {emails: [], ...}}
+
+        if content_data.get("emails"):
+            # Email generator format
+            content_title = f"Email Sequence ({len(content_data['emails'])} emails)"
+            content_body = json.dumps(content_data["emails"])
+        elif content_data.get("ads"):
+            # Ad copy generator format
+            content_title = f"Ad Copy ({len(content_data['ads'])} ads)"
+            content_body = json.dumps(content_data["ads"])
+        elif content_data.get("posts"):
+            # Social media generator format
+            content_title = f"Social Media Posts ({len(content_data['posts'])} posts)"
+            content_body = json.dumps(content_data["posts"])
+        elif content_data.get("article"):
+            # Blog generator format
+            article = content_data["article"]
+            content_title = article.get("title", "Blog Article")
+            content_body = article.get("content", "")
+        elif content_data.get("content"):
+            # Legacy format with nested content
             if isinstance(content_data["content"], dict):
                 if "emails" in content_data["content"]:
                     content_title = f"Email Sequence ({len(content_data['content']['emails'])} emails)"
@@ -546,11 +568,18 @@ class IntegratedContentService:
                     :content_body, :content_metadata, :generation_settings, 'existing_ai_system', 'generated')
         """)
         
+        # Extract metadata from different response structures
+        metadata = content_data.get("generation_metadata", content_data.get("metadata", {}))
+        sequence_info = content_data.get("sequence_info", content_data.get("content_info", {}))
+
         content_metadata = {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "generator_used": self._get_generator_name(content_type),
-            "original_response": content_data.get("metadata", {}),
-            "intelligence_enhanced": bool(content_data.get("intelligence_sources_used", 0))
+            "generation_metadata": metadata,
+            "content_info": sequence_info,
+            "intelligence_enhanced": bool(metadata.get("intelligence_sources", 0) or content_data.get("intelligence_sources_used", 0)),
+            "ai_provider": metadata.get("ai_provider", "unknown"),
+            "prompt_quality_score": metadata.get("prompt_quality_score", 0)
         }
         
         await self.db.execute(query, {
