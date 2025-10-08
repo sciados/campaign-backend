@@ -425,11 +425,49 @@ Focus on {PRIMARY_BENEFIT} and maintain {TONE} tone.
             placeholder = "{" + key + "}"
             prompt = prompt.replace(placeholder, str(value))
 
-        # Add uniqueness instruction to prevent repetitive content
+        # Add strong variation instructions to prevent repetitive content
         import time
-        variation_seed = int(time.time() * 1000) % 1000  # Millisecond-based variation
-        prompt += f"\n\nIMPORTANT: Create completely unique and original content. Variation seed: {variation_seed}"
-        prompt += "\nAvoid repetitive phrases, vary sentence structure, and use diverse vocabulary and approaches."
+        import random
+
+        variation_seed = int(time.time() * 1000) % 10000  # More granular seed
+        random.seed(variation_seed)
+
+        # Randomly select different creative approaches
+        opening_styles = [
+            "Start with a compelling question",
+            "Begin with a surprising statistic or fact",
+            "Open with a relatable story or scenario",
+            "Lead with a bold statement or declaration",
+            "Start with a vivid sensory description",
+            "Begin with a paradox or contradiction",
+            "Open with a provocative 'what if' scenario"
+        ]
+
+        narrative_approaches = [
+            "Use a problem-solution narrative arc",
+            "Follow a before-after-bridge structure",
+            "Use a storytelling approach with character journey",
+            "Employ a data-driven logical progression",
+            "Use emotional escalation and release pattern",
+            "Follow a challenge-insight-transformation flow",
+            "Use comparative contrast (old way vs new way)"
+        ]
+
+        selected_opening = random.choice(opening_styles)
+        selected_narrative = random.choice(narrative_approaches)
+
+        prompt += f"\n\n=== CRITICAL UNIQUENESS REQUIREMENTS (Seed: {variation_seed}) ==="
+        prompt += f"\n\nOPENING STYLE FOR THIS SEQUENCE: {selected_opening}"
+        prompt += f"\nNARRATIVE APPROACH FOR THIS SEQUENCE: {selected_narrative}"
+        prompt += "\n\nMANDATORY VARIATION RULES:"
+        prompt += "\n1. NEVER start emails with 'Have you ever...' - use completely different opening patterns"
+        prompt += "\n2. Vary sentence structure dramatically - mix short punchy sentences with longer flowing ones"
+        prompt += "\n3. Use different rhetorical devices: metaphors, analogies, questions, statements, stories"
+        prompt += "\n4. Change the emotional tone between emails: urgent, hopeful, analytical, empathetic, confident"
+        prompt += "\n5. Vary paragraph length and rhythm throughout the sequence"
+        prompt += "\n6. Use different vocabulary and avoid repeating the same descriptive words"
+        prompt += "\n7. Each email should feel like it was written by a different expert with a unique voice"
+        prompt += f"\n8. Make this sequence COMPLETELY DIFFERENT from any previous generation (variation #{variation_seed})"
 
         # Add any additional preferences
         if preferences.get("additional_instructions"):

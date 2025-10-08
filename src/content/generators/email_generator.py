@@ -99,12 +99,12 @@ class EmailGenerator:
 
             logger.info(f"✅ Generated prompt with quality score: {prompt_result['quality_score']}")
 
-            # Step 2: Generate content using AI
+            # Step 2: Generate content using AI with higher temperature for creativity
             ai_result = await self.ai_service.generate_text(
                 prompt=prompt_result["prompt"],
                 system_message=prompt_result["system_message"],
                 max_tokens=4000,
-                temperature=0.8,
+                temperature=0.9,  # Higher temperature for more varied, creative output
                 task_complexity=TaskComplexity.STANDARD
             )
 
