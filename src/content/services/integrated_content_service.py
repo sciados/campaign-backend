@@ -33,6 +33,7 @@ class IntegratedContentService:
                 BlogContentGenerator,
                 ImageGenerator,
                 VideoScriptGenerator,
+                LongFormArticleGenerator,
                 get_available_generators
             )
 
@@ -69,6 +70,10 @@ class IntegratedContentService:
                 self._generators["video_script"] = VideoScriptGenerator(db_session=self.db)
                 self._generators["video"] = VideoScriptGenerator(db_session=self.db)
                 logger.info("Video script generator loaded")
+
+            if "LongFormArticleGenerator" in available:
+                self._generators["long_form_article"] = LongFormArticleGenerator(db_session=self.db)
+                logger.info("Long-form article generator loaded")
 
             # Always set factory to None to avoid errors
             self._factory = None
@@ -372,6 +377,19 @@ class IntegratedContentService:
                         user_id=user_id
                     )
 
+                # Long-form article generation
+                elif 'long_form_article' in content_type_normalized:
+                    result = await generator.generate_long_form_article(
+                        campaign_id=campaign_id,
+                        intelligence_data=transformed_intelligence,
+                        word_count=preferences.get("word_count", 5000),
+                        article_type=preferences.get("article_type", "ultimate_guide"),
+                        tone=preferences.get("tone", "informative"),
+                        target_audience=preferences.get("target_audience"),
+                        preferences=preferences,
+                        user_id=user_id
+                    )
+
                 else:
                     # Generic fallback
                     result = await generator.generate_content(transformed_intelligence, preferences)
@@ -658,6 +676,8 @@ class IntegratedContentService:
             normalized_content_type = 'image'
         elif content_type.lower() in ['video', 'video_script']:
             normalized_content_type = 'video_script'
+        elif content_type.lower() == 'long_form_article':
+            normalized_content_type = 'long_form_article'
 
         # Extract title and body from generated content
         content_title = f"{normalized_content_type.replace('_', ' ').title()}"
