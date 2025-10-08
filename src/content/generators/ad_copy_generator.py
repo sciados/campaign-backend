@@ -422,21 +422,38 @@ class AdCopyGenerator:
         prompt_result: Dict[str, Any],
         platform: str
     ) -> List[Dict[str, Any]]:
-        """Add rich metadata to each ad"""
+        """Add rich metadata to each ad - separated into content vs generation_info"""
 
         enhanced = []
 
         for ad in ads:
+            # Separate actual ad content from generation metadata
             enhanced_ad = {
-                **ad,
-                "metadata": {
+                # === ACTUAL AD CONTENT (what user needs to use) ===
+                "content": {
+                    "variation_number": ad.get("variation_number"),
+                    "headlines": ad.get("headlines", []),
+                    "descriptions": ad.get("descriptions", []),
+                    "primary_text": ad.get("primary_text", ""),
+                    "call_to_action": ad.get("call_to_action", "Learn More")
+                },
+
+                # === PLATFORM & FORMAT INFO ===
+                "platform": ad.get("platform"),
+                "ad_format": ad.get("ad_format"),
+                "product_name": ad.get("product_name"),
+
+                # === GENERATION METADATA (for tracking/analysis) ===
+                "generation_info": {
+                    "character_limits": ad.get("character_limits", {}),
+                    "compliance_status": ad.get("compliance_status", {}),
+                    "generation_method": ad.get("generation_method", "ai"),
                     "intelligence_enhanced": True,
                     "variables_used": prompt_result.get("variables", {}),
                     "prompt_quality_score": prompt_result.get("quality_score", 0),
                     "intelligence_sources": len(intelligence_data.get("intelligence_sources", [])),
                     "generated_at": datetime.now(timezone.utc).isoformat(),
-                    "generator_version": self.version,
-                    "platform": platform
+                    "generator_version": self.version
                 }
             }
             enhanced.append(enhanced_ad)
@@ -457,29 +474,41 @@ class AdCopyGenerator:
 
         for i in range(count):
             ads.append({
-                "variation_number": i + 1,
+                # === ACTUAL AD CONTENT ===
+                "content": {
+                    "variation_number": i + 1,
+                    "headlines": [
+                        f"Try {product_name} Today",
+                        f"Discover {product_name}",
+                        f"Get Started with {product_name}"
+                    ],
+                    "descriptions": [
+                        f"Experience the benefits of {product_name}. Transform your results today.",
+                        f"Join thousands who trust {product_name} for success."
+                    ],
+                    "primary_text": f"Ready to transform your results? {product_name} is here to help.",
+                    "call_to_action": "Learn More"
+                },
+
+                # === PLATFORM & FORMAT INFO ===
                 "platform": platform,
                 "ad_format": ad_format,
-                "headlines": [
-                    f"Try {product_name} Today",
-                    f"Discover {product_name}",
-                    f"Get Started with {product_name}"
-                ],
-                "descriptions": [
-                    f"Experience the benefits of {product_name}. Transform your results today.",
-                    f"Join thousands who trust {product_name} for success."
-                ],
-                "primary_text": f"Ready to transform your results? {product_name} is here to help.",
-                "call_to_action": "Learn More",
                 "product_name": product_name,
-                "generation_method": "placeholder_fallback",
-                "character_limits": character_limits,
-                "compliance_status": {
-                    "is_compliant": True,
-                    "headline_compliance": True,
-                    "description_compliance": True,
-                    "headline_violations": [],
-                    "description_violations": []
+
+                # === GENERATION METADATA ===
+                "generation_info": {
+                    "character_limits": character_limits,
+                    "compliance_status": {
+                        "is_compliant": True,
+                        "headline_compliance": True,
+                        "description_compliance": True,
+                        "headline_violations": [],
+                        "description_violations": []
+                    },
+                    "generation_method": "placeholder_fallback",
+                    "intelligence_enhanced": False,
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                    "generator_version": self.version
                 }
             })
 
