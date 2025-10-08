@@ -32,7 +32,7 @@ class ImageGenerator:
 
     def __init__(self, db_session=None):
         self.name = "image_generator"
-        self.version = "3.0.0"
+        self.version = "3.1.0"
 
         # Initialize modular services
         self.prompt_service = PromptGenerationService()
@@ -40,6 +40,10 @@ class ImageGenerator:
         # API keys
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
         self.replicate_api_token = os.getenv("REPLICATE_API_TOKEN")
+
+        # Initialize Cloudflare R2 storage
+        from src.storage.services.cloudflare_service import CloudflareService
+        self.storage_service = CloudflareService()
 
         # Optional: Prompt storage service
         self.db_session = db_session
@@ -51,10 +55,11 @@ class ImageGenerator:
         self._generation_stats = {
             "images_generated": 0,
             "total_cost": 0.0,
-            "prompts_saved": 0
+            "prompts_saved": 0,
+            "images_uploaded": 0
         }
 
-        logger.info(f"✅ ImageGenerator v{self.version} - Modular architecture with AI")
+        logger.info(f"✅ ImageGenerator v{self.version} - Modular architecture with AI + R2 storage")
 
     async def generate_marketing_image(
         self,
@@ -117,6 +122,27 @@ class ImageGenerator:
             )
 
             logger.info(f"✅ Generated image prompt: {image_prompt[:100]}...")
+
+            # Save prompt to database for tracking
+            if self.prompt_storage:
+                try:
+                    prompt_id = await self.prompt_storage.save_prompt(
+                        campaign_id=campaign_id,
+                        content_type="image",
+                        prompt_text=image_prompt,
+                        metadata={
+                            "image_type": image_type,
+                            "style": style,
+                            "dimensions": dimensions,
+                            "provider": provider,
+                            "target_audience": target_audience
+                        },
+                        user_id=user_id
+                    )
+                    self._generation_stats["prompts_saved"] += 1
+                    logger.info(f"💾 Saved image generation prompt (ID: {prompt_id})")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to save prompt (non-critical): {e}")
 
             # Step 2: Generate image using AI provider
             if provider == "dall-e-3":
@@ -216,6 +242,82 @@ class ImageGenerator:
         full_prompt += ", ultra high quality, 8k resolution, professional commercial photography, sharp focus, perfect composition"
 
         return full_prompt
+
+    async def _upload_image_to_r2(
+        self,
+        image_url: str,
+        campaign_id: Union[str, UUID],
+        image_type: str,
+        provider: str
+    ) -> Dict[str, Any]:
+        """
+        Download image from temporary URL and upload to Cloudflare R2 for permanent storage
+        
+        Args:
+            image_url: Temporary URL from AI provider
+            campaign_id: Campaign identifier
+            image_type: Type of image generated
+            provider: AI provider used
+            
+        Returns:
+            Dict with permanent R2 URL and metadata
+        """
+        try:
+            logger.info(f"📥 Downloading image from {provider} temporary URL...")
+            
+            # Download image from temporary URL
+            async with aiohttp.ClientSession() as session:
+                async with session.get(image_url) as response:
+                    if response.status != 200:
+                        raise Exception(f"Failed to download image: HTTP {response.status}")
+                    
+                    image_data = await response.read()
+                    content_type = response.headers.get('Content-Type', 'image/png')
+            
+            # Generate R2 path: images/campaigns/{campaign_id}/{timestamp}_{image_type}.png
+            from datetime import datetime
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            file_extension = 'png' if 'png' in content_type else 'jpg'
+            r2_path = f"images/campaigns/{campaign_id}/{timestamp}_{image_type}.{file_extension}"
+            
+            # Upload to Cloudflare R2
+            logger.info(f"☁️ Uploading to Cloudflare R2: {r2_path}")
+            upload_result = await self.storage_service.upload_file(
+                file_data=image_data,
+                file_path=r2_path,
+                content_type=content_type,
+                metadata={
+                    'campaign_id': str(campaign_id),
+                    'image_type': image_type,
+                    'provider': provider,
+                    'generated_at': datetime.now(timezone.utc).isoformat()
+                }
+            )
+            
+            if not upload_result["success"]:
+                raise Exception(f"R2 upload failed: {upload_result.get('error')}")
+            
+            self._generation_stats["images_uploaded"] += 1
+            logger.info(f"✅ Image uploaded to R2: {upload_result['public_url']}")
+            
+            return {
+                "success": True,
+                "permanent_url": upload_result["public_url"],
+                "r2_path": r2_path,
+                "size_bytes": upload_result["size"],
+                "temporary_url": image_url
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to upload image to R2: {e}")
+            # Return temporary URL as fallback
+            return {
+                "success": False,
+                "permanent_url": image_url,  # Fallback to temporary URL
+                "error": str(e),
+                "temporary_url": image_url
+            }
+
 
     async def _generate_with_dalle3(
         self,
