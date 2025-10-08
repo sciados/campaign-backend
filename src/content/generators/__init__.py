@@ -14,6 +14,7 @@ from src.content.generators.ad_copy_generator import AdCopyGenerator
 from src.content.generators.image_generator import ImageGenerator
 from src.content.generators.video_script_generator import VideoScriptGenerator
 
+from src.content.generators.long_form_article_generator import LongFormArticleGenerator
 
 def get_available_generators():
     """
@@ -28,7 +29,8 @@ def get_available_generators():
         "BlogContentGenerator",
         "AdCopyGenerator",
         "ImageGenerator",
-        "VideoScriptGenerator"
+        "VideoScriptGenerator",
+        "LongFormArticleGenerator"
     ]
 
 
@@ -44,6 +46,7 @@ __all__ = [
     "AdCopyGenerator",
     "ImageGenerator",
     "VideoScriptGenerator",
+    "LongFormArticleGenerator",
     "get_available_generators",
     "get_generator_count"
 ]
