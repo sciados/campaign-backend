@@ -156,78 +156,54 @@ class IntegratedContentService:
     
     async def _get_campaign_intelligence(self, campaign_id: Union[str, UUID]) -> Optional[List[Dict]]:
         """
-        Get campaign intelligence data including AI enhancer outputs if available
-        Gracefully handles databases without enhancement columns
+        Get campaign intelligence data including AI enhancer outputs from full_analysis_data
+        All AI enhancements are stored in the full_analysis_data JSONB column
         """
         try:
-            # First, check if AI enhancement columns exist
-            check_query = text("""
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_name = 'intelligence_core'
-                  AND column_name IN ('scientific_intelligence', 'credibility_intelligence',
-                                     'market_intelligence', 'emotional_transformation_intelligence',
-                                     'scientific_authority_intelligence')
+            # Get intelligence with full_analysis_data containing all AI enhancements
+            query = text("""
+                SELECT ic.product_name, ic.salespage_url, ic.confidence_score,
+                       ic.full_analysis_data,
+                       pd.features, pd.benefits, pd.ingredients, pd.conditions,
+                       md.category, md.positioning, md.competitive_advantages, md.target_audience
+                FROM intelligence_core ic
+                LEFT JOIN product_data pd ON ic.id = pd.intelligence_id
+                LEFT JOIN market_data md ON ic.id = md.intelligence_id
+                WHERE ic.user_id IN (
+                    SELECT user_id FROM campaigns WHERE id = :campaign_id
+                )
+                ORDER BY ic.confidence_score DESC
+                LIMIT 10
             """)
-            result = await self.db.execute(check_query)
-            existing_columns = [row.column_name for row in result.fetchall()]
-            has_ai_columns = len(existing_columns) > 0
-
-            # Build query based on available columns
-            if has_ai_columns:
-                logger.info(f"✅ AI enhancement columns available: {existing_columns}")
-                query = text("""
-                    SELECT ic.product_name, ic.salespage_url, ic.confidence_score,
-                           pd.features, pd.benefits, pd.ingredients, pd.conditions,
-                           md.category, md.positioning, md.competitive_advantages, md.target_audience,
-                           ic.scientific_intelligence,
-                           ic.credibility_intelligence,
-                           ic.market_intelligence,
-                           ic.emotional_transformation_intelligence,
-                           ic.scientific_authority_intelligence
-                    FROM intelligence_core ic
-                    LEFT JOIN product_data pd ON ic.id = pd.intelligence_id
-                    LEFT JOIN market_data md ON ic.id = md.intelligence_id
-                    WHERE ic.user_id IN (
-                        SELECT user_id FROM campaigns WHERE id = :campaign_id
-                    )
-                    ORDER BY ic.confidence_score DESC
-                    LIMIT 10
-                """)
-            else:
-                logger.warning("⚠️ AI enhancement columns not found, using basic intelligence only")
-                query = text("""
-                    SELECT ic.product_name, ic.salespage_url, ic.confidence_score,
-                           pd.features, pd.benefits, pd.ingredients, pd.conditions,
-                           md.category, md.positioning, md.competitive_advantages, md.target_audience
-                    FROM intelligence_core ic
-                    LEFT JOIN product_data pd ON ic.id = pd.intelligence_id
-                    LEFT JOIN market_data md ON ic.id = md.intelligence_id
-                    WHERE ic.user_id IN (
-                        SELECT user_id FROM campaigns WHERE id = :campaign_id
-                    )
-                    ORDER BY ic.confidence_score DESC
-                    LIMIT 10
-                """)
 
             result = await self.db.execute(query, {"campaign_id": UUID(str(campaign_id))})
             rows = result.fetchall()
 
             intelligence_data = []
             for row in rows:
-                # Parse JSON intelligence from AI enhancers (if columns exist)
+                # Parse full_analysis_data JSONB to extract AI enhancements
+                full_analysis = {}
                 scientific_intel = {}
                 credibility_intel = {}
                 market_intel = {}
                 emotional_intel = {}
                 authority_intel = {}
 
-                if has_ai_columns:
-                    scientific_intel = json.loads(row.scientific_intelligence) if hasattr(row, 'scientific_intelligence') and row.scientific_intelligence else {}
-                    credibility_intel = json.loads(row.credibility_intelligence) if hasattr(row, 'credibility_intelligence') and row.credibility_intelligence else {}
-                    market_intel = json.loads(row.market_intelligence) if hasattr(row, 'market_intelligence') and row.market_intelligence else {}
-                    emotional_intel = json.loads(row.emotional_transformation_intelligence) if hasattr(row, 'emotional_transformation_intelligence') and row.emotional_transformation_intelligence else {}
-                    authority_intel = json.loads(row.scientific_authority_intelligence) if hasattr(row, 'scientific_authority_intelligence') and row.scientific_authority_intelligence else {}
+                if row.full_analysis_data:
+                    # full_analysis_data is already a dict if JSONB, or needs parsing if string
+                    if isinstance(row.full_analysis_data, str):
+                        full_analysis = json.loads(row.full_analysis_data)
+                    else:
+                        full_analysis = row.full_analysis_data
+
+                    # Extract AI enhancements from full_analysis_data
+                    scientific_intel = full_analysis.get("scientific_intelligence", {})
+                    credibility_intel = full_analysis.get("credibility_intelligence", {})
+                    market_intel = full_analysis.get("market_intelligence", {})
+                    emotional_intel = full_analysis.get("emotional_transformation_intelligence", {})
+                    authority_intel = full_analysis.get("scientific_authority_intelligence", {})
+
+                    logger.info(f"📊 Extracted AI enhancements from full_analysis_data: scientific={bool(scientific_intel)}, credibility={bool(credibility_intel)}, market={bool(market_intel)}, emotional={bool(emotional_intel)}, authority={bool(authority_intel)}")
 
                 data = {
                     # Basic data
