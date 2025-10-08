@@ -110,7 +110,8 @@ class IntegratedContentService:
                 company_id=company_id,
                 content_type=content_type,
                 content_data=result,
-                generation_settings=preferences or {}
+                generation_settings=preferences or {},
+                intelligence_data=intelligence_data  # Pass intelligence data for tracking
             )
             
             # Update workflow as completed
@@ -545,11 +546,42 @@ class IntegratedContentService:
         company_id: Union[str, UUID],
         content_type: str,
         content_data: Dict[str, Any],
-        generation_settings: Dict[str, Any]
+        generation_settings: Dict[str, Any],
+        intelligence_data: Optional[List[Dict]] = None
     ) -> UUID:
-        """Store content in existing generated_content table"""
+        """Store content in existing generated_content table with intelligence tracking"""
 
         content_id = uuid4()
+
+        # Extract intelligence_id from the primary intelligence record (highest confidence)
+        intelligence_id = None
+        intelligence_used_count = 0
+
+        if intelligence_data and len(intelligence_data) > 0:
+            # Get the highest confidence intelligence record
+            primary_intel = intelligence_data[0]
+            intelligence_used_count = len(intelligence_data)
+
+            # Try to get intelligence_id from the database
+            try:
+                query = text("""
+                    SELECT ic.id
+                    FROM intelligence_core ic
+                    WHERE ic.product_name = :product_name
+                      AND ic.user_id = :user_id
+                    ORDER BY ic.confidence_score DESC
+                    LIMIT 1
+                """)
+                result = await self.db.execute(query, {
+                    "product_name": primary_intel.get("product_name"),
+                    "user_id": UUID(str(user_id))
+                })
+                row = result.fetchone()
+                if row:
+                    intelligence_id = row.id
+                    logger.info(f"📊 Linking content to intelligence_id: {intelligence_id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not fetch intelligence_id: {e}")
 
         # Normalize content_type to match database check constraint
         normalized_content_type = content_type
@@ -605,11 +637,13 @@ class IntegratedContentService:
                 content_body = str(content_data["content"])
         
         query = text("""
-            INSERT INTO generated_content 
+            INSERT INTO generated_content
             (id, user_id, campaign_id, company_id, content_type, content_title, content_body,
-             content_metadata, generation_settings, generation_method, content_status)
-            VALUES (:id, :user_id, :campaign_id, :company_id, :content_type, :content_title, 
-                    :content_body, :content_metadata, :generation_settings, 'existing_ai_system', 'generated')
+             content_metadata, generation_settings, generation_method, content_status,
+             intelligence_id, intelligence_used)
+            VALUES (:id, :user_id, :campaign_id, :company_id, :content_type, :content_title,
+                    :content_body, :content_metadata, :generation_settings, 'existing_ai_system', 'generated',
+                    :intelligence_id, :intelligence_used)
         """)
         
         # Extract metadata from different response structures
@@ -635,7 +669,9 @@ class IntegratedContentService:
             "content_title": content_title,
             "content_body": content_body,
             "content_metadata": json.dumps(content_metadata),
-            "generation_settings": json.dumps(generation_settings)
+            "generation_settings": json.dumps(generation_settings),
+            "intelligence_id": UUID(str(intelligence_id)) if intelligence_id else None,
+            "intelligence_used": intelligence_used_count
         })
         
         await self.db.commit()
