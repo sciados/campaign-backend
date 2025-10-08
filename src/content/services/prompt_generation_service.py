@@ -418,26 +418,72 @@ Include: Subheadings (H2, H3), bullet points, actionable insights
 """
 
     def _get_ad_copy_template(self, psychology_stage: SalesPsychologyStage) -> str:
-        """Get template for ad copy"""
+        """Get template for ad copy - optimized for Google Ads responsive search ads"""
 
         return """
-Create high-converting ad copy for {PRODUCT_NAME}.
+Create high-converting ad copy variations for {PRODUCT_NAME}.
 
+=== PRODUCT INTELLIGENCE ===
 PRODUCT: {PRODUCT_NAME}
 PRIMARY BENEFIT: {PRIMARY_BENEFIT}
 TARGET AUDIENCE: {TARGET_AUDIENCE}
+PAIN POINT: {PAIN_POINT}
 EMOTIONAL_TRIGGER: {EMOTIONAL_TRIGGER}
 COMPETITIVE_ADVANTAGE: {COMPETITIVE_ADVANTAGE}
+TONE: {TONE}
+BRAND VOICE: {BRAND_VOICE}
 
-Create ad copy with:
-1. Headline (30 characters max)
-2. Primary text (125 characters max)
-3. Description (90 characters max)
-4. Call-to-action (15 characters max)
+=== AI-ENHANCED INTELLIGENCE ===
+Scientific Backing: {SCIENTIFIC_BACKING}
+Credibility Signals: {CREDIBILITY_SIGNALS}
+Market Position: {MARKET_POSITIONING}
+Emotional Journey: {EMOTIONAL_JOURNEY}
+Authority Markers: {AUTHORITY_MARKERS}
 
-Focus: {EMOTIONAL_TRIGGER}
-Tone: {TONE}
-Goal: Maximum click-through rate and conversions
+=== AD COPY REQUIREMENTS ===
+Generate {variation_count} complete ad variations. Each variation must include:
+
+1. HEADLINES (3-5 per variation):
+   - Each headline: 25-30 characters max
+   - Use different angles: benefit-focused, curiosity-driven, urgency-based, social proof
+   - Format: "Headline: [your headline text]"
+
+2. DESCRIPTIONS (2-3 per variation):
+   - Each description: 60-90 characters max
+   - Expand on benefits, overcome objections, create desire
+   - Format: "Description: [your description text]"
+
+3. PRIMARY TEXT (1 per variation):
+   - 100-125 characters
+   - Compelling hook that combines {EMOTIONAL_TRIGGER} with {PRIMARY_BENEFIT}
+   - Format: "Primary Text: [your primary text]"
+
+4. CALL TO ACTION (1 per variation):
+   - 10-15 characters max
+   - Action-oriented and urgent
+   - Format: "CTA: [your call to action]"
+
+=== OUTPUT FORMAT ===
+AD_1:
+Headline: [25-30 chars]
+Headline: [25-30 chars]
+Headline: [25-30 chars]
+Description: [60-90 chars]
+Description: [60-90 chars]
+Primary Text: [100-125 chars]
+CTA: [10-15 chars]
+
+AD_2:
+[... same format ...]
+
+=== CRITICAL REQUIREMENTS ===
+- ALWAYS use "{PRODUCT_NAME}" exactly as shown - NEVER use placeholders
+- All headlines MUST be under 30 characters
+- All descriptions MUST be under 90 characters
+- Focus on {TARGET_AUDIENCE} pain points and desires
+- Leverage {COMPETITIVE_ADVANTAGE} to differentiate
+- Use {TONE} tone consistently
+- Drive action with urgency and benefit clarity
 """
 
     def _get_video_script_template(self, psychology_stage: SalesPsychologyStage) -> str:
@@ -493,6 +539,11 @@ Focus on {PRIMARY_BENEFIT} and maintain {TONE} tone.
         for key, value in variables.items():
             placeholder = "{" + key + "}"
             prompt = prompt.replace(placeholder, str(value))
+
+        # Substitute preference-based placeholders (like variation_count)
+        if "{variation_count}" in prompt:
+            variation_count = preferences.get("variation_count", 3)
+            prompt = prompt.replace("{variation_count}", str(variation_count))
 
         # Add strong variation instructions to prevent repetitive content
         import time
