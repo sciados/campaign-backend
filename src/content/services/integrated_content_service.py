@@ -611,7 +611,7 @@ class IntegratedContentService:
         elif content_type.lower() in ['social', 'social_post', 'social_media']:
             normalized_content_type = 'social_media'
         elif content_type.lower() in ['ad', 'ad_copy', 'advertisement']:
-            normalized_content_type = 'advertisement'
+            normalized_content_type = 'ad_copy'  # Database constraint expects 'ad_copy'
         elif content_type.lower() in ['blog', 'blog_post', 'blog_article']:
             normalized_content_type = 'blog_post'
 
