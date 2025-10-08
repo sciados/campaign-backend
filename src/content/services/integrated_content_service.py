@@ -30,8 +30,10 @@ class IntegratedContentService:
                 EmailGenerator,
                 AdCopyGenerator,
                 SocialMediaGenerator,
-                get_available_generators,
-                BlogContentGenerator
+                BlogContentGenerator,
+                ImageGenerator,
+                VideoScriptGenerator,
+                get_available_generators
             )
 
             # Initialize available generators WITH db_session for prompt storage
@@ -57,6 +59,16 @@ class IntegratedContentService:
                 self._generators["social_post"] = SocialMediaGenerator(db_session=self.db)
                 self._generators["social_media"] = SocialMediaGenerator(db_session=self.db)
                 logger.info("Social media generator loaded")
+
+            if "ImageGenerator" in available:
+                self._generators["image"] = ImageGenerator(db_session=self.db)
+                self._generators["marketing_image"] = ImageGenerator(db_session=self.db)
+                logger.info("Image generator loaded")
+
+            if "VideoScriptGenerator" in available:
+                self._generators["video_script"] = VideoScriptGenerator(db_session=self.db)
+                self._generators["video"] = VideoScriptGenerator(db_session=self.db)
+                logger.info("Video script generator loaded")
 
             # Always set factory to None to avoid errors
             self._factory = None
@@ -328,6 +340,34 @@ class IntegratedContentService:
                         tone=preferences.get("tone", "informative"),
                         target_audience=preferences.get("target_audience"),
                         include_sections=preferences.get("include_sections"),
+                        preferences=preferences,
+                        user_id=user_id
+                    )
+
+                # Image generation
+                elif 'image' in content_type_normalized:
+                    result = await generator.generate_marketing_image(
+                        campaign_id=campaign_id,
+                        intelligence_data=transformed_intelligence,
+                        image_type=preferences.get("image_type", "product_hero"),
+                        style=preferences.get("style", "professional"),
+                        dimensions=preferences.get("dimensions", "1024x1024"),
+                        provider=preferences.get("provider", "dall-e-3"),
+                        target_audience=preferences.get("target_audience"),
+                        preferences=preferences,
+                        user_id=user_id
+                    )
+
+                # Video script generation
+                elif 'video' in content_type_normalized:
+                    result = await generator.generate_video_script(
+                        campaign_id=campaign_id,
+                        intelligence_data=transformed_intelligence,
+                        video_type=preferences.get("video_type", "vsl"),
+                        duration=preferences.get("duration", 60),
+                        platform=preferences.get("platform", "youtube"),
+                        tone=preferences.get("tone", "engaging"),
+                        target_audience=preferences.get("target_audience"),
                         preferences=preferences,
                         user_id=user_id
                     )
@@ -614,6 +654,10 @@ class IntegratedContentService:
             normalized_content_type = 'ad_copy'  # Database constraint expects 'ad_copy'
         elif content_type.lower() in ['blog', 'blog_post', 'blog_article']:
             normalized_content_type = 'blog_post'
+        elif content_type.lower() in ['image', 'marketing_image']:
+            normalized_content_type = 'image'
+        elif content_type.lower() in ['video', 'video_script']:
+            normalized_content_type = 'video_script'
 
         # Extract title and body from generated content
         content_title = f"{normalized_content_type.replace('_', ' ').title()}"
@@ -640,6 +684,22 @@ class IntegratedContentService:
             article = content_data["article"]
             content_title = article.get("title", "Blog Article")
             content_body = article.get("content", "")
+        elif content_data.get("image"):
+            # Image generator format
+            image = content_data["image"]
+            content_title = f"{image.get('image_type', 'Image').replace('_', ' ').title()} - {image.get('style', 'Professional')}"
+            content_body = json.dumps({
+                "url": image.get("url"),
+                "dimensions": image.get("dimensions"),
+                "image_type": image.get("image_type"),
+                "style": image.get("style"),
+                "provider": image.get("provider")
+            })
+        elif content_data.get("script"):
+            # Video script generator format
+            script = content_data["script"]
+            content_title = script.get("title", "Video Script")
+            content_body = json.dumps(script)
         elif content_data.get("content"):
             # Legacy format with nested content
             if isinstance(content_data["content"], dict):
