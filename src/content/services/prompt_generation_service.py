@@ -141,33 +141,44 @@ class PromptGenerationService:
         variables["KEY_MESSAGES"] = self._extract_first(content, ["key_messages", "talking_points", "highlights"], "important information")
 
         # 🔥 NEW: Extract from AI-Enhanced Intelligence (6 enhancers)
+        # Extract from scientific_enhancement
         scientific = intelligence_data.get("scientific_intelligence", {})
         if scientific:
-            variables["SCIENTIFIC_BACKING"] = self._extract_first(scientific, ["scientific_backing", "research_summary"], "")
-            variables["INGREDIENTS"] = self._extract_first(scientific, ["ingredient_research", "key_ingredients"],
-                                                          self._extract_from_basic_data(intelligence_data, "ingredients"))
-            variables["MECHANISM"] = self._extract_first(scientific, ["mechanism_of_action", "how_it_works"], "")
+            variables["SCIENTIFIC_BACKING"] = self._extract_first(scientific, ["validated_claims", "research_support", "scientific_backing"], "")
+            variables["RESEARCH_CREDIBILITY"] = self._extract_first(scientific.get("scientific_credibility", {}), ["research_basis", "evidence_level"], "")
 
+        # Extract from emotional_enhancement
         emotional = intelligence_data.get("emotional_transformation_intelligence", {})
         if emotional:
-            variables["EMOTIONAL_JOURNEY"] = self._extract_first(emotional, ["emotional_journey_mapping", "customer_journey"], "")
-            variables["PSYCHOLOGICAL_TRIGGERS"] = self._extract_first(emotional, ["psychological_triggers", "trigger_points"], "")
-            variables["TRANSFORMATION_STORY"] = self._extract_first(emotional, ["transformation_narratives", "success_patterns"], "")
+            emotional_journey = self._extract_first(emotional, ["emotional_journey", "amplified_triggers"], "")
+            variables["EMOTIONAL_JOURNEY"] = emotional_journey if emotional_journey else ""
+            variables["PSYCHOLOGICAL_TRIGGERS"] = self._extract_first(emotional, ["psychological_drivers", "amplified_triggers"], "")
 
+        # Extract from credibility_enhancement
         credibility = intelligence_data.get("credibility_intelligence", {})
         if credibility:
             variables["TRUST_SIGNALS"] = self._extract_first(credibility, ["trust_indicators", "credibility_markers"], "")
             variables["AUTHORITY_MARKERS"] = self._extract_first(credibility, ["authority_signals", "expertise_indicators"], "")
+            variables["SOCIAL_PROOF"] = self._extract_first(credibility, ["social_proof_enhancement"], "")
 
+        # Extract from market_enhancement
         market = intelligence_data.get("market_intelligence", {})
         if market:
-            variables["MARKET_INSIGHTS"] = self._extract_first(market, ["market_analysis", "market_trends"], "")
-            variables["COMPETITIVE_LANDSCAPE"] = self._extract_first(market, ["competitive_landscape", "competitor_analysis"], "")
+            variables["MARKET_POSITIONING"] = self._extract_first(market, ["enhanced_positioning", "market_opportunities"], "")
+            variables["COMPETITIVE_DIFFERENTIATION"] = self._extract_first(market, ["competitive_differentiation"], "")
 
+        # Extract from authority_enhancement
         authority = intelligence_data.get("scientific_authority_intelligence", {})
         if authority:
-            variables["RESEARCH_VALIDATION"] = self._extract_first(authority, ["research_validation_framework", "validation_points"], "")
-            variables["EXPERT_POSITIONING"] = self._extract_first(authority, ["professional_authority_markers", "expert_credentials"], "")
+            variables["EXPERTISE_MARKERS"] = self._extract_first(authority, ["expertise_markers", "authority_positioning"], "")
+            variables["THOUGHT_LEADERSHIP"] = self._extract_first(authority, ["thought_leadership"], "")
+
+        # Extract from content_enhancement
+        content_enh = intelligence_data.get("content_intelligence", {})
+        if content_enh:
+            variables["ENHANCED_MESSAGING"] = self._extract_first(content_enh, ["enhanced_messaging", "optimized_ctas"], "")
+            variables["KEY_MESSAGES"] = self._extract_first(content_enh, ["enhanced_messaging", "key_messages"],
+                                                           self._extract_first(content, ["key_messages", "talking_points", "highlights"], "important information"))
 
         logger.info(f"✅ Extracted {len(variables)} intelligence variables (including {len([v for v in variables.values() if v])} with data)")
         logger.info(f"   📊 AI-enhanced variables: {sum(1 for k in variables.keys() if k in ['SCIENTIFIC_BACKING', 'EMOTIONAL_JOURNEY', 'TRUST_SIGNALS', 'MARKET_INSIGHTS', 'RESEARCH_VALIDATION'])}")
@@ -233,16 +244,19 @@ COMPETITIVE ADVANTAGE: {COMPETITIVE_ADVANTAGE}
 
 === AI-ENHANCED INTELLIGENCE (Use to add depth and variation) ===
 SCIENTIFIC BACKING: {SCIENTIFIC_BACKING}
-INGREDIENTS/MECHANISM: {INGREDIENTS} - {MECHANISM}
+RESEARCH CREDIBILITY: {RESEARCH_CREDIBILITY}
 EMOTIONAL JOURNEY: {EMOTIONAL_JOURNEY}
 PSYCHOLOGICAL TRIGGERS: {PSYCHOLOGICAL_TRIGGERS}
-TRANSFORMATION STORY: {TRANSFORMATION_STORY}
 TRUST SIGNALS: {TRUST_SIGNALS}
 AUTHORITY MARKERS: {AUTHORITY_MARKERS}
-MARKET INSIGHTS: {MARKET_INSIGHTS}
-RESEARCH VALIDATION: {RESEARCH_VALIDATION}
+SOCIAL PROOF: {SOCIAL_PROOF}
+MARKET POSITIONING: {MARKET_POSITIONING}
+COMPETITIVE DIFFERENTIATION: {COMPETITIVE_DIFFERENTIATION}
+EXPERTISE MARKERS: {EXPERTISE_MARKERS}
+THOUGHT LEADERSHIP: {THOUGHT_LEADERSHIP}
+ENHANCED MESSAGING: {ENHANCED_MESSAGING}
 
-IMPORTANT: Use the AI-enhanced intelligence above to create unique, data-driven emails that go beyond generic marketing copy. Incorporate scientific research, emotional insights, and market intelligence throughout the sequence.
+IMPORTANT: Use the AI-enhanced intelligence above to create unique, data-driven emails that go beyond generic marketing copy. Incorporate scientific research, emotional insights, trust indicators, and market intelligence throughout the sequence.
 
 CREATE 7 EMAILS FOLLOWING THIS PROVEN PSYCHOLOGY SEQUENCE:
 

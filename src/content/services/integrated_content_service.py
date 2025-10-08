@@ -197,13 +197,20 @@ class IntegratedContentService:
                         full_analysis = row.full_analysis_data
 
                     # Extract AI enhancements from full_analysis_data
-                    scientific_intel = full_analysis.get("scientific_intelligence", {})
-                    credibility_intel = full_analysis.get("credibility_intelligence", {})
-                    market_intel = full_analysis.get("market_intelligence", {})
-                    emotional_intel = full_analysis.get("emotional_transformation_intelligence", {})
-                    authority_intel = full_analysis.get("scientific_authority_intelligence", {})
+                    # Try both naming conventions (intelligence vs enhancement)
+                    scientific_intel = (full_analysis.get("scientific_enhancement") or
+                                       full_analysis.get("scientific_intelligence") or {})
+                    credibility_intel = (full_analysis.get("credibility_enhancement") or
+                                        full_analysis.get("credibility_intelligence") or {})
+                    market_intel = (full_analysis.get("market_enhancement") or
+                                   full_analysis.get("market_intelligence") or {})
+                    emotional_intel = (full_analysis.get("emotional_enhancement") or
+                                      full_analysis.get("emotional_transformation_intelligence") or {})
+                    authority_intel = (full_analysis.get("authority_enhancement") or
+                                      full_analysis.get("scientific_authority_intelligence") or {})
+                    content_intel = full_analysis.get("content_enhancement") or {}
 
-                    logger.info(f"📊 Extracted AI enhancements from full_analysis_data: scientific={bool(scientific_intel)}, credibility={bool(credibility_intel)}, market={bool(market_intel)}, emotional={bool(emotional_intel)}, authority={bool(authority_intel)}")
+                    logger.info(f"📊 Extracted AI enhancements from full_analysis_data: scientific={bool(scientific_intel)}, credibility={bool(credibility_intel)}, market={bool(market_intel)}, emotional={bool(emotional_intel)}, authority={bool(authority_intel)}, content={bool(content_intel)}")
 
                 data = {
                     # Basic data
@@ -227,9 +234,10 @@ class IntegratedContentService:
                     "market_intelligence": market_intel,
                     "emotional_transformation_intelligence": emotional_intel,
                     "scientific_authority_intelligence": authority_intel,
+                    "content_intelligence": content_intel,
 
                     # Flag for prompt service to know enhanced data is available
-                    "has_ai_enhancements": bool(scientific_intel or credibility_intel or market_intel or emotional_intel or authority_intel)
+                    "has_ai_enhancements": bool(scientific_intel or credibility_intel or market_intel or emotional_intel or authority_intel or content_intel)
                 }
                 intelligence_data.append(data)
 
