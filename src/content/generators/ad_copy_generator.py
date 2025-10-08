@@ -336,22 +336,30 @@ class AdCopyGenerator:
                 if not line_stripped:
                     continue
 
+                # Skip markdown formatting artifacts and labels
+                if line_stripped.startswith('**') and '**' in line_stripped[2:]:
+                    # This is markdown like **Headline** (30 chars): - skip it
+                    continue
+
                 # Extract based on labels
                 if line_stripped.lower().startswith('headline:'):
-                    headlines.append(line_stripped[9:].strip())
+                    headline_text = line_stripped[9:].strip()
+                    if headline_text and len(headline_text) <= 30:  # Only valid headlines
+                        headlines.append(headline_text)
                 elif line_stripped.lower().startswith('description:'):
-                    descriptions.append(line_stripped[12:].strip())
+                    desc_text = line_stripped[12:].strip()
+                    if desc_text and len(desc_text) <= 90:  # Only valid descriptions
+                        descriptions.append(desc_text)
                 elif line_stripped.lower().startswith('primary text:'):
                     primary_text = line_stripped[13:].strip()
                 elif line_stripped.lower().startswith(('cta:', 'call to action:')):
                     call_to_action = line_stripped.split(':', 1)[1].strip()
-                elif not any(line_stripped.lower().startswith(p) for p in ['ad_', 'ad ', 'variation_', 'variation ', '---', '===']):
-                    # If no label, try to intelligently categorize
-                    if len(line_stripped) <= 40 and not headlines:
+                elif not any(line_stripped.lower().startswith(p) for p in ['ad_', 'ad ', 'variation_', 'variation ', '---', '===', '**']):
+                    # If no label, try to intelligently categorize by length
+                    if len(line_stripped) <= 30 and len(headlines) < 5:
                         headlines.append(line_stripped)
-                    elif len(line_stripped) > 40:
-                        if not descriptions:
-                            descriptions.append(line_stripped)
+                    elif len(line_stripped) > 30 and len(line_stripped) <= 90 and len(descriptions) < 3:
+                        descriptions.append(line_stripped)
 
             # If we only got one headline and no descriptions, split the content
             if len(headlines) == 0 and len(descriptions) == 0:
