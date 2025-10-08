@@ -379,9 +379,17 @@ class IntegratedContentService:
 
                 # Long-form article generation
                 elif 'long_form_article' in content_type_normalized:
+                    # Generate topic from preferences or product intelligence
+                    topic = preferences.get("topic")
+                    if not topic and transformed_intelligence:
+                        product_name = transformed_intelligence.get("product_name", "")
+                        primary_benefit = transformed_intelligence.get("offer_intelligence", {}).get("benefits", [""])[0] if transformed_intelligence.get("offer_intelligence", {}).get("benefits") else ""
+                        topic = f"The Complete Guide to {product_name}" if product_name else f"Ultimate Guide to {primary_benefit}" if primary_benefit else "Comprehensive Product Guide"
+
                     result = await generator.generate_long_form_article(
                         campaign_id=campaign_id,
                         intelligence_data=transformed_intelligence,
+                        topic=topic or "Comprehensive Guide",
                         word_count=preferences.get("word_count", 5000),
                         article_type=preferences.get("article_type", "ultimate_guide"),
                         tone=preferences.get("tone", "informative"),
