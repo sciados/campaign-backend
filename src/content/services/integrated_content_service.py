@@ -154,14 +154,21 @@ class IntegratedContentService:
             }
     
     async def _get_campaign_intelligence(self, campaign_id: Union[str, UUID]) -> Optional[List[Dict]]:
-        """Get campaign intelligence data from existing intelligence_core table"""
+        """
+        Get campaign intelligence data including ALL 6 AI enhancer outputs
+        This provides rich, AI-generated intelligence for content generation
+        """
         try:
-            # All ID columns are now UUID after migration
-            # Get intelligence for the campaign's user
+            # Get intelligence with ALL AI enhancer data for maximum variation
             query = text("""
                 SELECT ic.product_name, ic.salespage_url, ic.confidence_score,
                        pd.features, pd.benefits, pd.ingredients, pd.conditions,
-                       md.category, md.positioning, md.competitive_advantages, md.target_audience
+                       md.category, md.positioning, md.competitive_advantages, md.target_audience,
+                       ic.scientific_intelligence,
+                       ic.credibility_intelligence,
+                       ic.market_intelligence,
+                       ic.emotional_transformation_intelligence,
+                       ic.scientific_authority_intelligence
                 FROM intelligence_core ic
                 LEFT JOIN product_data pd ON ic.id = pd.intelligence_id
                 LEFT JOIN market_data md ON ic.id = md.intelligence_id
@@ -174,13 +181,23 @@ class IntegratedContentService:
 
             result = await self.db.execute(query, {"campaign_id": UUID(str(campaign_id))})
             rows = result.fetchall()
-            
+
             intelligence_data = []
             for row in rows:
+                # Parse JSON intelligence from AI enhancers
+                scientific_intel = json.loads(row.scientific_intelligence) if row.scientific_intelligence else {}
+                credibility_intel = json.loads(row.credibility_intelligence) if row.credibility_intelligence else {}
+                market_intel = json.loads(row.market_intelligence) if row.market_intelligence else {}
+                emotional_intel = json.loads(row.emotional_transformation_intelligence) if row.emotional_transformation_intelligence else {}
+                authority_intel = json.loads(row.scientific_authority_intelligence) if row.scientific_authority_intelligence else {}
+
                 data = {
+                    # Basic data
                     "product_name": row.product_name,
                     "salespage_url": row.salespage_url,
                     "confidence_score": float(row.confidence_score) if row.confidence_score else 0.0,
+
+                    # Product & Market data (RAG-extracted)
                     "features": row.features if row.features else [],
                     "benefits": row.benefits if row.benefits else [],
                     "ingredients": row.ingredients if row.ingredients else [],
@@ -188,13 +205,26 @@ class IntegratedContentService:
                     "category": row.category,
                     "positioning": row.positioning,
                     "competitive_advantages": row.competitive_advantages if row.competitive_advantages else [],
-                    "target_audience": row.target_audience
+                    "target_audience": row.target_audience,
+
+                    # AI-Enhanced Intelligence (from 6 enhancers)
+                    "scientific_intelligence": scientific_intel,
+                    "credibility_intelligence": credibility_intel,
+                    "market_intelligence": market_intel,
+                    "emotional_transformation_intelligence": emotional_intel,
+                    "scientific_authority_intelligence": authority_intel,
+
+                    # Flag for prompt service to know enhanced data is available
+                    "has_ai_enhancements": bool(scientific_intel or credibility_intel or market_intel or emotional_intel or authority_intel)
                 }
                 intelligence_data.append(data)
-            
-            logger.info(f"Retrieved {len(intelligence_data)} intelligence records for campaign")
+
+            logger.info(f"✅ Retrieved {len(intelligence_data)} intelligence records with AI enhancements for campaign")
+            if intelligence_data:
+                logger.info(f"   📊 AI Enhancement status: {intelligence_data[0].get('has_ai_enhancements', False)}")
+
             return intelligence_data
-            
+
         except Exception as e:
             logger.error(f"Failed to get campaign intelligence: {e}")
             return []

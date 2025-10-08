@@ -103,7 +103,7 @@ class PromptGenerationService:
     def _extract_intelligence_variables(self, intelligence_data: Dict[str, Any]) -> Dict[str, str]:
         """
         Extract and map intelligence data to prompt variables
-        Implements intelligence-to-prompt data mapping from docs
+        NOW ENHANCED: Leverages AI-generated intelligence from 6 enhancers for richer content
         """
 
         variables = {}
@@ -111,35 +111,76 @@ class PromptGenerationService:
         # Extract product name (primary variable)
         variables["PRODUCT_NAME"] = intelligence_data.get("product_name", "this product")
 
-        # Extract from offer intelligence
+        # Extract from offer intelligence (basic data)
         offer = intelligence_data.get("offer_intelligence", {})
-        variables["PRIMARY_BENEFIT"] = self._extract_first(offer, ["key_features", "benefits", "value_proposition"], "amazing benefits")
+        variables["PRIMARY_BENEFIT"] = self._extract_first(offer, ["key_features", "benefits", "value_proposition"],
+                                                          self._extract_from_basic_data(intelligence_data, "benefits"))
         variables["PRICE_POINT"] = offer.get("pricing_info", "competitive pricing")
         variables["GUARANTEE_TERMS"] = offer.get("guarantee_terms", "satisfaction guaranteed")
 
-        # Extract from psychology intelligence
+        # Extract from psychology intelligence (basic data)
         psychology = intelligence_data.get("psychology_intelligence", {})
         variables["PAIN_POINT"] = self._extract_first(psychology, ["pain_points", "challenges", "problems"], "common challenges")
-        variables["TARGET_AUDIENCE"] = psychology.get("target_audience", "customers")
+        variables["TARGET_AUDIENCE"] = psychology.get("target_audience", intelligence_data.get("target_audience", "customers"))
         variables["EMOTIONAL_TRIGGER"] = self._extract_first(psychology, ["emotional_triggers", "desires", "aspirations"], "positive results")
         variables["DESIRE_STATE"] = self._extract_first(psychology, ["desire_states", "goals", "outcomes"], "desired outcomes")
 
-        # Extract from competitive intelligence
+        # Extract from competitive intelligence (basic data)
         competitive = intelligence_data.get("competitive_intelligence", {})
-        variables["COMPETITIVE_ADVANTAGE"] = self._extract_first(competitive, ["differentiation_factors", "unique_selling_points", "advantages"], "unique approach")
-        variables["MARKET_POSITIONING"] = competitive.get("market_positioning", "leading solution")
+        variables["COMPETITIVE_ADVANTAGE"] = self._extract_first(competitive, ["differentiation_factors", "unique_selling_points", "advantages"],
+                                                                 self._extract_from_basic_data(intelligence_data, "competitive_advantages"))
+        variables["MARKET_POSITIONING"] = competitive.get("market_positioning", intelligence_data.get("positioning", "leading solution"))
 
-        # Extract from brand intelligence
+        # Extract from brand intelligence (basic data)
         brand = intelligence_data.get("brand_intelligence", {})
         variables["BRAND_VOICE"] = brand.get("brand_voice", "professional")
         variables["TONE"] = brand.get("tone", "conversational")
 
-        # Extract from content intelligence
+        # Extract from content intelligence (basic data)
         content = intelligence_data.get("content_intelligence", {})
         variables["KEY_MESSAGES"] = self._extract_first(content, ["key_messages", "talking_points", "highlights"], "important information")
 
-        logger.info(f"Extracted {len(variables)} intelligence variables")
+        # 🔥 NEW: Extract from AI-Enhanced Intelligence (6 enhancers)
+        scientific = intelligence_data.get("scientific_intelligence", {})
+        if scientific:
+            variables["SCIENTIFIC_BACKING"] = self._extract_first(scientific, ["scientific_backing", "research_summary"], "")
+            variables["INGREDIENTS"] = self._extract_first(scientific, ["ingredient_research", "key_ingredients"],
+                                                          self._extract_from_basic_data(intelligence_data, "ingredients"))
+            variables["MECHANISM"] = self._extract_first(scientific, ["mechanism_of_action", "how_it_works"], "")
+
+        emotional = intelligence_data.get("emotional_transformation_intelligence", {})
+        if emotional:
+            variables["EMOTIONAL_JOURNEY"] = self._extract_first(emotional, ["emotional_journey_mapping", "customer_journey"], "")
+            variables["PSYCHOLOGICAL_TRIGGERS"] = self._extract_first(emotional, ["psychological_triggers", "trigger_points"], "")
+            variables["TRANSFORMATION_STORY"] = self._extract_first(emotional, ["transformation_narratives", "success_patterns"], "")
+
+        credibility = intelligence_data.get("credibility_intelligence", {})
+        if credibility:
+            variables["TRUST_SIGNALS"] = self._extract_first(credibility, ["trust_indicators", "credibility_markers"], "")
+            variables["AUTHORITY_MARKERS"] = self._extract_first(credibility, ["authority_signals", "expertise_indicators"], "")
+
+        market = intelligence_data.get("market_intelligence", {})
+        if market:
+            variables["MARKET_INSIGHTS"] = self._extract_first(market, ["market_analysis", "market_trends"], "")
+            variables["COMPETITIVE_LANDSCAPE"] = self._extract_first(market, ["competitive_landscape", "competitor_analysis"], "")
+
+        authority = intelligence_data.get("scientific_authority_intelligence", {})
+        if authority:
+            variables["RESEARCH_VALIDATION"] = self._extract_first(authority, ["research_validation_framework", "validation_points"], "")
+            variables["EXPERT_POSITIONING"] = self._extract_first(authority, ["professional_authority_markers", "expert_credentials"], "")
+
+        logger.info(f"✅ Extracted {len(variables)} intelligence variables (including {len([v for v in variables.values() if v])} with data)")
+        logger.info(f"   📊 AI-enhanced variables: {sum(1 for k in variables.keys() if k in ['SCIENTIFIC_BACKING', 'EMOTIONAL_JOURNEY', 'TRUST_SIGNALS', 'MARKET_INSIGHTS', 'RESEARCH_VALIDATION'])}")
         return variables
+
+    def _extract_from_basic_data(self, intelligence_data: Dict[str, Any], key: str) -> str:
+        """Helper to extract from basic RAG data arrays"""
+        value = intelligence_data.get(key, [])
+        if isinstance(value, list) and len(value) > 0:
+            return str(value[0])
+        elif isinstance(value, str):
+            return value
+        return ""
 
     def _extract_first(self, data: Dict, keys: List[str], default: str) -> str:
         """Extract first available value from multiple possible keys"""
@@ -183,11 +224,25 @@ class PromptGenerationService:
         return """
 Generate a 7-email sales psychology sequence for {PRODUCT_NAME}.
 
+=== CORE INTELLIGENCE ===
 TARGET AUDIENCE: {TARGET_AUDIENCE}
 PRIMARY BENEFIT: {PRIMARY_BENEFIT}
 PAIN POINT: {PAIN_POINT}
 EMOTIONAL TRIGGER: {EMOTIONAL_TRIGGER}
 COMPETITIVE ADVANTAGE: {COMPETITIVE_ADVANTAGE}
+
+=== AI-ENHANCED INTELLIGENCE (Use to add depth and variation) ===
+SCIENTIFIC BACKING: {SCIENTIFIC_BACKING}
+INGREDIENTS/MECHANISM: {INGREDIENTS} - {MECHANISM}
+EMOTIONAL JOURNEY: {EMOTIONAL_JOURNEY}
+PSYCHOLOGICAL TRIGGERS: {PSYCHOLOGICAL_TRIGGERS}
+TRANSFORMATION STORY: {TRANSFORMATION_STORY}
+TRUST SIGNALS: {TRUST_SIGNALS}
+AUTHORITY MARKERS: {AUTHORITY_MARKERS}
+MARKET INSIGHTS: {MARKET_INSIGHTS}
+RESEARCH VALIDATION: {RESEARCH_VALIDATION}
+
+IMPORTANT: Use the AI-enhanced intelligence above to create unique, data-driven emails that go beyond generic marketing copy. Incorporate scientific research, emotional insights, and market intelligence throughout the sequence.
 
 CREATE 7 EMAILS FOLLOWING THIS PROVEN PSYCHOLOGY SEQUENCE:
 
