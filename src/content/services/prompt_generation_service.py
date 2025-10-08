@@ -364,57 +364,198 @@ The email should be 250-400 words, highly engaging, and drive the reader to take
 """
 
     def _get_social_post_template(self, psychology_stage: SalesPsychologyStage) -> str:
-        """Get template for social media post"""
+        """Get template for social media posts - platform-optimized content"""
 
         return """
-Create a high-engagement social media post for {PRODUCT_NAME}.
+Create high-engagement social media posts for {PRODUCT_NAME}.
 
-PRODUCT: {PRODUCT_NAME}
-PRIMARY BENEFIT: {PRIMARY_BENEFIT}
-TARGET AUDIENCE: {TARGET_AUDIENCE}
-EMOTIONAL TRIGGER: {EMOTIONAL_TRIGGER}
-TONE: {TONE}
-
-PSYCHOLOGY STAGE: """ + psychology_stage.value.replace('_', ' ').title() + """
-
-Create a post with:
-1. Hook (first line must grab attention)
-2. Value/benefit statement
-3. Social proof or credibility element
-4. Clear call-to-action
-5. 3-5 relevant hashtags
-
-Length: 100-150 words
-Style: {BRAND_VOICE}
-Goal: Drive engagement and clicks
-"""
-
-    def _get_blog_article_template(self, psychology_stage: SalesPsychologyStage) -> str:
-        """Get template for blog article"""
-
-        return """
-Write an SEO-optimized blog article about {PRODUCT_NAME}.
-
+=== PRODUCT INTELLIGENCE ===
 PRODUCT: {PRODUCT_NAME}
 PRIMARY BENEFIT: {PRIMARY_BENEFIT}
 TARGET AUDIENCE: {TARGET_AUDIENCE}
 PAIN POINT: {PAIN_POINT}
-COMPETITIVE ADVANTAGE: {COMPETITIVE_ADVANTAGE}
-KEY MESSAGES: {KEY_MESSAGES}
+EMOTIONAL_TRIGGER: {EMOTIONAL_TRIGGER}
+COMPETITIVE_ADVANTAGE: {COMPETITIVE_ADVANTAGE}
+TONE: {TONE}
+BRAND VOICE: {BRAND_VOICE}
 
-Create a comprehensive article with:
-1. SEO-optimized title (H1)
-2. Compelling introduction
-3. Problem identification (using {PAIN_POINT})
-4. Solution presentation ({PRODUCT_NAME})
-5. Benefits and proof points
-6. Social proof/testimonials
-7. Strong conclusion with CTA
+=== AI-ENHANCED INTELLIGENCE ===
+Scientific Backing: {SCIENTIFIC_BACKING}
+Credibility Signals: {CREDIBILITY_SIGNALS}
+Market Position: {MARKET_POSITIONING}
+Emotional Journey: {EMOTIONAL_JOURNEY}
+Authority Markers: {AUTHORITY_MARKERS}
 
-Length: 800-1200 words
-Tone: {TONE}
-Style: {BRAND_VOICE}
-Include: Subheadings (H2, H3), bullet points, actionable insights
+=== PLATFORM: {platform} ===
+PSYCHOLOGY STAGE: """ + psychology_stage.value.replace('_', ' ').title() + """
+
+=== POST REQUIREMENTS ===
+Generate {post_count} unique social media posts. Each post must include:
+
+1. HOOK (First Line):
+   - Grab attention immediately
+   - Use pattern interrupt, curiosity, or bold statement
+   - Optimize for platform algorithm
+
+2. BODY CONTENT:
+   - Highlight {PRIMARY_BENEFIT}
+   - Address {PAIN_POINT}
+   - Include {EMOTIONAL_TRIGGER}
+   - Add social proof or credibility element
+   - Use storytelling or value-driven approach
+
+3. CALL TO ACTION:
+   - Clear, specific action
+   - Create urgency or FOMO
+   - Platform-appropriate CTA
+
+4. HASHTAGS:
+   - 3-5 relevant, researched hashtags
+   - Mix of popular and niche tags
+   - Industry and product-specific
+
+=== PLATFORM-SPECIFIC GUIDELINES ===
+Platform: {platform}
+- Instagram: Visual storytelling, authentic voice, 2200 char limit, emoji-friendly
+- Facebook: Conversational, community-focused, engaging questions
+- LinkedIn: Professional insights, industry expertise, thought leadership
+- Twitter: Concise impact, threading potential, trending topics
+- TikTok: Trend-aware, authentic, entertainment-first, quick hooks
+
+=== OUTPUT FORMAT ===
+POST_1:
+[Hook line that stops scrolling]
+
+[2-3 lines of engaging body content that delivers value]
+
+[Strong CTA]
+
+#Hashtag1 #Hashtag2 #Hashtag3
+
+---
+
+POST_2:
+[Different hook approach...]
+
+=== CRITICAL REQUIREMENTS ===
+- ALWAYS use "{PRODUCT_NAME}" exactly - NEVER use placeholders
+- Each post must be COMPLETELY different in approach
+- Vary post structures: questions, stories, stats, testimonials, tips
+- Use {TONE} tone consistently
+- Optimize for {TARGET_AUDIENCE}
+- Leverage {COMPETITIVE_ADVANTAGE}
+- Follow {platform} best practices
+- Drive engagement and action
+"""
+
+    def _get_blog_article_template(self, psychology_stage: SalesPsychologyStage) -> str:
+        """Get template for blog article - SEO-optimized long-form content"""
+
+        return """
+Write a comprehensive, SEO-optimized blog article about {PRODUCT_NAME}.
+
+=== PRODUCT INTELLIGENCE ===
+PRODUCT: {PRODUCT_NAME}
+PRIMARY BENEFIT: {PRIMARY_BENEFIT}
+TARGET AUDIENCE: {TARGET_AUDIENCE}
+PAIN POINT: {PAIN_POINT}
+DESIRE_STATE: {DESIRE_STATE}
+COMPETITIVE_ADVANTAGE: {COMPETITIVE_ADVANTAGE}
+KEY_MESSAGES: {KEY_MESSAGES}
+TONE: {TONE}
+BRAND VOICE: {BRAND_VOICE}
+
+=== AI-ENHANCED INTELLIGENCE ===
+Scientific Backing: {SCIENTIFIC_BACKING}
+Research Credibility: {RESEARCH_CREDIBILITY}
+Credibility Signals: {CREDIBILITY_SIGNALS}
+Market Position: {MARKET_POSITIONING}
+Emotional Journey: {EMOTIONAL_JOURNEY}
+Psychological Triggers: {PSYCHOLOGICAL_TRIGGERS}
+Authority Markers: {AUTHORITY_MARKERS}
+
+=== ARTICLE SPECIFICATIONS ===
+Target Word Count: {word_count} words
+Psychology Stage: """ + psychology_stage.value.replace('_', ' ').title() + """
+
+=== REQUIRED STRUCTURE ===
+
+**1. SEO-OPTIMIZED TITLE (H1)**
+Format: "Title: [Your compelling, keyword-rich title]"
+- Include primary keyword
+- 50-60 characters optimal
+- Emotional hook or promise
+- Number or power word when appropriate
+
+**2. META DESCRIPTION**
+Format: "Meta Description: [150-160 character summary]"
+- Compelling summary with CTA
+- Include primary keyword
+- Drive click-through
+
+**3. INTRODUCTION (100-150 words)**
+Format: "Introduction: [Your intro text]"
+- Hook with surprising stat, question, or story
+- Identify with {TARGET_AUDIENCE} pain
+- Preview the value/solution
+- Include primary keyword naturally
+
+**4. MAIN CONTENT SECTIONS**
+Create 4-6 sections with H2 subheadings. Each section should:
+
+Format:
+"Section: [H2 Subheading Title]
+[Section content 150-250 words]"
+
+Required sections:
+- Problem/Challenge section (explore {PAIN_POINT})
+- Solution Introduction (introduce {PRODUCT_NAME})
+- Benefits & Features (highlight {PRIMARY_BENEFIT})
+- Proof/Credibility (use {SCIENTIFIC_BACKING}, {CREDIBILITY_SIGNALS})
+- Implementation/How-To (practical application)
+- Results/Transformation ({DESIRE_STATE})
+
+For each section:
+- Start with H2 subheading
+- Use H3 subheadings for subsections
+- Include bullet points or numbered lists
+- Add actionable insights
+- Maintain {TONE} throughout
+
+**5. CONCLUSION & CTA (100-150 words)**
+Format: "Conclusion: [Your conclusion text]"
+- Summarize key benefits
+- Reinforce {COMPETITIVE_ADVANTAGE}
+- Create urgency or FOMO
+- Strong, specific call-to-action
+- Circle back to opening hook
+
+**6. SEO ELEMENTS**
+Format: "SEO Keywords: [5-7 target keywords]"
+Format: "Internal Link Suggestions: [3-5 relevant topics]"
+
+=== WRITING GUIDELINES ===
+- Use conversational yet authoritative {TONE}
+- Write for {TARGET_AUDIENCE} comprehension level
+- Include transition sentences between sections
+- Use active voice (80%+ of sentences)
+- Vary sentence length for readability
+- Add relevant examples or case studies
+- Use power words and emotional triggers
+- Optimize for featured snippets (lists, tables, Q&A)
+- Include statistics or data points ({SCIENTIFIC_BACKING})
+- Natural keyword integration (avoid stuffing)
+
+=== CRITICAL REQUIREMENTS ===
+- ALWAYS use "{PRODUCT_NAME}" exactly - NEVER use placeholders
+- Target exactly {word_count} words (±10%)
+- Include all required structural elements
+- Maintain {BRAND_VOICE} throughout
+- Address {TARGET_AUDIENCE} directly
+- Leverage {COMPETITIVE_ADVANTAGE}
+- Build credibility with {AUTHORITY_MARKERS}
+- Create emotional connection with {EMOTIONAL_JOURNEY}
+- Drive toward clear action/conversion
 """
 
     def _get_ad_copy_template(self, psychology_stage: SalesPsychologyStage) -> str:
@@ -540,10 +681,22 @@ Focus on {PRIMARY_BENEFIT} and maintain {TONE} tone.
             placeholder = "{" + key + "}"
             prompt = prompt.replace(placeholder, str(value))
 
-        # Substitute preference-based placeholders (like variation_count)
+        # Substitute preference-based placeholders
         if "{variation_count}" in prompt:
             variation_count = preferences.get("variation_count", 3)
             prompt = prompt.replace("{variation_count}", str(variation_count))
+
+        if "{post_count}" in prompt:
+            post_count = preferences.get("post_count", 5)
+            prompt = prompt.replace("{post_count}", str(post_count))
+
+        if "{platform}" in prompt:
+            platform = preferences.get("platform", "instagram")
+            prompt = prompt.replace("{platform}", platform)
+
+        if "{word_count}" in prompt:
+            word_count = preferences.get("word_count", 1500)
+            prompt = prompt.replace("{word_count}", str(word_count))
 
         # Add strong variation instructions to prevent repetitive content
         import time
