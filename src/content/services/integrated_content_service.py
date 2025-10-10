@@ -2,6 +2,7 @@
 """
 Content Service that integrates with existing intelligence/generators system
 Uses your current EmailSequenceGenerator, AdCopyGenerator, etc.
+ENHANCED: Now includes platform-specific image generation
 """
 
 from typing import List, Optional, Dict, Any, Union
@@ -37,10 +38,17 @@ class IntegratedContentService:
                 get_available_generators
             )
 
-            # Initialize available generators WITH db_session for prompt storage
-            available = get_available_generators()
+            # ENHANCED: Import enhanced platform image generator
+            try:
+                from src.content.generators.enhanced_platform_image_generator import create_enhanced_platform_image_generator
+                enhanced_image_available = True
+            except ImportError:
+                logger.warning("Enhanced platform image generator not available")
+                enhanced_image_available = False
 
             # available is a list of generator class names, not a dict
+            available = get_available_generators()
+
             if "EmailGenerator" in available:
                 self._generators["email"] = EmailGenerator(db_session=self.db)
                 self._generators["email_sequence"] = EmailGenerator(db_session=self.db)
@@ -74,6 +82,13 @@ class IntegratedContentService:
             if "LongFormArticleGenerator" in available:
                 self._generators["long_form_article"] = LongFormArticleGenerator(db_session=self.db)
                 logger.info("Long-form article generator loaded")
+
+            # ENHANCED: Add platform-specific image generators
+            if enhanced_image_available:
+                self._generators["platform_image"] = create_enhanced_platform_image_generator(db_session=self.db)
+                self._generators["enhanced_image"] = create_enhanced_platform_image_generator(db_session=self.db)
+                self._generators["multi_platform_image"] = create_enhanced_platform_image_generator(db_session=self.db)
+                logger.info("Enhanced platform image generator loaded")
 
             # Always set factory to None to avoid errors
             self._factory = None
@@ -349,8 +364,8 @@ class IntegratedContentService:
                         user_id=user_id
                     )
 
-                # Image generation
-                elif 'image' in content_type_normalized:
+                # Original image generation
+                elif 'image' in content_type_normalized and 'platform' not in content_type_normalized:
                     result = await generator.generate_marketing_image(
                         campaign_id=campaign_id,
                         intelligence_data=transformed_intelligence,
@@ -361,6 +376,30 @@ class IntegratedContentService:
                         target_audience=preferences.get("target_audience"),
                         preferences=preferences,
                         user_id=user_id
+                    )
+
+                # ENHANCED: Platform-specific image generation
+                elif 'platform_image' in content_type_normalized or 'enhanced_image' in content_type_normalized:
+                    result = await generator.generate_platform_image(
+                        campaign_id=campaign_id,
+                        intelligence_data=transformed_intelligence,
+                        platform_format=preferences.get("platform_format", "instagram_feed"),
+                        image_type=preferences.get("image_type", "marketing"),
+                        style_preferences=preferences.get("style_preferences", {}),
+                        user_id=user_id,
+                        user_tier=preferences.get("user_tier", "professional")
+                    )
+
+                # ENHANCED: Multi-platform batch image generation
+                elif 'multi_platform_image' in content_type_normalized:
+                    result = await generator.generate_multi_platform_batch(
+                        campaign_id=campaign_id,
+                        intelligence_data=transformed_intelligence,
+                        platforms=preferences.get("platforms", ["instagram_feed", "facebook_feed"]),
+                        image_type=preferences.get("image_type", "marketing"),
+                        batch_style=preferences.get("batch_style", {}),
+                        user_id=user_id,
+                        user_tier=preferences.get("user_tier", "professional")
                     )
 
                 # Video script generation
@@ -536,6 +575,48 @@ class IntegratedContentService:
                 }
             }
         
+        # ENHANCED: Fallback for platform images
+        elif "platform_image" in content_type.lower() or "enhanced_image" in content_type.lower():
+            return {
+                "image": {
+                    "url": "https://via.placeholder.com/1080x1080/6366f1/white?text=Generated+Image",
+                    "platform_format": preferences.get("platform_format", "square"),
+                    "dimensions": "1080x1080",
+                    "image_type": preferences.get("image_type", "marketing"),
+                    "provider": "fallback"
+                },
+                "metadata": {
+                    "generator": "fallback",
+                    "product_name": product_name,
+                    "platform_optimized": False
+                }
+            }
+        
+        elif "multi_platform_image" in content_type.lower():
+            platforms = preferences.get("platforms", ["instagram_feed"])
+            return {
+                "generated_images": [
+                    {
+                        "platform": platform,
+                        "image": {
+                            "url": f"https://via.placeholder.com/1080x1080/6366f1/white?text={platform}+Image",
+                            "platform_format": platform,
+                            "dimensions": "1080x1080"
+                        },
+                        "generation_metadata": {"cost": 0, "provider": "fallback"}
+                    }
+                    for platform in platforms
+                ],
+                "batch_summary": {
+                    "successful_generations": len(platforms),
+                    "total_cost": 0.0
+                },
+                "metadata": {
+                    "generator": "fallback",
+                    "product_name": product_name
+                }
+            }
+        
         else:
             return {
                 "content": {
@@ -680,7 +761,7 @@ class IntegratedContentService:
             normalized_content_type = 'ad_copy'  # Database constraint expects 'ad_copy'
         elif content_type.lower() in ['blog', 'blog_post', 'blog_article']:
             normalized_content_type = 'blog_post'
-        elif content_type.lower() in ['image', 'marketing_image']:
+        elif content_type.lower() in ['image', 'marketing_image', 'platform_image', 'enhanced_image', 'multi_platform_image']:
             normalized_content_type = 'image'
         elif content_type.lower() in ['video', 'video_script']:
             normalized_content_type = 'video_script'
@@ -713,7 +794,7 @@ class IntegratedContentService:
             content_title = article.get("title", "Blog Article")
             content_body = article.get("content", "")
         elif content_data.get("image"):
-            # Image generator format
+            # Single image generator format
             image = content_data["image"]
             content_title = f"{image.get('image_type', 'Image').replace('_', ' ').title()} - {image.get('style', 'Professional')}"
             content_body = json.dumps({
@@ -721,7 +802,20 @@ class IntegratedContentService:
                 "dimensions": image.get("dimensions"),
                 "image_type": image.get("image_type"),
                 "style": image.get("style"),
-                "provider": image.get("provider")
+                "provider": image.get("provider"),
+                "platform_format": image.get("platform_format"),
+                "aspect_ratio": image.get("aspect_ratio"),
+                "optimized_for": image.get("optimized_for")
+            })
+        elif content_data.get("generated_images"):
+            # Multi-platform image batch format
+            images = content_data["generated_images"]
+            batch_summary = content_data.get("batch_summary", {})
+            content_title = f"Multi-Platform Images ({batch_summary.get('successful_generations', len(images))} images)"
+            content_body = json.dumps({
+                "images": images,
+                "batch_summary": batch_summary,
+                "platforms": [img.get("platform", "unknown") for img in images]
             })
         elif content_data.get("script"):
             # Video script generator format
@@ -759,6 +853,10 @@ class IntegratedContentService:
         metadata = content_data.get("generation_metadata", content_data.get("metadata", {}))
         sequence_info = content_data.get("sequence_info", content_data.get("content_info", {}))
 
+        # ENHANCED: Include platform metadata for images
+        platform_metadata = content_data.get("platform_metadata", {})
+        provider_info = content_data.get("provider_info", {})
+
         content_metadata = {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "generator_used": self._get_generator_name(content_type),
@@ -766,7 +864,12 @@ class IntegratedContentService:
             "content_info": sequence_info,
             "intelligence_enhanced": bool(metadata.get("intelligence_sources", 0) or content_data.get("intelligence_sources_used", 0)),
             "ai_provider": metadata.get("ai_provider", "unknown"),
-            "prompt_quality_score": metadata.get("prompt_quality_score", 0)
+            "prompt_quality_score": metadata.get("prompt_quality_score", 0),
+            # ENHANCED: Platform-specific metadata
+            "platform_metadata": platform_metadata,
+            "provider_info": provider_info,
+            "is_platform_optimized": bool(platform_metadata),
+            "batch_generation": "generated_images" in content_data
         }
         
         await self.db.execute(query, {
@@ -820,22 +923,25 @@ class IntegratedContentService:
             try:
                 result_list.append({
                     "id": str(row.id),
+                    "content_id": str(row.id),
                     "content_type": row.content_type,
-                    "content_title": row.content_title,
-                    "content_body": row.content_body,
-                    "content_metadata": self._safe_get_metadata_as_dict(row.content_metadata),
-                    "generation_settings": self._safe_get_metadata_as_dict(row.generation_settings),
-                    "user_rating": row.user_rating,
-                    "is_published": row.is_published,
+                    "title": row.content_title,
+                    "content_title": row.content_title,  # Add both for compatibility
+                    "body": row.content_body,
+                    "content": row.content_body,  # Add both for compatibility
+                    "metadata": self._safe_get_metadata_as_dict(row.content_metadata),
+                    "content_metadata": self._safe_get_metadata_as_dict(row.content_metadata),  # Add both for compatibility
                     "created_at": row.created_at.isoformat() if row.created_at else None,
                     "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                    "is_published": row.is_published,
+                    "user_rating": row.user_rating,
                     "generation_method": row.generation_method,
                     "content_status": row.content_status,
-                    "generator_used": self._safe_get_generator_used(row.content_metadata)
+                    "generated_content": self._safe_get_metadata_as_dict(row.content_metadata).get("generated_content", {}),
+                    "source": "integrated_content_service"
                 })
-            except Exception as e:
-                logger.error(f"Error processing content row {getattr(row, 'id', 'unknown')}: {e}")
-                # Skip problematic rows but continue processing
+            except Exception as parse_error:
+                logger.warning(f"Error parsing content row: {parse_error}")
                 continue
 
         return result_list
@@ -903,7 +1009,9 @@ class IntegratedContentService:
                 "factory_available": hasattr(self, '_factory') and self._factory is not None,
                 "total_available": len(self._generators),
                 "railway_compatible": existing_status.get("railway_compatible", False),
-                "ultra_cheap_ai_enabled": existing_status.get("ultra_cheap_ai_enabled", False)
+                "ultra_cheap_ai_enabled": existing_status.get("ultra_cheap_ai_enabled", False),
+                # ENHANCED: Include platform image generator status
+                "enhanced_image_available": "platform_image" in self._generators
             }
 
         except ImportError:
@@ -913,6 +1021,7 @@ class IntegratedContentService:
                 "loaded_generators": list(self._generators.keys()),
                 "factory_available": False,
                 "total_available": len(self._generators),
+                "enhanced_image_available": "platform_image" in self._generators,
                 "error": "Could not import existing generator status"
             }
 
@@ -981,7 +1090,11 @@ class IntegratedContentService:
                         "generation_method": row.generation_method,
                         "content_status": row.content_status,
                         "generated_content": metadata.get("generated_content", {}),
-                        "source": "integrated_content_service"
+                        "source": "integrated_content_service",
+                        # ENHANCED: Include platform metadata for images
+                        "is_platform_optimized": metadata.get("is_platform_optimized", False),
+                        "platform_metadata": metadata.get("platform_metadata", {}),
+                        "provider_info": metadata.get("provider_info", {})
                     }
                     content_list.append(content_item)
                     print(f"DEBUG: Added content item with id={content_item['content_id']}, type={content_item['content_type']}")
