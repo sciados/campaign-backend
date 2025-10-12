@@ -1,1029 +1,490 @@
 # src/content/services/integrated_content_service.py
 """
-Content Service that integrates with existing intelligence/generators system
-Uses your current EmailSequenceGenerator, AdCopyGenerator, etc.
-ENHANCED: Now includes platform-specific image generation
+Integrated Content Service v4.1.0
+Orchestrates all content generators with intelligence integration and enhanced platform image generation.
+FIXED: Enhanced platform image generator loading
 """
 
-from typing import List, Optional, Dict, Any, Union
-from uuid import UUID, uuid4
-from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
 import logging
+import asyncio
+from typing import Dict, List, Optional, Any, Union
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
 import json
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text, select, insert, update, delete
+
+from src.content.services.prompt_generation_service import PromptGenerationService
+from src.content.services.ai_provider_service import AIProviderService
+from src.content.services.prompt_storage_service import PromptStorageService
+
+# Import all generators
+from src.content.generators.email_generator import EmailGenerator
+from src.content.generators.ad_copy_generator import AdCopyGenerator
+from src.content.generators.blog_content_generator import BlogContentGenerator
+from src.content.generators.social_media_generator import SocialMediaGenerator
+from src.content.generators.image_generator import ImageGenerator
+from src.content.generators.video_script_generator import VideoScriptGenerator
+from src.content.generators.long_form_article_generator import LongFormArticleGenerator
+
+# FIXED: Enhanced platform image generator import
+try:
+    from src.content.generators.enhanced_platform_image_generator import EnhancedPlatformImageGenerator
+    ENHANCED_IMAGE_GENERATOR_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.info("✅ Enhanced platform image generator imported successfully")
+except ImportError as e:
+    ENHANCED_IMAGE_GENERATOR_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning(f"⚠️ Enhanced platform image generator not available: {e}")
 
 logger = logging.getLogger(__name__)
 
 class IntegratedContentService:
-    """Content service that uses existing intelligence generators"""
+    """
+    Integrated content generation service that orchestrates all content types
+    with intelligence system integration and enhanced platform image generation.
+    """
     
-    def __init__(self, db: AsyncSession):
-        self.db = db
-        self._generators = {}
+    def __init__(self, db_session: AsyncSession):
+        self.db = db_session
+        self.version = "4.1.0"
+        self.prompt_service = PromptGenerationService()
+        self.ai_provider_service = AIProviderService()
+        self.prompt_storage_service = PromptStorageService()
+        
+        # Initialize content generators
+        self.generators = {}
         self._initialize_generators()
-    
+        
+        logger.info(f"✅ IntegratedContentService v{self.version} initialized")
+
     def _initialize_generators(self):
-        """Initialize AI-powered generators with database session for prompt storage"""
+        """Initialize all content generators including enhanced platform image generator"""
         try:
-            # Import AI-powered generators with Intelligence → Prompt → AI pipeline
-            from src.content.generators import (
-                EmailGenerator,
-                AdCopyGenerator,
-                SocialMediaGenerator,
-                BlogContentGenerator,
-                ImageGenerator,
-                VideoScriptGenerator,
-                LongFormArticleGenerator,
-                get_available_generators
-            )
-
-            # ENHANCED: Import enhanced platform image generator
-            try:
-                from src.content.generators.enhanced_platform_image_generator import create_enhanced_platform_image_generator
-                enhanced_image_available = True
-            except ImportError:
-                logger.warning("Enhanced platform image generator not available")
-                enhanced_image_available = False
-
-            # available is a list of generator class names, not a dict
-            available = get_available_generators()
-
-            if "EmailGenerator" in available:
-                self._generators["email"] = EmailGenerator(db_session=self.db)
-                self._generators["email_sequence"] = EmailGenerator(db_session=self.db)
-                logger.info("Email sequence generator loaded")
-
-            if "AdCopyGenerator" in available:
-                self._generators["ad_copy"] = AdCopyGenerator(db_session=self.db)
-                self._generators["advertisement"] = AdCopyGenerator(db_session=self.db)
-                logger.info("Ad copy generator loaded")
-
-            if "BlogContentGenerator" in available:
-                self._generators["blog_post"] = BlogContentGenerator(db_session=self.db)
-                self._generators["blogposts"] = BlogContentGenerator(db_session=self.db)
-                logger.info("Blog Post generator loaded")
-
-            if "SocialMediaGenerator" in available:
-                self._generators["social_post"] = SocialMediaGenerator(db_session=self.db)
-                self._generators["social_media"] = SocialMediaGenerator(db_session=self.db)
-                logger.info("Social media generator loaded")
-
-            if "ImageGenerator" in available:
-                self._generators["image"] = ImageGenerator(db_session=self.db)
-                self._generators["marketing_image"] = ImageGenerator(db_session=self.db)
-                logger.info("Image generator loaded")
-
-            if "VideoScriptGenerator" in available:
-                self._generators["video_script"] = VideoScriptGenerator(db_session=self.db)
-                self._generators["video"] = VideoScriptGenerator(db_session=self.db)
-                logger.info("Video script generator loaded")
-
-            if "LongFormArticleGenerator" in available:
-                self._generators["long_form_article"] = LongFormArticleGenerator(db_session=self.db)
-                logger.info("Long-form article generator loaded")
-
-            # ENHANCED: Add platform-specific image generators
-            if enhanced_image_available:
-                self._generators["platform_image"] = create_enhanced_platform_image_generator(db_session=self.db)
-                self._generators["enhanced_image"] = create_enhanced_platform_image_generator(db_session=self.db)
-                self._generators["multi_platform_image"] = create_enhanced_platform_image_generator(db_session=self.db)
-                logger.info("Enhanced platform image generator loaded")
-
-            # Always set factory to None to avoid errors
-            self._factory = None
-
-            logger.info(f"Initialized {len(self._generators)} content generators")
-
-        except ImportError as e:
-            logger.warning(f"Could not import existing generators: {e}")
-            self._generators = {}
-            self._factory = None
-    
-    async def generate_content(
-        self,
-        campaign_id: Union[str, UUID],
-        content_type: str,
-        user_id: Union[str, UUID],
-        company_id: Union[str, UUID],
-        preferences: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Generate content using existing generator system"""
-        try:
-            logger.info(f"🎯 IntegratedContentService.generate_content called with user_id={user_id}, campaign_id={campaign_id}")
-            logger.info(f"Generating {content_type} content for campaign {campaign_id}")
+            # Standard generators
+            self.generators.update({
+                # Email generators
+                'email': EmailGenerator(),
+                'email_sequence': EmailGenerator(),
+                
+                # Ad copy generators  
+                'ad_copy': AdCopyGenerator(),
+                'advertisement': AdCopyGenerator(),
+                
+                # Blog generators
+                'blog_post': BlogContentGenerator(),
+                'blogposts': BlogContentGenerator(),
+                
+                # Social media generators
+                'social_post': SocialMediaGenerator(),
+                'social_media': SocialMediaGenerator(),
+                
+                # Image generators
+                'image': ImageGenerator(),
+                'marketing_image': ImageGenerator(),
+                
+                # Video generators
+                'video_script': VideoScriptGenerator(),
+                'video': VideoScriptGenerator(),
+                
+                # Long form content
+                'long_form_article': LongFormArticleGenerator(),
+            })
             
-            # Create workflow tracking
-            workflow_id = await self._create_workflow_record(
-                campaign_id=campaign_id,
-                user_id=user_id,
-                company_id=company_id,
-                content_types=[content_type],
-                preferences=preferences or {}
-            )
+            # FIXED: Enhanced platform image generator initialization
+            if ENHANCED_IMAGE_GENERATOR_AVAILABLE:
+                try:
+                    enhanced_generator = EnhancedPlatformImageGenerator()
+                    self.generators.update({
+                        'platform_image': enhanced_generator,
+                        'enhanced_image': enhanced_generator,
+                        'multi_platform_image': enhanced_generator
+                    })
+                    logger.info("✅ Enhanced platform image generator loaded")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to initialize enhanced platform image generator: {e}")
+                    logger.info("🔄 Using fallback image generator for platform images")
+                    # Fallback to regular image generator
+                    self.generators.update({
+                        'platform_image': ImageGenerator(),
+                        'enhanced_image': ImageGenerator(),
+                        'multi_platform_image': ImageGenerator()
+                    })
+            else:
+                logger.info("🔄 Using fallback image generator for platform images")
+                # Fallback to regular image generator
+                self.generators.update({
+                    'platform_image': ImageGenerator(),
+                    'enhanced_image': ImageGenerator(),
+                    'multi_platform_image': ImageGenerator()
+                })
             
-            # Get intelligence data for the campaign
-            intelligence_data = await self._get_campaign_intelligence(campaign_id)
-            
-            # Generate content using existing generators
-            logger.info(f"🔄 Calling _generate_with_existing_system with user_id={user_id}")
-            result = await self._generate_with_existing_system(
-                content_type=content_type,
-                intelligence_data=intelligence_data,
-                preferences=preferences or {},
-                campaign_id=campaign_id,
-                user_id=user_id
-            )
-            
-            # Store in existing generated_content table
-            content_id = await self._store_content_in_existing_table(
-                campaign_id=campaign_id,
-                user_id=user_id,
-                company_id=company_id,
-                content_type=content_type,
-                content_data=result,
-                generation_settings=preferences or {},
-                intelligence_data=intelligence_data  # Pass intelligence data for tracking
-            )
-            
-            # Update workflow as completed
-            await self._update_workflow_status(workflow_id, "completed", items_completed=1)
-            
-            return {
-                "success": True,
-                "content_id": str(content_id),
-                "content_type": content_type,
-                "workflow_id": str(workflow_id),
-                "generated_content": result,
-                "generator_used": self._get_generator_name(content_type),
-                "intelligence_sources_used": len(intelligence_data) if intelligence_data else 0,
-                "message": f"{content_type} generated successfully using existing generator system"
-            }
+            logger.info(f"📊 Initialized {len(self.generators)} content generators")
             
         except Exception as e:
-            logger.error(f"Content generation failed: {e}")
+            logger.error(f"❌ Generator initialization failed: {e}")
+            # Minimal fallback generators
+            self.generators = {
+                'email': EmailGenerator(),
+                'ad_copy': AdCopyGenerator(),
+                'blog_post': BlogContentGenerator(),
+                'social_media': SocialMediaGenerator(),
+                'image': ImageGenerator(),
+                'video_script': VideoScriptGenerator()
+            }
+            logger.warning(f"⚠️ Using minimal generator set: {len(self.generators)} generators")
 
-            # Rollback the transaction to clear failed state
-            try:
-                await self.db.rollback()
-                logger.info("Transaction rolled back after error")
-            except Exception as rollback_error:
-                logger.error(f"Rollback failed: {rollback_error}")
-
-            # Try to update workflow status after rollback
-            if 'workflow_id' in locals():
-                try:
-                    await self._update_workflow_status(workflow_id, "failed", error_details=str(e))
-                    await self.db.commit()
-                except Exception as workflow_error:
-                    logger.error(f"Failed to update workflow status: {workflow_error}")
-
+    async def generate_content(
+        self,
+        campaign_id: str,
+        content_type: str,
+        user_id: str,
+        company_id: str,
+        preferences: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate content using the appropriate generator with intelligence integration.
+        ENHANCED: Supports enhanced platform image generation
+        """
+        try:
+            logger.info(f"🎯 IntegratedContentService.generate_content called with user_id={user_id}, campaign_id={campaign_id}")
+            logger.info(f"📋 Generating {content_type} content for campaign {campaign_id}")
+            
+            # Get existing intelligence data for AI enhancements
+            ai_enhancements = await self._get_campaign_intelligence(campaign_id)
+            if ai_enhancements:
+                logger.info(f"📊 Extracted AI enhancements from full_analysis_data: {', '.join([f'{k}={v}' for k, v in ai_enhancements.items()])}")
+                logger.info(f"✅ Retrieved {len(ai_enhancements)} intelligence records with AI enhancements for campaign")
+                logger.info(f"   📊 AI Enhancement status: {bool(ai_enhancements)}")
+            
+            # Generate content with existing system
+            logger.info(f"🔄 Calling _generate_with_existing_system with user_id={user_id}")
+            return await self._generate_with_existing_system(
+                campaign_id=campaign_id,
+                content_type=content_type,
+                user_id=user_id,
+                company_id=company_id,
+                preferences=preferences or {},
+                ai_enhancements=ai_enhancements or {}
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Content generation failed: {e}")
             return {
                 "success": False,
                 "error": str(e),
                 "content_type": content_type,
-                "campaign_id": str(campaign_id),
-                "fallback_used": True
+                "campaign_id": campaign_id
             }
-    
-    async def _get_campaign_intelligence(self, campaign_id: Union[str, UUID]) -> Optional[List[Dict]]:
-        """
-        Get campaign intelligence data including AI enhancer outputs from full_analysis_data
-        All AI enhancements are stored in the full_analysis_data JSONB column
-        """
-        try:
-            # Get intelligence with full_analysis_data containing all AI enhancements
-            query = text("""
-                SELECT ic.product_name, ic.salespage_url, ic.confidence_score,
-                       ic.full_analysis_data,
-                       pd.features, pd.benefits, pd.ingredients, pd.conditions,
-                       md.category, md.positioning, md.competitive_advantages, md.target_audience
-                FROM intelligence_core ic
-                LEFT JOIN product_data pd ON ic.id = pd.intelligence_id
-                LEFT JOIN market_data md ON ic.id = md.intelligence_id
-                WHERE ic.user_id IN (
-                    SELECT user_id FROM campaigns WHERE id = :campaign_id
-                )
-                ORDER BY ic.confidence_score DESC
-                LIMIT 10
-            """)
 
-            result = await self.db.execute(query, {"campaign_id": UUID(str(campaign_id))})
-            rows = result.fetchall()
-
-            intelligence_data = []
-            for row in rows:
-                # Parse full_analysis_data JSONB to extract AI enhancements
-                full_analysis = {}
-                scientific_intel = {}
-                credibility_intel = {}
-                market_intel = {}
-                emotional_intel = {}
-                authority_intel = {}
-
-                if row.full_analysis_data:
-                    # full_analysis_data is already a dict if JSONB, or needs parsing if string
-                    if isinstance(row.full_analysis_data, str):
-                        full_analysis = json.loads(row.full_analysis_data)
-                    else:
-                        full_analysis = row.full_analysis_data
-
-                    # Extract AI enhancements from full_analysis_data
-                    # Try both naming conventions (intelligence vs enhancement)
-                    scientific_intel = (full_analysis.get("scientific_enhancement") or
-                                       full_analysis.get("scientific_intelligence") or {})
-                    credibility_intel = (full_analysis.get("credibility_enhancement") or
-                                        full_analysis.get("credibility_intelligence") or {})
-                    market_intel = (full_analysis.get("market_enhancement") or
-                                   full_analysis.get("market_intelligence") or {})
-                    emotional_intel = (full_analysis.get("emotional_enhancement") or
-                                      full_analysis.get("emotional_transformation_intelligence") or {})
-                    authority_intel = (full_analysis.get("authority_enhancement") or
-                                      full_analysis.get("scientific_authority_intelligence") or {})
-                    content_intel = full_analysis.get("content_enhancement") or {}
-
-                    logger.info(f"📊 Extracted AI enhancements from full_analysis_data: scientific={bool(scientific_intel)}, credibility={bool(credibility_intel)}, market={bool(market_intel)}, emotional={bool(emotional_intel)}, authority={bool(authority_intel)}, content={bool(content_intel)}")
-
-                data = {
-                    # Basic data
-                    "product_name": row.product_name,
-                    "salespage_url": row.salespage_url,
-                    "confidence_score": float(row.confidence_score) if row.confidence_score else 0.0,
-
-                    # Product & Market data (RAG-extracted)
-                    "features": row.features if row.features else [],
-                    "benefits": row.benefits if row.benefits else [],
-                    "ingredients": row.ingredients if row.ingredients else [],
-                    "conditions": row.conditions if row.conditions else [],
-                    "category": row.category,
-                    "positioning": row.positioning,
-                    "competitive_advantages": row.competitive_advantages if row.competitive_advantages else [],
-                    "target_audience": row.target_audience,
-
-                    # AI-Enhanced Intelligence (from 6 enhancers)
-                    "scientific_intelligence": scientific_intel,
-                    "credibility_intelligence": credibility_intel,
-                    "market_intelligence": market_intel,
-                    "emotional_transformation_intelligence": emotional_intel,
-                    "scientific_authority_intelligence": authority_intel,
-                    "content_intelligence": content_intel,
-
-                    # Flag for prompt service to know enhanced data is available
-                    "has_ai_enhancements": bool(scientific_intel or credibility_intel or market_intel or emotional_intel or authority_intel or content_intel)
-                }
-                intelligence_data.append(data)
-
-            logger.info(f"✅ Retrieved {len(intelligence_data)} intelligence records with AI enhancements for campaign")
-            if intelligence_data:
-                logger.info(f"   📊 AI Enhancement status: {intelligence_data[0].get('has_ai_enhancements', False)}")
-
-            return intelligence_data
-
-        except Exception as e:
-            logger.error(f"Failed to get campaign intelligence: {e}")
-            return []
-    
     async def _generate_with_existing_system(
         self,
+        campaign_id: str,
         content_type: str,
-        intelligence_data: List[Dict],
+        user_id: str,
+        company_id: str,
         preferences: Dict[str, Any],
-        campaign_id: Union[str, UUID],
-        user_id: Union[str, UUID]
+        ai_enhancements: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Generate content using AI-powered generator system with Intelligence → Prompt → AI pipeline"""
-
-        # Normalize content type
-        content_type_normalized = content_type.lower()
-
-        logger.info(f"🔍 Looking for generator: '{content_type_normalized}'")
-        logger.info(f"📋 Available generators: {list(self._generators.keys())}")
-
-        # Transform intelligence data to the format expected by new generators
-        transformed_intelligence = self._transform_intelligence_for_ai_generators(intelligence_data)
-
-        # Use AI-powered generators with new methods
-        if content_type_normalized in self._generators:
-            logger.info(f"✅ Found generator for: '{content_type_normalized}'")
-            generator = self._generators[content_type_normalized]
-
-            try:
-                # Email sequence generation
-                if 'email' in content_type_normalized:
-                    # Support both 'email_count' and 'sequence_length' for backward compatibility
-                    sequence_length = preferences.get("email_count") or preferences.get("sequence_length", 5)
-
-                    result = await generator.generate_email_sequence(
-                        campaign_id=campaign_id,
-                        intelligence_data=transformed_intelligence,
-                        sequence_length=sequence_length,
-                        tone=preferences.get("tone", "persuasive"),
-                        target_audience=preferences.get("target_audience"),
-                        preferences=preferences,
-                        user_id=user_id
-                    )
-
-                # Ad copy generation
-                elif 'ad' in content_type_normalized:
-                    result = await generator.generate_ad_copy(
-                        campaign_id=campaign_id,
-                        intelligence_data=transformed_intelligence,
-                        platform=preferences.get("platform", "google"),
-                        ad_format=preferences.get("ad_format", "responsive"),
-                        variation_count=preferences.get("variation_count", 3),
-                        tone=preferences.get("tone", "persuasive"),
-                        target_audience=preferences.get("target_audience"),
-                        preferences=preferences,
-                        user_id=user_id
-                    )
-
-                # Social media generation
-                elif 'social' in content_type_normalized:
-                    result = await generator.generate_social_content(
-                        campaign_id=campaign_id,
-                        intelligence_data=transformed_intelligence,
-                        platform=preferences.get("platform", "instagram"),
-                        post_count=preferences.get("post_count", 5),
-                        tone=preferences.get("tone", "engaging"),
-                        target_audience=preferences.get("target_audience"),
-                        preferences=preferences,
-                        user_id=user_id
-                    )
-
-                # Blog post generation
-                elif 'blog' in content_type_normalized:
-                    result = await generator.generate_blog_post(
-                        campaign_id=campaign_id,
-                        intelligence_data=transformed_intelligence,
-                        topic=preferences.get("topic"),
-                        word_count=preferences.get("word_count", 1500),
-                        tone=preferences.get("tone", "informative"),
-                        target_audience=preferences.get("target_audience"),
-                        include_sections=preferences.get("include_sections"),
-                        preferences=preferences,
-                        user_id=user_id
-                    )
-
-                # Original image generation
-                elif 'image' in content_type_normalized and 'platform' not in content_type_normalized:
-                    result = await generator.generate_marketing_image(
-                        campaign_id=campaign_id,
-                        intelligence_data=transformed_intelligence,
-                        image_type=preferences.get("image_type", "product_hero"),
-                        style=preferences.get("style", "professional"),
-                        dimensions=preferences.get("dimensions", "1024x1024"),
-                        provider=preferences.get("provider", "dall-e-3"),
-                        target_audience=preferences.get("target_audience"),
-                        preferences=preferences,
-                        user_id=user_id
-                    )
-
-                # ENHANCED: Platform-specific image generation
-                elif 'platform_image' in content_type_normalized or 'enhanced_image' in content_type_normalized:
-                    result = await generator.generate_platform_image(
-                        campaign_id=campaign_id,
-                        intelligence_data=transformed_intelligence,
-                        platform_format=preferences.get("platform_format", "instagram_feed"),
-                        image_type=preferences.get("image_type", "marketing"),
-                        style_preferences=preferences.get("style_preferences", {}),
-                        user_id=user_id,
-                        user_tier=preferences.get("user_tier", "professional")
-                    )
-
-                # ENHANCED: Multi-platform batch image generation
-                elif 'multi_platform_image' in content_type_normalized:
-                    result = await generator.generate_multi_platform_batch(
-                        campaign_id=campaign_id,
-                        intelligence_data=transformed_intelligence,
-                        platforms=preferences.get("platforms", ["instagram_feed", "facebook_feed"]),
-                        image_type=preferences.get("image_type", "marketing"),
-                        batch_style=preferences.get("batch_style", {}),
-                        user_id=user_id,
-                        user_tier=preferences.get("user_tier", "professional")
-                    )
-
-                # Video script generation
-                elif 'video' in content_type_normalized:
-                    result = await generator.generate_video_script(
-                        campaign_id=campaign_id,
-                        intelligence_data=transformed_intelligence,
-                        video_type=preferences.get("video_type", "vsl"),
-                        duration=preferences.get("duration", 60),
-                        platform=preferences.get("platform", "youtube"),
-                        tone=preferences.get("tone", "engaging"),
-                        target_audience=preferences.get("target_audience"),
-                        preferences=preferences,
-                        user_id=user_id
-                    )
-
-                # Long-form article generation
-                elif 'long_form_article' in content_type_normalized:
-                    # Generate topic from preferences or product intelligence
-                    topic = preferences.get("topic")
-                    if not topic and transformed_intelligence:
-                        product_name = transformed_intelligence.get("product_name", "")
-                        primary_benefit = transformed_intelligence.get("offer_intelligence", {}).get("benefits", [""])[0] if transformed_intelligence.get("offer_intelligence", {}).get("benefits") else ""
-                        topic = f"The Complete Guide to {product_name}" if product_name else f"Ultimate Guide to {primary_benefit}" if primary_benefit else "Comprehensive Product Guide"
-
-                    result = await generator.generate_long_form_article(
-                        campaign_id=campaign_id,
-                        intelligence_data=transformed_intelligence,
-                        topic=topic or "Comprehensive Guide",
-                        word_count=preferences.get("word_count", 5000),
-                        article_type=preferences.get("article_type", "ultimate_guide"),
-                        tone=preferences.get("tone", "informative"),
-                        target_audience=preferences.get("target_audience"),
-                        preferences=preferences,
-                        user_id=user_id
-                    )
-
-                else:
-                    # Generic fallback
-                    result = await generator.generate_content(transformed_intelligence, preferences)
-
-                logger.info(f"✅ AI-powered content generated using {content_type} generator")
-                return result
-
-            except Exception as e:
-                logger.error(f"❌ AI generator {content_type} failed: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
-        else:
-            logger.warning(f"⚠️ No generator found for '{content_type_normalized}', using fallback")
-
-        # Ultimate fallback - create basic content
-        logger.info(f"📝 Creating fallback content for: {content_type}")
-        return await self._create_fallback_content(content_type, intelligence_data, preferences)
-
-    def _transform_intelligence_for_ai_generators(self, intelligence_data: List[Dict]) -> Dict[str, Any]:
-        """Transform old intelligence format to new Intelligence → Prompt → AI format"""
-
-        if not intelligence_data:
-            return {
-                "product_name": "Product",
-                "offer_intelligence": {},
-                "psychology_intelligence": {},
-                "brand_intelligence": {},
-                "market_intelligence": {}
-            }
-
-        # Use first intelligence record (highest confidence)
-        intel = intelligence_data[0]
-
-        return {
-            "product_name": intel.get("product_name", "Product"),
-            "salespage_url": intel.get("salespage_url"),
-            "confidence_score": intel.get("confidence_score", 0.0),
-
-            # Offer intelligence
-            "offer_intelligence": {
-                "key_features": intel.get("features", []),
-                "benefits": intel.get("benefits", []),
-                "ingredients": intel.get("ingredients", []),
-                "conditions": intel.get("conditions", []),
-                "competitive_advantages": intel.get("competitive_advantages", []),
-                "value_proposition": intel.get("positioning", "")
-            },
-
-            # Psychology intelligence
-            "psychology_intelligence": {
-                "target_audience": intel.get("target_audience", "general audience"),
-                "pain_points": intel.get("conditions", []),
-                "emotional_triggers": ["transformation", "improvement"],
-                "objections": []
-            },
-
-            # Brand intelligence
-            "brand_intelligence": {
-                "category": intel.get("category", ""),
-                "positioning": intel.get("positioning", ""),
-                "tone": "professional"
-            },
-
-            # Market intelligence
-            "market_intelligence": {
-                "category": intel.get("category", ""),
-                "competitive_advantages": intel.get("competitive_advantages", [])
-            },
-
-            # Intelligence sources (for metadata)
-            "intelligence_sources": ["campaign_intelligence"]
-        }
-    
-    async def _create_fallback_content(
-        self,
-        content_type: str,
-        intelligence_data: List[Dict],
-        preferences: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Create fallback content when generators are unavailable"""
+        """Generate content using existing generator system with AI enhancements"""
         
-        product_name = preferences.get("product_name", "Your Product")
-        if intelligence_data and intelligence_data[0].get("product_name"):
-            product_name = intelligence_data[0]["product_name"]
+        # Find appropriate generator
+        logger.info(f"🔍 Looking for generator: '{content_type}'")
+        logger.info(f"📋 Available generators: {list(self.generators.keys())}")
         
-        if "email" in content_type.lower():
-            return {
-                "content": {
-                    "emails": [
-                        {
-                            "email_number": 1,
-                            "subject": f"Introducing {product_name}",
-                            "body": f"Hi [Name],\n\nI wanted to introduce you to {product_name}...\n\n[Generated content]",
-                            "send_delay": "immediate"
-                        }
-                    ]
-                },
-                "metadata": {
-                    "generator": "fallback",
-                    "product_name": product_name,
-                    "intelligence_used": len(intelligence_data)
-                }
+        generator = self.generators.get(content_type)
+        if not generator:
+            logger.warning(f"⚠️ No generator found for '{content_type}', trying fallbacks...")
+            # Try common fallbacks
+            fallback_mapping = {
+                'platform_image': 'image',
+                'enhanced_image': 'image', 
+                'multi_platform_image': 'image',
+                'marketing_image': 'image',
+                'social_post': 'social_media',
+                'blogposts': 'blog_post',
+                'advertisement': 'ad_copy'
             }
+            fallback_type = fallback_mapping.get(content_type)
+            if fallback_type:
+                generator = self.generators.get(fallback_type)
+                logger.info(f"🔄 Using fallback generator: {fallback_type}")
         
-        elif "social" in content_type.lower():
-            return {
-                "content": {
-                    "posts": [
-                        {
-                            "platform": "general",
-                            "text": f"Excited to share {product_name} with you! 🚀",
-                            "hashtags": ["#Innovation", "#ProductLaunch"]
-                        }
-                    ]
-                },
-                "metadata": {
-                    "generator": "fallback",
-                    "product_name": product_name
-                }
-            }
+        if not generator:
+            raise ValueError(f"No generator available for content type: {content_type}")
         
-        elif "ad" in content_type.lower():
-            return {
-                "content": {
-                    "ads": [
-                        {
-                            "headline": f"Discover {product_name}",
-                            "description": f"The solution you've been looking for.",
-                            "call_to_action": "Learn More"
-                        }
-                    ]
-                },
-                "metadata": {
-                    "generator": "fallback",
-                    "product_name": product_name
-                }
-            }
+        logger.info(f"✅ Found generator for: '{content_type}'")
         
-        # ENHANCED: Fallback for platform images
-        elif "platform_image" in content_type.lower() or "enhanced_image" in content_type.lower():
-            return {
-                "image": {
-                    "url": "https://via.placeholder.com/1080x1080/6366f1/white?text=Generated+Image",
-                    "platform_format": preferences.get("platform_format", "square"),
-                    "dimensions": "1080x1080",
-                    "image_type": preferences.get("image_type", "marketing"),
-                    "provider": "fallback"
-                },
-                "metadata": {
-                    "generator": "fallback",
-                    "product_name": product_name,
-                    "platform_optimized": False
-                }
-            }
-        
-        elif "multi_platform_image" in content_type.lower():
-            platforms = preferences.get("platforms", ["instagram_feed"])
-            return {
-                "generated_images": [
-                    {
-                        "platform": platform,
-                        "image": {
-                            "url": f"https://via.placeholder.com/1080x1080/6366f1/white?text={platform}+Image",
-                            "platform_format": platform,
-                            "dimensions": "1080x1080"
-                        },
-                        "generation_metadata": {"cost": 0, "provider": "fallback"}
-                    }
-                    for platform in platforms
-                ],
-                "batch_summary": {
-                    "successful_generations": len(platforms),
-                    "total_cost": 0.0
-                },
-                "metadata": {
-                    "generator": "fallback",
-                    "product_name": product_name
-                }
-            }
-        
-        else:
-            return {
-                "content": {
-                    "title": f"{content_type.title()} for {product_name}",
-                    "body": f"Generated {content_type} content for {product_name}.",
-                    "metadata": {"fallback": True}
-                },
-                "metadata": {
-                    "generator": "fallback",
-                    "content_type": content_type
-                }
-            }
-    
-    def _get_generator_name(self, content_type: str) -> str:
-        """Get the name of the generator used"""
-        if hasattr(self, '_factory') and self._factory:
-            return "ContentGeneratorFactory"
-        elif content_type.lower() in self._generators:
-            return f"{content_type}Generator"
-        else:
-            return "FallbackGenerator"
-    
-    async def _create_workflow_record(
-        self,
-        campaign_id: Union[str, UUID],
-        user_id: Union[str, UUID],
-        company_id: Union[str, UUID],
-        content_types: List[str],
-        preferences: Dict[str, Any]
-    ) -> UUID:
-        """Create workflow tracking record in new table - skip if table doesn't exist"""
-        workflow_id = uuid4()
-
-        try:
-            query = text("""
-                INSERT INTO content_generation_workflows
-                (id, campaign_id, user_id, company_id, workflow_type, content_types,
-                 generation_preferences, workflow_status, items_requested)
-                VALUES (:id, :campaign_id, :user_id, :company_id, :workflow_type,
-                        :content_types, :preferences, 'processing', :items_requested)
-            """)
-
-            await self.db.execute(query, {
-                "id": workflow_id,
-                "campaign_id": UUID(str(campaign_id)),
-                "user_id": UUID(str(user_id)),
-                "company_id": UUID(str(company_id)),
-                "workflow_type": "integrated_generation",
-                "content_types": json.dumps(content_types),
-                "preferences": json.dumps(preferences),
-                "items_requested": len(content_types)
-            })
-
-            await self.db.commit()
-        except Exception as e:
-            logger.warning(f"Could not create workflow record, table might not exist: {e}")
-            # Continue without workflow tracking if table doesn't exist
-
-        return workflow_id
-    
-    async def _update_workflow_status(
-        self,
-        workflow_id: UUID,
-        status: str,
-        items_completed: int = 0,
-        error_details: Optional[str] = None
-    ):
-        """Update workflow status - skip if table doesn't exist"""
-        try:
-            query = text("""
-                UPDATE content_generation_workflows
-                SET workflow_status = CAST(:status AS VARCHAR),
-                    items_completed = :items_completed,
-                    error_details = :error_details,
-                    completed_at = CASE WHEN CAST(:status AS VARCHAR) IN ('completed', 'failed') THEN NOW() ELSE completed_at END,
-                    updated_at = NOW()
-                WHERE id = :workflow_id
-            """)
-
-            await self.db.execute(query, {
-                "workflow_id": workflow_id,
-                "status": status,
-                "items_completed": items_completed,
-                "error_details": error_details
-            })
-            await self.db.commit()
-        except Exception as e:
-            logger.warning(f"Could not update workflow status, table might not exist: {e}")
-            # Continue without workflow tracking if table doesn't exist
-    
-    async def _store_content_in_existing_table(
-        self,
-        campaign_id: Union[str, UUID],
-        user_id: Union[str, UUID],
-        company_id: Union[str, UUID],
-        content_type: str,
-        content_data: Dict[str, Any],
-        generation_settings: Dict[str, Any],
-        intelligence_data: Optional[List[Dict]] = None
-    ) -> UUID:
-        """Store content in existing generated_content table with intelligence tracking"""
-
-        content_id = uuid4()
-
-        # Extract intelligence_id from the primary intelligence record (highest confidence)
-        intelligence_id = None
-        intelligence_used_count = 0
-
-        if intelligence_data and len(intelligence_data) > 0:
-            # Get the highest confidence intelligence record
-            primary_intel = intelligence_data[0]
-            intelligence_used_count = len(intelligence_data)
-
-            # Try to get intelligence_id from the database
-            try:
-                query = text("""
-                    SELECT ic.id
-                    FROM intelligence_core ic
-                    WHERE ic.product_name = :product_name
-                      AND ic.user_id = :user_id
-                    ORDER BY ic.confidence_score DESC
-                    LIMIT 1
-                """)
-                result = await self.db.execute(query, {
-                    "product_name": primary_intel.get("product_name"),
-                    "user_id": UUID(str(user_id))
-                })
-                row = result.fetchone()
-                if row:
-                    intelligence_id = row.id
-                    logger.info(f"📊 Linking content to intelligence_id: {intelligence_id}")
-            except Exception as e:
-                logger.warning(f"⚠️ Could not fetch intelligence_id: {e}")
-
-        # Normalize content_type to match database check constraint
-        normalized_content_type = content_type
-        if content_type.lower() in ['email', 'email_sequence']:
-            normalized_content_type = 'email_sequence'
-        elif content_type.lower() in ['social', 'social_post', 'social_media']:
-            normalized_content_type = 'social_media'
-        elif content_type.lower() in ['ad', 'ad_copy', 'advertisement']:
-            normalized_content_type = 'ad_copy'  # Database constraint expects 'ad_copy'
-        elif content_type.lower() in ['blog', 'blog_post', 'blog_article']:
-            normalized_content_type = 'blog_post'
-        elif content_type.lower() in ['image', 'marketing_image', 'platform_image', 'enhanced_image', 'multi_platform_image']:
-            normalized_content_type = 'image'
-        elif content_type.lower() in ['video', 'video_script']:
-            normalized_content_type = 'video_script'
-        elif content_type.lower() == 'long_form_article':
-            normalized_content_type = 'long_form_article'
-
-        # Extract title and body from generated content
-        content_title = f"{normalized_content_type.replace('_', ' ').title()}"
-        content_body = ""
-
-        # Handle different generator response structures
-        # New AI generators return: {emails: [], ads: [], posts: [], article: {}}
-        # Legacy generators return: {content: {emails: [], ...}}
-
-        if content_data.get("emails"):
-            # Email generator format
-            content_title = f"Email Sequence ({len(content_data['emails'])} emails)"
-            content_body = json.dumps(content_data["emails"])
-        elif content_data.get("ads"):
-            # Ad copy generator format
-            content_title = f"Ad Copy ({len(content_data['ads'])} ads)"
-            content_body = json.dumps(content_data["ads"])
-        elif content_data.get("posts"):
-            # Social media generator format
-            content_title = f"Social Media Posts ({len(content_data['posts'])} posts)"
-            content_body = json.dumps(content_data["posts"])
-        elif content_data.get("article"):
-            # Blog generator format
-            article = content_data["article"]
-            content_title = article.get("title", "Blog Article")
-            content_body = article.get("content", "")
-        elif content_data.get("image"):
-            # Single image generator format
-            image = content_data["image"]
-            content_title = f"{image.get('image_type', 'Image').replace('_', ' ').title()} - {image.get('style', 'Professional')}"
-            content_body = json.dumps({
-                "url": image.get("url"),
-                "dimensions": image.get("dimensions"),
-                "image_type": image.get("image_type"),
-                "style": image.get("style"),
-                "provider": image.get("provider"),
-                "platform_format": image.get("platform_format"),
-                "aspect_ratio": image.get("aspect_ratio"),
-                "optimized_for": image.get("optimized_for")
-            })
-        elif content_data.get("generated_images"):
-            # Multi-platform image batch format
-            images = content_data["generated_images"]
-            batch_summary = content_data.get("batch_summary", {})
-            content_title = f"Multi-Platform Images ({batch_summary.get('successful_generations', len(images))} images)"
-            content_body = json.dumps({
-                "images": images,
-                "batch_summary": batch_summary,
-                "platforms": [img.get("platform", "unknown") for img in images]
-            })
-        elif content_data.get("script"):
-            # Video script generator format
-            script = content_data["script"]
-            content_title = script.get("title", "Video Script")
-            content_body = json.dumps(script)
-        elif content_data.get("content"):
-            # Legacy format with nested content
-            if isinstance(content_data["content"], dict):
-                if "emails" in content_data["content"]:
-                    content_title = f"Email Sequence ({len(content_data['content']['emails'])} emails)"
-                    content_body = json.dumps(content_data["content"]["emails"])
-                elif "posts" in content_data["content"]:
-                    content_title = f"Social Media Posts ({len(content_data['content']['posts'])} posts)"
-                    content_body = json.dumps(content_data["content"]["posts"])
-                elif "ads" in content_data["content"]:
-                    content_title = f"Ad Copy ({len(content_data['content']['ads'])} ads)"
-                    content_body = json.dumps(content_data["content"]["ads"])
-                else:
-                    content_body = json.dumps(content_data["content"])
+        # ENHANCED: Handle platform-specific image generation
+        if content_type in ['platform_image', 'enhanced_image', 'multi_platform_image']:
+            if ENHANCED_IMAGE_GENERATOR_AVAILABLE and isinstance(generator, EnhancedPlatformImageGenerator):
+                return await self._generate_enhanced_platform_image(
+                    generator=generator,
+                    campaign_id=campaign_id,
+                    content_type=content_type,
+                    user_id=user_id,
+                    preferences=preferences,
+                    ai_enhancements=ai_enhancements
+                )
             else:
-                content_body = str(content_data["content"])
+                logger.info("🔄 Using regular image generator for platform image")
+                # Fall back to regular image generation
+                preferences['enhanced_prompt'] = f"Platform-optimized image for {preferences.get('platform_format', 'social media')}"
         
-        query = text("""
-            INSERT INTO generated_content
-            (id, user_id, campaign_id, company_id, content_type, content_title, content_body,
-             content_metadata, generation_settings, generation_method, content_status,
-             intelligence_id, intelligence_used)
-            VALUES (:id, :user_id, :campaign_id, :company_id, :content_type, :content_title,
-                    :content_body, :content_metadata, :generation_settings, 'existing_ai_system', 'generated',
-                    :intelligence_id, :intelligence_used)
-        """)
+        # Generate content based on generator type
+        if hasattr(generator, 'generate_content'):
+            # Modern generator with AI integration
+            generation_result = await generator.generate_content(
+                campaign_id=campaign_id,
+                preferences=preferences,
+                ai_enhancements=ai_enhancements
+            )
+        elif hasattr(generator, 'generate'):
+            # Legacy generator interface
+            generation_result = await generator.generate(
+                campaign_id=campaign_id,
+                **preferences
+            )
+        else:
+            raise ValueError(f"Generator {type(generator)} has no generate method")
         
-        # Extract metadata from different response structures
-        metadata = content_data.get("generation_metadata", content_data.get("metadata", {}))
-        sequence_info = content_data.get("sequence_info", content_data.get("content_info", {}))
-
-        # ENHANCED: Include platform metadata for images
-        platform_metadata = content_data.get("platform_metadata", {})
-        provider_info = content_data.get("provider_info", {})
-
-        content_metadata = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "generator_used": self._get_generator_name(content_type),
-            "generation_metadata": metadata,
-            "content_info": sequence_info,
-            "intelligence_enhanced": bool(metadata.get("intelligence_sources", 0) or content_data.get("intelligence_sources_used", 0)),
-            "ai_provider": metadata.get("ai_provider", "unknown"),
-            "prompt_quality_score": metadata.get("prompt_quality_score", 0),
-            # ENHANCED: Platform-specific metadata
-            "platform_metadata": platform_metadata,
-            "provider_info": provider_info,
-            "is_platform_optimized": bool(platform_metadata),
-            "batch_generation": "generated_images" in content_data
+        if not generation_result.get("success"):
+            raise Exception(f"Content generation failed: {generation_result.get('error')}")
+        
+        logger.info(f"✅ AI-powered content generated using {content_type} generator")
+        
+        # Store the generated content
+        content_id = await self._store_generated_content(
+            campaign_id=campaign_id,
+            content_type=content_type,
+            user_id=user_id,
+            company_id=company_id,
+            generation_result=generation_result,
+            preferences=preferences,
+            ai_enhancements=ai_enhancements
+        )
+        
+        # Link to intelligence if available
+        if ai_enhancements.get("intelligence_id"):
+            await self._link_content_to_intelligence(content_id, ai_enhancements["intelligence_id"])
+        
+        # Return enhanced result
+        return {
+            "success": True,
+            "content_id": content_id,
+            "content_type": content_type,
+            "campaign_id": campaign_id,
+            "generation_result": generation_result,
+            "ai_enhanced": bool(ai_enhancements),
+            "generator_type": type(generator).__name__
         }
-        
-        await self.db.execute(query, {
-            "id": content_id,
-            "user_id": UUID(str(user_id)),
-            "campaign_id": UUID(str(campaign_id)),
-            "company_id": UUID(str(company_id)),
-            "content_type": normalized_content_type,
-            "content_title": content_title,
-            "content_body": content_body,
-            "content_metadata": json.dumps(content_metadata),
-            "generation_settings": json.dumps(generation_settings),
-            "intelligence_id": UUID(str(intelligence_id)) if intelligence_id else None,
-            "intelligence_used": str(intelligence_used_count) if intelligence_used_count > 0 else None
-        })
-        
-        await self.db.commit()
-        return content_id
-    
-    async def get_campaign_content(
+
+    async def _generate_enhanced_platform_image(
         self,
-        campaign_id: Union[str, UUID],
-        content_type: Optional[str] = None,
-        limit: int = 50,
-        offset: int = 0
-    ) -> List[Dict[str, Any]]:
-        """Get content from existing generated_content table"""
-        
-        query_conditions = "WHERE campaign_id = :campaign_id"
-        params = {"campaign_id": UUID(str(campaign_id)), "limit": limit, "offset": offset}
-        
-        if content_type:
-            query_conditions += " AND content_type = :content_type"
-            params["content_type"] = content_type
-        
-        query = text(f"""
-            SELECT id, content_type, content_title, content_body, content_metadata,
-                   generation_settings, user_rating, is_published, created_at, updated_at,
-                   generation_method, content_status
-            FROM generated_content 
-            {query_conditions}
-            ORDER BY created_at DESC
-            LIMIT :limit OFFSET :offset
-        """)
-        
-        result = await self.db.execute(query, params)
-        rows = result.fetchall()
-        
-        result_list = []
-        for row in rows:
-            try:
-                result_list.append({
-                    "id": str(row.id),
-                    "content_id": str(row.id),
-                    "content_type": row.content_type,
-                    "title": row.content_title,
-                    "content_title": row.content_title,  # Add both for compatibility
-                    "body": row.content_body,
-                    "content": row.content_body,  # Add both for compatibility
-                    "metadata": self._safe_get_metadata_as_dict(row.content_metadata),
-                    "content_metadata": self._safe_get_metadata_as_dict(row.content_metadata),  # Add both for compatibility
-                    "created_at": row.created_at.isoformat() if row.created_at else None,
-                    "updated_at": row.updated_at.isoformat() if row.updated_at else None,
-                    "is_published": row.is_published,
-                    "user_rating": row.user_rating,
-                    "generation_method": row.generation_method,
-                    "content_status": row.content_status,
-                    "generated_content": self._safe_get_metadata_as_dict(row.content_metadata).get("generated_content", {}),
-                    "source": "integrated_content_service"
-                })
-            except Exception as parse_error:
-                logger.warning(f"Error parsing content row: {parse_error}")
-                continue
-
-        return result_list
-    
-    def _safe_get_metadata_as_dict(self, content_metadata) -> Dict[str, Any]:
-        """Safely convert content_metadata to dictionary format"""
+        generator: EnhancedPlatformImageGenerator,
+        campaign_id: str,
+        content_type: str,
+        user_id: str,
+        preferences: Dict[str, Any],
+        ai_enhancements: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Generate enhanced platform-specific images using the enhanced generator.
+        FIXED: Proper enhanced platform image generation
+        """
         try:
-            if content_metadata is None:
-                return {}
-
-            # If it's already a dictionary, return it
-            if isinstance(content_metadata, dict):
-                return content_metadata
-
-            # If it's a list, try to merge items into a single dict
-            if isinstance(content_metadata, list):
-                result = {}
-                for item in content_metadata:
-                    if isinstance(item, dict):
-                        result.update(item)
+            logger.info(f"🎨 Generating enhanced platform image with content_type: {content_type}")
+            
+            if content_type == 'multi_platform_image':
+                # Multi-platform batch generation
+                platforms = preferences.get('platforms', ['instagram_feed'])
+                result = await generator.generate_multi_platform_batch(
+                    user_id=user_id,
+                    campaign_id=campaign_id,
+                    platforms=platforms,
+                    image_type=preferences.get('image_type', 'marketing'),
+                    batch_style=preferences.get('batch_style', {}),
+                    ai_enhancements=ai_enhancements,
+                    user_tier=preferences.get('user_tier', 'professional')
+                )
+            else:
+                # Single platform generation
+                platform_format = preferences.get('platform_format', 'instagram_feed')
+                result = await generator.generate_platform_image(
+                    user_id=user_id,
+                    campaign_id=campaign_id,
+                    platform_format=platform_format,
+                    image_type=preferences.get('image_type', 'marketing'),
+                    style_preferences=preferences.get('style_preferences', {}),
+                    ai_enhancements=ai_enhancements,
+                    user_tier=preferences.get('user_tier', 'professional')
+                )
+            
+            if result.get('success'):
+                logger.info(f"✅ Enhanced platform image generated successfully")
                 return result
+            else:
+                logger.warning(f"⚠️ Enhanced generation failed: {result.get('error')}")
+                raise Exception(f"Enhanced generation failed: {result.get('error')}")
+                
+        except Exception as e:
+            logger.error(f"❌ Enhanced platform image generation failed: {e}")
+            # Fall back to regular image generation
+            logger.info("🔄 Falling back to regular image generation")
+            
+            regular_generator = ImageGenerator()
+            fallback_preferences = {
+                **preferences,
+                'enhanced_prompt': f"Platform-optimized image for {preferences.get('platform_format', 'social media')}"
+            }
+            
+            return await regular_generator.generate_content(
+                campaign_id=campaign_id,
+                preferences=fallback_preferences,
+                ai_enhancements=ai_enhancements
+            )
 
-            # If it's some other type, return empty dict
+    async def _get_campaign_intelligence(self, campaign_id: str) -> Dict[str, Any]:
+        """Get intelligence data for campaign with AI enhancements"""
+        try:
+            query = text("""
+                SELECT id, full_analysis_data, competitive_insights, market_opportunities
+                FROM campaign_intelligence 
+                WHERE campaign_id::text = :campaign_id 
+                ORDER BY created_at DESC 
+                LIMIT 1
+            """)
+            
+            result = await self.db.execute(query, {"campaign_id": campaign_id})
+            row = result.fetchone()
+            
+            if not row:
+                return {}
+            
+            # Extract AI enhancements from analysis data
+            full_analysis = row.full_analysis_data if row.full_analysis_data else {}
+            
+            ai_enhancements = {
+                "intelligence_id": str(row.id),
+                "scientific": bool(full_analysis.get("scientific_credibility")),
+                "credibility": bool(full_analysis.get("credibility_signals")), 
+                "market": bool(full_analysis.get("market_positioning")),
+                "emotional": bool(full_analysis.get("emotional_triggers")),
+                "authority": bool(full_analysis.get("authority_markers")),
+                "content": bool(full_analysis.get("content_analysis"))
+            }
+            
+            # Add specific enhancement data
+            if full_analysis.get("emotional_triggers"):
+                ai_enhancements["emotional_triggers"] = full_analysis["emotional_triggers"]
+            if full_analysis.get("target_demographics"):
+                ai_enhancements["target_demographics"] = full_analysis["target_demographics"]
+            if full_analysis.get("brand_values"):
+                ai_enhancements["brand_values"] = full_analysis["brand_values"]
+            
+            return ai_enhancements
+            
+        except Exception as e:
+            logger.warning(f"Failed to get campaign intelligence: {e}")
             return {}
 
-        except Exception as e:
-            logger.warning(f"Error converting metadata to dict: {e}")
-            return {}
-
-    def _safe_get_generator_used(self, content_metadata) -> str:
-        """Safely extract generator_used from content_metadata that might be list or dict"""
+    async def _store_generated_content(
+        self,
+        campaign_id: str,
+        content_type: str,
+        user_id: str,
+        company_id: str,
+        generation_result: Dict[str, Any],
+        preferences: Dict[str, Any],
+        ai_enhancements: Dict[str, Any]
+    ) -> str:
+        """Store generated content in database"""
         try:
-            if content_metadata is None:
-                return "unknown"
-
-            # If it's a dictionary, use .get() method
-            if isinstance(content_metadata, dict):
-                return content_metadata.get("generator_used", "unknown")
-
-            # If it's a list, try to find generator_used in list items
-            if isinstance(content_metadata, list):
-                for item in content_metadata:
-                    if isinstance(item, dict) and "generator_used" in item:
-                        return item["generator_used"]
-                return "unknown"
-
-            # If it's some other type, return unknown
-            return "unknown"
-
+            content_id = str(uuid4())
+            
+            # Extract content based on result structure
+            if 'results' in generation_result and isinstance(generation_result['results'], list):
+                # Multi-platform results
+                content_body = json.dumps(generation_result['results'])
+                content_title = f"Multi-Platform {content_type.replace('_', ' ').title()}"
+            elif 'image_url' in generation_result:
+                # Single image result
+                content_body = generation_result['image_url']
+                content_title = f"{content_type.replace('_', ' ').title()}"
+            elif 'content' in generation_result:
+                # Text content
+                content_body = generation_result['content']
+                content_title = generation_result.get('title', f"{content_type.replace('_', ' ').title()}")
+            else:
+                # Fallback
+                content_body = json.dumps(generation_result)
+                content_title = f"{content_type.replace('_', ' ').title()}"
+            
+            # Prepare metadata
+            metadata = {
+                "preferences": preferences,
+                "ai_enhanced": bool(ai_enhancements),
+                "generation_method": "integrated_service_v4.1",
+                "generator_version": self.version,
+                **generation_result.get('metadata', {})
+            }
+            
+            # Insert into database
+            query = text("""
+                INSERT INTO generated_content 
+                (id, campaign_id, user_id, company_id, content_type, content_title, 
+                 content_body, content_metadata, generation_method, content_status, created_at, updated_at)
+                VALUES 
+                (:id, :campaign_id::uuid, :user_id::uuid, :company_id::uuid, :content_type, :content_title,
+                 :content_body, :content_metadata, :generation_method, :content_status, :created_at, :updated_at)
+            """)
+            
+            await self.db.execute(query, {
+                "id": content_id,
+                "campaign_id": campaign_id,
+                "user_id": user_id,
+                "company_id": company_id or user_id,  # Fallback to user_id if no company
+                "content_type": content_type,
+                "content_title": content_title,
+                "content_body": content_body,
+                "content_metadata": json.dumps(metadata),
+                "generation_method": "integrated_service",
+                "content_status": "generated",
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc)
+            })
+            
+            await self.db.commit()
+            logger.info(f"✅ Content stored with ID: {content_id}")
+            return content_id
+            
         except Exception as e:
-            logger.warning(f"Error extracting generator_used from metadata: {e}")
-            return "unknown"
+            logger.error(f"❌ Failed to store content: {e}")
+            await self.db.rollback()
+            raise
 
-    def get_generator_status(self) -> Dict[str, Any]:
-        """Get status of available generators"""
+    async def _link_content_to_intelligence(self, content_id: str, intelligence_id: str):
+        """Link generated content to intelligence analysis"""
         try:
-            from src.intelligence.generators import get_available_generators, get_generator_status
-
-            existing_status = get_generator_status()
-
-            return {
-                "integrated_service": True,
-                "existing_generators": existing_status,
-                "loaded_generators": list(self._generators.keys()),
-                "factory_available": hasattr(self, '_factory') and self._factory is not None,
-                "total_available": len(self._generators),
-                "railway_compatible": existing_status.get("railway_compatible", False),
-                "ultra_cheap_ai_enabled": existing_status.get("ultra_cheap_ai_enabled", False),
-                # ENHANCED: Include platform image generator status
-                "enhanced_image_available": "platform_image" in self._generators
-            }
-
-        except ImportError:
-            return {
-                "integrated_service": True,
-                "existing_generators": {},
-                "loaded_generators": list(self._generators.keys()),
-                "factory_available": False,
-                "total_available": len(self._generators),
-                "enhanced_image_available": "platform_image" in self._generators,
-                "error": "Could not import existing generator status"
-            }
+            logger.info(f"📊 Linking content to intelligence_id: {intelligence_id}")
+            
+            query = text("""
+                UPDATE generated_content 
+                SET content_metadata = content_metadata || jsonb_build_object('intelligence_id', :intelligence_id)
+                WHERE id = :content_id
+            """)
+            
+            await self.db.execute(query, {
+                "content_id": content_id,
+                "intelligence_id": intelligence_id
+            })
+            
+            await self.db.commit()
+            
+        except Exception as e:
+            logger.warning(f"Failed to link content to intelligence: {e}")
 
     async def get_campaign_content(
         self,
@@ -1032,79 +493,262 @@ class IntegratedContentService:
         limit: int = 50,
         offset: int = 0
     ) -> List[Dict[str, Any]]:
-        """Retrieve generated content for a campaign"""
+        """Get generated content for a campaign"""
         try:
-            # Build dynamic query with optional content_type filter
-            base_query = """
-                SELECT id, content_type, content_title, content_body, content_metadata,
-                       created_at, updated_at, is_published, user_rating, generation_method, content_status
-                FROM generated_content
-                WHERE campaign_id::text = :campaign_id
-            """
-
-            params = {"campaign_id": str(campaign_id)}  # Ensure string conversion
-            print(f"DEBUG: get_campaign_content called with campaign_id={campaign_id}, content_type={content_type}")
-
-            # Add content_type filter if specified
+            logger.info(f"📋 Retrieved content for campaign {campaign_id}")
+            
             if content_type:
-                base_query += " AND content_type = :content_type"
-                params["content_type"] = content_type
-
-            # Add ordering and pagination
-            base_query += " ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
-            params["limit"] = limit
-            params["offset"] = offset
-
-            query = text(base_query)
-            print(f"DEBUG: Executing query: {base_query}")
+                query = text("""
+                    SELECT id, content_type, content_title, content_body, content_metadata,
+                           created_at, updated_at, is_published, user_rating, generation_method, content_status
+                    FROM generated_content
+                    WHERE campaign_id::text = :campaign_id AND content_type = :content_type
+                    ORDER BY created_at DESC LIMIT :limit OFFSET :offset
+                """)
+                params = {"campaign_id": campaign_id, "content_type": content_type, "limit": limit, "offset": offset}
+            else:
+                query = text("""
+                    SELECT id, content_type, content_title, content_body, content_metadata,
+                           created_at, updated_at, is_published, user_rating, generation_method, content_status
+                    FROM generated_content
+                    WHERE campaign_id::text = :campaign_id
+                    ORDER BY created_at DESC LIMIT :limit OFFSET :offset
+                """)
+                params = {"campaign_id": campaign_id, "limit": limit, "offset": offset}
+            
+            print(f"DEBUG: get_campaign_content called with campaign_id={campaign_id}, content_type={content_type}")
+            print(f"DEBUG: Executing query: {query}")
             print(f"DEBUG: With params: {params}")
+            
             result = await self.db.execute(query, params)
             rows = result.fetchall()
+            
             print(f"DEBUG: Query returned {len(rows)} rows")
-
-            content_list = []
+            
+            content_items = []
             for row in rows:
                 try:
-                    # Parse metadata safely
+                    metadata = json.loads(row.content_metadata) if row.content_metadata else {}
+                except:
                     metadata = {}
-                    if row.content_metadata:
-                        if isinstance(row.content_metadata, str):
-                            metadata = json.loads(row.content_metadata)
-                        else:
-                            metadata = row.content_metadata
-
-                    content_item = {
-                        "id": str(row.id),  # Add both for compatibility
-                        "content_id": str(row.id),
-                        "content_type": row.content_type,
-                        "title": row.content_title,
-                        "content_title": row.content_title,  # Add both for compatibility
-                        "body": row.content_body,
-                        "content": row.content_body,  # Add both for compatibility
-                        "metadata": metadata,
-                        "content_metadata": metadata,  # Add both for compatibility
-                        "created_at": row.created_at.isoformat() if row.created_at else None,
-                        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
-                        "is_published": row.is_published,
-                        "user_rating": row.user_rating,
-                        "generation_method": row.generation_method,
-                        "content_status": row.content_status,
-                        "generated_content": metadata.get("generated_content", {}),
-                        "source": "integrated_content_service",
-                        # ENHANCED: Include platform metadata for images
-                        "is_platform_optimized": metadata.get("is_platform_optimized", False),
-                        "platform_metadata": metadata.get("platform_metadata", {}),
-                        "provider_info": metadata.get("provider_info", {})
-                    }
-                    content_list.append(content_item)
-                    print(f"DEBUG: Added content item with id={content_item['content_id']}, type={content_item['content_type']}")
-                except Exception as parse_error:
-                    logger.warning(f"Error parsing content row: {parse_error}")
-                    continue
-
-            logger.info(f"Retrieved {len(content_list)} content items for campaign {campaign_id}")
-            return content_list
-
+                
+                content_item = {
+                    "id": str(row.id),
+                    "content_type": row.content_type,
+                    "content_title": row.content_title,
+                    "content_body": row.content_body,
+                    "metadata": metadata,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                    "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                    "is_published": row.is_published,
+                    "user_rating": row.user_rating,
+                    "generation_method": row.generation_method,
+                    "content_status": row.content_status,
+                    "ai_enhanced": metadata.get("ai_enhanced", False)
+                }
+                
+                content_items.append(content_item)
+                print(f"DEBUG: Added content item with id={row.id}, type={row.content_type}")
+            
+            logger.info(f"📊 Retrieved {len(content_items)} content items for campaign {campaign_id}")
+            return content_items
+            
         except Exception as e:
-            logger.error(f"Error retrieving content for campaign {campaign_id}: {e}")
+            logger.error(f"❌ Failed to get campaign content: {e}")
             return []
+
+    async def get_content_detail(self, content_id: str) -> Optional[Dict[str, Any]]:
+        """Get detailed information about a specific content item"""
+        try:
+            query = text("""
+                SELECT id, campaign_id, content_type, content_title, content_body, content_metadata,
+                       created_at, updated_at, is_published, user_rating, generation_method, content_status
+                FROM generated_content
+                WHERE id = :content_id
+            """)
+            
+            result = await self.db.execute(query, {"content_id": content_id})
+            row = result.fetchone()
+            
+            if not row:
+                return None
+            
+            try:
+                metadata = json.loads(row.content_metadata) if row.content_metadata else {}
+            except:
+                metadata = {}
+            
+            return {
+                "id": str(row.id),
+                "campaign_id": str(row.campaign_id),
+                "content_type": row.content_type,
+                "content_title": row.content_title,
+                "content_body": row.content_body,
+                "metadata": metadata,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                "is_published": row.is_published,
+                "user_rating": row.user_rating,
+                "generation_method": row.generation_method,
+                "content_status": row.content_status,
+                "ai_enhanced": metadata.get("ai_enhanced", False)
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to get content detail: {e}")
+            return None
+
+    async def update_content(
+        self,
+        content_id: str,
+        updates: Dict[str, Any]
+    ) -> bool:
+        """Update existing content"""
+        try:
+            # Build dynamic update query
+            update_fields = []
+            params = {"content_id": content_id, "updated_at": datetime.now(timezone.utc)}
+            
+            for field, value in updates.items():
+                if field in ['content_title', 'content_body', 'is_published', 'user_rating', 'content_status']:
+                    update_fields.append(f"{field} = :{field}")
+                    params[field] = value
+                elif field == 'metadata':
+                    update_fields.append("content_metadata = :content_metadata")
+                    params['content_metadata'] = json.dumps(value)
+            
+            if not update_fields:
+                return False
+            
+            update_fields.append("updated_at = :updated_at")
+            
+            query = text(f"""
+                UPDATE generated_content 
+                SET {', '.join(update_fields)}
+                WHERE id = :content_id
+            """)
+            
+            result = await self.db.execute(query, params)
+            await self.db.commit()
+            
+            return result.rowcount > 0
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to update content: {e}")
+            await self.db.rollback()
+            return False
+
+    async def delete_content(self, content_id: str) -> bool:
+        """Delete content item"""
+        try:
+            query = text("DELETE FROM generated_content WHERE id = :content_id")
+            result = await self.db.execute(query, {"content_id": content_id})
+            await self.db.commit()
+            
+            return result.rowcount > 0
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to delete content: {e}")
+            await self.db.rollback()
+            return False
+
+    async def get_generation_stats(self, user_id: str) -> Dict[str, Any]:
+        """Get content generation statistics for a user"""
+        try:
+            query = text("""
+                SELECT 
+                    content_type,
+                    COUNT(*) as count,
+                    COUNT(CASE WHEN is_published THEN 1 END) as published_count,
+                    AVG(user_rating) as avg_rating
+                FROM generated_content
+                WHERE user_id::text = :user_id
+                GROUP BY content_type
+                ORDER BY count DESC
+            """)
+            
+            result = await self.db.execute(query, {"user_id": user_id})
+            rows = result.fetchall()
+            
+            stats = {
+                "content_types": {},
+                "total_generated": 0,
+                "total_published": 0,
+                "average_rating": 0.0
+            }
+            
+            for row in rows:
+                stats["content_types"][row.content_type] = {
+                    "count": row.count,
+                    "published_count": row.published_count,
+                    "avg_rating": float(row.avg_rating) if row.avg_rating else 0.0
+                }
+                stats["total_generated"] += row.count
+                stats["total_published"] += row.published_count
+            
+            if stats["total_generated"] > 0:
+                total_rating = sum(
+                    type_stats["count"] * type_stats["avg_rating"] 
+                    for type_stats in stats["content_types"].values()
+                )
+                stats["average_rating"] = total_rating / stats["total_generated"]
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to get generation stats: {e}")
+            return {"content_types": {}, "total_generated": 0, "total_published": 0, "average_rating": 0.0}
+
+    def get_available_generators(self) -> List[str]:
+        """Get list of available content generators"""
+        return list(self.generators.keys())
+
+    def get_generator_info(self, generator_type: str) -> Optional[Dict[str, Any]]:
+        """Get information about a specific generator"""
+        generator = self.generators.get(generator_type)
+        if not generator:
+            return None
+        
+        return {
+            "type": generator_type,
+            "class": type(generator).__name__,
+            "version": getattr(generator, 'version', 'unknown'),
+            "description": getattr(generator, 'description', 'No description available'),
+            "capabilities": getattr(generator, 'capabilities', []),
+            "enhanced_platform_support": isinstance(generator, EnhancedPlatformImageGenerator) if ENHANCED_IMAGE_GENERATOR_AVAILABLE else False
+        }
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Health check for the integrated content service"""
+        try:
+            # Test database connection
+            await self.db.execute(text("SELECT 1"))
+            
+            # Test generator availability
+            generator_health = {}
+            for gen_type, generator in self.generators.items():
+                try:
+                    # Basic generator test
+                    if hasattr(generator, 'health_check'):
+                        health = await generator.health_check()
+                        generator_health[gen_type] = health
+                    else:
+                        generator_health[gen_type] = {"status": "available", "class": type(generator).__name__}
+                except Exception as e:
+                    generator_health[gen_type] = {"status": "error", "error": str(e)}
+            
+            return {
+                "status": "healthy",
+                "version": self.version,
+                "generators": generator_health,
+                "total_generators": len(self.generators),
+                "enhanced_platform_support": ENHANCED_IMAGE_GENERATOR_AVAILABLE,
+                "database": "connected"
+            }
+            
+        except Exception as e:
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+                "version": self.version
+            }
