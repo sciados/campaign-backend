@@ -352,7 +352,7 @@ class IntegratedContentService:
         try:
             query = text("""
                 SELECT id, full_analysis_data, competitive_insights, market_opportunities
-                FROM campaign_intelligence 
+                FROM intelligence_core 
                 WHERE campaign_id = :campaign_id 
                 ORDER BY created_at DESC 
                 LIMIT 1
