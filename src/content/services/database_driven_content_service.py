@@ -133,7 +133,7 @@ class DatabaseDrivenContentService:
                     SELECT user_id FROM campaigns WHERE id = :campaign_id
                 )
                 OR EXISTS (
-                    SELECT 1 FROM campaign_intelligence ci 
+                    SELECT 1 FROM intelligence_core ci 
                     WHERE ci.campaign_id = :campaign_id 
                     AND ci.intelligence_id = ic.id
                 )
