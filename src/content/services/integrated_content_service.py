@@ -52,12 +52,13 @@ class IntegratedContentService:
         self.version = "4.1.0"
         self.prompt_service = PromptGenerationService()
         self.ai_provider_service = AIProviderService()
-        self.prompt_storage_service = PromptStorageService()
-        
+        # ✅ FIXED: Pass db_session to PromptStorageService
+        self.prompt_storage_service = PromptStorageService(db_session)
+    
         # Initialize content generators
         self.generators = {}
         self._initialize_generators()
-        
+    
         logger.info(f"✅ IntegratedContentService v{self.version} initialized")
 
     def _initialize_generators(self):

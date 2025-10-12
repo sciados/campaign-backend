@@ -23,6 +23,7 @@ class PromptStorageService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.logger = logging.getLogger(__name__)
 
     async def save_prompt(
         self,
