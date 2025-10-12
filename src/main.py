@@ -262,8 +262,8 @@ async def create_campaignforge_app() -> FastAPI:
         from src.content.api.enhanced_image_routes import router as enhanced_image_router
         app.include_router(enhanced_image_router)
         logger.info("Enhanced image generation routes included successfully")
-    except Exception as e:
-        logger.error(f"Failed to include enhanced image routes: {e}")
+    except ImportError as e:
+        logger.error(f"Enhanced image routes not found: {e}")
         # Create fallback endpoints if enhanced routes not available
         logger.warning("Creating fallback enhanced image endpoints")
         
@@ -302,6 +302,8 @@ async def create_campaignforge_app() -> FastAPI:
                 },
                 "message": "Using fallback cost calculation - enhanced routes not available"
             }
+    except Exception as e:
+        logger.error(f"Failed to include enhanced image routes: {e}")
 
     # Phase 5: Add Session 6 enhanced endpoints
     logger.info("Phase 5: Adding Session 6 enhanced endpoints...")
