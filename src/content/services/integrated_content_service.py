@@ -352,7 +352,7 @@ class IntegratedContentService:
             query = text("""
                 SELECT id, full_analysis_data, competitive_insights, market_opportunities
                 FROM campaign_intelligence 
-                WHERE campaign_id::text = :campaign_id 
+                WHERE campaign_id = :campaign_id 
                 ORDER BY created_at DESC 
                 LIMIT 1
             """)
@@ -500,18 +500,20 @@ class IntegratedContentService:
             if content_type:
                 query = text("""
                     SELECT id, content_type, content_title, content_body, content_metadata,
-                           created_at, updated_at, is_published, user_rating, generation_method, content_status
+                            created_at, updated_at, is_published, user_rating, generation_method, 
+            content_status
                     FROM generated_content
-                    WHERE campaign_id::text = :campaign_id AND content_type = :content_type
+                    WHERE campaign_id = :campaign_id AND content_type = :content_type
                     ORDER BY created_at DESC LIMIT :limit OFFSET :offset
-                """)
+                 """)
                 params = {"campaign_id": campaign_id, "content_type": content_type, "limit": limit, "offset": offset}
             else:
                 query = text("""
                     SELECT id, content_type, content_title, content_body, content_metadata,
-                           created_at, updated_at, is_published, user_rating, generation_method, content_status
+                            created_at, updated_at, is_published, user_rating, generation_method, 
+            content_status
                     FROM generated_content
-                    WHERE campaign_id::text = :campaign_id
+                    WHERE campaign_id = :campaign_id
                     ORDER BY created_at DESC LIMIT :limit OFFSET :offset
                 """)
                 params = {"campaign_id": campaign_id, "limit": limit, "offset": offset}
