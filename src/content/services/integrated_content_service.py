@@ -250,8 +250,8 @@ class IntegratedContentService:
                 intelligence_data=intelligence_data,
                 image_type=preferences.get('image_type', 'hero_image'),
                 style=preferences.get('style', 'modern_professional'),
-                dimensions=preferences.get('dimensions', '1200x628'),
-                provider=preferences.get('provider', 'stability'),
+                dimensions=preferences.get('dimensions', '1024x1024'),
+                provider=preferences.get('provider', 'dall-e-3'),  # Default to dall-e-3 (supported: dall-e-3, flux-schnell, sdxl)
                 user_id=user_id
             )
         elif hasattr(generator, 'generate_long_form_article'):
