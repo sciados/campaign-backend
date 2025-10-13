@@ -43,7 +43,7 @@ class PromptGenerationService:
 
     def __init__(self):
         self.name = "PromptGenerationService"
-        self.version = "1.0.0"
+        self.version = "2.0.0"  # Dynamic intelligence-driven prompts (no templates)
         logger.info(f"{self.name} v{self.version} initialized")
 
     async def generate_prompt(
@@ -56,39 +56,44 @@ class PromptGenerationService:
         """
         Generate optimized prompt from campaign intelligence
         Main interface for the prompt generation system
+
+        NEW APPROACH: Instead of filling templates, we pass rich intelligence context
+        and let the AI create truly unique content based on the actual data.
         """
 
         if preferences is None:
             preferences = {}
 
         try:
-            # Step 1: Extract intelligence variables
-            variables = self._extract_intelligence_variables(intelligence_data)
+            # Check if dynamic prompting is enabled (gradual rollout)
+            use_dynamic = preferences.get('use_dynamic_prompts', True)
 
-            # Step 2: Get content-type specific template
-            template = self._get_content_template(content_type, psychology_stage)
-
-            # Step 3: Build prompt from template and variables
-            prompt = self._build_prompt(template, variables, preferences)
-
-            # Step 4: Add system message for AI context
-            system_message = self._build_system_message(content_type, variables)
-
-            # Step 5: Calculate quality score
-            quality_score = self._calculate_prompt_quality(prompt, variables)
+            if use_dynamic:
+                # NEW: Dynamic intelligence-driven approach
+                prompt = self._build_dynamic_prompt(content_type, intelligence_data, psychology_stage, preferences)
+                system_message = self._build_dynamic_system_message(content_type, intelligence_data)
+                variables = self._extract_intelligence_variables(intelligence_data)
+                quality_score = self._calculate_prompt_quality(prompt, variables)
+            else:
+                # LEGACY: Template-based approach (for fallback)
+                variables = self._extract_intelligence_variables(intelligence_data)
+                template = self._get_content_template(content_type, psychology_stage)
+                prompt = self._build_prompt(template, variables, preferences)
+                system_message = self._build_system_message(content_type, variables)
+                quality_score = self._calculate_prompt_quality(prompt, variables)
 
             return {
                 "success": True,
                 "prompt": prompt,
                 "system_message": system_message,
-                "variables": variables,
+                "variables": variables if not use_dynamic else {},
                 "content_type": content_type.value,
                 "psychology_stage": psychology_stage.value,
                 "quality_score": quality_score,
                 "metadata": {
                     "intelligence_sources": len(intelligence_data.get("intelligence_sources", [])),
-                    "variables_extracted": len(variables),
-                    "template_used": f"{content_type.value}_{psychology_stage.value}"
+                    "prompt_method": "dynamic" if use_dynamic else "template",
+                    "template_used": f"{content_type.value}_{psychology_stage.value}" if not use_dynamic else "none"
                 }
             }
 
@@ -802,6 +807,209 @@ Your goal is to create high-converting content that resonates with the target au
     def get_supported_content_types(self) -> List[str]:
         """Get list of supported content types"""
         return [ct.value for ct in ContentType]
+
+    def _build_dynamic_prompt(
+        self,
+        content_type: ContentType,
+        intelligence_data: Dict[str, Any],
+        psychology_stage: SalesPsychologyStage,
+        preferences: Dict[str, Any]
+    ) -> str:
+        """
+        Build a truly dynamic, intelligence-driven prompt that passes raw data to the AI
+        instead of filling in template blanks. This allows the AI to synthesize unique content.
+        """
+        import json
+        import time
+
+        # Extract core intelligence (not as variables, but as rich context)
+        product_name = intelligence_data.get("product_name", "")
+        salespage_url = intelligence_data.get("salespage_url", "")
+
+        # Get intelligence sections
+        offer_intel = intelligence_data.get("offer_intelligence", {})
+        psychology_intel = intelligence_data.get("psychology_intelligence", {})
+        competitive_intel = intelligence_data.get("competitive_intelligence", {})
+        brand_intel = intelligence_data.get("brand_intelligence", {})
+        content_intel = intelligence_data.get("content_intelligence", {})
+
+        # Get AI-enhanced intelligence
+        scientific_intel = intelligence_data.get("scientific_intelligence", {})
+        emotional_intel = intelligence_data.get("emotional_transformation_intelligence", {})
+        credibility_intel = intelligence_data.get("credibility_intelligence", {})
+        market_intel = intelligence_data.get("market_intelligence", {})
+
+        # Build dynamic prompt based on content type
+        if content_type == ContentType.EMAIL:
+            return self._build_dynamic_email_prompt(
+                product_name, offer_intel, psychology_intel, competitive_intel,
+                brand_intel, scientific_intel, emotional_intel, credibility_intel,
+                psychology_stage, preferences
+            )
+        elif content_type == ContentType.EMAIL_SEQUENCE:
+            return self._build_dynamic_email_sequence_prompt(
+                product_name, offer_intel, psychology_intel, competitive_intel,
+                brand_intel, scientific_intel, emotional_intel, credibility_intel,
+                preferences
+            )
+        elif content_type == ContentType.SOCIAL_POST:
+            return self._build_dynamic_social_prompt(
+                product_name, offer_intel, psychology_intel, competitive_intel,
+                brand_intel, emotional_intel, credibility_intel,
+                psychology_stage, preferences
+            )
+        elif content_type == ContentType.BLOG_ARTICLE:
+            return self._build_dynamic_blog_prompt(
+                product_name, offer_intel, psychology_intel, competitive_intel,
+                content_intel, scientific_intel, credibility_intel,
+                psychology_stage, preferences
+            )
+        elif content_type == ContentType.AD_COPY:
+            return self._build_dynamic_ad_prompt(
+                product_name, offer_intel, psychology_intel, competitive_intel,
+                brand_intel, emotional_intel,
+                psychology_stage, preferences
+            )
+        elif content_type == ContentType.VIDEO_SCRIPT:
+            return self._build_dynamic_video_prompt(
+                product_name, offer_intel, psychology_intel, competitive_intel,
+                brand_intel, emotional_intel,
+                psychology_stage, preferences
+            )
+        else:
+            # Fallback to generic dynamic prompt
+            return self._build_generic_dynamic_prompt(
+                product_name, intelligence_data, psychology_stage, preferences
+            )
+
+    def _build_dynamic_email_prompt(
+        self, product_name, offer_intel, psychology_intel, competitive_intel,
+        brand_intel, scientific_intel, emotional_intel, credibility_intel,
+        psychology_stage, preferences
+    ) -> str:
+        """Build dynamic email prompt from raw intelligence"""
+
+        # Extract key insights (not as template variables, but as context)
+        benefits = offer_intel.get("benefits", offer_intel.get("key_features", []))
+        pain_points = psychology_intel.get("pain_points", psychology_intel.get("challenges", []))
+        target_audience = psychology_intel.get("target_audience", "")
+        emotional_triggers = psychology_intel.get("emotional_triggers", emotional_intel.get("amplified_triggers", []))
+        unique_advantages = competitive_intel.get("unique_selling_points", competitive_intel.get("differentiation_factors", []))
+        tone = brand_intel.get("tone", "conversational")
+        brand_voice = brand_intel.get("brand_voice", "professional")
+
+        # Scientific credibility
+        scientific_backing = scientific_intel.get("validated_claims", scientific_intel.get("research_support", []))
+        trust_signals = credibility_intel.get("trust_indicators", credibility_intel.get("credibility_markers", []))
+
+        # Build context-rich prompt (not a template!)
+        prompt = f"""Create a compelling marketing email for {product_name if product_name else 'this product/service'}.
+
+CAMPAIGN INTELLIGENCE CONTEXT:
+
+Product/Service: {product_name if product_name else 'N/A'}
+
+Key Benefits & Features:
+{self._format_list(benefits) if benefits else '- Focus on value proposition and transformation'}
+
+Target Audience Pain Points & Challenges:
+{self._format_list(pain_points) if pain_points else '- Address common customer frustrations'}
+
+Target Audience Profile:
+{target_audience if target_audience else 'General consumers'}
+
+Emotional Drivers & Triggers:
+{self._format_list(emotional_triggers) if emotional_triggers else '- Appeal to desire for improvement and positive outcomes'}
+
+Competitive Advantages & Differentiation:
+{self._format_list(unique_advantages) if unique_advantages else '- Emphasize unique value'}
+
+Scientific Credibility & Trust Signals:
+{self._format_list(scientific_backing + trust_signals) if (scientific_backing or trust_signals) else '- Build credibility through expertise'}
+
+Brand Communication Style:
+- Tone: {tone}
+- Voice: {brand_voice}
+
+PSYCHOLOGY STAGE: {psychology_stage.value.replace('_', ' ').title()}
+
+YOUR TASK:
+Synthesize the intelligence above to create an original, compelling email that:
+1. Uses the actual data and insights (don't make up information)
+2. Applies the psychology stage naturally (don't force structure)
+3. Writes in the brand voice authentically
+4. Creates a unique narrative specific to this product/audience
+5. Includes a strong, contextually relevant call-to-action
+
+IMPORTANT:
+- DO NOT use generic marketing speak or template phrases
+- DO NOT follow a rigid structure - be creative
+- DO synthesize the intelligence into genuinely fresh, original copy
+- DO make every sentence count and be specific to this product/audience
+- Target length: {preferences.get('word_count', 300)}-{preferences.get('word_count', 300) + 100} words
+
+Generate the email now (subject line + body):"""
+
+        return prompt
+
+    def _build_dynamic_system_message(self, content_type: ContentType, intelligence_data: Dict[str, Any]) -> str:
+        """Build dynamic system message that emphasizes originality"""
+
+        product_name = intelligence_data.get("product_name", "")
+
+        return f"""You are an expert marketing copywriter creating content for {product_name if product_name else 'a product/service'}.
+
+CRITICAL INSTRUCTIONS:
+- Synthesize the provided intelligence into genuinely original, unique content
+- Never use generic marketing templates or formulaic phrases
+- Create fresh narratives and angles specific to the intelligence data
+- Be creative, authentic, and make every piece distinctly different
+- Focus on the actual product/service details and audience insights provided
+- Write as if you deeply understand this specific product and its unique value
+
+Your goal is to create content that could ONLY work for this specific product/audience, not generic marketing that could apply to anything."""
+
+    def _format_list(self, items) -> str:
+        """Format a list of items for prompt context"""
+        if not items:
+            return "N/A"
+        if isinstance(items, list):
+            return "\n".join([f"- {item}" for item in items if item])
+        if isinstance(items, str):
+            return f"- {items}"
+        return str(items)
+
+    def _build_generic_dynamic_prompt(self, product_name, intelligence_data, psychology_stage, preferences) -> str:
+        """Fallback dynamic prompt for unsupported content types"""
+        import json
+
+        # Serialize all intelligence for context
+        intel_summary = json.dumps(intelligence_data, indent=2, default=str)
+
+        return f"""Create marketing content for {product_name if product_name else 'this product/service'}.
+
+FULL INTELLIGENCE CONTEXT:
+{intel_summary}
+
+PSYCHOLOGY STAGE: {psychology_stage.value.replace('_', ' ').title()}
+
+Synthesize the intelligence above into original, compelling marketing content that applies the psychology stage naturally."""
+
+    # Placeholder methods for other content types (to be implemented similarly)
+    def _build_dynamic_email_sequence_prompt(self, *args) -> str:
+        return self._build_dynamic_email_prompt(*args)
+
+    def _build_dynamic_social_prompt(self, *args) -> str:
+        return self._build_dynamic_email_prompt(*args)
+
+    def _build_dynamic_blog_prompt(self, *args) -> str:
+        return self._build_dynamic_email_prompt(*args)
+
+    def _build_dynamic_ad_prompt(self, *args) -> str:
+        return self._build_dynamic_email_prompt(*args)
+
+    def _build_dynamic_video_prompt(self, *args) -> str:
+        return self._build_dynamic_email_prompt(*args)
 
     def get_psychology_stages(self) -> List[str]:
         """Get list of psychology stages"""
