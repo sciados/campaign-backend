@@ -346,14 +346,19 @@ class ImageGenerator:
             "modern": "contemporary wellness design, minimalist health branding, trendy supplement marketing, sleek and approachable",
             "vibrant": "energetic health colors, vitality-focused, eye-catching wellness imagery, dynamic and motivating composition",
             "minimalist": "simple clean health design, white space, elegant wellness aesthetic, understated premium supplement",
-            "dramatic": "high contrast wellness imagery, dramatic transformation lighting, bold health messaging, cinematic supplement commercial"
+            "dramatic": "high contrast wellness imagery, dramatic transformation lighting, bold health messaging, cinematic supplement commercial",
+            "funny": "playful and humorous health supplement imagery, lighthearted wellness comedy, entertaining and relatable health marketing, fun unexpected twists, approachable humor without undermining credibility",
+            "animated": "3D rendered cartoon style health supplement illustration, Pixar-quality character animation, vibrant animated wellness scene, friendly animated mascot or characters, colorful digital art animation"
         }
 
         enhancement = style_enhancements.get(style, style_enhancements["professional"])
         full_prompt = f"{base_prompt}, {enhancement}"
 
-        # Add technical quality requirements
-        full_prompt += ", ultra high quality, 8k resolution, professional commercial health supplement photography, sharp focus, perfect composition, premium wellness branding"
+        # Add technical quality requirements based on style
+        if style == "animated":
+            full_prompt += ", ultra high quality 3D rendering, professional commercial animation, Pixar-style lighting, perfect character design, cinema-quality CGI"
+        else:
+            full_prompt += ", ultra high quality, 8k resolution, professional commercial health supplement photography, sharp focus, perfect composition, premium wellness branding"
 
         return full_prompt
 
