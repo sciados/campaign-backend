@@ -32,11 +32,17 @@ class LongFormArticleGenerator:
 
     def __init__(self, db_session=None):
         self.name = "long_form_article_generator"
-        self.version = "1.0.0"
+        self.version = "1.1.0"
 
         # Initialize modular services
         self.prompt_service = PromptGenerationService()
         self.ai_service = AIProviderService()
+
+        # Initialize prompt storage (optional)
+        self.prompt_storage = None
+        if db_session:
+            from src.content.services.prompt_storage_service import PromptStorageService
+            self.prompt_storage = PromptStorageService(db_session)
 
         self._generation_stats = {
             "articles_generated": 0,
@@ -141,6 +147,29 @@ class LongFormArticleGenerator:
                 raise Exception(f"AI generation failed: {ai_result.get('error')}")
 
             logger.info(f"✅ AI generated long-form article using {ai_result['provider_name']} (cost: ${ai_result['cost']:.4f})")
+
+            # Save prompt to database for future reuse (if storage available)
+            prompt_id = None
+            if self.prompt_storage:
+                try:
+                    # Use provided user_id or fallback to system UUID if not provided
+                    storage_user_id = str(user_id) if user_id else "00000000-0000-0000-0000-000000000000"
+
+                    prompt_id = await self.prompt_storage.save_prompt(
+                        campaign_id=str(campaign_id),
+                        user_id=storage_user_id,
+                        content_type="long_form_article",
+                        user_prompt=enhanced_prompt,
+                        system_message=prompt_result["system_message"],
+                        intelligence_variables=prompt_result["variables"],
+                        prompt_result=prompt_result,
+                        ai_result=ai_result,
+                        content_id=None
+                    )
+                    self._generation_stats["prompts_saved"] += 1
+                    logger.info(f"✅ Saved long-form article prompt {prompt_id} for future reuse")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to save long-form article prompt (non-critical): {e}")
 
             # Step 3: Parse article into structured format
             article = self._parse_long_form_article(

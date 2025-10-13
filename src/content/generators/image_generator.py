@@ -32,10 +32,16 @@ class ImageGenerator:
 
     def __init__(self, db_session=None):
         self.name = "image_generator"
-        self.version = "3.1.0"
+        self.version = "3.2.0"
 
         # Initialize modular services
         self.prompt_service = PromptGenerationService()
+
+        # Initialize prompt storage (optional)
+        self.prompt_storage = None
+        if db_session:
+            from src.content.services.prompt_storage_service import PromptStorageService
+            self.prompt_storage = PromptStorageService(db_session)
 
         # API keys
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -139,6 +145,57 @@ class ImageGenerator:
                 raise Exception(f"Image generation failed: {image_result.get('error')}")
 
             logger.info(f"✅ AI generated image using {provider} (cost: ${image_result.get('cost', 0):.4f})")
+
+            # Save prompt to database for future reuse (if storage available)
+            prompt_id = None
+            if self.prompt_storage:
+                try:
+                    # Use provided user_id or fallback to system UUID if not provided
+                    storage_user_id = str(user_id) if user_id else "00000000-0000-0000-0000-000000000000"
+
+                    # Create mock prompt_result and ai_result structures for storage
+                    mock_prompt_result = {
+                        "success": True,
+                        "prompt": image_prompt,
+                        "system_message": f"Generate {image_type} image in {style} style",
+                        "variables": {
+                            "PRODUCT_NAME": intelligence_data.get("product_name", "Product"),
+                            "PRIMARY_BENEFIT": intelligence_data.get("offer_intelligence", {}).get("benefits", ["quality"])[0] if intelligence_data.get("offer_intelligence", {}).get("benefits") else "quality",
+                            "TARGET_AUDIENCE": intelligence_data.get("psychology_intelligence", {}).get("target_audience", "consumers"),
+                            "IMAGE_TYPE": image_type,
+                            "STYLE": style,
+                            "DIMENSIONS": dimensions
+                        },
+                        "quality_score": 85,  # Default quality score for images
+                        "psychology_stage": "visual_appeal",
+                        "metadata": {"template_used": f"image_{image_type}"}
+                    }
+
+                    mock_ai_result = {
+                        "success": True,
+                        "content": image_result["url"],
+                        "provider": provider,
+                        "provider_name": provider,
+                        "cost": image_result.get("cost", 0),
+                        "generation_time": image_result.get("generation_time", 0),
+                        "estimated_tokens": 0
+                    }
+
+                    prompt_id = await self.prompt_storage.save_prompt(
+                        campaign_id=str(campaign_id),
+                        user_id=storage_user_id,
+                        content_type="image",
+                        user_prompt=image_prompt,
+                        system_message=mock_prompt_result["system_message"],
+                        intelligence_variables=mock_prompt_result["variables"],
+                        prompt_result=mock_prompt_result,
+                        ai_result=mock_ai_result,
+                        content_id=None
+                    )
+                    self._generation_stats["prompts_saved"] += 1
+                    logger.info(f"✅ Saved image prompt {prompt_id} for future reuse")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to save image prompt (non-critical): {e}")
 
             # Update stats
             self._generation_stats["images_generated"] += 1
