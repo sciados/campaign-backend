@@ -433,14 +433,18 @@ class IntegratedContentService:
             row = result.fetchone()
 
             if not row:
+                logger.warning(f"⚠️ No intelligence found for campaign {campaign_id}")
                 return {}
 
             # Return full analysis data with top-level fields as expected by generators
             intelligence_data = row.full_analysis_data if row.full_analysis_data else {}
 
             # Add top-level columns from intelligence_core table
-            intelligence_data["product_name"] = row.product_name
+            product_name = row.product_name
+            intelligence_data["product_name"] = product_name
             intelligence_data["salespage_url"] = row.salespage_url
+
+            logger.info(f"✅ Intelligence loaded for campaign {campaign_id}: product_name='{product_name}', has_full_analysis={bool(row.full_analysis_data)}")
 
             return intelligence_data
 
