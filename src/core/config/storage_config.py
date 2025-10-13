@@ -26,11 +26,12 @@ class StorageTier(Enum):
 @dataclass
 class CloudflareR2Config:
     """Cloudflare R2 storage configuration."""
-    
+
     account_id: str
     access_key_id: str
     secret_access_key: str
     bucket_name: str
+    public_url: str
     region: str = "auto"
     endpoint_url: str = None
     
@@ -58,6 +59,7 @@ class StorageConfig:
             access_key_id=settings.CLOUDFLARE_R2_ACCESS_KEY_ID,
             secret_access_key=settings.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
             bucket_name=settings.CLOUDFLARE_R2_BUCKET_NAME,
+            public_url=settings.CLOUDFLARE_R2_PUBLIC_URL,
         )
     
     def get_storage_config_by_tier(self, tier: StorageTier) -> Dict[str, Any]:

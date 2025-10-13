@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     CLOUDFLARE_R2_ACCESS_KEY_ID: str
     CLOUDFLARE_R2_SECRET_ACCESS_KEY: str
     CLOUDFLARE_R2_BUCKET_NAME: str
+    CLOUDFLARE_R2_PUBLIC_URL: str = "https://pub-c0ddba9f039845bda33be436955187cb.r2.dev"
     
     # ===== CORS =====
     ALLOWED_ORIGINS: str

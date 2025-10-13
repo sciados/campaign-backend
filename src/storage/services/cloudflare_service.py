@@ -57,8 +57,8 @@ class CloudflareService:
                 )
             )
             
-            # Generate public URL
-            public_url = f"https://pub-{self.config.account_id}.r2.dev/{file_path}"
+            # Generate public URL using configured public domain
+            public_url = f"{self.config.public_url}/{file_path}"
             
             return {
                 "success": True,
