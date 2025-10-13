@@ -378,7 +378,7 @@ class IntegratedContentService:
         """Get intelligence data for campaign with AI enhancements"""
         try:
             query = text("""
-                SELECT id, full_analysis_data, competitive_insights, market_opportunities
+                SELECT id, full_analysis_data
                 FROM intelligence
                 WHERE campaign_id = :campaign_id
                 ORDER BY created_at DESC
@@ -422,7 +422,7 @@ class IntegratedContentService:
         """Get full intelligence data in the format expected by image and long-form generators"""
         try:
             query = text("""
-                SELECT full_analysis_data, competitive_insights, market_opportunities
+                SELECT full_analysis_data
                 FROM intelligence
                 WHERE campaign_id = :campaign_id
                 ORDER BY created_at DESC
@@ -437,12 +437,6 @@ class IntegratedContentService:
 
             # Return full analysis data as expected by generators
             intelligence_data = row.full_analysis_data if row.full_analysis_data else {}
-
-            # Add competitive insights and market opportunities if available
-            if row.competitive_insights:
-                intelligence_data["competitive_insights"] = row.competitive_insights
-            if row.market_opportunities:
-                intelligence_data["market_opportunities"] = row.market_opportunities
 
             return intelligence_data
 
