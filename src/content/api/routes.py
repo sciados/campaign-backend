@@ -20,6 +20,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/content", tags=["content"])
 
+# Include mockup routes for PRO/ENTERPRISE tiers
+try:
+    from src.content.api.mockup_routes import router as mockup_router
+    router.include_router(mockup_router, tags=["mockups"])
+    logger.info("✅ Mockup routes registered successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Could not import mockup routes: {e}")
+
 # ============================================================================
 # EMBEDDED CONTENT STORAGE SERVICE (Deployment Reliability)
 # ============================================================================

@@ -1,0 +1,191 @@
+"""
+API routes for professional mockup generation (PRO/ENTERPRISE tier)
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
+import logging
+
+from src.core.database.session import get_db
+from src.core.auth.dependencies import get_current_user
+from src.users.models.user import User
+from src.storage.services.placeit_service import get_placeit_service
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(
+    prefix="/api/mockups",
+    tags=["mockups"]
+)
+
+
+class MockupGenerationRequest(BaseModel):
+    """Request to generate professional mockup"""
+    image_url: str = Field(..., description="URL of base image to apply to mockup")
+    template_id: str = Field(..., description="Placeit template ID")
+    product_name: Optional[str] = Field(None, description="Product name for label")
+    label_text: Optional[str] = Field(None, description="Additional label text")
+    additional_params: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional template parameters")
+
+
+class MockupGenerationResponse(BaseModel):
+    """Response from mockup generation"""
+    success: bool
+    mockup_url: Optional[str] = None
+    cost: Optional[float] = None
+    template_id: Optional[str] = None
+    error: Optional[str] = None
+    upgrade_required: Optional[bool] = None
+    feature: Optional[str] = None
+
+
+class MockupTemplatesResponse(BaseModel):
+    """List of available mockup templates"""
+    success: bool
+    templates: List[Dict[str, Any]]
+    user_tier: str
+    tier_limits: Dict[str, Any]
+
+
+@router.post("/generate", response_model=MockupGenerationResponse)
+async def generate_mockup(
+    request: MockupGenerationRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Generate professional mockup using Placeit API
+
+    **Tier Requirements:**
+    - FREE/BASIC: Not available
+    - PRO: 5 mockups/month included, $0.50 each additional
+    - ENTERPRISE: Unlimited mockups
+
+    **Features:**
+    - Realistic product mockups (bottles, boxes, labels)
+    - Automatic curved text with proper perspective
+    - Photo-realistic results
+    """
+
+    try:
+        # Get user's subscription tier
+        user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
+
+        logger.info(f"🎨 Mockup generation requested by user {current_user.id} (tier: {user_tier})")
+
+        # Get Placeit service
+        placeit_service = get_placeit_service()
+
+        # Generate mockup (tier check happens inside service)
+        result = await placeit_service.generate_mockup(
+            image_url=request.image_url,
+            template_id=request.template_id,
+            product_name=request.product_name,
+            label_text=request.label_text,
+            user_tier=user_tier,
+            **request.additional_params
+        )
+
+        if not result["success"]:
+            # Check if upgrade required
+            if result.get("upgrade_required"):
+                return MockupGenerationResponse(
+                    success=False,
+                    error=result["error"],
+                    upgrade_required=True,
+                    feature=result.get("feature")
+                )
+
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result["error"]
+            )
+
+        logger.info(f"✅ Mockup generated successfully (cost: ${result['cost']:.2f})")
+
+        return MockupGenerationResponse(
+            success=True,
+            mockup_url=result["mockup_url"],
+            cost=result["cost"],
+            template_id=result["template_id"]
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Mockup generation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Mockup generation failed: {str(e)}"
+        )
+
+
+@router.get("/templates", response_model=MockupTemplatesResponse)
+async def get_mockup_templates(
+    category: str = "supplement",
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get available mockup templates
+
+    **Categories:**
+    - supplement: Bottle and box mockups for supplements
+    - lifestyle: Hand-holding, gym scenes, lifestyle shots
+    - packaging: Product packaging variations
+    """
+
+    try:
+        # Get user's subscription tier
+        user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
+
+        # Get Placeit service
+        placeit_service = get_placeit_service()
+
+        # Get templates for category
+        templates = placeit_service.get_available_templates(category)
+
+        # Get tier limits
+        tier_limits = placeit_service.get_tier_limits(user_tier)
+
+        return MockupTemplatesResponse(
+            success=True,
+            templates=templates,
+            user_tier=user_tier,
+            tier_limits=tier_limits
+        )
+
+    except Exception as e:
+        logger.error(f"Error fetching mockup templates: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch templates: {str(e)}"
+        )
+
+
+@router.get("/tier-info")
+async def get_tier_info(
+    current_user: User = Depends(get_current_user)
+):
+    """Get mockup generation limits and pricing for user's tier"""
+
+    try:
+        user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
+
+        placeit_service = get_placeit_service()
+        tier_limits = placeit_service.get_tier_limits(user_tier)
+
+        return {
+            "success": True,
+            "user_tier": user_tier,
+            "limits": tier_limits,
+            "feature": "professional_mockups"
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching tier info: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
