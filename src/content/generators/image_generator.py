@@ -122,27 +122,63 @@ class ImageGenerator:
 
             logger.info(f"✅ Generated image prompt: {image_prompt[:100]}...")
 
-            # Step 2: Generate image using AI provider
-            if provider == "dall-e-3":
-                image_result = await self._generate_with_dalle3(
-                    prompt=image_prompt,
-                    dimensions=dimensions
-                )
-            elif provider == "flux-schnell":
-                image_result = await self._generate_with_flux(
-                    prompt=image_prompt,
-                    dimensions=dimensions
-                )
-            elif provider == "sdxl":
-                image_result = await self._generate_with_sdxl(
-                    prompt=image_prompt,
-                    dimensions=dimensions
-                )
-            else:
-                raise ValueError(f"Unsupported provider: {provider}")
+            # Step 2: Generate image using AI provider with automatic fallback
+            # Try providers in order until one succeeds (handle insufficient credits)
+            providers_to_try = [provider]  # Start with requested provider
 
-            if not image_result["success"]:
-                raise Exception(f"Image generation failed: {image_result.get('error')}")
+            # Add fallback providers (cheapest first for cost optimization)
+            all_providers = ["flux-schnell", "sdxl", "dall-e-3"]
+            for p in all_providers:
+                if p not in providers_to_try:
+                    providers_to_try.append(p)
+
+            image_result = None
+            last_error = None
+
+            for attempt_provider in providers_to_try:
+                try:
+                    logger.info(f"🔄 Attempting image generation with {attempt_provider}...")
+
+                    if attempt_provider == "dall-e-3":
+                        image_result = await self._generate_with_dalle3(
+                            prompt=image_prompt,
+                            dimensions=dimensions
+                        )
+                    elif attempt_provider == "flux-schnell":
+                        image_result = await self._generate_with_flux(
+                            prompt=image_prompt,
+                            dimensions=dimensions
+                        )
+                    elif attempt_provider == "sdxl":
+                        image_result = await self._generate_with_sdxl(
+                            prompt=image_prompt,
+                            dimensions=dimensions
+                        )
+                    else:
+                        logger.warning(f"⚠️ Unsupported provider: {attempt_provider}, skipping...")
+                        continue
+
+                    if image_result["success"]:
+                        logger.info(f"✅ Image generation succeeded with {attempt_provider}")
+                        provider = attempt_provider  # Update provider to the one that worked
+                        break
+                    else:
+                        last_error = image_result.get('error')
+                        logger.warning(f"⚠️ {attempt_provider} failed: {last_error}")
+
+                except Exception as e:
+                    last_error = str(e)
+                    logger.warning(f"⚠️ {attempt_provider} error: {last_error}")
+                    # Check if it's an insufficient credit error
+                    if "insufficient" in last_error.lower() or "quota" in last_error.lower() or "credit" in last_error.lower():
+                        logger.info(f"💳 Insufficient credits for {attempt_provider}, trying next provider...")
+                        continue
+                    # For other errors, also try next provider
+                    continue
+
+            # If all providers failed
+            if not image_result or not image_result["success"]:
+                raise Exception(f"Image generation failed with all providers. Last error: {last_error}")
 
             logger.info(f"✅ AI generated image using {provider} (cost: ${image_result.get('cost', 0):.4f})")
 
