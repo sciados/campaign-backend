@@ -49,7 +49,7 @@ class IntegratedContentService:
     
     def __init__(self, db_session: AsyncSession):
         self.db = db_session
-        self.version = "4.1.0"
+        self.version = "4.1.1"  # Fixed metadata extraction
         self.prompt_service = PromptGenerationService()
         self.ai_provider_service = AIProviderService()
         # ✅ FIXED: Pass db_session to PromptStorageService
