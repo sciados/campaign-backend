@@ -379,7 +379,7 @@ class IntegratedContentService:
         try:
             query = text("""
                 SELECT id, full_analysis_data
-                FROM intelligence
+                FROM intelligence_core
                 WHERE campaign_id = :campaign_id
                 ORDER BY created_at DESC
                 LIMIT 1
@@ -423,7 +423,7 @@ class IntegratedContentService:
         try:
             query = text("""
                 SELECT full_analysis_data
-                FROM intelligence
+                FROM intelligence_core
                 WHERE campaign_id = :campaign_id
                 ORDER BY created_at DESC
                 LIMIT 1
