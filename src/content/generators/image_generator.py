@@ -328,7 +328,7 @@ class ImageGenerator:
         # Base prompt templates by image type with enhanced intelligence
         # IMPORTANT: Do NOT request text/labels in prompts - AI struggles with readable text
         prompts = {
-            "product_hero": f"Professional supplement product photography of {product_name} bottle without text or labels, premium health supplement for {target_audience}, addressing {pain_desc if pain_desc else 'health concerns'}, hero shot with {personality_desc} brand feel, {style} style, emphasizing {benefit_desc}, clean studio lighting with natural health elements, high-end health and wellness commercial quality, no visible text",
+            "product_hero": f"Professional product photography of blank unlabeled supplement bottle, generic white container with no branding or text whatsoever, premium health supplement for {target_audience}, addressing {pain_desc if pain_desc else 'health concerns'}, hero shot with {personality_desc} brand feel, {style} style, emphasizing {benefit_desc}, clean studio lighting with natural health elements, high-end health and wellness commercial quality, absolutely no text, labels, or writing of any kind on the bottle",
 
             "lifestyle": f"Authentic lifestyle photography of {target_audience} experiencing {desire_desc}, featuring health supplement bottle in natural daily routine, {style} aesthetic, real-world wellness setting, showing transformation from {pain_desc if pain_desc else 'challenges'} to vitality, natural lighting, genuine wellness moment, no text or labels visible",
 
