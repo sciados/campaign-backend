@@ -298,35 +298,62 @@ class ImageGenerator:
     ) -> str:
         """Generate detailed image prompt from intelligence data"""
 
+        # Extract rich intelligence data
         product_name = intelligence_data.get("product_name", "Product")
-        primary_benefit = intelligence_data.get("offer_intelligence", {}).get("benefits", ["quality"])[0] if intelligence_data.get("offer_intelligence", {}).get("benefits") else "quality"
-        target_audience = intelligence_data.get("psychology_intelligence", {}).get("target_audience", "consumers")
 
-        # Base prompt templates by image type
+        # Get offer intelligence
+        offer_intel = intelligence_data.get("offer_intelligence", {})
+        primary_benefits = offer_intel.get("primary_benefits", [])
+        key_features = offer_intel.get("key_features", [])
+        products = offer_intel.get("products", [])
+
+        # Get psychology intelligence
+        psych_intel = intelligence_data.get("psychology_intelligence", {})
+        target_audience = psych_intel.get("target_audience", "consumers")
+        pain_points = psych_intel.get("pain_points", [])
+        desire_states = psych_intel.get("desire_states", [])
+
+        # Get brand intelligence
+        brand_intel = intelligence_data.get("brand_intelligence", {})
+        brand_personality = brand_intel.get("brand_personality", [])
+        brand_values = brand_intel.get("brand_values", [])
+
+        # Build context-aware descriptions
+        benefit_desc = ", ".join(primary_benefits[:2]) if primary_benefits else "quality results"
+        feature_desc = ", ".join(key_features[:2]) if key_features else ""
+        personality_desc = ", ".join(brand_personality[:2]) if brand_personality else "trustworthy"
+        pain_desc = " and ".join(pain_points[:2]) if pain_points else ""
+        desire_desc = ", ".join(desire_states[:2]) if desire_states else "better health"
+
+        # Base prompt templates by image type with enhanced intelligence
         prompts = {
-            "product_hero": f"Professional product photography of {product_name}, hero shot, {style} style, studio lighting, high-end commercial quality, focus on {primary_benefit}, appealing to {target_audience}",
-            "lifestyle": f"Lifestyle photography featuring {product_name} in use, {style} aesthetic, real-world setting, happy {target_audience} using the product, natural lighting, authentic moment",
-            "comparison": f"Before and after comparison image for {product_name}, split-screen layout, {style} design, showing transformation and {primary_benefit}, clean professional presentation",
-            "infographic": f"Modern infographic design explaining {primary_benefit} of {product_name}, {style} color scheme, clean layout, data visualization, professional business graphics",
-            "social_post": f"Eye-catching social media image for {product_name}, {style} aesthetic, bold colors, text-friendly composition, attention-grabbing for {target_audience}"
+            "product_hero": f"Professional supplement product photography of {product_name} bottle, premium health supplement for {target_audience}, addressing {pain_desc if pain_desc else 'health concerns'}, hero shot with {personality_desc} brand feel, {style} style, emphasizing {benefit_desc}, clean studio lighting, high-end health and wellness commercial quality",
+
+            "lifestyle": f"Authentic lifestyle photography of {target_audience} experiencing {desire_desc}, featuring {product_name} health supplement in natural daily routine, {style} aesthetic, real-world wellness setting, showing transformation from {pain_desc if pain_desc else 'challenges'} to vitality, natural lighting, genuine wellness moment",
+
+            "comparison": f"Health transformation visual for {product_name}, before and after results showing improvement in {pain_desc if pain_desc else 'wellness'} leading to {desire_desc}, split-screen layout, {style} design, {personality_desc} brand presentation, clean professional health supplement marketing",
+
+            "infographic": f"Health and wellness infographic explaining how {product_name} delivers {benefit_desc}, highlighting {feature_desc if feature_desc else 'key ingredients'}, {style} color scheme reflecting {', '.join(brand_values[:2]) if brand_values else 'health and wellness'}, clean layout, scientific data visualization, professional supplement marketing graphics",
+
+            "social_post": f"Eye-catching health supplement social media image for {product_name}, targeting {target_audience} seeking {desire_desc}, {style} aesthetic, wellness-focused color palette, text-friendly composition for {benefit_desc} messaging, attention-grabbing supplement marketing"
         }
 
         base_prompt = prompts.get(image_type, prompts["product_hero"])
 
         # Enhance with style details
         style_enhancements = {
-            "professional": "corporate aesthetic, clean lines, sophisticated color palette, high-end presentation",
-            "modern": "contemporary design, minimalist, trendy, sleek composition",
-            "vibrant": "bold colors, energetic, eye-catching, dynamic composition",
-            "minimalist": "simple, clean, white space, elegant, understated",
-            "dramatic": "high contrast, dramatic lighting, bold shadows, cinematic"
+            "professional": "corporate health aesthetic, clean lines, sophisticated wellness color palette, medical-grade presentation, trust-building composition",
+            "modern": "contemporary wellness design, minimalist health branding, trendy supplement marketing, sleek and approachable",
+            "vibrant": "energetic health colors, vitality-focused, eye-catching wellness imagery, dynamic and motivating composition",
+            "minimalist": "simple clean health design, white space, elegant wellness aesthetic, understated premium supplement",
+            "dramatic": "high contrast wellness imagery, dramatic transformation lighting, bold health messaging, cinematic supplement commercial"
         }
 
         enhancement = style_enhancements.get(style, style_enhancements["professional"])
         full_prompt = f"{base_prompt}, {enhancement}"
 
         # Add technical quality requirements
-        full_prompt += ", ultra high quality, 8k resolution, professional commercial photography, sharp focus, perfect composition"
+        full_prompt += ", ultra high quality, 8k resolution, professional commercial health supplement photography, sharp focus, perfect composition, premium wellness branding"
 
         return full_prompt
 
