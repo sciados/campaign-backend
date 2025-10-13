@@ -490,13 +490,26 @@ class IntegratedContentService:
                 content_title = f"{content_type.replace('_', ' ').title()}"
             
             # Prepare metadata
+            # Extract metadata from various generator result formats
+            gen_metadata = generation_result.get('generation_metadata', generation_result.get('metadata', {}))
+
             metadata = {
                 "preferences": preferences,
                 "ai_enhanced": bool(ai_enhancements),
                 "generation_method": "integrated_service_v4.1",
                 "generator_version": self.version,
-                **generation_result.get('metadata', {})
+                **gen_metadata
             }
+
+            # Add image-specific metadata if present
+            if 'image' in generation_result and isinstance(generation_result['image'], dict):
+                metadata.update({
+                    "image_dimensions": generation_result['image'].get('dimensions'),
+                    "image_type": generation_result['image'].get('image_type'),
+                    "style": generation_result['image'].get('style'),
+                    "r2_path": generation_result['image'].get('r2_path'),
+                    "temporary_url": generation_result['image'].get('temporary_url')
+                })
             
             # Insert into database
             # NOTE: Removed explicit type casting (::uuid, ::jsonb) because SQLAlchemy with asyncpg
