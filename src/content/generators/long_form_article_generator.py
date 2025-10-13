@@ -121,7 +121,7 @@ class LongFormArticleGenerator:
             prompt_result = await self.prompt_service.generate_prompt(
                 content_type=ContentType.BLOG_ARTICLE,  # Use blog post type as base
                 intelligence_data=intelligence_data,
-                psychology_stage=SalesPsychologyStage.EDUCATION,
+                psychology_stage=SalesPsychologyStage.BENEFIT_PROOF,  # Educational content proving value
                 preferences=preferences
             )
 
