@@ -51,14 +51,19 @@ class ImageGenerator:
         from src.storage.services.cloudflare_service import CloudflareService
         self.storage_service = CloudflareService()
 
+        # Initialize AI Inpainting service for automatic text removal
+        from src.storage.services.inpainting_service import get_inpainting_service
+        self.inpainting_service = get_inpainting_service()
+
         self._generation_stats = {
             "images_generated": 0,
             "total_cost": 0.0,
             "prompts_saved": 0,
-            "images_uploaded": 0
+            "images_uploaded": 0,
+            "images_cleaned": 0
         }
 
-        logger.info(f"✅ ImageGenerator v{self.version} - Modular architecture with AI + R2 storage")
+        logger.info(f"✅ ImageGenerator v{self.version} - Modular architecture with AI + R2 storage + Auto text removal")
 
     async def generate_marketing_image(
         self,
@@ -182,8 +187,30 @@ class ImageGenerator:
 
             logger.info(f"✅ AI generated image using {provider} (cost: ${image_result.get('cost', 0):.4f})")
 
-            # Step 3: Upload image to Cloudflare R2 for permanent storage
+            # Step 2.5: Automatic text removal using AI inpainting (ensures clean images)
             temporary_url = image_result["url"]
+            cleaning_cost = 0.0
+
+            try:
+                logger.info(f"🧹 Attempting automatic text removal...")
+                cleaning_result = await self.inpainting_service.remove_text_from_image(
+                    image_url=temporary_url,
+                    provider="stability"  # Stability AI for inpainting
+                )
+
+                if cleaning_result["success"]:
+                    # Use cleaned image instead of original
+                    temporary_url = cleaning_result["cleaned_url"]
+                    cleaning_cost = cleaning_result.get("cost", 0.01)
+                    self._generation_stats["images_cleaned"] += 1
+                    logger.info(f"✅ Text removed successfully (cost: ${cleaning_cost:.3f})")
+                else:
+                    logger.warning(f"⚠️ Text removal failed, using original image: {cleaning_result.get('error')}")
+
+            except Exception as e:
+                logger.warning(f"⚠️ Text removal error (continuing with original): {e}")
+
+            # Step 3: Upload image to Cloudflare R2 for permanent storage
             r2_upload_result = await self._upload_image_to_r2(
                 image_url=temporary_url,
                 campaign_id=campaign_id,
@@ -252,9 +279,9 @@ class ImageGenerator:
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to save image prompt (non-critical): {e}")
 
-            # Update stats
+            # Update stats (including cleaning cost if text removal was performed)
             self._generation_stats["images_generated"] += 1
-            self._generation_stats["total_cost"] += image_result.get("cost", 0)
+            self._generation_stats["total_cost"] += image_result.get("cost", 0) + cleaning_cost
 
             return {
                 "success": True,
