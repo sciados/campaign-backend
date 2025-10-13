@@ -251,7 +251,7 @@ class IntegratedContentService:
                 image_type=preferences.get('image_type', 'hero_image'),
                 style=preferences.get('style', 'modern_professional'),
                 dimensions=preferences.get('dimensions', '1024x1024'),
-                provider=preferences.get('provider', 'dall-e-3'),  # Default to dall-e-3 (supported: dall-e-3, flux-schnell, sdxl)
+                provider=preferences.get('provider', 'flux-schnell'),  # Default to flux-schnell (cheaper for testing, supported: dall-e-3, flux-schnell, sdxl)
                 user_id=user_id
             )
         elif hasattr(generator, 'generate_long_form_article'):
@@ -378,10 +378,10 @@ class IntegratedContentService:
         """Get intelligence data for campaign with AI enhancements"""
         try:
             query = text("""
-                SELECT id, full_analysis_data
-                FROM intelligence_core
-                WHERE campaign_id = :campaign_id
-                ORDER BY created_at DESC
+                SELECT ic.id, ic.full_analysis_data
+                FROM intelligence_core ic
+                JOIN campaigns c ON c.intelligence_id = ic.id
+                WHERE c.id = :campaign_id
                 LIMIT 1
             """)
 
@@ -422,10 +422,10 @@ class IntegratedContentService:
         """Get full intelligence data in the format expected by image and long-form generators"""
         try:
             query = text("""
-                SELECT full_analysis_data
-                FROM intelligence_core
-                WHERE campaign_id = :campaign_id
-                ORDER BY created_at DESC
+                SELECT ic.full_analysis_data
+                FROM intelligence_core ic
+                JOIN campaigns c ON c.intelligence_id = ic.id
+                WHERE c.id = :campaign_id
                 LIMIT 1
             """)
 
