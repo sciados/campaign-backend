@@ -67,7 +67,7 @@ class ImageGenerator:
         image_type: str = "product_hero",
         style: str = "professional",
         dimensions: str = "1024x1024",
-        provider: str = "dall-e-3",
+        provider: str = "dall-e-3",  # DALL-E 3 recommended for quality & consistency
         target_audience: Optional[str] = None,
         preferences: Optional[Dict[str, Any]] = None,
         user_id: Optional[Union[str, UUID]] = None
@@ -126,8 +126,8 @@ class ImageGenerator:
             # Try providers in order until one succeeds (handle insufficient credits)
             providers_to_try = [provider]  # Start with requested provider
 
-            # Add fallback providers (cheapest first for cost optimization)
-            all_providers = ["flux-schnell", "sdxl", "dall-e-3"]
+            # Add fallback providers (DALL-E 3 first for quality, then cheaper options)
+            all_providers = ["dall-e-3", "flux-schnell", "sdxl"]
             for p in all_providers:
                 if p not in providers_to_try:
                     providers_to_try.append(p)
@@ -326,16 +326,17 @@ class ImageGenerator:
         desire_desc = ", ".join(desire_states[:2]) if desire_states else "better health"
 
         # Base prompt templates by image type with enhanced intelligence
+        # IMPORTANT: Do NOT request text/labels in prompts - AI struggles with readable text
         prompts = {
-            "product_hero": f"Professional supplement product photography of {product_name} bottle, premium health supplement for {target_audience}, addressing {pain_desc if pain_desc else 'health concerns'}, hero shot with {personality_desc} brand feel, {style} style, emphasizing {benefit_desc}, clean studio lighting, high-end health and wellness commercial quality",
+            "product_hero": f"Professional supplement product photography of {product_name} bottle without text or labels, premium health supplement for {target_audience}, addressing {pain_desc if pain_desc else 'health concerns'}, hero shot with {personality_desc} brand feel, {style} style, emphasizing {benefit_desc}, clean studio lighting with natural health elements, high-end health and wellness commercial quality, no visible text",
 
-            "lifestyle": f"Authentic lifestyle photography of {target_audience} experiencing {desire_desc}, featuring {product_name} health supplement in natural daily routine, {style} aesthetic, real-world wellness setting, showing transformation from {pain_desc if pain_desc else 'challenges'} to vitality, natural lighting, genuine wellness moment",
+            "lifestyle": f"Authentic lifestyle photography of {target_audience} experiencing {desire_desc}, featuring health supplement bottle in natural daily routine, {style} aesthetic, real-world wellness setting, showing transformation from {pain_desc if pain_desc else 'challenges'} to vitality, natural lighting, genuine wellness moment, no text or labels visible",
 
-            "comparison": f"Health transformation visual for {product_name}, before and after results showing improvement in {pain_desc if pain_desc else 'wellness'} leading to {desire_desc}, split-screen layout, {style} design, {personality_desc} brand presentation, clean professional health supplement marketing",
+            "comparison": f"Health transformation visual showing before and after results, improvement in {pain_desc if pain_desc else 'wellness'} leading to {desire_desc}, split-screen layout, {style} design, {personality_desc} brand presentation, clean professional health supplement marketing aesthetic, no text overlays",
 
-            "infographic": f"Health and wellness infographic explaining how {product_name} delivers {benefit_desc}, highlighting {feature_desc if feature_desc else 'key ingredients'}, {style} color scheme reflecting {', '.join(brand_values[:2]) if brand_values else 'health and wellness'}, clean layout, scientific data visualization, professional supplement marketing graphics",
+            "infographic": f"Clean health and wellness visual composition with icons and graphics representing {benefit_desc}, highlighting {feature_desc if feature_desc else 'key ingredients'} through imagery, {style} color scheme reflecting {', '.join(brand_values[:2]) if brand_values else 'health and wellness'}, professional supplement marketing graphics without text labels",
 
-            "social_post": f"Eye-catching health supplement social media image for {product_name}, targeting {target_audience} seeking {desire_desc}, {style} aesthetic, wellness-focused color palette, text-friendly composition for {benefit_desc} messaging, attention-grabbing supplement marketing"
+            "social_post": f"Eye-catching health supplement social media image with clean composition, targeting {target_audience} seeking {desire_desc}, {style} aesthetic, wellness-focused color palette, simple uncluttered design perfect for text overlay, attention-grabbing supplement marketing, no text in image"
         }
 
         base_prompt = prompts.get(image_type, prompts["product_hero"])
