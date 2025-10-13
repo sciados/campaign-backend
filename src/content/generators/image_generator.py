@@ -45,13 +45,6 @@ class ImageGenerator:
         from src.storage.services.cloudflare_service import CloudflareService
         self.storage_service = CloudflareService()
 
-        # Optional: Prompt storage service
-        self.db_session = db_session
-        self.prompt_storage = None
-        if db_session:
-            from src.content.services.prompt_storage_service import PromptStorageService
-            self.prompt_storage = PromptStorageService(db_session)
-
         self._generation_stats = {
             "images_generated": 0,
             "total_cost": 0.0,
@@ -122,27 +115,6 @@ class ImageGenerator:
             )
 
             logger.info(f"✅ Generated image prompt: {image_prompt[:100]}...")
-
-            # Save prompt to database for tracking
-            if self.prompt_storage:
-                try:
-                    prompt_id = await self.prompt_storage.save_prompt(
-                        campaign_id=campaign_id,
-                        content_type="image",
-                        prompt_text=image_prompt,
-                        metadata={
-                            "image_type": image_type,
-                            "style": style,
-                            "dimensions": dimensions,
-                            "provider": provider,
-                            "target_audience": target_audience
-                        },
-                        user_id=user_id
-                    )
-                    self._generation_stats["prompts_saved"] += 1
-                    logger.info(f"💾 Saved image generation prompt (ID: {prompt_id})")
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to save prompt (non-critical): {e}")
 
             # Step 2: Generate image using AI provider
             if provider == "dall-e-3":

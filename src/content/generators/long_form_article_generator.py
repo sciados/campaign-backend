@@ -38,13 +38,6 @@ class LongFormArticleGenerator:
         self.prompt_service = PromptGenerationService()
         self.ai_service = AIProviderService()
 
-        # Optional: Prompt storage service
-        self.db_session = db_session
-        self.prompt_storage = None
-        if db_session:
-            from src.content.services.prompt_storage_service import PromptStorageService
-            self.prompt_storage = PromptStorageService(db_session)
-
         self._generation_stats = {
             "articles_generated": 0,
             "ai_generations": 0,
@@ -134,30 +127,6 @@ class LongFormArticleGenerator:
             )
 
             logger.info(f"✅ Generated long-form prompt with quality score: {prompt_result['quality_score']}")
-
-            # Save prompt to database for tracking
-            if self.prompt_storage:
-                try:
-                    prompt_id = await self.prompt_storage.save_prompt(
-                        campaign_id=campaign_id,
-                        content_type="long_form_article",
-                        prompt_text=enhanced_prompt,
-                        metadata={
-                            "topic": topic,
-                            "word_count": word_count,
-                            "article_type": article_type,
-                            "target_keywords": target_keywords or [],
-                            "tone": tone,
-                            "target_audience": target_audience,
-                            "quality_score": prompt_result["quality_score"]
-                        },
-                        user_id=user_id
-                    )
-                    self._generation_stats["prompts_saved"] += 1
-                    logger.info(f"💾 Saved long-form article prompt (ID: {prompt_id})")
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to save prompt (non-critical): {e}")
-
 
             # Step 2: Generate article using AI (high token limit for long-form)
             ai_result = await self.ai_service.generate_text(
