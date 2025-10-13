@@ -422,7 +422,7 @@ class IntegratedContentService:
         """Get full intelligence data in the format expected by image and long-form generators"""
         try:
             query = text("""
-                SELECT ic.full_analysis_data
+                SELECT ic.full_analysis_data, ic.product_name, ic.salespage_url
                 FROM intelligence_core ic
                 JOIN campaigns c ON c.intelligence_id = ic.id
                 WHERE c.id = :campaign_id
@@ -435,8 +435,12 @@ class IntegratedContentService:
             if not row:
                 return {}
 
-            # Return full analysis data as expected by generators
+            # Return full analysis data with top-level fields as expected by generators
             intelligence_data = row.full_analysis_data if row.full_analysis_data else {}
+
+            # Add top-level columns from intelligence_core table
+            intelligence_data["product_name"] = row.product_name
+            intelligence_data["salespage_url"] = row.salespage_url
 
             return intelligence_data
 

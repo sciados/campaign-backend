@@ -143,40 +143,36 @@ class PromptGenerationService:
         # 🔥 NEW: Extract from AI-Enhanced Intelligence (6 enhancers)
         # Extract from scientific_enhancement
         scientific = intelligence_data.get("scientific_intelligence", {})
-        if scientific:
-            variables["SCIENTIFIC_BACKING"] = self._extract_first(scientific, ["validated_claims", "research_support", "scientific_backing"], "")
-            variables["RESEARCH_CREDIBILITY"] = self._extract_first(scientific.get("scientific_credibility", {}), ["research_basis", "evidence_level"], "")
+        variables["SCIENTIFIC_BACKING"] = self._extract_first(scientific, ["validated_claims", "research_support", "scientific_backing"], "") if scientific else ""
+        variables["RESEARCH_CREDIBILITY"] = self._extract_first(scientific.get("scientific_credibility", {}), ["research_basis", "evidence_level"], "") if scientific else ""
+        variables["CREDIBILITY_SIGNALS"] = self._extract_first(scientific, ["credibility_signals", "trust_indicators"], "") if scientific else ""
 
         # Extract from emotional_enhancement
         emotional = intelligence_data.get("emotional_transformation_intelligence", {})
-        if emotional:
-            emotional_journey = self._extract_first(emotional, ["emotional_journey", "amplified_triggers"], "")
-            variables["EMOTIONAL_JOURNEY"] = emotional_journey if emotional_journey else ""
-            variables["PSYCHOLOGICAL_TRIGGERS"] = self._extract_first(emotional, ["psychological_drivers", "amplified_triggers"], "")
+        emotional_journey = self._extract_first(emotional, ["emotional_journey", "amplified_triggers"], "") if emotional else ""
+        variables["EMOTIONAL_JOURNEY"] = emotional_journey if emotional_journey else ""
+        variables["PSYCHOLOGICAL_TRIGGERS"] = self._extract_first(emotional, ["psychological_drivers", "amplified_triggers"], "") if emotional else ""
 
         # Extract from credibility_enhancement
         credibility = intelligence_data.get("credibility_intelligence", {})
-        if credibility:
-            variables["TRUST_SIGNALS"] = self._extract_first(credibility, ["trust_indicators", "credibility_markers"], "")
-            variables["AUTHORITY_MARKERS"] = self._extract_first(credibility, ["authority_signals", "expertise_indicators"], "")
-            variables["SOCIAL_PROOF"] = self._extract_first(credibility, ["social_proof_enhancement"], "")
+        variables["TRUST_SIGNALS"] = self._extract_first(credibility, ["trust_indicators", "credibility_markers"], "") if credibility else ""
+        variables["AUTHORITY_MARKERS"] = self._extract_first(credibility, ["authority_signals", "expertise_indicators"], "") if credibility else ""
+        variables["SOCIAL_PROOF"] = self._extract_first(credibility, ["social_proof_enhancement"], "") if credibility else ""
 
         # Extract from market_enhancement
         market = intelligence_data.get("market_intelligence", {})
-        if market:
-            variables["MARKET_POSITIONING"] = self._extract_first(market, ["enhanced_positioning", "market_opportunities"], "")
-            variables["COMPETITIVE_DIFFERENTIATION"] = self._extract_first(market, ["competitive_differentiation"], "")
+        variables["MARKET_POSITIONING"] = self._extract_first(market, ["enhanced_positioning", "market_opportunities"], "") if market else variables.get("MARKET_POSITIONING", "leading solution")
+        variables["COMPETITIVE_DIFFERENTIATION"] = self._extract_first(market, ["competitive_differentiation"], "") if market else ""
 
         # Extract from authority_enhancement
         authority = intelligence_data.get("scientific_authority_intelligence", {})
-        if authority:
-            variables["EXPERTISE_MARKERS"] = self._extract_first(authority, ["expertise_markers", "authority_positioning"], "")
-            variables["THOUGHT_LEADERSHIP"] = self._extract_first(authority, ["thought_leadership"], "")
+        variables["EXPERTISE_MARKERS"] = self._extract_first(authority, ["expertise_markers", "authority_positioning"], "") if authority else ""
+        variables["THOUGHT_LEADERSHIP"] = self._extract_first(authority, ["thought_leadership"], "") if authority else ""
 
         # Extract from content_enhancement
         content_enh = intelligence_data.get("content_intelligence", {})
+        variables["ENHANCED_MESSAGING"] = self._extract_first(content_enh, ["enhanced_messaging", "optimized_ctas"], "") if content_enh else ""
         if content_enh:
-            variables["ENHANCED_MESSAGING"] = self._extract_first(content_enh, ["enhanced_messaging", "optimized_ctas"], "")
             variables["KEY_MESSAGES"] = self._extract_first(content_enh, ["enhanced_messaging", "key_messages"],
                                                            self._extract_first(content, ["key_messages", "talking_points", "highlights"], "important information"))
 
