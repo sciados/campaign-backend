@@ -3,7 +3,6 @@
 from typing import Dict, List, Optional, Any, Union
 from uuid import UUID
 from datetime import datetime, timezone, timedelta
-from intelligence.generators.landing_page.database.models import GeneratedContent
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, desc
 import logging
@@ -11,6 +10,7 @@ import logging
 from src.campaigns.models.campaign import Campaign, CampaignStatusEnum, CampaignTypeEnum
 from src.campaigns.services.campaign_service import CampaignService
 from src.campaigns.workflows.campaign_workflows import CampaignWorkflowEngine
+from src.content.models.content_generation import GeneratedContent
 
 logger = logging.getLogger(__name__)
 
