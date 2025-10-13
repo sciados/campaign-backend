@@ -32,7 +32,7 @@ class ImageGenerator:
 
     def __init__(self, db_session=None):
         self.name = "image_generator"
-        self.version = "3.2.0"
+        self.version = "3.3.0"  # Added automatic R2 upload for permanent storage
 
         # Initialize modular services
         self.prompt_service = PromptGenerationService()
@@ -182,6 +182,23 @@ class ImageGenerator:
 
             logger.info(f"✅ AI generated image using {provider} (cost: ${image_result.get('cost', 0):.4f})")
 
+            # Step 3: Upload image to Cloudflare R2 for permanent storage
+            temporary_url = image_result["url"]
+            r2_upload_result = await self._upload_image_to_r2(
+                image_url=temporary_url,
+                campaign_id=campaign_id,
+                image_type=image_type,
+                provider=provider
+            )
+
+            # Use permanent R2 URL if upload succeeded, otherwise fallback to temporary URL
+            if r2_upload_result["success"]:
+                permanent_url = r2_upload_result["permanent_url"]
+                logger.info(f"✅ Image uploaded to R2: {permanent_url}")
+            else:
+                permanent_url = temporary_url
+                logger.warning(f"⚠️ R2 upload failed, using temporary URL: {r2_upload_result.get('error')}")
+
             # Save prompt to database for future reuse (if storage available)
             prompt_id = None
             if self.prompt_storage:
@@ -209,7 +226,9 @@ class ImageGenerator:
 
                     mock_ai_result = {
                         "success": True,
-                        "content": image_result["url"],
+                        "content": permanent_url,  # Use permanent R2 URL
+                        "temporary_url": temporary_url,
+                        "r2_path": r2_upload_result.get("r2_path"),
                         "provider": provider,
                         "provider_name": provider,
                         "cost": image_result.get("cost", 0),
@@ -241,8 +260,9 @@ class ImageGenerator:
                 "success": True,
                 "campaign_id": str(campaign_id),
                 "image": {
-                    "url": image_result["url"],
-                    "local_path": image_result.get("local_path"),
+                    "url": permanent_url,  # R2 permanent URL or temporary fallback
+                    "temporary_url": temporary_url,  # Original temporary URL from AI provider
+                    "r2_path": r2_upload_result.get("r2_path"),  # Path in R2 storage
                     "dimensions": dimensions,
                     "image_type": image_type,
                     "style": style,
@@ -255,7 +275,9 @@ class ImageGenerator:
                     "provider": provider,
                     "cost": image_result.get("cost", 0),
                     "generation_time": image_result.get("generation_time", 0),
-                    "intelligence_enhanced": True
+                    "intelligence_enhanced": True,
+                    "r2_uploaded": r2_upload_result["success"],
+                    "storage_location": "cloudflare_r2" if r2_upload_result["success"] else "temporary"
                 }
             }
 

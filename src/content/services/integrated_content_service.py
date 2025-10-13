@@ -500,12 +500,12 @@ class IntegratedContentService:
             
             # Insert into database
             query = text("""
-                INSERT INTO generated_content 
-                (id, campaign_id, user_id, company_id, content_type, content_title, 
+                INSERT INTO generated_content
+                (id, campaign_id, user_id, company_id, content_type, content_title,
                  content_body, content_metadata, generation_method, content_status, created_at, updated_at)
-                VALUES 
-                (:id, :campaign_id::uuid, :user_id::uuid, :company_id::uuid, :content_type, :content_title,
-                 :content_body, :content_metadata, :generation_method, :content_status, :created_at, :updated_at)
+                VALUES
+                (:id::uuid, :campaign_id::uuid, :user_id::uuid, :company_id::uuid, :content_type, :content_title,
+                 :content_body, :content_metadata::jsonb, :generation_method, :content_status, :created_at, :updated_at)
             """)
             
             await self.db.execute(query, {
