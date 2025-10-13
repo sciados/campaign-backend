@@ -242,6 +242,33 @@ class IntegratedContentService:
                 preferences=preferences,
                 ai_enhancements=ai_enhancements
             )
+        elif hasattr(generator, 'generate_marketing_image'):
+            # ImageGenerator specific method
+            intelligence_data = await self._get_full_intelligence_for_generator(campaign_id)
+            generation_result = await generator.generate_marketing_image(
+                campaign_id=campaign_id,
+                intelligence_data=intelligence_data,
+                image_type=preferences.get('image_type', 'hero_image'),
+                style=preferences.get('style', 'modern_professional'),
+                dimensions=preferences.get('dimensions', '1200x628'),
+                provider=preferences.get('provider', 'stability'),
+                user_id=user_id
+            )
+        elif hasattr(generator, 'generate_long_form_article'):
+            # LongFormArticleGenerator specific method
+            intelligence_data = await self._get_full_intelligence_for_generator(campaign_id)
+            generation_result = await generator.generate_long_form_article(
+                campaign_id=campaign_id,
+                intelligence_data=intelligence_data,
+                topic=preferences.get('topic', 'Ultimate Guide'),
+                word_count=preferences.get('word_count', 5000),
+                article_type=preferences.get('article_type', 'ultimate_guide'),
+                target_keywords=preferences.get('target_keywords'),
+                tone=preferences.get('tone', 'authoritative'),
+                target_audience=preferences.get('target_audience'),
+                preferences=preferences,
+                user_id=user_id
+            )
         elif hasattr(generator, 'generate'):
             # Legacy generator interface
             generation_result = await generator.generate(
@@ -352,31 +379,31 @@ class IntegratedContentService:
         try:
             query = text("""
                 SELECT id, full_analysis_data, competitive_insights, market_opportunities
-                FROM intelligence 
-                WHERE campaign_id = :campaign_id 
-                ORDER BY created_at DESC 
+                FROM intelligence
+                WHERE campaign_id = :campaign_id
+                ORDER BY created_at DESC
                 LIMIT 1
             """)
-            
+
             result = await self.db.execute(query, {"campaign_id": campaign_id})
             row = result.fetchone()
-            
+
             if not row:
                 return {}
-            
+
             # Extract AI enhancements from analysis data
             full_analysis = row.full_analysis_data if row.full_analysis_data else {}
-            
+
             ai_enhancements = {
                 "intelligence_id": str(row.id),
                 "scientific": bool(full_analysis.get("scientific_credibility")),
-                "credibility": bool(full_analysis.get("credibility_signals")), 
+                "credibility": bool(full_analysis.get("credibility_signals")),
                 "market": bool(full_analysis.get("market_positioning")),
                 "emotional": bool(full_analysis.get("emotional_triggers")),
                 "authority": bool(full_analysis.get("authority_markers")),
                 "content": bool(full_analysis.get("content_analysis"))
             }
-            
+
             # Add specific enhancement data
             if full_analysis.get("emotional_triggers"):
                 ai_enhancements["emotional_triggers"] = full_analysis["emotional_triggers"]
@@ -384,11 +411,43 @@ class IntegratedContentService:
                 ai_enhancements["target_demographics"] = full_analysis["target_demographics"]
             if full_analysis.get("brand_values"):
                 ai_enhancements["brand_values"] = full_analysis["brand_values"]
-            
+
             return ai_enhancements
-            
+
         except Exception as e:
             logger.warning(f"Failed to get campaign intelligence: {e}")
+            return {}
+
+    async def _get_full_intelligence_for_generator(self, campaign_id: str) -> Dict[str, Any]:
+        """Get full intelligence data in the format expected by image and long-form generators"""
+        try:
+            query = text("""
+                SELECT full_analysis_data, competitive_insights, market_opportunities
+                FROM intelligence
+                WHERE campaign_id = :campaign_id
+                ORDER BY created_at DESC
+                LIMIT 1
+            """)
+
+            result = await self.db.execute(query, {"campaign_id": campaign_id})
+            row = result.fetchone()
+
+            if not row:
+                return {}
+
+            # Return full analysis data as expected by generators
+            intelligence_data = row.full_analysis_data if row.full_analysis_data else {}
+
+            # Add competitive insights and market opportunities if available
+            if row.competitive_insights:
+                intelligence_data["competitive_insights"] = row.competitive_insights
+            if row.market_opportunities:
+                intelligence_data["market_opportunities"] = row.market_opportunities
+
+            return intelligence_data
+
+        except Exception as e:
+            logger.warning(f"Failed to get full intelligence data: {e}")
             return {}
 
     async def _store_generated_content(
@@ -410,12 +469,21 @@ class IntegratedContentService:
                 # Multi-platform results
                 content_body = json.dumps(generation_result['results'])
                 content_title = f"Multi-Platform {content_type.replace('_', ' ').title()}"
+            elif 'image' in generation_result and isinstance(generation_result['image'], dict):
+                # ImageGenerator result format: {"image": {"url": "...", ...}}
+                content_body = generation_result['image']['url']
+                content_title = f"{content_type.replace('_', ' ').title()} - {generation_result['image'].get('image_type', 'Marketing Image')}"
             elif 'image_url' in generation_result:
-                # Single image result
+                # Single image result (legacy format)
                 content_body = generation_result['image_url']
                 content_title = f"{content_type.replace('_', ' ').title()}"
+            elif 'article' in generation_result and isinstance(generation_result['article'], dict):
+                # LongFormArticleGenerator result format
+                article = generation_result['article']
+                content_body = article.get('content', '')
+                content_title = article.get('title', f"{content_type.replace('_', ' ').title()}")
             elif 'content' in generation_result:
-                # Text content
+                # Text content (generic)
                 content_body = generation_result['content']
                 content_title = generation_result.get('title', f"{content_type.replace('_', ' ').title()}")
             else:
