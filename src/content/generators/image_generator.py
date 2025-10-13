@@ -432,7 +432,7 @@ class ImageGenerator:
                         "prompt": prompt,
                         "n": 1,
                         "size": dimensions,
-                        "quality": "hd",
+                        "quality": "standard",  # Standard quality: excellent for marketing, 50% cheaper than HD
                         "style": "vivid"
                     }
                 ) as response:
@@ -446,7 +446,7 @@ class ImageGenerator:
                     generation_time = time.time() - start_time
 
                     # DALL-E 3 pricing: $0.040 per image (1024x1024 standard), $0.080 (HD)
-                    cost = 0.080  # HD quality
+                    cost = 0.040  # Standard quality (excellent for marketing)
 
                     return {
                         "success": True,
