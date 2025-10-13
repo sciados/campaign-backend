@@ -278,7 +278,7 @@ class ImageGenerator:
             from datetime import datetime
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             file_extension = 'png' if 'png' in content_type else 'jpg'
-            r2_path = f"images/campaigns/{str(campaign_id)}/{timestamp}_{image_type}.{file_extension}"
+            r2_path = f"images/campaigns/{campaign_id}/{timestamp}_{image_type}.{file_extension}"
             
             # Upload to Cloudflare R2
             logger.info(f"☁️ Uploading to Cloudflare R2: {r2_path}")

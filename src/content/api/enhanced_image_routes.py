@@ -1,7 +1,7 @@
 # src/content/api/enhanced_image_routes.py
 """
 Enhanced Platform-Specific Image Generation API Routes
-FIXED: Proper integration with enhanced platform image generator
+Integrates with existing content generation system
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -39,65 +39,34 @@ async def get_current_user_id(
     db: AsyncSession = Depends(get_async_db)
 ) -> str:
     """Get current user ID from token"""
-    try:
-        auth_service = AuthService(db)
-        user = await auth_service.get_current_user(credentials.credentials)
-        if not user:
-            raise HTTPException(status_code=401, detail="Authentication required")
-        return str(user.id)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid authentication")
+    auth_service = AuthService(db)
+    user = await auth_service.get_current_user(credentials.credentials)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return str(user.id)
 
 @router.get("/platform-specs")
 async def get_platform_specifications():
     """Get all available platform specifications"""
-    try:
-        # FIXED: Import and instantiate the generator properly
-        from src.content.generators.enhanced_platform_image_generator import EnhancedPlatformImageGenerator
-        
-        generator = EnhancedPlatformImageGenerator()
-        platform_specs = await generator.get_platform_specs()
-        
-        return {
-            "success": True,
-            "platform_specs": platform_specs,
-            "total_platforms": len(platform_specs),
-            "categories": {
-                "Instagram": ["instagram_feed", "instagram_story", "instagram_reel_cover"],
-                "Facebook": ["facebook_feed", "facebook_story"],
-                "LinkedIn": ["linkedin_feed", "linkedin_article"],
-                "Twitter/X": ["twitter_feed"],
-                "TikTok": ["tiktok_cover"],
-                "YouTube": ["youtube_thumbnail"],
-                "Pinterest": ["pinterest_pin"],
-                "General": ["square", "landscape"]
-            }
+    from src.content.generators.enhanced_platform_image_generator import create_enhanced_platform_image_generator
+    
+    generator = create_enhanced_platform_image_generator()
+    
+    return {
+        "success": True,
+        "platform_specs": generator.get_platform_specs(),
+        "total_platforms": len(generator.PLATFORM_SPECS),
+        "categories": {
+            "Instagram": ["instagram_feed", "instagram_story", "instagram_reel_cover"],
+            "Facebook": ["facebook_feed", "facebook_story"],
+            "LinkedIn": ["linkedin_feed", "linkedin_article"],
+            "Twitter/X": ["twitter_feed"],
+            "TikTok": ["tiktok_cover"],
+            "YouTube": ["youtube_thumbnail"],
+            "Pinterest": ["pinterest_pin"],
+            "General": ["square", "landscape"]
         }
-        
-    except Exception as e:
-        logger.error(f"Failed to get platform specs: {e}")
-        # FIXED: Return fallback specs if generator fails
-        return {
-            "success": True,
-            "platform_specs": {
-                "instagram_feed": {
-                    "platform": "Instagram Feed",
-                    "dimensions": "1080x1080",
-                    "aspect_ratio": "1:1",
-                    "format": "JPG",
-                    "use_case": "Feed posts, brand content"
-                },
-                "facebook_feed": {
-                    "platform": "Facebook Feed", 
-                    "dimensions": "1200x630",
-                    "aspect_ratio": "1.91:1",
-                    "format": "JPG",
-                    "use_case": "News feed posts, link shares"
-                }
-            },
-            "total_platforms": 2,
-            "message": "Using fallback platform specs"
-        }
+    }
 
 @router.post("/generate-platform")
 async def generate_platform_image(
@@ -108,17 +77,23 @@ async def generate_platform_image(
     """Generate single platform-optimized image using existing content service"""
     
     try:
-        logger.info(f"🎨 Platform image generation requested: {request.platform_format}")
-        
         # Use existing IntegratedContentService
         content_service = IntegratedContentService(db)
         
-        # FIXED: Generate using existing service with platform_image content type
+        # Get user and company info from campaign
+        from src.core.crud.campaign_crud import CampaignCRUD
+        campaign_crud = CampaignCRUD()
+        campaign = await campaign_crud.get_campaign(db, request.campaign_id)
+        
+        if not campaign:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        # Generate using existing service with enhanced image generator
         result = await content_service.generate_content(
             campaign_id=request.campaign_id,
             content_type="platform_image",
             user_id=user_id,
-            company_id="",  # Will be fetched from campaign
+            company_id=campaign.company_id,
             preferences={
                 "platform_format": request.platform_format,
                 "image_type": request.image_type,
@@ -127,16 +102,16 @@ async def generate_platform_image(
             }
         )
         
-        if not result.get("success", False):
+        if not result["success"]:
             raise HTTPException(
                 status_code=500,
-                detail=f"Image generation failed: {result.get('error', 'Unknown error')}"
+                detail=f"Image generation failed: {result.get('error')}"
             )
         
         return {
             "success": True,
-            "message": f"Generated {request.platform_format} image successfully",
-            "data": result
+            "message": f"Generated platform image successfully",
+            "result": result
         }
         
     except HTTPException:
@@ -157,17 +132,23 @@ async def generate_multi_platform_batch(
     """Generate multi-platform image batch using existing content service"""
     
     try:
-        logger.info(f"🎨 Multi-platform generation requested: {len(request.platforms)} platforms")
-        
         # Use existing IntegratedContentService
         content_service = IntegratedContentService(db)
         
-        # FIXED: Generate using existing service with multi_platform_image content type
+        # Get user and company info from campaign
+        from src.core.crud.campaign_crud import CampaignCRUD
+        campaign_crud = CampaignCRUD()
+        campaign = await campaign_crud.get_campaign(db, request.campaign_id)
+        
+        if not campaign:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        # Generate using existing service
         result = await content_service.generate_content(
             campaign_id=request.campaign_id,
             content_type="multi_platform_image",
             user_id=user_id,
-            company_id="",  # Will be fetched from campaign
+            company_id=campaign.company_id,
             preferences={
                 "platforms": request.platforms,
                 "image_type": request.image_type,
@@ -176,16 +157,16 @@ async def generate_multi_platform_batch(
             }
         )
         
-        if not result.get("success", False):
+        if not result["success"]:
             raise HTTPException(
                 status_code=500,
-                detail=f"Batch generation failed: {result.get('error', 'Unknown error')}"
+                detail=f"Batch generation failed: {result.get('error')}"
             )
         
         return {
             "success": True,
             "message": f"Generated batch for {len(request.platforms)} platforms",
-            "data": result
+            "result": result
         }
         
     except HTTPException:
@@ -205,40 +186,24 @@ async def calculate_generation_cost(
     """Calculate cost for multi-platform generation"""
     
     try:
-        platform_list = [p.strip() for p in platforms.split(",") if p.strip()]
+        platform_list = [p.strip() for p in platforms.split(",")]
         
-        if not platform_list:
-            raise HTTPException(status_code=400, detail="No platforms provided")
+        from src.content.generators.enhanced_platform_image_generator import create_enhanced_platform_image_generator
+        generator = create_enhanced_platform_image_generator()
         
-        # FIXED: Use the proper generator method
-        from src.content.generators.enhanced_platform_image_generator import EnhancedPlatformImageGenerator
-        
-        generator = EnhancedPlatformImageGenerator()
-        cost_calculation = await generator.calculate_cost(platform_list, user_tier)
+        cost_calculation = generator.calculate_batch_cost(platform_list, user_tier)
         
         return {
             "success": True,
             "cost_calculation": cost_calculation
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Cost calculation failed: {e}")
-        # FIXED: Return fallback cost calculation
-        platform_list = [p.strip() for p in platforms.split(",") if p.strip()]
-        fallback_cost = len(platform_list) * 0.040
-        
-        return {
-            "success": True,
-            "cost_calculation": {
-                "platforms": platform_list,
-                "cost_per_image": 0.040,
-                "total_cost": fallback_cost,
-                "user_tier": user_tier,
-                "message": "Using fallback cost calculation"
-            }
-        }
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to calculate cost: {str(e)}"
+        )
 
 @router.get("/generator-stats")
 async def get_generator_statistics(
@@ -247,35 +212,19 @@ async def get_generator_statistics(
     """Get image generator statistics"""
     
     try:
-        # FIXED: Use the proper generator method
-        from src.content.generators.enhanced_platform_image_generator import EnhancedPlatformImageGenerator
+        from src.content.generators.enhanced_platform_image_generator import create_enhanced_platform_image_generator
+        generator = create_enhanced_platform_image_generator()
         
-        generator = EnhancedPlatformImageGenerator()
-        stats = await generator.get_generator_stats()
+        stats = generator.get_stats()
         
         return {
             "success": True,
-            "data": stats
+            "stats": stats
         }
         
     except Exception as e:
         logger.error(f"Stats retrieval failed: {e}")
-        # FIXED: Return fallback stats
-        return {
-            "success": True,
-            "data": {
-                "version": "2.1.0",
-                "total_platforms": 13,
-                "supported_platforms": [
-                    "instagram_feed", "instagram_story", "facebook_feed",
-                    "linkedin_feed", "twitter_feed", "youtube_thumbnail"
-                ],
-                "capabilities": {
-                    "single_platform_generation": True,
-                    "multi_platform_batch": True,
-                    "ai_enhancement_integration": True,
-                    "cost_optimization": True
-                },
-                "message": "Using fallback statistics"
-            }
-        }
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get statistics: {str(e)}"
+        )

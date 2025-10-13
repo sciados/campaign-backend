@@ -10,7 +10,6 @@ import logging
 from src.campaigns.models.campaign import Campaign, CampaignStatusEnum, CampaignTypeEnum
 from src.campaigns.services.campaign_service import CampaignService
 from src.campaigns.workflows.campaign_workflows import CampaignWorkflowEngine
-from src.content.models.content_generation import GeneratedContent
 
 logger = logging.getLogger(__name__)
 
@@ -26,35 +25,6 @@ class CampaignDashboardService:
     # DASHBOARD OVERVIEW METHODS
     # ============================================================================
     
-    async def _count_generated_content(
-        self,
-        user_id: Union[str, UUID],
-        company_id: Union[str, UUID]
-    ) -> int:
-        """Count generated content for the user and company"""
-        try:
-            # Convert to UUID if necessary
-            user_uuid = UUID(str(user_id))
-            company_uuid = UUID(str(company_id))
-        
-            # Query the GeneratedContent table
-            async with self.db() as session:
-                query = select(func.count(GeneratedContent.content_id)) \
-                    .join(Campaign, GeneratedContent.campaign_id == Campaign.id) \
-                    .where(
-                        and_(
-                            Campaign.user_id == user_uuid,
-                            Campaign.company_id == company_uuid
-                        )
-                    )
-            
-                result = await session.execute(query)
-                return result.scalar_one()
-    
-        except Exception as e:
-            logger.error(f"Error counting generated content: {e}")
-            return 0
-
     async def get_dashboard_overview(
         self,
         user_id: Union[str, UUID],
@@ -64,36 +34,32 @@ class CampaignDashboardService:
         """Get comprehensive dashboard overview"""
         try:
             logger.info(f"Getting dashboard overview for user {user_id}")
-        
+            
             # Get basic campaign stats
             stats = await self.campaign_service.get_campaign_stats(user_id, company_id)
-        
+            
             # Get workflow status
             workflow_status = await self.workflow_engine.monitor_active_workflows()
-        
+            
             # Get recent activity
             recent_activity = await self._get_recent_activity(user_id, company_id, time_period)
-        
+            
             # Get performance metrics
             performance_metrics = await self._get_performance_overview(user_id, company_id, time_period)
-        
+            
             # Get campaign health score
             health_score = await self._calculate_campaign_health_score(user_id, company_id)
-        
+            
             # Get upcoming deadlines
             upcoming_deadlines = await self._get_upcoming_deadlines(user_id, company_id)
-        
-            # ✅ ADD THIS LINE: Count generated content
-            generated_content_count = await self._count_generated_content(user_id, company_id)
-        
+            
             return {
                 "overview": {
                     "total_campaigns": stats.get("total_campaigns", 0),
                     "active_campaigns": stats.get("active_campaigns", 0),
                     "completed_campaigns": stats.get("completed_campaigns", 0),
                     "completion_rate": stats.get("completion_rate", 0),
-                    "health_score": health_score,
-                    "generated_content_count": generated_content_count  # 👈 This is the fix
+                    "health_score": health_score
                 },
                 "workflow_status": {
                     "active_workflows": workflow_status.get("active_workflows", 0),
@@ -106,7 +72,7 @@ class CampaignDashboardService:
                 "time_period": time_period,
                 "generated_at": datetime.now(timezone.utc).isoformat()
             }
-        
+            
         except Exception as e:
             logger.error(f"Error getting dashboard overview: {e}")
             return {"error": str(e)}
