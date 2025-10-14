@@ -35,7 +35,7 @@ class DynamicMockupsService:
 
     def __init__(self):
         self.api_key = os.getenv("DYNAMIC_MOCKUPS_API_KEY")
-        self.api_url = "https://api.dynamicmockups.com"
+        self.api_url = "https://app.dynamicmockups.com/api/v1"
 
         # Pricing - check Dynamic Mockups dashboard for current rates
         # Free tier available, paid plans start at $19/month
@@ -107,7 +107,7 @@ class DynamicMockupsService:
             # Call Dynamic Mockups Render API
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.api_url}/render",
+                    f"{self.api_url}/renders",
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
                         "Content-Type": "application/json"
