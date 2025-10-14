@@ -28,7 +28,7 @@ from datetime import datetime
 import hashlib
 import uuid
 
-from src.storage.services.r2_storage_service import get_r2_service
+from src.storage.services.cloudflare_service import CloudflareService
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ class ProductImageScraper:
     """
 
     def __init__(self):
-        self.r2_service = get_r2_service()
+        self.r2_service = CloudflareService()
         self.session: Optional[aiohttp.ClientSession] = None
         self.seen_hashes: set = set()
 
