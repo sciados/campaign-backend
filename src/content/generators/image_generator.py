@@ -352,31 +352,32 @@ class ImageGenerator:
         pain_desc = " and ".join(pain_points[:2]) if pain_points else ""
         desire_desc = ", ".join(desire_states[:2]) if desire_states else "better health"
 
-        # Base prompt templates by image type with enhanced intelligence
-        # IMPORTANT: Do NOT request text/labels in prompts - AI struggles with readable text
+        # Base prompt templates by image type - GENERIC REUSABLE SCENES
+        # IMPORTANT: Generate scenes WITHOUT products - products will be added later via mockups
+        # This creates a reusable library of backgrounds that work across thousands of products
         prompts = {
-            "product_hero": f"Professional product photography of blank unlabeled supplement bottle, generic white container with no branding or text whatsoever, premium health supplement for {target_audience}, addressing {pain_desc if pain_desc else 'health concerns'}, hero shot with {personality_desc} brand feel, {style} style, emphasizing {benefit_desc}, clean studio lighting with natural health elements, high-end health and wellness commercial quality, absolutely no text, labels, or writing of any kind on the bottle",
+            "product_hero": f"Professional studio product photography setup with perfect lighting and backdrop, clean minimalist background for product placement, {style} aesthetic with {personality_desc} mood, empty pedestal or clean surface ready for product, premium commercial photography studio quality, natural health and wellness elements in background, soft diffused lighting, high-end marketing backdrop, absolutely no products or text in scene",
 
-            "lifestyle": f"Authentic lifestyle photography of {target_audience} experiencing {desire_desc}, featuring health supplement bottle in natural daily routine, {style} aesthetic, real-world wellness setting, showing transformation from {pain_desc if pain_desc else 'challenges'} to vitality, natural lighting, genuine wellness moment, no text or labels visible",
+            "lifestyle": f"Authentic lifestyle photography scene of {target_audience} in daily wellness routine, natural environment perfect for product placement, {style} aesthetic, real-world setting showing {desire_desc} lifestyle, natural lighting, genuine moment with empty space for product mockup, warm inviting atmosphere, hands visible ready to hold product, no products or text in scene",
 
-            "comparison": f"Health transformation visual showing before and after results, improvement in {pain_desc if pain_desc else 'wellness'} leading to {desire_desc}, split-screen layout, {style} design, {personality_desc} brand presentation, clean professional health supplement marketing aesthetic, no text overlays",
+            "comparison": f"Split-screen layout showing transformation concept, before and after visual framework for {pain_desc if pain_desc else 'wellness'} to {desire_desc}, {style} design with {personality_desc} presentation, clean professional layout with designated spaces for product placement, no products or text overlays, empty frames ready for mockup",
 
-            "infographic": f"Clean health and wellness visual composition with icons and graphics representing {benefit_desc}, highlighting {feature_desc if feature_desc else 'key ingredients'} through imagery, {style} color scheme reflecting {', '.join(brand_values[:2]) if brand_values else 'health and wellness'}, professional supplement marketing graphics without text labels",
+            "infographic": f"Clean modern visual composition with geometric shapes and abstract wellness icons representing {benefit_desc}, {style} color scheme reflecting {', '.join(brand_values[:2]) if brand_values else 'health and wellness'}, professional marketing graphics with designated spaces for product placement, minimalist background elements, no products or text labels, ready for overlay",
 
-            "social_post": f"Eye-catching health supplement social media image with clean composition, targeting {target_audience} seeking {desire_desc}, {style} aesthetic, wellness-focused color palette, simple uncluttered design perfect for text overlay, attention-grabbing supplement marketing, no text in image"
+            "social_post": f"Eye-catching social media background scene targeting {target_audience} seeking {desire_desc}, {style} aesthetic with wellness-focused color palette, clean uncluttered composition with empty focal area perfect for product mockup, attention-grabbing backdrop with natural or lifestyle elements, no products or text in image, ideal for product overlay"
         }
 
         base_prompt = prompts.get(image_type, prompts["product_hero"])
 
-        # Enhance with style details
+        # Enhance with style details - focus on background scene, not products
         style_enhancements = {
-            "professional": "corporate health aesthetic, clean lines, sophisticated wellness color palette, medical-grade presentation, trust-building composition",
-            "modern": "contemporary wellness design, minimalist health branding, trendy supplement marketing, sleek and approachable",
-            "vibrant": "energetic health colors, vitality-focused, eye-catching wellness imagery, dynamic and motivating composition",
-            "minimalist": "simple clean health design, white space, elegant wellness aesthetic, understated premium supplement",
-            "dramatic": "high contrast wellness imagery, dramatic transformation lighting, bold health messaging, cinematic supplement commercial",
-            "funny": "playful and humorous health supplement imagery, lighthearted wellness comedy, entertaining and relatable health marketing, fun unexpected twists, approachable humor without undermining credibility",
-            "animated": "3D rendered cartoon style health supplement illustration, Pixar-quality character animation, vibrant animated wellness scene, friendly animated mascot or characters, colorful digital art animation"
+            "professional": "corporate backdrop, clean lines, sophisticated color palette, medical-grade environment, trust-building setting, empty space for product placement",
+            "modern": "contemporary design, minimalist background, trendy marketing backdrop, sleek and approachable scene, clear product placement area",
+            "vibrant": "energetic colors, vitality-focused environment, eye-catching background, dynamic and motivating setting, designated product space",
+            "minimalist": "simple clean design, generous white space, elegant aesthetic, understated premium backdrop, perfect for product overlay",
+            "dramatic": "high contrast lighting, dramatic shadows, bold atmospheric setting, cinematic background, empty focal point for product",
+            "funny": "playful and humorous scene, lighthearted setting, entertaining and relatable environment, fun unexpected elements, approachable atmosphere with space for product",
+            "animated": "3D rendered cartoon style background, Pixar-quality animation, vibrant animated scene, friendly animated environment, colorful digital art backdrop with clear product placement area"
         }
 
         enhancement = style_enhancements.get(style, style_enhancements["professional"])
@@ -384,9 +385,9 @@ class ImageGenerator:
 
         # Add technical quality requirements based on style
         if style == "animated":
-            full_prompt += ", ultra high quality 3D rendering, professional commercial animation, Pixar-style lighting, perfect character design, cinema-quality CGI"
+            full_prompt += ", ultra high quality 3D rendering, professional commercial animation, Pixar-style lighting, cinema-quality CGI background scene, no products in frame"
         else:
-            full_prompt += ", ultra high quality, 8k resolution, professional commercial health supplement photography, sharp focus, perfect composition, premium wellness branding"
+            full_prompt += ", ultra high quality, 8k resolution, professional commercial photography background, sharp focus, perfect composition, premium backdrop ready for product mockup, no products in frame"
 
         return full_prompt
 
