@@ -11,7 +11,7 @@ import logging
 from src.core.database.session import get_db
 from src.core.auth.dependencies import get_current_user
 from src.users.models.user import User
-from src.storage.services.placeit_service import get_placeit_service
+from src.storage.services.dynamic_mockups_service import get_dynamic_mockups_service
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,8 @@ router = APIRouter(
 class MockupGenerationRequest(BaseModel):
     """Request to generate professional mockup"""
     image_url: str = Field(..., description="URL of base image to apply to mockup")
-    template_id: str = Field(..., description="Placeit template ID")
+    mockup_uuid: str = Field(..., description="Dynamic Mockups template UUID")
+    smart_object_uuid: Optional[str] = Field(None, description="Smart object layer UUID")
     product_name: Optional[str] = Field(None, description="Product name for label")
     label_text: Optional[str] = Field(None, description="Additional label text")
     additional_params: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional template parameters")
@@ -35,7 +36,7 @@ class MockupGenerationResponse(BaseModel):
     success: bool
     mockup_url: Optional[str] = None
     cost: Optional[float] = None
-    template_id: Optional[str] = None
+    mockup_uuid: Optional[str] = None
     error: Optional[str] = None
     upgrade_required: Optional[bool] = None
     feature: Optional[str] = None
@@ -56,16 +57,17 @@ async def generate_mockup(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Generate professional mockup using Placeit API
+    Generate professional mockup using Dynamic Mockups API
 
     **Tier Requirements:**
     - FREE/BASIC: Not available
-    - PRO: 5 mockups/month included, $0.50 each additional
+    - PRO: 5 mockups/month included, $0.10 each additional
     - ENTERPRISE: Unlimited mockups
 
     **Features:**
-    - Realistic product mockups (bottles, boxes, labels)
-    - Automatic curved text with proper perspective
+    - Realistic product mockups (bottles, boxes, labels, apparel, mugs)
+    - Fast rendering (~1 second)
+    - Custom Photoshop template support
     - Photo-realistic results
     """
 
@@ -75,13 +77,14 @@ async def generate_mockup(
 
         logger.info(f"🎨 Mockup generation requested by user {current_user.id} (tier: {user_tier})")
 
-        # Get Placeit service
-        placeit_service = get_placeit_service()
+        # Get Dynamic Mockups service
+        mockup_service = get_dynamic_mockups_service()
 
         # Generate mockup (tier check happens inside service)
-        result = await placeit_service.generate_mockup(
+        result = await mockup_service.generate_mockup(
             image_url=request.image_url,
-            template_id=request.template_id,
+            mockup_uuid=request.mockup_uuid,
+            smart_object_uuid=request.smart_object_uuid,
             product_name=request.product_name,
             label_text=request.label_text,
             user_tier=user_tier,
@@ -109,7 +112,7 @@ async def generate_mockup(
             success=True,
             mockup_url=result["mockup_url"],
             cost=result["cost"],
-            template_id=result["template_id"]
+            mockup_uuid=result["template_id"]
         )
 
     except HTTPException:
@@ -124,30 +127,32 @@ async def generate_mockup(
 
 @router.get("/templates", response_model=MockupTemplatesResponse)
 async def get_mockup_templates(
-    category: str = "supplement",
+    category: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get available mockup templates
+    Get available mockup templates from Dynamic Mockups
 
     **Categories:**
     - supplement: Bottle and box mockups for supplements
     - lifestyle: Hand-holding, gym scenes, lifestyle shots
     - packaging: Product packaging variations
+    - apparel: T-shirts, hoodies, etc.
+    - drinkware: Mugs, tumblers, bottles
     """
 
     try:
         # Get user's subscription tier
         user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
 
-        # Get Placeit service
-        placeit_service = get_placeit_service()
+        # Get Dynamic Mockups service
+        mockup_service = get_dynamic_mockups_service()
 
-        # Get templates for category
-        templates = placeit_service.get_available_templates(category)
+        # Get templates (will fetch from API or use fallback)
+        templates = await mockup_service.get_available_mockups(category)
 
         # Get tier limits
-        tier_limits = placeit_service.get_tier_limits(user_tier)
+        tier_limits = mockup_service.get_tier_limits(user_tier)
 
         return MockupTemplatesResponse(
             success=True,
@@ -173,8 +178,8 @@ async def get_tier_info(
     try:
         user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
 
-        placeit_service = get_placeit_service()
-        tier_limits = placeit_service.get_tier_limits(user_tier)
+        mockup_service = get_dynamic_mockups_service()
+        tier_limits = mockup_service.get_tier_limits(user_tier)
 
         return {
             "success": True,

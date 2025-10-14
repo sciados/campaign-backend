@@ -3,27 +3,30 @@
 ## Overview
 Two-tier approach for image mockups:
 - **FREE/BASIC Tier**: DIY clean images for manual editing
-- **PRO/ENTERPRISE Tier**: Automatic professional mockups with Placeit API
+- **PRO/ENTERPRISE Tier**: Automatic professional mockups with Dynamic Mockups API
 
 ## Backend Implementation (v3.5.0) ✅
 
 ### Files Created:
-1. `src/storage/services/placeit_service.py` - Placeit API integration
-2. `src/content/api/mockup_routes.py` - API endpoints for mockups
+1. `src/storage/services/dynamic_mockups_service.py` - Dynamic Mockups API integration
+2. `src/storage/services/inpainting_service.py` - Automatic text removal via AI inpainting
+3. `src/content/api/mockup_routes.py` - API endpoints for mockups
 
 ### API Endpoints:
 
 #### POST `/api/mockups/generate`
 Generate professional mockup from clean image
 - **Requires**: PRO or ENTERPRISE tier
-- **Cost**: $0.50 per mockup
-- **Features**: Curved text, proper perspective, photo-realistic
+- **Cost**: ~$0.10 per mockup
+- **Features**: Fast rendering (~1s), custom templates, photo-realistic
+- **Provider**: Dynamic Mockups API
 
 **Request:**
 ```json
 {
   "image_url": "https://r2.dev/images/clean_bottle.png",
-  "template_id": "supplement_bottle_3d",
+  "mockup_uuid": "supplement-bottle-3d-front",
+  "smart_object_uuid": "front-label",
   "product_name": "HepatoBurn",
   "label_text": "Premium Liver Support"
 }
@@ -33,9 +36,9 @@ Generate professional mockup from clean image
 ```json
 {
   "success": true,
-  "mockup_url": "https://placeit.net/result/mockup123.jpg",
-  "cost": 0.50,
-  "template_id": "supplement_bottle_3d"
+  "mockup_url": "https://dynamicmockups.com/result/mockup123.jpg",
+  "cost": 0.10,
+  "mockup_uuid": "supplement-bottle-3d-front"
 }
 ```
 
@@ -100,8 +103,8 @@ Get user's tier limits and pricing
 |------|---------------|------|----------|
 | FREE | 0 | N/A | Clean images only, DIY editing |
 | BASIC | 0 | N/A | Clean images only, DIY editing |
-| PRO | 5 included | $0.50 each extra | Placeit API, curved text, templates |
-| ENTERPRISE | Unlimited | Included | Placeit API, curved text, templates |
+| PRO | 5 included | $0.10 each extra | Dynamic Mockups API, fast rendering, templates |
+| ENTERPRISE | Unlimited | Included | Dynamic Mockups API, fast rendering, templates |
 
 ## Template Categories
 
@@ -138,32 +141,42 @@ Get user's tier limits and pricing
 ## Environment Variables Required:
 
 ```bash
-PLACEIT_API_KEY=your_placeit_api_key_here
+DYNAMIC_MOCKUPS_API_KEY=your_dynamic_mockups_api_key_here
+STABILITY_API_KEY=your_stability_api_key_here  # For automatic text removal
 ```
+
+Get your API keys:
+- Dynamic Mockups: https://app.dynamicmockups.com/dashboard-api
+- Stability AI: https://platform.stability.ai/account/keys
 
 ## Deployment:
 1. Backend pushed to GitHub ✅
 2. Railway auto-deploy will pick up changes
-3. Add `PLACEIT_API_KEY` to Railway environment variables
-4. Test endpoints with Postman/curl
-5. Build frontend UI
+3. Add `DYNAMIC_MOCKUPS_API_KEY` to Railway environment variables
+4. `STABILITY_API_KEY` already configured ✅
+5. Test endpoints with Postman/curl
+6. Build frontend UI
 
 ## Cost Estimation:
 - Average user generates 2-3 mockups/month
 - PRO tier: 5 included → $0 for most users
-- Power users: 5 free + 3 extra = $1.50/month
+- Power users: 5 free + 3 extra = $0.30/month
+- Image cleaning: ~$0.01 per image (automatic text removal)
 - Very manageable costs with high perceived value
+- Dynamic Mockups plans start at $19/month for platform subscription
 
 ## Next Steps:
-1. ✅ Backend API complete
-2. ⏳ Add PLACEIT_API_KEY to Railway
-3. ⏳ Create frontend mockup selector
-4. ⏳ Add tier upgrade modal
-5. ⏳ Test with real Placeit API
-6. ⏳ Document for users
+1. ✅ Backend API complete (Dynamic Mockups integration)
+2. ✅ Automatic text removal integrated (Stability AI)
+3. ⏳ Add DYNAMIC_MOCKUPS_API_KEY to Railway
+4. ⏳ Create frontend mockup selector
+5. ⏳ Add tier upgrade modal
+6. ⏳ Test with real Dynamic Mockups API
+7. ⏳ Document for users
 
 ---
 
-**Version**: 3.5.0
+**Version**: 3.6.0
+**Provider**: Dynamic Mockups API (replaced Placeit)
 **Status**: Backend Complete, Frontend Pending
 **Deployment**: Committed to main branch
