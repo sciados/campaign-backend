@@ -12,7 +12,7 @@ for Railway PostgreSQL deployment.
 from sqlalchemy import create_engine, event
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import StaticPool, NullPool
 import logging
 from sqlalchemy import text
 from typing import Generator, AsyncGenerator
@@ -22,21 +22,22 @@ from src.core.config import settings
 logger = logging.getLogger(__name__)
 
 # Synchronous engine for standard operations
+# Railway-optimized: Use NullPool to prevent connection leaks
 engine = create_engine(
     settings.DATABASE_URL,
-    poolclass=StaticPool,
+    poolclass=NullPool,
     pool_pre_ping=True,
     pool_recycle=300,
     echo=settings.DEBUG if hasattr(settings, 'DEBUG') else False,
 )
 
 # Asynchronous engine for high-performance operations
+# Railway-optimized: Use NullPool to prevent connection leaks
 async_engine = create_async_engine(
     settings.DATABASE_URL_ASYNC,
+    poolclass=NullPool,  # No connection pooling - Railway handles this
     pool_pre_ping=True,
     pool_recycle=300,
-    pool_size=5,
-    max_overflow=10,
     echo=settings.DEBUG if hasattr(settings, 'DEBUG') else False,
     # Use READ_COMMITTED to prevent transaction conflicts
     isolation_level="READ_COMMITTED",
