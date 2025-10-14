@@ -265,6 +265,14 @@ async def create_campaignforge_app() -> FastAPI:
     except Exception as e:
         logger.error(f"Failed to include composite routes: {e}")
 
+    # Add Product Image Scraper routes (extract images from sales pages)
+    try:
+        from src.intelligence.api.image_scraper_routes import router as image_scraper_router
+        app.include_router(image_scraper_router, prefix="/api/intelligence")
+        logger.info("Product image scraper routes included successfully")
+    except Exception as e:
+        logger.error(f"Failed to include image scraper routes: {e}")
+
     
 
     # Phase 5: Add Session 6 enhanced endpoints
