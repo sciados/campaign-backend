@@ -2,7 +2,7 @@
 """
 AI-Powered Image Generator with Intelligence Integration
 Uses modular architecture: Intelligence → Prompt → AI → Image
-Supports multiple providers: OpenAI DALL-E 3, Replicate (Flux, SDXL)
+Supports multiple providers: OpenAI DALL-E 3, Google Imagen 3, Replicate (Flux, SDXL)
 """
 
 import logging
@@ -46,6 +46,7 @@ class ImageGenerator:
         # API keys
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
         self.replicate_api_token = os.getenv("REPLICATE_API_TOKEN")
+        self.google_api_key = os.getenv("GOOGLE_API_KEY")  # For Imagen 3
 
         # Initialize Cloudflare R2 storage
         from src.storage.services.cloudflare_service import CloudflareService
@@ -72,7 +73,7 @@ class ImageGenerator:
         image_type: str = "product_hero",
         style: str = "professional",
         dimensions: str = "1024x1024",
-        provider: str = "dall-e-3",  # DALL-E 3 recommended for quality & consistency
+        provider: str = "imagen-3",  # Imagen 3 recommended (best value: $0.03)
         target_audience: Optional[str] = None,
         preferences: Optional[Dict[str, Any]] = None,
         user_id: Optional[Union[str, UUID]] = None
@@ -87,7 +88,7 @@ class ImageGenerator:
             image_type: Type of image (product_hero, lifestyle, comparison, infographic, social_post)
             style: Visual style (professional, modern, vibrant, minimalist, dramatic)
             dimensions: Image size (1024x1024, 1792x1024, 1024x1792)
-            provider: AI provider (dall-e-3, flux-schnell, sdxl)
+            provider: AI provider (imagen-3, dall-e-3, flux-schnell, sdxl)
             target_audience: Optional audience description
             preferences: Additional generation preferences
 
@@ -131,8 +132,8 @@ class ImageGenerator:
             # Try providers in order until one succeeds (handle insufficient credits)
             providers_to_try = [provider]  # Start with requested provider
 
-            # Add fallback providers (DALL-E 3 first for quality, then cheaper options)
-            all_providers = ["dall-e-3", "flux-schnell", "sdxl"]
+            # Add fallback providers (Imagen 3 first for best value, then DALL-E 3, then cheaper options)
+            all_providers = ["imagen-3", "dall-e-3", "flux-schnell", "sdxl"]
             for p in all_providers:
                 if p not in providers_to_try:
                     providers_to_try.append(p)
@@ -144,7 +145,12 @@ class ImageGenerator:
                 try:
                     logger.info(f"🔄 Attempting image generation with {attempt_provider}...")
 
-                    if attempt_provider == "dall-e-3":
+                    if attempt_provider == "imagen-3":
+                        image_result = await self._generate_with_imagen3(
+                            prompt=image_prompt,
+                            dimensions=dimensions
+                        )
+                    elif attempt_provider == "dall-e-3":
                         image_result = await self._generate_with_dalle3(
                             prompt=image_prompt,
                             dimensions=dimensions
@@ -211,11 +217,15 @@ class ImageGenerator:
                 logger.warning(f"⚠️ Text removal error (continuing with original): {e}")
 
             # Step 3: Upload image to Cloudflare R2 for permanent storage
+            # If provider returned raw image_data (like Imagen 3), pass it directly to avoid re-download
+            image_data_direct = image_result.get("image_data") if image_result else None
+
             r2_upload_result = await self._upload_image_to_r2(
                 image_url=temporary_url,
                 campaign_id=campaign_id,
                 image_type=image_type,
-                provider=provider
+                provider=provider,
+                image_data=image_data_direct
             )
 
             # Use permanent R2 URL if upload succeeded, otherwise fallback to temporary URL
@@ -396,31 +406,38 @@ class ImageGenerator:
         image_url: str,
         campaign_id: Union[str, UUID],
         image_type: str,
-        provider: str
+        provider: str,
+        image_data: Optional[bytes] = None
     ) -> Dict[str, Any]:
         """
         Download image from temporary URL and upload to Cloudflare R2 for permanent storage
-        
+
         Args:
             image_url: Temporary URL from AI provider
             campaign_id: Campaign identifier
             image_type: Type of image generated
             provider: AI provider used
-            
+            image_data: Optional pre-downloaded image data (avoids re-download)
+
         Returns:
             Dict with permanent R2 URL and metadata
         """
         try:
-            logger.info(f"📥 Downloading image from {provider} temporary URL...")
-            
-            # Download image from temporary URL
-            async with aiohttp.ClientSession() as session:
-                async with session.get(image_url) as response:
-                    if response.status != 200:
-                        raise Exception(f"Failed to download image: HTTP {response.status}")
-                    
-                    image_data = await response.read()
-                    content_type = response.headers.get('Content-Type', 'image/png')
+            # If image_data provided (e.g., from Imagen 3), skip download
+            if image_data:
+                logger.info(f"📥 Using pre-downloaded image data from {provider}...")
+                content_type = 'image/png'
+            else:
+                logger.info(f"📥 Downloading image from {provider} temporary URL...")
+
+                # Download image from temporary URL
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(image_url) as response:
+                        if response.status != 200:
+                            raise Exception(f"Failed to download image: HTTP {response.status}")
+
+                        image_data = await response.read()
+                        content_type = response.headers.get('Content-Type', 'image/png')
             
             # Generate R2 path: images/campaigns/{campaign_id}/{timestamp}_{image_type}.png
             from datetime import datetime
@@ -518,6 +535,94 @@ class ImageGenerator:
 
         except Exception as e:
             logger.error(f"DALL-E 3 generation failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    async def _generate_with_imagen3(
+        self,
+        prompt: str,
+        dimensions: str
+    ) -> Dict[str, Any]:
+        """Generate image using Google Imagen 3"""
+
+        if not self.google_api_key:
+            raise ValueError("GOOGLE_API_KEY not configured")
+
+        try:
+            import time
+            start_time = time.time()
+
+            # Convert dimensions to aspect ratio for Imagen 3
+            aspect_ratio_map = {
+                "1024x1024": "1:1",
+                "1792x1024": "16:9",
+                "1024x1792": "9:16"
+            }
+            aspect_ratio = aspect_ratio_map.get(dimensions, "1:1")
+
+            # Imagen 3 API endpoint
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateImages"
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url,
+                    headers={
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": self.google_api_key
+                    },
+                    json={
+                        "prompt": prompt,
+                        "config": {
+                            "numberOfImages": 1,
+                            "aspectRatio": aspect_ratio
+                        }
+                    }
+                ) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        raise Exception(f"Imagen 3 API error: {error_text}")
+
+                    result = await response.json()
+
+                    # Extract image from response
+                    # Imagen 3 returns base64 encoded image in generatedImages array
+                    if "generatedImages" not in result or not result["generatedImages"]:
+                        raise Exception("No images generated by Imagen 3")
+
+                    # Get first generated image
+                    generated_image = result["generatedImages"][0]
+
+                    # Image is base64 encoded
+                    if "imageBytes" in generated_image:
+                        image_base64 = generated_image["imageBytes"]
+                        image_data = base64.b64decode(image_base64)
+
+                        # Upload to temporary storage or create data URL
+                        # For now, create data URL
+                        data_url = f"data:image/png;base64,{image_base64}"
+                        image_url = data_url
+                    else:
+                        raise Exception("No image data in Imagen 3 response")
+
+                    generation_time = time.time() - start_time
+
+                    # Imagen 3 pricing: $0.03 per image (40% cheaper than DALL-E 3)
+                    cost = 0.030
+
+                    logger.info(f"✅ Imagen 3 generated image in {generation_time:.2f}s (cost: ${cost})")
+
+                    return {
+                        "success": True,
+                        "url": image_url,
+                        "image_data": image_data,  # Include raw bytes for R2 upload
+                        "cost": cost,
+                        "generation_time": generation_time
+                    }
+
+        except Exception as e:
+            logger.error(f"Imagen 3 generation failed: {e}")
             return {
                 "success": False,
                 "error": str(e)
