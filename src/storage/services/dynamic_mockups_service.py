@@ -185,22 +185,61 @@ class DynamicMockupsService:
                         return self._get_fallback_templates(category)
 
                     result = await response.json()
-                    mockups = result.get("mockups", [])
+                    # API returns templates in 'data' field, not 'mockups'
+                    mockups = result.get("data", [])
 
-                    # Filter by category if specified
-                    if category:
-                        mockups = [m for m in mockups if m.get("category") == category]
+                    logger.info(f"Fetched {len(mockups)} mockup templates from Dynamic Mockups API")
+
+                    # Transform to our expected format
+                    transformed = []
+                    for mockup in mockups:
+                        # Try to categorize based on collection names or mockup name
+                        mockup_category = self._determine_category(mockup, category)
+
+                        # Only include if it matches requested category or no category filter
+                        if not category or mockup_category == category:
+                            transformed.append({
+                                "uuid": mockup.get("uuid"),
+                                "name": mockup.get("name"),
+                                "description": mockup.get("name", "Professional mockup template"),
+                                "category": mockup_category,
+                                "preview_url": mockup.get("thumbnail"),
+                                "smart_objects": mockup.get("smart_objects", [])
+                            })
 
                     # If API returns empty results, use fallback templates
-                    if not mockups:
-                        logger.warning(f"API returned empty mockups list, using fallback templates for category: {category}")
+                    if not transformed:
+                        logger.warning(f"No mockups matched category '{category}', using fallback templates")
                         return self._get_fallback_templates(category)
 
-                    return mockups
+                    return transformed
 
         except Exception as e:
             logger.error(f"Error fetching mockups: {e}")
             return self._get_fallback_templates(category)
+
+    def _determine_category(self, mockup: Dict[str, Any], requested_category: Optional[str]) -> str:
+        """
+        Determine mockup category based on name, collections, or other metadata
+        """
+        name_lower = mockup.get("name", "").lower()
+        collections = mockup.get("collections", [])
+        collection_names = " ".join([c.get("name", "").lower() for c in collections])
+
+        # Check for supplement/bottle keywords
+        if any(word in name_lower or word in collection_names for word in ["bottle", "supplement", "vitamin", "pills", "capsule"]):
+            return "supplement"
+
+        # Check for lifestyle keywords
+        if any(word in name_lower or word in collection_names for word in ["lifestyle", "hand", "gym", "fitness", "person", "holding"]):
+            return "lifestyle"
+
+        # Check for packaging keywords
+        if any(word in name_lower or word in collection_names for word in ["box", "package", "packaging", "carton"]):
+            return "packaging"
+
+        # Default to supplement if requesting supplement, otherwise generic
+        return requested_category if requested_category else "supplement"
 
     def _get_fallback_templates(self, category: Optional[str] = None) -> List[Dict[str, Any]]:
         """
