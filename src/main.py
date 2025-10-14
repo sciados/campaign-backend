@@ -257,6 +257,14 @@ async def create_campaignforge_app() -> FastAPI:
     except Exception as e:
         logger.error(f"Failed to include analytics/clickbank routes: {e}")
 
+    # Add Composite Image routes (modular image composition system)
+    try:
+        from src.content.api.composite_routes import router as composite_router
+        app.include_router(composite_router, prefix="/api/content")
+        logger.info("Composite image routes included successfully")
+    except Exception as e:
+        logger.error(f"Failed to include composite routes: {e}")
+
     
 
     # Phase 5: Add Session 6 enhanced endpoints
