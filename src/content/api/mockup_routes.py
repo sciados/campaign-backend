@@ -72,10 +72,16 @@ async def generate_mockup(
     """
 
     try:
-        # Get user's subscription tier
-        user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
+        # Get user's subscription tier (handle both dict and object)
+        if hasattr(current_user, 'company'):
+            user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
+        elif isinstance(current_user, dict):
+            user_tier = current_user.get('company', {}).get('subscription_tier', 'FREE') if current_user.get('company') else "FREE"
+        else:
+            user_tier = "FREE"
 
-        logger.info(f"🎨 Mockup generation requested by user {current_user.id} (tier: {user_tier})")
+        user_id = current_user.id if hasattr(current_user, 'id') else current_user.get('id', 'unknown')
+        logger.info(f"🎨 Mockup generation requested by user {user_id} (tier: {user_tier})")
 
         # Get Dynamic Mockups service
         mockup_service = get_dynamic_mockups_service()
@@ -142,8 +148,13 @@ async def get_mockup_templates(
     """
 
     try:
-        # Get user's subscription tier
-        user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
+        # Get user's subscription tier (handle both dict and object)
+        if hasattr(current_user, 'company'):
+            user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
+        elif isinstance(current_user, dict):
+            user_tier = current_user.get('company', {}).get('subscription_tier', 'FREE') if current_user.get('company') else "FREE"
+        else:
+            user_tier = "FREE"
 
         # Get Dynamic Mockups service
         mockup_service = get_dynamic_mockups_service()
@@ -176,7 +187,13 @@ async def get_tier_info(
     """Get mockup generation limits and pricing for user's tier"""
 
     try:
-        user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
+        # Get user's subscription tier (handle both dict and object)
+        if hasattr(current_user, 'company'):
+            user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
+        elif isinstance(current_user, dict):
+            user_tier = current_user.get('company', {}).get('subscription_tier', 'FREE') if current_user.get('company') else "FREE"
+        else:
+            user_tier = "FREE"
 
         mockup_service = get_dynamic_mockups_service()
         tier_limits = mockup_service.get_tier_limits(user_tier)
