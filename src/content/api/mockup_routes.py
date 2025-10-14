@@ -72,11 +72,11 @@ async def generate_mockup(
     """
 
     try:
-        # Get user's subscription tier (handle both dict and object)
-        if hasattr(current_user, 'company'):
-            user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
+        # Get user's subscription tier directly from user
+        if hasattr(current_user, 'subscription_tier'):
+            user_tier = current_user.subscription_tier or "FREE"
         elif isinstance(current_user, dict):
-            user_tier = current_user.get('company', {}).get('subscription_tier', 'FREE') if current_user.get('company') else "FREE"
+            user_tier = current_user.get('subscription_tier', 'FREE')
         else:
             user_tier = "FREE"
 
@@ -148,16 +148,16 @@ async def get_mockup_templates(
     """
 
     try:
-        # Get user's subscription tier (handle both dict and object)
-        if hasattr(current_user, 'company'):
-            user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
-            logger.info(f"🔍 User tier detection (object): user_id={getattr(current_user, 'id', 'unknown')}, company={current_user.company}, tier={user_tier}")
+        # Get user's subscription tier directly from user (now denormalized)
+        if hasattr(current_user, 'subscription_tier'):
+            user_tier = current_user.subscription_tier or "FREE"
+            logger.info(f"🔍 User tier (direct): user_id={getattr(current_user, 'id', 'unknown')}, tier={user_tier}")
         elif isinstance(current_user, dict):
-            user_tier = current_user.get('company', {}).get('subscription_tier', 'FREE') if current_user.get('company') else "FREE"
-            logger.info(f"🔍 User tier detection (dict): user_id={current_user.get('id', 'unknown')}, company={current_user.get('company')}, tier={user_tier}")
+            user_tier = current_user.get('subscription_tier', 'FREE')
+            logger.info(f"🔍 User tier (dict): user_id={current_user.get('id', 'unknown')}, tier={user_tier}")
         else:
             user_tier = "FREE"
-            logger.info(f"🔍 User tier detection (fallback): user_type={type(current_user)}, tier={user_tier}")
+            logger.info(f"🔍 User tier (fallback): type={type(current_user)}, tier={user_tier}")
 
         # Get Dynamic Mockups service
         mockup_service = get_dynamic_mockups_service()
@@ -190,11 +190,11 @@ async def get_tier_info(
     """Get mockup generation limits and pricing for user's tier"""
 
     try:
-        # Get user's subscription tier (handle both dict and object)
-        if hasattr(current_user, 'company'):
-            user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
+        # Get user's subscription tier directly from user
+        if hasattr(current_user, 'subscription_tier'):
+            user_tier = current_user.subscription_tier or "FREE"
         elif isinstance(current_user, dict):
-            user_tier = current_user.get('company', {}).get('subscription_tier', 'FREE') if current_user.get('company') else "FREE"
+            user_tier = current_user.get('subscription_tier', 'FREE')
         else:
             user_tier = "FREE"
 

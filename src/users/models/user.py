@@ -107,14 +107,17 @@ class User(Base):
     # User classification
     role = Column(String(50), default="USER", nullable=False)
     user_type = Column(String(50), nullable=True)
-    
+
     # Account status
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)  # For backwards compatibility and dashboard access
-    
+
     # Company relationship
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
+
+    # Subscription tier (denormalized from companies for easier access)
+    subscription_tier = Column(String(20), default="FREE", nullable=False)
     
     # Profile information
     first_name = Column(String(100), nullable=True)
