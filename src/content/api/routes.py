@@ -28,6 +28,14 @@ try:
 except ImportError as e:
     logger.warning(f"⚠️ Could not import mockup routes: {e}")
 
+# Include image variation routes
+try:
+    from src.content.api.variation_routes import router as variation_router
+    router.include_router(variation_router, tags=["variations"])
+    logger.info("✅ Variation routes registered successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Could not import variation routes: {e}")
+
 # ============================================================================
 # EMBEDDED CONTENT STORAGE SERVICE (Deployment Reliability)
 # ============================================================================
