@@ -151,10 +151,13 @@ async def get_mockup_templates(
         # Get user's subscription tier (handle both dict and object)
         if hasattr(current_user, 'company'):
             user_tier = current_user.company.subscription_tier if current_user.company else "FREE"
+            logger.info(f"🔍 User tier detection (object): user_id={getattr(current_user, 'id', 'unknown')}, company={current_user.company}, tier={user_tier}")
         elif isinstance(current_user, dict):
             user_tier = current_user.get('company', {}).get('subscription_tier', 'FREE') if current_user.get('company') else "FREE"
+            logger.info(f"🔍 User tier detection (dict): user_id={current_user.get('id', 'unknown')}, company={current_user.get('company')}, tier={user_tier}")
         else:
             user_tier = "FREE"
+            logger.info(f"🔍 User tier detection (fallback): user_type={type(current_user)}, tier={user_tier}")
 
         # Get Dynamic Mockups service
         mockup_service = get_dynamic_mockups_service()
