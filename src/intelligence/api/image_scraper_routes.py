@@ -16,6 +16,7 @@ from src.intelligence.services.product_image_scraper import (
     ProductImageScraper,
     get_product_image_scraper
 )
+from src.intelligence.repositories.scraped_image_repository import ScrapedImageRepository
 
 logger = logging.getLogger(__name__)
 
@@ -146,22 +147,28 @@ async def scrape_product_images(
                 detail=result.error or "Image scraping failed"
             )
 
-        # Format response
+        # Format response and save to database
         images = []
+        user_id = current_user.get("id") if isinstance(current_user, dict) else str(current_user.id)
+
         for i in range(len(result.image_urls)):
-            images.append({
+            img_data = {
                 "url": result.image_urls[i],
                 "r2_path": result.r2_paths[i],
                 "metadata": result.metadata[i]
-            })
+            }
+            images.append(img_data)
 
-        # TODO: Save to database
-        # background_tasks.add_task(
-        #     save_scraped_images_to_db,
-        #     campaign_id=request.campaign_id,
-        #     images=images,
-        #     db=db
-        # )
+            # Save to database in background
+            background_tasks.add_task(
+                _save_image_to_db,
+                db=db,
+                campaign_id=request.campaign_id,
+                user_id=user_id,
+                r2_path=result.r2_paths[i],
+                cdn_url=result.image_urls[i],
+                metadata=result.metadata[i]
+            )
 
         logger.info(f"✅ Successfully scraped {result.images_saved} images")
 
@@ -210,11 +217,15 @@ async def get_scraped_images(
         user_id = current_user.get("id", "unknown")
         logger.info(f"📋 Fetching scraped images for campaign {campaign_id}")
 
-        # TODO: Fetch from database
-        # images = await fetch_scraped_images(campaign_id, image_type, db)
+        # Fetch from database
+        scraped_images = await ScrapedImageRepository.get_by_campaign(
+            db=db,
+            campaign_id=campaign_id,
+            image_type=image_type
+        )
 
-        # Temporary: Return empty list
-        images = []
+        # Convert to dict format
+        images = [img.to_dict() for img in scraped_images]
 
         return ImageListResponse(
             success=True,
@@ -324,9 +335,34 @@ async def delete_scraped_image(
         user_id = current_user.get("id", "unknown")
         logger.info(f"🗑️  Deleting image {image_id} from campaign {campaign_id}")
 
-        # TODO: Delete from database and R2
-        # await delete_scraped_image_from_db(campaign_id, image_id, db)
-        # await r2_service.delete_file(r2_path)
+        # Get image details before deleting (to get r2_path for deletion)
+        image = await ScrapedImageRepository.get_by_id(db, image_id)
+
+        if not image:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Image {image_id} not found"
+            )
+
+        # Verify image belongs to this campaign
+        if str(image.campaign_id) != campaign_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Image does not belong to this campaign"
+            )
+
+        # Delete from database
+        deleted = await ScrapedImageRepository.delete_by_id(db, image_id)
+
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete image from database"
+            )
+
+        # TODO: Delete from R2 storage
+        # This should be done in a background task to avoid blocking
+        # background_tasks.add_task(r2_service.delete_file, image.r2_path)
 
         return {
             "success": True,
@@ -339,3 +375,42 @@ async def delete_scraped_image(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+async def _save_image_to_db(
+    db: AsyncSession,
+    campaign_id: str,
+    user_id: str,
+    r2_path: str,
+    cdn_url: str,
+    metadata: Dict[str, Any]
+):
+    """Background task to save scraped image to database"""
+    try:
+        await ScrapedImageRepository.create(
+            db=db,
+            campaign_id=campaign_id,
+            user_id=user_id,
+            r2_path=r2_path,
+            cdn_url=cdn_url,
+            original_url=metadata.get("original_url"),
+            width=metadata.get("width", 0),
+            height=metadata.get("height", 0),
+            file_size=metadata.get("file_size", 0),
+            format=metadata.get("format", "unknown"),
+            alt_text=metadata.get("alt_text"),
+            context=metadata.get("context"),
+            quality_score=metadata.get("quality_score", 0.0),
+            is_hero=metadata.get("is_hero", False),
+            is_product=metadata.get("is_product", False),
+            is_lifestyle=metadata.get("is_lifestyle", False),
+            metadata=metadata
+        )
+        logger.info(f"✅ Saved image to database: {r2_path}")
+    except Exception as e:
+        logger.error(f"Failed to save image to database: {e}")
+        # Don't raise - this is a background task
