@@ -62,7 +62,8 @@ async def get_current_user(
         "full_name": user.full_name,
         "role": user.role,
         "user_type": user.user_type,
-        "company_id": str(user.company_id) if user.company_id else None
+        "company_id": str(user.company_id) if user.company_id else None,
+        "subscription_tier": user.subscription_tier if hasattr(user, 'subscription_tier') else "FREE"
     }
 
 
