@@ -191,6 +191,11 @@ class DynamicMockupsService:
                     if category:
                         mockups = [m for m in mockups if m.get("category") == category]
 
+                    # If API returns empty results, use fallback templates
+                    if not mockups:
+                        logger.warning(f"API returned empty mockups list, using fallback templates for category: {category}")
+                        return self._get_fallback_templates(category)
+
                     return mockups
 
         except Exception as e:
