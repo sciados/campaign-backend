@@ -16,7 +16,7 @@ from src.storage.services.dynamic_mockups_service import get_dynamic_mockups_ser
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/api/mockups",
+    prefix="/mockups",
     tags=["mockups"]
 )
 
