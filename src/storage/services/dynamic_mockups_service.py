@@ -109,8 +109,9 @@ class DynamicMockupsService:
                 async with session.post(
                     f"{self.api_url}/renders",
                     headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json"
+                        "x-api-key": self.api_key,
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
                     },
                     json=payload
                 ) as response:
@@ -174,7 +175,8 @@ class DynamicMockupsService:
                 async with session.get(
                     f"{self.api_url}/mockups",
                     headers={
-                        "Authorization": f"Bearer {self.api_key}"
+                        "x-api-key": self.api_key,
+                        "Accept": "application/json"
                     }
                 ) as response:
 
