@@ -56,7 +56,7 @@ class ScrapedImageRepository:
             is_hero=is_hero,
             is_product=is_product,
             is_lifestyle=is_lifestyle,
-            metadata=metadata,
+            extra_metadata=metadata,
             scraped_at=datetime.utcnow(),
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),

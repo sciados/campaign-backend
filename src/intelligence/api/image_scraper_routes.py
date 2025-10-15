@@ -408,7 +408,7 @@ async def _save_image_to_db(
             is_hero=metadata.get("is_hero", False),
             is_product=metadata.get("is_product", False),
             is_lifestyle=metadata.get("is_lifestyle", False),
-            metadata=metadata
+            extra_metadata=metadata
         )
         logger.info(f"✅ Saved image to database: {r2_path}")
     except Exception as e:

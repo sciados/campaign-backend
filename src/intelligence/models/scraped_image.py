@@ -51,7 +51,7 @@ class ScrapedImage(Base):
     last_used_at = Column(DateTime, nullable=True)
 
     # Additional metadata (JSONB)
-    metadata = Column(JSON, nullable=True)
+    extra_metadata = Column(JSON, nullable=True)
 
     # Timestamps
     scraped_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -86,7 +86,7 @@ class ScrapedImage(Base):
             "is_lifestyle": self.is_lifestyle,
             "times_used": self.times_used,
             "last_used_at": self.last_used_at.isoformat() if self.last_used_at else None,
-            "metadata": self.metadata,
+            "extra_metadata": self.extra_metadata,
             "scraped_at": self.scraped_at.isoformat() if self.scraped_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

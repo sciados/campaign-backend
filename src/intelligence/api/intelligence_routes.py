@@ -931,7 +931,7 @@ async def _scrape_images_background(
                             is_hero=result.metadata[i].get("is_hero", False),
                             is_product=result.metadata[i].get("is_product", False),
                             is_lifestyle=result.metadata[i].get("is_lifestyle", False),
-                            metadata=result.metadata[i]
+                            extra_metadata=result.metadata[i]
                         )
                         logger.info(f"✅ Saved image {i+1} to database")
                     except Exception as e:
