@@ -46,6 +46,7 @@ class ScrapedImage:
     is_hero: bool = False
     is_product: bool = False
     is_lifestyle: bool = False
+    has_transparency: bool = False  # PNG with alpha channel
     quality_score: float = 0.0
     duplicate_of: Optional[str] = None
 
@@ -352,15 +353,23 @@ class ProductImageScraper:
             alt_text = img_element.get('alt', '') or img_element.get('title', '')
             context = self._extract_context(img_element)
 
-            # Calculate quality score
-            quality_score = self._calculate_quality_score(
-                width, height, len(img_data), img_url, alt_text, context
-            )
+            # Check for transparency (strong product image indicator)
+            has_transparency = self._has_transparency(image)
 
             # Determine image type
             is_hero = self._is_hero_image(img_element, width, height, context)
             is_product = self._is_product_image(img_url, alt_text, context)
             is_lifestyle = self._is_lifestyle_image(img_url, alt_text, context)
+
+            # If has transparency, it's almost certainly a product image
+            if has_transparency and not is_product:
+                is_product = True
+                logger.info(f"🎯 Transparency detected - marking as product image: {img_url[:80]}...")
+
+            # Calculate quality score (after transparency check updates is_product)
+            quality_score = self._calculate_quality_score(
+                width, height, len(img_data), img_url, alt_text, context, has_transparency
+            )
 
             return ScrapedImage(
                 url=img_url,
@@ -373,6 +382,7 @@ class ProductImageScraper:
                 is_hero=is_hero,
                 is_product=is_product,
                 is_lifestyle=is_lifestyle,
+                has_transparency=has_transparency,
                 quality_score=quality_score
             )
 
@@ -432,6 +442,45 @@ class ProductImageScraper:
         except:
             return None
 
+    def _has_transparency(self, image: Image.Image) -> bool:
+        """
+        Detect if image has transparent background
+
+        Returns True if:
+        - PNG/WebP with alpha channel
+        - Has actual transparent pixels (not just alpha channel)
+        """
+        try:
+            # Check if image has alpha channel
+            if image.mode not in ('RGBA', 'LA', 'PA'):
+                return False
+
+            # Convert to RGBA if needed
+            if image.mode != 'RGBA':
+                image = image.convert('RGBA')
+
+            # Sample alpha channel to check for transparency
+            # We only need to check a sample - if ANY pixels are transparent, it's useful
+            alpha = image.getchannel('A')
+            alpha_data = alpha.getdata()
+
+            # Check if there are any semi-transparent or fully transparent pixels
+            # Sample every 100th pixel for performance (faster than checking all)
+            sample_size = max(1, len(alpha_data) // 100)
+            transparent_pixels = sum(1 for i in range(0, len(alpha_data), sample_size) if alpha_data[i] < 255)
+
+            # If more than 1% of sampled pixels are transparent, consider it transparent
+            has_transparency = transparent_pixels > (len(alpha_data) // sample_size) * 0.01
+
+            if has_transparency:
+                logger.debug(f"🔍 Detected transparency: {transparent_pixels} transparent pixels in sample")
+
+            return has_transparency
+
+        except Exception as e:
+            logger.debug(f"Failed to check transparency: {e}")
+            return False
+
     def _calculate_quality_score(
         self,
         width: int,
@@ -439,7 +488,8 @@ class ProductImageScraper:
         file_size: int,
         url: str,
         alt_text: str,
-        context: Optional[str]
+        context: Optional[str],
+        has_transparency: bool = False
     ) -> float:
         """
         Calculate quality score (0-100)
@@ -450,6 +500,7 @@ class ProductImageScraper:
         - File size (not too small, not too large)
         - URL/alt text indicators
         - Context indicators
+        - Transparency (strong product indicator)
         """
 
         score = 0.0
@@ -483,6 +534,11 @@ class ProductImageScraper:
             score += 10  # Increased from 5
         else:
             score += 13  # Increased from 10
+
+        # Transparency bonus (0-20 points) - STRONG product indicator
+        if has_transparency:
+            score += 20
+            logger.debug(f"🎯 Transparency bonus: +20 points")
 
         # Product indicator score (0-20 points)
         text_to_check = f"{url} {alt_text} {context or ''}".lower()
@@ -670,6 +726,7 @@ class ProductImageScraper:
                     "is_hero": img_data.is_hero,
                     "is_product": img_data.is_product,
                     "is_lifestyle": img_data.is_lifestyle,
+                    "has_transparency": img_data.has_transparency,
                     "quality_score": img_data.quality_score,
                     "scraped_at": datetime.utcnow().isoformat()
                 }
