@@ -82,19 +82,18 @@ class ProductImageScraper:
         self.session: Optional[aiohttp.ClientSession] = None
         self.seen_hashes: set = set()
 
-        # Size thresholds - Relaxed to capture more product images
-        self.min_width = 200  # Minimum width (lowered from 300 to capture more images)
-        self.min_height = 200  # Minimum height (lowered from 300)
-        self.min_file_size = 5 * 1024  # 5KB minimum (lowered from 10KB)
-        self.max_file_size = 15 * 1024 * 1024  # 15MB maximum (increased from 10MB)
+        # Size thresholds - VERY RELAXED to capture more product images
+        self.min_width = 100  # Minimum width (very permissive - just filter tiny icons)
+        self.min_height = 100  # Minimum height (very permissive)
+        self.min_file_size = 1 * 1024  # 1KB minimum (very small)
+        self.max_file_size = 20 * 1024 * 1024  # 20MB maximum (very large)
 
-        # Skip patterns (non-product images)
+        # Skip patterns (non-product images) - REDUCED to only obvious non-product images
         self.skip_patterns = [
-            r'pixel', r'tracker', r'analytics', r'icon',
-            r'sprite', r'avatar', r'social', r'loading',
-            r'spinner', r'placeholder', r'1x1', r'blank',
-            r'widget', r'badge', r'favicon', r'logo-small',
-            r'thumbnail-', r'icon-', r'btn-', r'button-'
+            r'1x1\.',  # 1x1 tracking pixels
+            r'pixel\.', r'tracker\.', r'analytics\.',
+            r'favicon\.', r'spinner\.', r'loading\.',
+            r'placeholder\.'
         ]
 
         # Product indicators (higher scores)
@@ -574,40 +573,28 @@ class ProductImageScraper:
             if len(selected) < max_images:
                 selected.append(img)
 
-        # Second priority: Product images with decent quality
+        # Second priority: Product images (ANY quality score)
         product_images = [
             img for img in images
-            if img.is_product and img not in selected and img.quality_score >= 40
+            if img.is_product and img not in selected
         ]
         for img in product_images[:max_images - len(selected)]:
             if len(selected) < max_images:
                 selected.append(img)
 
-        # Third priority: Lifestyle images
+        # Third priority: Lifestyle images (ANY quality score)
         lifestyle_images = [
             img for img in images
-            if img.is_lifestyle and img not in selected and img.quality_score >= 40
+            if img.is_lifestyle and img not in selected
         ]
         for img in lifestyle_images[:max_images - len(selected)]:
             if len(selected) < max_images:
                 selected.append(img)
 
-        # Fill remaining slots with ANY image scoring above 40
-        remaining = [
-            img for img in images
-            if img not in selected and img.quality_score >= 40
-        ]
+        # Fill remaining slots with ANY image (no quality threshold)
+        remaining = [img for img in images if img not in selected]
         for img in remaining[:max_images - len(selected)]:
             if len(selected) < max_images:
-                selected.append(img)
-
-        # If still not enough, lower threshold to 30
-        if len(selected) < max_images:
-            remaining_low = [
-                img for img in images
-                if img not in selected and img.quality_score >= 30
-            ]
-            for img in remaining_low[:max_images - len(selected)]:
                 selected.append(img)
 
         logger.info(f"📊 Selected breakdown: {len([i for i in selected if i.is_hero])} hero, "
