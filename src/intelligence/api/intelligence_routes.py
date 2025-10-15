@@ -9,7 +9,7 @@ Provides REST API endpoints for intelligence analysis, retrieval, and management
 Enhanced with 3-step intelligence-driven content generation.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, BackgroundTasks
 from fastapi.security import HTTPBearer
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +26,8 @@ from src.intelligence.models.intelligence_models import IntelligenceRequest, Int
 from src.intelligence.services.intelligence_service import IntelligenceService
 from src.intelligence.services.intelligence_content_service import IntelligenceContentService, generate_intelligence_driven_content
 from src.intelligence.services.product_detection_service import product_detection_service
+from src.intelligence.services.product_image_scraper import ProductImageScraper
+from src.intelligence.repositories.scraped_image_repository import ScrapedImageRepository
 
 logger = logging.getLogger(__name__)
 
@@ -66,14 +68,17 @@ class PDFReportRequest(BaseModel):
 @router.post("/analyze", response_model=SuccessResponse[Dict[str, Any]])
 async def analyze_url(
     request: IntelligenceRequest,
+    background_tasks: BackgroundTasks,
     credentials: HTTPBearer = Depends(security),
     session: AsyncSession = Depends(get_async_db)
 ):
     """
     Analyze a URL and extract intelligence.
-    
+
     Performs AI-powered analysis of web content to extract product information,
     market data, and related research using the consolidated intelligence schema.
+
+    NEW: Automatically scrapes product images if scrape_images=True and campaign_id is provided.
     """
     try:
         user_id = AuthMiddleware.require_authentication(credentials)
@@ -87,12 +92,23 @@ async def analyze_url(
             user_id=user_id,
             session=session
         )
-        
+
+        # AUTOMATIC IMAGE SCRAPING: Trigger if campaign_id provided and scrape_images is True
+        if request.scrape_images and request.campaign_id:
+            logger.info(f"🖼️  Triggering automatic product image scraping for campaign {request.campaign_id}")
+            background_tasks.add_task(
+                _scrape_images_background,
+                campaign_id=request.campaign_id,
+                sales_page_url=request.salespage_url,
+                user_id=user_id,
+                session=session
+            )
+
         return SuccessResponse(
             data=result,
             message=f"Analysis completed for {request.salespage_url}"
         )
-        
+
     except CampaignForgeException:
         raise
     except Exception as e:
@@ -870,6 +886,67 @@ async def generate_campaign_report(
             detail="Failed to generate PDF report"
         )
 
+
+# ============================================================================
+# Background Task Helpers
+# ============================================================================
+
+async def _scrape_images_background(
+    campaign_id: str,
+    sales_page_url: str,
+    user_id: str,
+    session: AsyncSession
+):
+    """Background task to scrape product images automatically during intelligence analysis"""
+    try:
+        logger.info(f"🖼️  Starting automatic image scraping for campaign {campaign_id}")
+
+        async with ProductImageScraper() as scraper:
+            result = await scraper.scrape_sales_page(
+                url=sales_page_url,
+                campaign_id=campaign_id,
+                max_images=10
+            )
+
+            if result.success:
+                logger.info(f"✅ Automatically scraped {result.images_saved} images for campaign {campaign_id}")
+
+                # Save to database
+                for i in range(len(result.image_urls)):
+                    try:
+                        await ScrapedImageRepository.create(
+                            db=session,
+                            campaign_id=campaign_id,
+                            user_id=user_id,
+                            r2_path=result.r2_paths[i],
+                            cdn_url=result.image_urls[i],
+                            original_url=result.metadata[i].get("original_url"),
+                            width=result.metadata[i].get("width", 0),
+                            height=result.metadata[i].get("height", 0),
+                            file_size=result.metadata[i].get("file_size", 0),
+                            format=result.metadata[i].get("format", "unknown"),
+                            alt_text=result.metadata[i].get("alt_text"),
+                            context=result.metadata[i].get("context"),
+                            quality_score=result.metadata[i].get("quality_score", 0.0),
+                            is_hero=result.metadata[i].get("is_hero", False),
+                            is_product=result.metadata[i].get("is_product", False),
+                            is_lifestyle=result.metadata[i].get("is_lifestyle", False),
+                            metadata=result.metadata[i]
+                        )
+                        logger.info(f"✅ Saved image {i+1} to database")
+                    except Exception as e:
+                        logger.error(f"Failed to save image {i+1} to database: {e}")
+            else:
+                logger.warning(f"⚠️  Image scraping failed for campaign {campaign_id}: {result.error}")
+
+    except Exception as e:
+        logger.error(f"Automatic image scraping failed: {e}")
+        # Don't raise - this is a background task
+
+
+# ============================================================================
+# Include Additional Routes
+# ============================================================================
 
 # Include ClickBank routes
 try:

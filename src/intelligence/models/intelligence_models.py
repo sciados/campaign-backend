@@ -27,7 +27,7 @@ class AnalysisMethod(str, Enum):
 
 class IntelligenceRequest(BaseModel):
     """Request model for intelligence analysis."""
-    
+
     salespage_url: str = Field(..., description="URL to analyze")
     analysis_method: AnalysisMethod = Field(
         default=AnalysisMethod.MAXIMUM,
@@ -37,7 +37,15 @@ class IntelligenceRequest(BaseModel):
         default=False,
         description="Force new analysis even if cached data exists"
     )
-    
+    campaign_id: Optional[str] = Field(
+        default=None,
+        description="Campaign ID to associate analysis with"
+    )
+    scrape_images: bool = Field(
+        default=True,
+        description="Automatically scrape product images from sales page"
+    )
+
     @validator("salespage_url")
     def validate_source_url(cls, v):
         return validate_url(v, "salespage_url")
