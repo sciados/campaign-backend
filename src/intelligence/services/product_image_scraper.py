@@ -161,7 +161,7 @@ class ProductImageScraper:
             html, final_url = fetch_result
 
             # Parse and extract images
-            soup = BeautifulSoup(html, \'html.parser\')
+            soup = BeautifulSoup(html, 'html.parser')
             raw_images = self._extract_image_elements(soup)
 
             logger.info(f"📸 Found {len(raw_images)} potential images")
