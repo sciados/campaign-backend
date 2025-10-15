@@ -36,6 +36,14 @@ try:
 except ImportError as e:
     logger.warning(f"⚠️ Could not import variation routes: {e}")
 
+# Include image manipulation routes (background removal, compositing)
+try:
+    from src.content.api.image_manipulation_routes import router as manipulation_router
+    router.include_router(manipulation_router, tags=["image-manipulation"])
+    logger.info("✅ Image manipulation routes registered successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Could not import image manipulation routes: {e}")
+
 # ============================================================================
 # EMBEDDED CONTENT STORAGE SERVICE (Deployment Reliability)
 # ============================================================================
