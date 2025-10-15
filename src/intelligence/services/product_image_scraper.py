@@ -575,7 +575,7 @@ class ProductImageScraper:
             # Upload to R2
             upload_result = await self.r2_service.upload_file(
                 file_data=image_bytes,
-                key=r2_key,
+                file_path=r2_key,
                 content_type=f"image/{img_data.format}"
             )
 
@@ -587,7 +587,7 @@ class ProductImageScraper:
 
             return {
                 "r2_path": r2_key,
-                "url": upload_result["url"],
+                "url": upload_result.get("public_url") or upload_result.get("url", ""),
                 "metadata": {
                     "original_url": img_data.url,
                     "width": img_data.width,
