@@ -91,7 +91,7 @@ class ScrapedImageRepository:
         query = query.order_by(ScrapedImage.quality_score.desc())
 
         result = await db.execute(query)
-        images = result.scalars().all()
+        images = list(result.scalars().all())
 
         logger.info(f"Found {len(images)} scraped images for campaign {campaign_id}")
         return images
