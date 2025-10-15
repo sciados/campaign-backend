@@ -214,3 +214,150 @@ async def get_tier_info(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+
+@router.get("/debug-api-connection")
+async def debug_dynamic_mockups_api(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Debug endpoint to test Dynamic Mockups API connection
+    Shows what templates are available in your account
+
+    **Usage:**
+    Visit: https://campaign-backend-production-e2db.up.railway.app/api/content/mockups/debug-api-connection
+
+    This will show:
+    - Whether API key is configured
+    - API connection status
+    - Number of templates in your account
+    - Sample of available templates
+    - Next steps if no templates found
+    """
+
+    try:
+        import os
+        import aiohttp
+
+        api_key = os.getenv("DYNAMIC_MOCKUPS_API_KEY")
+
+        if not api_key:
+            return {
+                "success": False,
+                "error": "DYNAMIC_MOCKUPS_API_KEY not configured",
+                "message": "Please add your Dynamic Mockups API key to Railway environment variables"
+            }
+
+        # Test API connection
+        api_url = "https://app.dynamicmockups.com/api/v1"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{api_url}/mockups",
+                headers={
+                    "x-api-key": api_key,
+                    "Accept": "application/json"
+                },
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as response:
+
+                status_code = response.status
+                response_text = await response.text()
+
+                if status_code == 200:
+                    try:
+                        result = await response.json()
+                    except:
+                        result = {"data": []}
+
+                    mockups = result.get("data", [])
+
+                    # Extract useful info
+                    template_info = []
+                    for mockup in mockups[:10]:  # First 10 templates
+                        template_info.append({
+                            "uuid": mockup.get("uuid"),
+                            "name": mockup.get("name"),
+                            "thumbnail": mockup.get("thumbnail"),
+                            "collections": [c.get("name") for c in mockup.get("collections", [])],
+                            "smart_objects_count": len(mockup.get("smart_objects", []))
+                        })
+
+                    return {
+                        "success": True,
+                        "api_key_configured": True,
+                        "api_key_preview": f"{api_key[:20]}...",
+                        "api_connection": "✅ Working",
+                        "status_code": status_code,
+                        "templates_count": len(mockups),
+                        "templates_preview": template_info,
+                        "message": f"Found {len(mockups)} templates in your Dynamic Mockups account" if len(mockups) > 0 else "No templates found in your account",
+                        "next_steps": [
+                            "⚠️ No templates found in your Dynamic Mockups account",
+                            "1. Visit https://app.dynamicmockups.com/",
+                            "2. Click 'Upload Template' or 'New Template'",
+                            "3. Upload your PSD files (supplement bottles, ebook covers, etc.)",
+                            "4. Configure smart object layers (the editable areas)",
+                            "5. Organize templates into collections",
+                            "6. Templates will automatically appear in CampaignForge"
+                        ] if len(mockups) == 0 else [
+                            f"✅ Found {len(mockups)} templates ready to use!",
+                            "Templates are automatically fetched from your Dynamic Mockups account",
+                            "You can now generate mockups in CampaignForge"
+                        ]
+                    }
+                elif status_code == 401:
+                    return {
+                        "success": False,
+                        "api_key_configured": True,
+                        "api_key_preview": f"{api_key[:20]}...",
+                        "api_connection": "❌ Authentication Failed",
+                        "status_code": status_code,
+                        "error": "Invalid API key",
+                        "message": "API key authentication failed",
+                        "next_steps": [
+                            "1. Check your API key in Dynamic Mockups dashboard",
+                            "2. Go to https://app.dynamicmockups.com/settings/api",
+                            "3. Generate a new API key if needed",
+                            "4. Update DYNAMIC_MOCKUPS_API_KEY in Railway variables",
+                            "5. Redeploy the backend service"
+                        ]
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "api_key_configured": True,
+                        "api_connection": "❌ Failed",
+                        "status_code": status_code,
+                        "error_response": response_text[:500],  # First 500 chars
+                        "message": f"API returned error status code {status_code}",
+                        "next_steps": [
+                            "Check the error_response for details",
+                            "Verify your API key has proper permissions",
+                            "Make sure you're using the production API key (not a test key)",
+                            "Contact Dynamic Mockups support if issue persists"
+                        ]
+                    }
+
+    except aiohttp.ClientTimeout:
+        logger.error("Dynamic Mockups API timeout")
+        return {
+            "success": False,
+            "error": "API request timeout",
+            "message": "Connection to Dynamic Mockups timed out after 30 seconds",
+            "next_steps": [
+                "Check your network connection",
+                "Dynamic Mockups service might be experiencing issues",
+                "Try again in a few minutes"
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Debug API connection error: {e}")
+        import traceback
+        return {
+            "success": False,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "traceback": traceback.format_exc(),
+            "message": "Failed to connect to Dynamic Mockups API"
+        }
