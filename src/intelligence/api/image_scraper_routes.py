@@ -162,7 +162,6 @@ async def scrape_product_images(
             # Save to database in background
             background_tasks.add_task(
                 _save_image_to_db,
-                db=db,
                 campaign_id=request.campaign_id,
                 user_id=user_id,
                 r2_path=result.r2_paths[i],
@@ -382,7 +381,6 @@ async def delete_scraped_image(
 # ============================================================================
 
 async def _save_image_to_db(
-    db: AsyncSession,
     campaign_id: str,
     user_id: str,
     r2_path: str,
@@ -391,26 +389,32 @@ async def _save_image_to_db(
 ):
     """Background task to save scraped image to database"""
     try:
-        await ScrapedImageRepository.create(
-            db=db,
-            campaign_id=campaign_id,
-            user_id=user_id,
-            r2_path=r2_path,
-            cdn_url=cdn_url,
-            original_url=metadata.get("original_url"),
-            width=metadata.get("width", 0),
-            height=metadata.get("height", 0),
-            file_size=metadata.get("file_size", 0),
-            format=metadata.get("format", "unknown"),
-            alt_text=metadata.get("alt_text"),
-            context=metadata.get("context"),
-            quality_score=metadata.get("quality_score", 0.0),
-            is_hero=metadata.get("is_hero", False),
-            is_product=metadata.get("is_product", False),
-            is_lifestyle=metadata.get("is_lifestyle", False),
-            extra_metadata=metadata
-        )
-        logger.info(f"✅ Saved image to database: {r2_path}")
+        # Create a new database session for the background task
+        async for db in get_db():
+            try:
+                await ScrapedImageRepository.create(
+                    db=db,
+                    campaign_id=campaign_id,
+                    user_id=user_id,
+                    r2_path=r2_path,
+                    cdn_url=cdn_url,
+                    original_url=metadata.get("original_url"),
+                    width=metadata.get("width", 0),
+                    height=metadata.get("height", 0),
+                    file_size=metadata.get("file_size", 0),
+                    format=metadata.get("format", "unknown"),
+                    alt_text=metadata.get("alt_text"),
+                    context=metadata.get("context"),
+                    quality_score=metadata.get("quality_score", 0.0),
+                    is_hero=metadata.get("is_hero", False),
+                    is_product=metadata.get("is_product", False),
+                    is_lifestyle=metadata.get("is_lifestyle", False),
+                    extra_metadata=metadata
+                )
+                logger.info(f"✅ Saved image to database: {r2_path}")
+            finally:
+                await db.close()
+            break
     except Exception as e:
         logger.error(f"Failed to save image to database: {e}")
         # Don't raise - this is a background task
