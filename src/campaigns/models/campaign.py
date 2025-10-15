@@ -144,6 +144,7 @@ class Campaign(Base):
             "company_id": str(self.company_id),
             "target_audience": self.target_audience,
             "goals": self.goals or [],
+            "salespage_url": self.salespage_url if hasattr(self, 'salespage_url') else None,
             "intelligence_status": self.intelligence_status,
             
             # Required workflow object
