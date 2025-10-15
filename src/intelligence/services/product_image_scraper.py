@@ -247,10 +247,18 @@ class ProductImageScraper:
     async def _fetch_html(self, url: str) -> Optional[str]:
         """Fetch HTML content from URL"""
         try:
-            async with self.session.get(url) as response:
+            # Follow redirects and get final URL
+            async with self.session.get(url, allow_redirects=True) as response:
+                final_url = str(response.url)
+                if final_url != url:
+                    logger.info(f"📍 Followed redirect: {url} → {final_url}")
+
                 if response.status == 200:
-                    return await response.text()
-                logger.error(f"HTTP {response.status} for {url}")
+                    html = await response.text()
+                    logger.info(f"✅ Fetched HTML: {len(html)} bytes from {final_url}")
+                    return html
+
+                logger.error(f"HTTP {response.status} for {url} (final: {final_url})")
                 return None
         except Exception as e:
             logger.error(f"Failed to fetch {url}: {e}")
