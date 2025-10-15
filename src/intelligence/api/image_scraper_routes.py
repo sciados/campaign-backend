@@ -178,11 +178,12 @@ async def scrape_product_images(
                     is_hero=result.metadata[i].get("is_hero", False),
                     is_product=result.metadata[i].get("is_product", False),
                     is_lifestyle=result.metadata[i].get("is_lifestyle", False),
-                    extra_metadata=result.metadata[i]
+                    metadata=result.metadata[i]  # Fixed: parameter name should be 'metadata' not 'extra_metadata'
                 )
                 logger.info(f"✅ Saved image to database: {result.r2_paths[i]}")
             except Exception as e:
                 logger.error(f"❌ Failed to save image to database: {e}")
+                logger.error(f"Error type: {type(e).__name__}, Details: {str(e)}")
                 # Continue with other images even if one fails
 
         logger.info(f"✅ Successfully scraped {result.images_saved} images")
