@@ -147,7 +147,7 @@ async def scrape_product_images(
                 detail=result.error or "Image scraping failed"
             )
 
-        # Format response and save to database
+        # Format response and save to database SYNCHRONOUSLY
         images = []
         user_id = current_user.get("id") if isinstance(current_user, dict) else str(current_user.id)
 
@@ -159,15 +159,31 @@ async def scrape_product_images(
             }
             images.append(img_data)
 
-            # Save to database in background
-            background_tasks.add_task(
-                _save_image_to_db,
-                campaign_id=request.campaign_id,
-                user_id=user_id,
-                r2_path=result.r2_paths[i],
-                cdn_url=result.image_urls[i],
-                metadata=result.metadata[i]
-            )
+            # Save to database immediately (synchronously)
+            try:
+                await ScrapedImageRepository.create(
+                    db=db,
+                    campaign_id=request.campaign_id,
+                    user_id=user_id,
+                    r2_path=result.r2_paths[i],
+                    cdn_url=result.image_urls[i],
+                    original_url=result.metadata[i].get("original_url"),
+                    width=result.metadata[i].get("width", 0),
+                    height=result.metadata[i].get("height", 0),
+                    file_size=result.metadata[i].get("file_size", 0),
+                    format=result.metadata[i].get("format", "unknown"),
+                    alt_text=result.metadata[i].get("alt_text"),
+                    context=result.metadata[i].get("context"),
+                    quality_score=result.metadata[i].get("quality_score", 0.0),
+                    is_hero=result.metadata[i].get("is_hero", False),
+                    is_product=result.metadata[i].get("is_product", False),
+                    is_lifestyle=result.metadata[i].get("is_lifestyle", False),
+                    extra_metadata=result.metadata[i]
+                )
+                logger.info(f"✅ Saved image to database: {result.r2_paths[i]}")
+            except Exception as e:
+                logger.error(f"❌ Failed to save image to database: {e}")
+                # Continue with other images even if one fails
 
         logger.info(f"✅ Successfully scraped {result.images_saved} images")
 
