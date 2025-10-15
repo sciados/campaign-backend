@@ -49,6 +49,7 @@ class Campaign(Base):
     goals = Column(JSONB, nullable=True)  # JSON array of goals
     settings = Column(JSONB, nullable=True)  # Campaign-specific settings
     messaging_focus = Column(Text, nullable=True)  # Messaging focus for landing page generation
+    salespage_url = Column(String(1000), nullable=True)  # Sales page URL for product image scraping
     
     # Intelligence integration
     intelligence_id = Column(UUID(as_uuid=True), nullable=True)  # Link to intelligence data
@@ -144,7 +145,7 @@ class Campaign(Base):
             "company_id": str(self.company_id),
             "target_audience": self.target_audience,
             "goals": self.goals or [],
-            "salespage_url": self.salespage_url if hasattr(self, 'salespage_url') else None,
+            "salespage_url": self.salespage_url,
             "intelligence_status": self.intelligence_status,
             
             # Required workflow object
