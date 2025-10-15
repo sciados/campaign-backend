@@ -492,15 +492,18 @@ class ProductImageScraper:
         has_transparency: bool = False
     ) -> float:
         """
-        Calculate quality score (0-100)
+        Calculate marketing relevancy score (0-100)
+
+        This score measures how useful an image is for marketing campaigns,
+        not technical image quality. Higher scores = better for marketing use.
 
         Factors:
-        - Resolution (higher is better)
+        - Resolution (higher is better for ads/social)
         - Aspect ratio (square/portrait better for products)
-        - File size (not too small, not too large)
-        - URL/alt text indicators
-        - Context indicators
-        - Transparency (strong product indicator)
+        - File size (optimized for web performance)
+        - URL/alt text indicators (product keywords)
+        - Context indicators (hero/featured placement)
+        - Transparency (strong product image indicator)
         """
 
         score = 0.0
