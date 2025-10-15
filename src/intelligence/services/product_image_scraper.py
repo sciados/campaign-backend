@@ -144,8 +144,8 @@ class ProductImageScraper:
 
         try:
             # Fetch page HTML
-            html = await self._fetch_html(url)
-            if not html:
+            fetch_result = await self._fetch_html(url)
+            if not fetch_result:
                 return ScrapingResult(
                     success=False,
                     campaign_id=campaign_id,
@@ -158,8 +158,10 @@ class ProductImageScraper:
                     error="Failed to fetch page HTML"
                 )
 
+            html, final_url = fetch_result
+
             # Parse and extract images
-            soup = BeautifulSoup(html, 'html.parser')
+            soup = BeautifulSoup(html, \'html.parser\')
             raw_images = self._extract_image_elements(soup)
 
             logger.info(f"📸 Found {len(raw_images)} potential images")
@@ -177,7 +179,7 @@ class ProductImageScraper:
             }
 
             for idx, img_element in enumerate(raw_images):
-                img_data = await self._analyze_image(img_element, url, skipped_reasons)
+                img_data = await self._analyze_image(img_element, final_url, skipped_reasons)
                 if img_data:
                     analyzed_images.append(img_data)
                     logger.info(f"✅ Image {idx+1}/{len(raw_images)}: {img_data.url[:80]}... (score: {img_data.quality_score:.1f}, {img_data.width}x{img_data.height})")
@@ -247,8 +249,8 @@ class ProductImageScraper:
                 error=str(e)
             )
 
-    async def _fetch_html(self, url: str) -> Optional[str]:
-        """Fetch HTML content from URL"""
+    async def _fetch_html(self, url: str) -> Optional[Tuple[str, str]]:
+        """Fetch HTML content from URL and return (html, final_url) tuple"""
         try:
             # Follow redirects and get final URL
             async with self.session.get(url, allow_redirects=True) as response:
@@ -259,7 +261,7 @@ class ProductImageScraper:
                 if response.status == 200:
                     html = await response.text()
                     logger.info(f"✅ Fetched HTML: {len(html)} bytes from {final_url}")
-                    return html
+                    return (html, final_url)
 
                 logger.error(f"HTTP {response.status} for {url} (final: {final_url})")
                 return None
