@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional, List, Dict, Any
 import logging
 
-from src.core.database.session import get_db
+from src.core.database.session import get_async_db as get_db
 from src.core.auth.dependencies import get_current_user
 from src.intelligence.services.product_image_scraper import (
     ProductImageScraper,
