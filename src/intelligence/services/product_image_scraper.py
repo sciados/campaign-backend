@@ -140,6 +140,9 @@ class ProductImageScraper:
         logger.info(f"🔍 Scraping product images from: {url}")
         logger.info(f"📁 Campaign ID: {campaign_id}")
 
+        # Clear seen hashes for this scraping session (allow re-scraping same images)
+        self.seen_hashes.clear()
+
         try:
             # Fetch page HTML
             html = await self._fetch_html(url)
@@ -164,10 +167,30 @@ class ProductImageScraper:
 
             # Analyze and score images
             analyzed_images = []
+            skipped_reasons = {
+                'no_url': 0,
+                'skip_pattern': 0,
+                'download_failed': 0,
+                'file_size': 0,
+                'duplicate': 0,
+                'dimensions': 0,
+                'analysis_error': 0
+            }
+
             for img_element in raw_images:
-                img_data = await self._analyze_image(img_element, url)
+                img_data = await self._analyze_image(img_element, url, skipped_reasons)
                 if img_data:
                     analyzed_images.append(img_data)
+
+            # Log filtering statistics
+            logger.info(f"📊 Image analysis results:")
+            logger.info(f"   - Total found: {len(raw_images)}")
+            logger.info(f"   - Passed analysis: {len(analyzed_images)}")
+            logger.info(f"   - Skipped reasons: {skipped_reasons}")
+
+            if analyzed_images:
+                scores = [img.quality_score for img in analyzed_images]
+                logger.info(f"   - Quality scores: min={min(scores):.1f}, max={max(scores):.1f}, avg={sum(scores)/len(scores):.1f}")
 
             # Sort by quality score (best first)
             analyzed_images.sort(key=lambda x: x.quality_score, reverse=True)
@@ -251,7 +274,8 @@ class ProductImageScraper:
     async def _analyze_image(
         self,
         img_element,
-        base_url: str
+        base_url: str,
+        skipped_reasons: dict = None
     ) -> Optional[ScrapedImage]:
         """
         Analyze image element and score quality
@@ -262,6 +286,8 @@ class ProductImageScraper:
         # Extract URL
         img_url = self._extract_image_url(img_element)
         if not img_url:
+            if skipped_reasons is not None:
+                skipped_reasons['no_url'] += 1
             return None
 
         # Make absolute URL
@@ -269,20 +295,30 @@ class ProductImageScraper:
 
         # Check skip patterns
         if self._should_skip_url(img_url):
+            if skipped_reasons is not None:
+                skipped_reasons['skip_pattern'] += 1
+            logger.debug(f"⏩ Skipped (pattern match): {img_url}")
             return None
 
         # Download for analysis
         img_data = await self._download_image(img_url)
         if not img_data:
+            if skipped_reasons is not None:
+                skipped_reasons['download_failed'] += 1
             return None
 
         # Check file size
         if len(img_data) < self.min_file_size or len(img_data) > self.max_file_size:
+            if skipped_reasons is not None:
+                skipped_reasons['file_size'] += 1
+            logger.debug(f"⏩ Skipped (file size {len(img_data)} bytes): {img_url}")
             return None
 
         # Check for duplicate
         img_hash = hashlib.md5(img_data).hexdigest()
         if img_hash in self.seen_hashes:
+            if skipped_reasons is not None:
+                skipped_reasons['duplicate'] += 1
             logger.debug(f"⏩ Duplicate image skipped: {img_url}")
             return None
         self.seen_hashes.add(img_hash)
@@ -295,6 +331,9 @@ class ProductImageScraper:
 
             # Check dimensions
             if width < self.min_width or height < self.min_height:
+                if skipped_reasons is not None:
+                    skipped_reasons['dimensions'] += 1
+                logger.debug(f"⏩ Skipped (dimensions {width}x{height}): {img_url}")
                 return None
 
             # Extract metadata
@@ -326,6 +365,8 @@ class ProductImageScraper:
             )
 
         except Exception as e:
+            if skipped_reasons is not None:
+                skipped_reasons['analysis_error'] += 1
             logger.debug(f"Failed to analyze image: {e}")
             return None
 
