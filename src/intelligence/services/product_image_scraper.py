@@ -82,11 +82,11 @@ class ProductImageScraper:
         self.session: Optional[aiohttp.ClientSession] = None
         self.seen_hashes: set = set()
 
-        # Size thresholds
-        self.min_width = 300  # Minimum width for product images
-        self.min_height = 300  # Minimum height
-        self.min_file_size = 10 * 1024  # 10KB minimum
-        self.max_file_size = 10 * 1024 * 1024  # 10MB maximum
+        # Size thresholds - Relaxed to capture more product images
+        self.min_width = 200  # Minimum width (lowered from 300 to capture more images)
+        self.min_height = 200  # Minimum height (lowered from 300)
+        self.min_file_size = 5 * 1024  # 5KB minimum (lowered from 10KB)
+        self.max_file_size = 15 * 1024 * 1024  # 15MB maximum (increased from 10MB)
 
         # Skip patterns (non-product images)
         self.skip_patterns = [
@@ -401,33 +401,35 @@ class ProductImageScraper:
 
         score = 0.0
 
-        # Resolution score (0-30 points)
+        # Resolution score (0-30 points) - More generous scoring
         pixels = width * height
         if pixels >= 1000000:  # 1MP+
             score += 30
         elif pixels >= 500000:  # 500K+
-            score += 25
+            score += 28
         elif pixels >= 250000:  # 250K+
+            score += 25
+        elif pixels >= 100000:  # 100K+ (added tier)
             score += 20
         else:
-            score += 10
+            score += 15  # Base score increased from 10
 
-        # Aspect ratio score (0-20 points)
+        # Aspect ratio score (0-20 points) - More lenient
         aspect = width / height
         if 0.7 <= aspect <= 1.3:  # Square-ish (good for products)
             score += 20
-        elif 0.5 <= aspect <= 2.0:  # Portrait/landscape (decent)
-            score += 15
+        elif 0.4 <= aspect <= 2.5:  # Portrait/landscape (decent) - wider range
+            score += 18
         else:
-            score += 5
+            score += 12  # Even extreme ratios get decent score
 
-        # File size score (0-15 points)
-        if 50 * 1024 <= file_size <= 2 * 1024 * 1024:  # 50KB-2MB (sweet spot)
+        # File size score (0-15 points) - More lenient
+        if 20 * 1024 <= file_size <= 5 * 1024 * 1024:  # 20KB-5MB (wider sweet spot)
             score += 15
-        elif file_size < 50 * 1024:
-            score += 5
+        elif file_size < 20 * 1024:
+            score += 10  # Increased from 5
         else:
-            score += 10
+            score += 13  # Increased from 10
 
         # Product indicator score (0-20 points)
         text_to_check = f"{url} {alt_text} {context or ''}".lower()
@@ -513,35 +515,63 @@ class ProductImageScraper:
         max_images: int
     ) -> List[ScrapedImage]:
         """
-        Select best images with diversity
+        Select best images with diversity - RELAXED CRITERIA
 
         Strategy:
-        - At least 1 hero image
-        - At least 1 product image
-        - Mix of types if possible
-        - Highest quality scores
+        - Prioritize hero images (take more)
+        - Include all product images up to limit
+        - Include lifestyle images
+        - Take images with quality_score > 40 (lowered threshold)
+        - Favor diversity over perfect quality
         """
 
         selected = []
 
-        # First priority: Hero images
+        # First priority: ALL hero images (they're usually good)
         hero_images = [img for img in images if img.is_hero]
-        if hero_images and len(selected) < max_images:
-            selected.append(hero_images[0])
-
-        # Second priority: Product images
-        product_images = [img for img in images if img.is_product and img not in selected]
-        for img in product_images[:max(1, max_images - len(selected))]:
+        for img in hero_images[:max_images]:
             if len(selected) < max_images:
                 selected.append(img)
 
-        # Fill remaining slots with highest scoring
-        remaining = [img for img in images if img not in selected]
-        for img in remaining:
+        # Second priority: Product images with decent quality
+        product_images = [
+            img for img in images
+            if img.is_product and img not in selected and img.quality_score >= 40
+        ]
+        for img in product_images[:max_images - len(selected)]:
             if len(selected) < max_images:
                 selected.append(img)
-            else:
-                break
+
+        # Third priority: Lifestyle images
+        lifestyle_images = [
+            img for img in images
+            if img.is_lifestyle and img not in selected and img.quality_score >= 40
+        ]
+        for img in lifestyle_images[:max_images - len(selected)]:
+            if len(selected) < max_images:
+                selected.append(img)
+
+        # Fill remaining slots with ANY image scoring above 40
+        remaining = [
+            img for img in images
+            if img not in selected and img.quality_score >= 40
+        ]
+        for img in remaining[:max_images - len(selected)]:
+            if len(selected) < max_images:
+                selected.append(img)
+
+        # If still not enough, lower threshold to 30
+        if len(selected) < max_images:
+            remaining_low = [
+                img for img in images
+                if img not in selected and img.quality_score >= 30
+            ]
+            for img in remaining_low[:max_images - len(selected)]:
+                selected.append(img)
+
+        logger.info(f"📊 Selected breakdown: {len([i for i in selected if i.is_hero])} hero, "
+                   f"{len([i for i in selected if i.is_product])} product, "
+                   f"{len([i for i in selected if i.is_lifestyle])} lifestyle")
 
         return selected
 
