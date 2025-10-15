@@ -105,6 +105,21 @@ class ScrapedImageRepository:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def get_by_original_url(
+        db: AsyncSession,
+        campaign_id: str,
+        original_url: str
+    ) -> Optional[ScrapedImage]:
+        """Get scraped image by original URL for duplicate detection"""
+
+        query = select(ScrapedImage).where(
+            ScrapedImage.campaign_id == campaign_id,
+            ScrapedImage.original_url == original_url
+        )
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
+
+    @staticmethod
     async def delete_by_id(db: AsyncSession, image_id: str) -> bool:
         """Delete scraped image by ID"""
 

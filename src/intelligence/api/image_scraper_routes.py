@@ -159,6 +159,18 @@ async def scrape_product_images(
             }
             images.append(img_data)
 
+            # Check for duplicate before saving
+            original_url = result.metadata[i].get("original_url")
+            existing = await ScrapedImageRepository.get_by_original_url(
+                db=db,
+                campaign_id=request.campaign_id,
+                original_url=original_url
+            )
+
+            if existing:
+                logger.info(f"⏩ Image already exists in database, skipping: {original_url}")
+                continue
+
             # Save to database immediately (synchronously)
             try:
                 await ScrapedImageRepository.create(
@@ -167,7 +179,7 @@ async def scrape_product_images(
                     user_id=user_id,
                     r2_path=result.r2_paths[i],
                     cdn_url=result.image_urls[i],
-                    original_url=result.metadata[i].get("original_url"),
+                    original_url=original_url,
                     width=result.metadata[i].get("width", 0),
                     height=result.metadata[i].get("height", 0),
                     file_size=result.metadata[i].get("file_size", 0),
@@ -180,7 +192,7 @@ async def scrape_product_images(
                     is_lifestyle=result.metadata[i].get("is_lifestyle", False),
                     metadata=result.metadata[i]  # Fixed: parameter name should be 'metadata' not 'extra_metadata'
                 )
-                logger.info(f"✅ Saved image to database: {result.r2_paths[i]}")
+                logger.info(f"✅ Saved NEW image to database: {result.r2_paths[i]}")
             except Exception as e:
                 logger.error(f"❌ Failed to save image to database: {e}")
                 logger.error(f"Error type: {type(e).__name__}, Details: {str(e)}")
