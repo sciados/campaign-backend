@@ -435,7 +435,7 @@ class ImageGenerator:
                 logger.info(f"📥 Using pre-downloaded image data from {provider}...")
                 content_type = 'image/png'
             # Check if image_url is a data URL (data:image/png;base64,...)
-            elif image_url.startswith('data:'):
+            elif image_url and image_url.startswith('data:'):
                 logger.info(f"📥 Extracting image from data URL...")
                 # Parse data URL format: data:image/png;base64,<base64_data>
                 if ';base64,' in image_url:
@@ -445,7 +445,8 @@ class ImageGenerator:
                     logger.info(f"✅ Extracted {len(image_data)} bytes from data URL")
                 else:
                     raise Exception("Data URL is not in base64 format")
-            else:
+            # Check if we have a valid HTTP URL
+            elif image_url and (image_url.startswith('http://') or image_url.startswith('https://')):
                 logger.info(f"📥 Downloading image from {provider} temporary URL...")
 
                 # Download image from temporary URL
@@ -456,6 +457,9 @@ class ImageGenerator:
 
                         image_data = await response.read()
                         content_type = response.headers.get('Content-Type', 'image/png')
+            else:
+                # No image_data and no valid URL
+                raise Exception(f"No image data provided and no valid URL to download from (url={image_url})")
             
             # Generate R2 path: images/campaigns/{campaign_id}/{timestamp}_{image_type}.png
             from datetime import datetime
