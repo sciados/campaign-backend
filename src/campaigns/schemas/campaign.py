@@ -60,6 +60,7 @@ class CampaignUpdate(BaseModel):
     target_audience: Optional[str] = Field(None, max_length=1000)
     goals: Optional[List[str]] = None
     settings: Optional[Dict[str, Any]] = None
+    salespage_url: Optional[str] = Field(None, max_length=1000, description="Sales page URL")
 
 # ============================================================================
 # RESPONSE SCHEMAS
@@ -102,6 +103,7 @@ class CampaignResponse(BaseModel):
     company_id: str = Field(..., description="Company ID")
     target_audience: Optional[str] = Field(None, description="Target audience")
     goals: Optional[List[str]] = Field(default_factory=list, description="Campaign goals")
+    salespage_url: Optional[str] = Field(None, description="Sales page URL for product image scraping")
     workflow: CampaignWorkflowProgress = Field(..., description="Workflow progress")
     counters: CampaignCounters = Field(..., description="Campaign counters")
     intelligence_status: str = Field(default="pending", description="Intelligence status")
