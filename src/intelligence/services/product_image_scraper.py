@@ -176,10 +176,13 @@ class ProductImageScraper:
                 'analysis_error': 0
             }
 
-            for img_element in raw_images:
+            for idx, img_element in enumerate(raw_images):
                 img_data = await self._analyze_image(img_element, url, skipped_reasons)
                 if img_data:
                     analyzed_images.append(img_data)
+                    logger.info(f"✅ Image {idx+1}/{len(raw_images)}: {img_data.url[:80]}... (score: {img_data.quality_score:.1f}, {img_data.width}x{img_data.height})")
+                elif idx < 20:  # Log first 20 failures in detail
+                    logger.info(f"⏩ Image {idx+1}/{len(raw_images)}: Skipped")
 
             # Log filtering statistics
             logger.info(f"📊 Image analysis results:")
