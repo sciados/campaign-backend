@@ -413,7 +413,7 @@ class ImageGenerator:
         Download image from temporary URL and upload to Cloudflare R2 for permanent storage
 
         Args:
-            image_url: Temporary URL from AI provider
+            image_url: Temporary URL from AI provider (or data URL)
             campaign_id: Campaign identifier
             image_type: Type of image generated
             provider: AI provider used
@@ -427,6 +427,17 @@ class ImageGenerator:
             if image_data:
                 logger.info(f"📥 Using pre-downloaded image data from {provider}...")
                 content_type = 'image/png'
+            # Check if image_url is a data URL (data:image/png;base64,...)
+            elif image_url.startswith('data:'):
+                logger.info(f"📥 Extracting image from data URL...")
+                # Parse data URL format: data:image/png;base64,<base64_data>
+                if ';base64,' in image_url:
+                    base64_data = image_url.split(';base64,')[1]
+                    image_data = base64.b64decode(base64_data)
+                    content_type = image_url.split(';')[0].replace('data:', '')
+                    logger.info(f"✅ Extracted {len(image_data)} bytes from data URL")
+                else:
+                    raise Exception("Data URL is not in base64 format")
             else:
                 logger.info(f"📥 Downloading image from {provider} temporary URL...")
 
