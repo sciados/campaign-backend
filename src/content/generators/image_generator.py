@@ -32,7 +32,7 @@ class ImageGenerator:
 
     def __init__(self, db_session=None):
         self.name = "image_generator"
-        self.version = "3.3.0"  # Added automatic R2 upload for permanent storage
+        self.version = "4.0.0"  # Standardized provider contracts - all return binary data
 
         # Initialize modular services
         self.prompt_service = PromptGenerationService()
@@ -194,45 +194,52 @@ class ImageGenerator:
             logger.info(f"✅ AI generated image using {provider} (cost: ${image_result.get('cost', 0):.4f})")
 
             # Step 2.5: Automatic text removal using AI inpainting (ensures clean images)
-            temporary_url = image_result["url"]
+            # Skip if provider doesn't return a temporary URL (like Imagen 3 which returns binary data directly)
+            temporary_url = image_result.get("url")
             cleaning_cost = 0.0
 
-            try:
-                logger.info(f"🧹 Attempting automatic text removal...")
-                cleaning_result = await self.inpainting_service.remove_text_from_image(
-                    image_url=temporary_url,
-                    provider="stability"  # Stability AI for inpainting
-                )
+            if temporary_url:
+                try:
+                    logger.info(f"🧹 Attempting automatic text removal...")
+                    cleaning_result = await self.inpainting_service.remove_text_from_image(
+                        image_url=temporary_url,
+                        provider="stability"  # Stability AI for inpainting
+                    )
 
-                if cleaning_result["success"]:
-                    # Use cleaned image instead of original
-                    temporary_url = cleaning_result["cleaned_url"]
-                    cleaning_cost = cleaning_result.get("cost", 0.01)
-                    self._generation_stats["images_cleaned"] += 1
-                    logger.info(f"✅ Text removed successfully (cost: ${cleaning_cost:.3f})")
-                else:
-                    logger.warning(f"⚠️ Text removal failed, using original image: {cleaning_result.get('error')}")
+                    if cleaning_result["success"]:
+                        # Use cleaned image instead of original
+                        temporary_url = cleaning_result["cleaned_url"]
+                        cleaning_cost = cleaning_result.get("cost", 0.01)
+                        self._generation_stats["images_cleaned"] += 1
+                        logger.info(f"✅ Text removed successfully (cost: ${cleaning_cost:.3f})")
+                    else:
+                        logger.warning(f"⚠️ Text removal failed, using original image: {cleaning_result.get('error')}")
 
-            except Exception as e:
-                logger.warning(f"⚠️ Text removal error (continuing with original): {e}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Text removal error (continuing with original): {e}")
+            else:
+                logger.info(f"⏭️  Skipping text removal (provider returned binary data directly)")
 
             # Step 3: Upload image to Cloudflare R2 for permanent storage
             # If provider returned raw image_data (like Imagen 3), pass it directly to avoid re-download
             image_data_direct = image_result.get("image_data") if image_result else None
 
             r2_upload_result = await self._upload_image_to_r2(
-                image_url=temporary_url,
+                image_url=temporary_url if temporary_url else "",  # Empty string if no URL
                 campaign_id=campaign_id,
                 image_type=image_type,
                 provider=provider,
                 image_data=image_data_direct
             )
 
-            # Use permanent R2 URL if upload succeeded, otherwise fallback to temporary URL
+            # Use permanent R2 URL if upload succeeded, otherwise fallback to temporary URL or raise error
             if r2_upload_result["success"]:
                 permanent_url = r2_upload_result["permanent_url"]
                 logger.info(f"✅ Image uploaded to R2: {permanent_url}")
             else:
+                # If R2 upload failed and we have no temporary URL, this is a critical failure
+                if not temporary_url:
+                    raise Exception(f"R2 upload failed and no fallback URL available: {r2_upload_result.get('error')}")
                 permanent_url = temporary_url
                 logger.warning(f"⚠️ R2 upload failed, using temporary URL: {r2_upload_result.get('error')}")
 
@@ -500,7 +507,11 @@ class ImageGenerator:
         prompt: str,
         dimensions: str
     ) -> Dict[str, Any]:
-        """Generate image using OpenAI DALL-E 3"""
+        """
+        Generate image using OpenAI DALL-E 3
+
+        Returns standardized format with raw binary data for consistent R2 upload
+        """
 
         if not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY not configured")
@@ -510,6 +521,7 @@ class ImageGenerator:
 
         try:
             async with aiohttp.ClientSession() as session:
+                # Generate image
                 async with session.post(
                     "https://api.openai.com/v1/images/generations",
                     headers={
@@ -537,9 +549,23 @@ class ImageGenerator:
                     # DALL-E 3 pricing: $0.040 per image (1024x1024 standard), $0.080 (HD)
                     cost = 0.040  # Standard quality (excellent for marketing)
 
+                    # Download image immediately (DALL-E URLs expire after 1 hour)
+                    logger.info(f"📥 Downloading DALL-E 3 image from temporary URL...")
+                    async with session.get(image_url) as img_response:
+                        if img_response.status != 200:
+                            raise Exception(f"Failed to download DALL-E image: HTTP {img_response.status}")
+
+                        image_data = await img_response.read()
+                        content_type = img_response.headers.get('Content-Type', 'image/png')
+
+                    logger.info(f"✅ DALL-E 3 image downloaded ({len(image_data)} bytes)")
+
+                    # Return standardized format with raw binary data
                     return {
                         "success": True,
-                        "url": image_url,
+                        "image_data": image_data,          # Raw binary data (primary)
+                        "url": image_url,                  # Original temporary URL (reference only)
+                        "content_type": content_type,      # Content type for R2 upload
                         "cost": cost,
                         "generation_time": generation_time
                     }
@@ -556,7 +582,11 @@ class ImageGenerator:
         prompt: str,
         dimensions: str
     ) -> Dict[str, Any]:
-        """Generate image using Google Imagen 3"""
+        """
+        Generate image using Google Imagen 3
+
+        Returns standardized format with raw binary data for consistent R2 upload
+        """
 
         if not self.google_api_key:
             raise ValueError("GOOGLE_API_KEY not configured")
@@ -598,24 +628,18 @@ class ImageGenerator:
                     result = await response.json()
 
                     # Extract image from response
-                    # Imagen 3 returns base64 encoded image in generatedImages array
                     if "generatedImages" not in result or not result["generatedImages"]:
                         raise Exception("No images generated by Imagen 3")
 
                     # Get first generated image
                     generated_image = result["generatedImages"][0]
 
-                    # Image is base64 encoded
-                    if "imageBytes" in generated_image:
-                        image_base64 = generated_image["imageBytes"]
-                        image_data = base64.b64decode(image_base64)
-
-                        # Upload to temporary storage or create data URL
-                        # For now, create data URL
-                        data_url = f"data:image/png;base64,{image_base64}"
-                        image_url = data_url
-                    else:
+                    # Extract binary data from base64
+                    if "imageBytes" not in generated_image:
                         raise Exception("No image data in Imagen 3 response")
+
+                    image_base64 = generated_image["imageBytes"]
+                    image_data = base64.b64decode(image_base64)
 
                     generation_time = time.time() - start_time
 
@@ -624,10 +648,13 @@ class ImageGenerator:
 
                     logger.info(f"✅ Imagen 3 generated image in {generation_time:.2f}s (cost: ${cost})")
 
+                    # Return standardized format with raw binary data
+                    # No URL needed - R2 upload will handle storage and generate CDN URL
                     return {
                         "success": True,
-                        "url": image_url,
-                        "image_data": image_data,  # Include raw bytes for R2 upload
+                        "image_data": image_data,      # Raw binary data (primary)
+                        "url": None,                    # No temporary URL (not needed)
+                        "content_type": "image/png",   # Content type for R2 upload
                         "cost": cost,
                         "generation_time": generation_time
                     }
@@ -644,7 +671,11 @@ class ImageGenerator:
         prompt: str,
         dimensions: str
     ) -> Dict[str, Any]:
-        """Generate image using Replicate Flux Schnell (fast & cheap)"""
+        """
+        Generate image using Replicate Flux Schnell (fast & cheap)
+
+        Returns standardized format with raw binary data for consistent R2 upload
+        """
 
         if not self.replicate_api_token:
             raise ValueError("REPLICATE_API_TOKEN not configured")
@@ -699,9 +730,23 @@ class ImageGenerator:
                             # Flux Schnell pricing: ~$0.003 per image
                             cost = 0.003
 
+                            # Download image immediately for consistent handling
+                            logger.info(f"📥 Downloading Flux image from Replicate...")
+                            async with session.get(image_url) as img_response:
+                                if img_response.status != 200:
+                                    raise Exception(f"Failed to download Flux image: HTTP {img_response.status}")
+
+                                image_data = await img_response.read()
+                                content_type = img_response.headers.get('Content-Type', 'image/png')
+
+                            logger.info(f"✅ Flux image downloaded ({len(image_data)} bytes)")
+
+                            # Return standardized format with raw binary data
                             return {
                                 "success": True,
-                                "url": image_url,
+                                "image_data": image_data,       # Raw binary data (primary)
+                                "url": image_url,               # Original temporary URL (reference only)
+                                "content_type": content_type,   # Content type for R2 upload
                                 "cost": cost,
                                 "generation_time": generation_time
                             }
