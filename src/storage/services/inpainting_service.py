@@ -21,7 +21,7 @@ class InpaintingService:
     Features:
     - Detects text regions in images
     - Removes text using AI inpainting
-    - Returns clean images ready for mockups
+    - Returns clean images ready
     - Minimal cost (~$0.01 per image)
 
     Providers:

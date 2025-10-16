@@ -20,7 +20,7 @@ class BackgroundRemovalService:
     - AI-powered background removal
     - Returns transparent PNG
     - High-quality edge detection
-    - Perfect for mockups and composites
+    - Perfect for composites
 
     Providers:
     - remove.bg API (primary) - Best quality
