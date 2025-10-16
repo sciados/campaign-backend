@@ -61,6 +61,7 @@ sentry-sdk[fastapi]>=1.32.0
 pyjwt>=2.8.0
 python-json-logger>=2.0.0
 redis>=4.5.0
+pillow>=10.0.0
 
 # Essential utilities
 setuptools>=65.0.0
