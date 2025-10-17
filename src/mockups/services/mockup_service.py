@@ -1,49 +1,35 @@
-# --- backend/src/mockups/services/mockup_service.py ---
-from PIL import Image
-import requests
-from io import BytesIO
+# src/mockups/services/mockup_service.py
 import os
-import boto3
-from botocore.client import Config
+from pathlib import Path
+from uuid import UUID
+from fastapi import UploadFile
+from PIL import Image
 
+TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 
-# Cloudflare R2 Configuration (example env vars)
-R2_ENDPOINT = os.getenv('CLOUDFLARE_R2_ENDPOINT')
-R2_KEY_ID = os.getenv('CLOUDFLARE_R2_KEY_ID')
-R2_SECRET = os.getenv('CLOUDFLARE_R2_SECRET')
-R2_BUCKET = os.getenv('CLOUDFLARE_R2_BUCKET')
+TEMPLATE_MAP = {
+    "book_cover": TEMPLATES_DIR / "book_cover.png",
+    "supplement_bottle": TEMPLATES_DIR / "supplement_bottle.png",
+    "product_box": TEMPLATES_DIR / "product_box.png",
+}
 
+async def generate_mockup(user_id: UUID, template_name: str, product_image: UploadFile):
+    template_path = TEMPLATE_MAP.get(template_name.lower())
+    if not template_path or not template_path.exists():
+        raise FileNotFoundError(f"Template '{template_name}' not found")
 
-s3_client = boto3.client('s3', endpoint_url=R2_ENDPOINT,
-aws_access_key_id=R2_KEY_ID,
-aws_secret_access_key=R2_SECRET,
-config=Config(signature_version='s3v4'))
+    # Load template
+    template = Image.open(template_path).convert("RGBA")
+    product = Image.open(product_image.file).convert("RGBA")
 
+    # Resize product to fit template (example: fit inside template)
+    product = product.resize((template.width // 2, template.height // 2))
 
-TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), 'templates')
+    # Composite product onto template
+    template.paste(product, (template.width // 4, template.height // 4), product)
 
+    # Save result to a temporary file
+    output_path = TEMPLATES_DIR / f"{user_id}_{template_name}_mockup.png"
+    template.save(output_path)
 
-def generate_mockup(template_name: str, product_image_url: str) -> str:
-    template_path = os.path.join(TEMPLATES_DIR, f"{template_name}.png")
-    template_img = Image.open(template_path).convert("RGBA")
-
-
-    response = requests.get(product_image_url)
-    product_img = Image.open(BytesIO(response.content)).convert("RGBA")
-
-
-    # Example size and position (customize per template)
-    product_img = product_img.resize((400, 600))
-    position = (50, 50)
-    template_img.paste(product_img, position, product_img)
-
-
-    output_filename = f"{template_name}_mockup.png"
-    output_path = os.path.join('/tmp', output_filename)
-    template_img.save(output_path)
-
-
-    # Upload to Cloudflare R2
-    s3_client.upload_file(output_path, R2_BUCKET, f"mockup-generated/{output_filename}")
-    url = f"{R2_ENDPOINT}/{R2_BUCKET}/mockup-generated/{output_filename}"
-    return url
+    return {"mockup_url": f"/static/mockups/{output_path.name}"}
