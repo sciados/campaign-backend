@@ -2,11 +2,11 @@
 from fastapi import APIRouter, UploadFile, Form, HTTPException
 from uuid import UUID
 from src.mockups.services.mockup_service import generate_mockup
-from src.mockups.schemas.mockup_schema import MockupResponse
+from src.mockups.schemas.mockup_schema import MockupGenerateResponse
 
 router = APIRouter(prefix="/mockups", tags=["mockups"])
 
-@router.post("/", response_model=MockupResponse)
+@router.post("/", response_model=MockupGenerateResponse)
 async def create_mockup(
     user_id: UUID = Form(...),
     template_name: str = Form(...),

@@ -28,7 +28,7 @@ class MockupCreate(BaseModel):
     product_image_url: str
 
 
-class MockupResponse(BaseModel):
+class MockupGenerateResponse(BaseModel):
     id: UUID4
     user_id: UUID4
     template_name: str
