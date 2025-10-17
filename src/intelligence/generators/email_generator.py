@@ -28,6 +28,8 @@ ENHANCED EMAIL SEQUENCE GENERATOR WITH ULTRA-CHEAP AI INTEGRATION + DATABASE LEA
 """
 
 import warnings
+
+from intelligence.models.email_subject_templates import PerformanceLevel, SubjectLineCategory
 warnings.warn(
     f"src.intelligence.generators.email_generator is deprecated. Use src.content.generators.email_generator instead.",
     DeprecationWarning,

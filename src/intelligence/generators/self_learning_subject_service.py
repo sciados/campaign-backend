@@ -10,6 +10,7 @@ Self-Improving AI Subject Line System
 
 import logging
 from typing import List, Dict, Any, Optional
+from intelligence.models.email_subject_templates import EmailSubjectPerformance, EmailSubjectTemplate, PerformanceLevel, SubjectLineCategory
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from src.core.crud.subject_template_crud import SubjectTemplateCRUD, SubjectPerformanceCRUD

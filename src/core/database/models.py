@@ -2,6 +2,7 @@
 # File: src/core/database/models.py
 # =====================================
 
+
 """
 Base database models and mixins for CampaignForge
 

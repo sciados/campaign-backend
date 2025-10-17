@@ -4,6 +4,7 @@ Seed the database with proven subject line templates
 """
 
 import asyncio
+from intelligence.models.email_subject_templates import PerformanceLevel, SubjectLineCategory
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_async_session
 from src.core.crud.subject_template_crud import SubjectTemplateCRUD
