@@ -1,10 +1,10 @@
 # src/mockups/api/routes.py
 
 from fastapi import APIRouter, HTTPException
-from src.mockups.services.mockup_service import MockupsService
+from src.mockups.services.mockup_service import MockupService
 
 router = APIRouter(prefix="/mockups", tags=["mockups"])
-service = MockupsService()
+service = MockupService()
 
 
 @router.get("/templates")

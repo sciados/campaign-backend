@@ -16,7 +16,7 @@ MOCKUP_OUTPUT_DIR = Path(__file__).parent.parent / "generated"
 MOCKUP_OUTPUT_DIR.mkdir(exist_ok=True)
 
 
-class MockupsService:
+class MockupService:
     """Handles all mockup-related operations"""
 
     async def list_templates(self):
