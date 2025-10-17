@@ -2,7 +2,6 @@
 import os
 from pathlib import Path
 from uuid import UUID
-from fastapi import UploadFile
 from PIL import Image
 
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
@@ -13,23 +12,64 @@ TEMPLATE_MAP = {
     "product_box": TEMPLATES_DIR / "product_box.png",
 }
 
-async def generate_mockup(user_id: UUID, template_name: str, product_image: UploadFile):
-    template_path = TEMPLATE_MAP.get(template_name.lower())
-    if not template_path or not template_path.exists():
-        raise FileNotFoundError(f"Template '{template_name}' not found")
+MOCKUP_OUTPUT_DIR = Path(__file__).parent.parent / "generated"
+MOCKUP_OUTPUT_DIR.mkdir(exist_ok=True)
 
-    # Load template
-    template = Image.open(template_path).convert("RGBA")
-    product = Image.open(product_image.file).convert("RGBA")
 
-    # Resize product to fit template (example: fit inside template)
-    product = product.resize((template.width // 2, template.height // 2))
+class MockupsService:
+    """Handles all mockup-related operations"""
 
-    # Composite product onto template
-    template.paste(product, (template.width // 4, template.height // 4), product)
+    async def list_templates(self):
+        """Return available mockup templates"""
+        templates = []
+        for name, path in TEMPLATE_MAP.items():
+            templates.append({
+                "name": name,
+                "url": f"/static/mockups/{path.name}"
+            })
+        return templates
 
-    # Save result to a temporary file
-    output_path = TEMPLATES_DIR / f"{user_id}_{template_name}_mockup.png"
-    template.save(output_path)
+    async def create_mockup(self, user_id: str, template_name: str, product_image_url: str):
+        """Simulate creating a mockup from a product image URL"""
+        template_path = TEMPLATE_MAP.get(template_name.lower())
+        if not template_path or not template_path.exists():
+            raise FileNotFoundError(f"Template '{template_name}' not found")
 
-    return {"mockup_url": f"/static/mockups/{output_path.name}"}
+        try:
+            # Load template
+            template = Image.open(template_path).convert("RGBA")
+
+            # In production, you’d download product_image_url, here we just reuse the template
+            product = template.copy()
+
+            # Overlay (placeholder logic)
+            template.paste(product, (template.width // 4, template.height // 4), product)
+
+            output_path = MOCKUP_OUTPUT_DIR / f"{user_id}_{template_name}_mockup.png"
+            template.save(output_path)
+
+            return {
+                "id": str(UUID(user_id)),
+                "user_id": user_id,
+                "template_name": template_name,
+                "product_image_url": product_image_url,
+                "final_image_url": f"/static/mockups/{output_path.name}",
+            }
+
+        except Exception as e:
+            raise Exception(f"Mockup generation failed: {e}")
+
+    async def get_user_mockups(self, user_id: str):
+        """List all generated mockups for a user"""
+        mockups = []
+        for file in MOCKUP_OUTPUT_DIR.glob(f"{user_id}_*_mockup.png"):
+            template_name = file.stem.replace(f"{user_id}_", "").replace("_mockup", "")
+            mockups.append({
+                "id": str(UUID(user_id)),
+                "user_id": user_id,
+                "template_name": template_name,
+                "product_image_url": "",
+                "final_image_url": f"/static/mockups/{file.name}",
+                "created_at": file.stat().st_mtime,
+            })
+        return mockups
