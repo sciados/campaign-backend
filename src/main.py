@@ -60,8 +60,6 @@ from src.storage.storage_module import StorageModule
 
 from src.mockups.mockup_module import MockupModule
 
-# Mockups routes are initialized inside create_campaignforge_app to allow async initialization
-
 
 # ============================================================================
 # LOGGING CONFIGURATION
@@ -269,8 +267,7 @@ async def create_campaignforge_app() -> FastAPI:
          logger.error(f"Failed to include analytics/clickbank routes: {e}")
     
     # Initialize Mockup Module (moved here to allow 'await')
-    try:
-        # from src.mockups.mockup_module import MockupModule
+    try:       
         mockup_module = MockupModule()
         await mockup_module.initialize()
         mockup_router = mockup_module.get_router()
