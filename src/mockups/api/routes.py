@@ -4,7 +4,7 @@ from uuid import UUID
 from src.mockups.services.mockup_service import generate_mockup
 from src.mockups.schemas.mockup_schema import MockupGenerateResponse
 
-router = APIRouter(prefix="/mockups", tags=["mockups"])
+router = APIRouter(prefix="", tags=["mockups"])
 
 @router.post("/", response_model=MockupGenerateResponse)
 async def create_mockup(
