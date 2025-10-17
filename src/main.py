@@ -59,6 +59,7 @@ from src.content.content_module import ContentModule
 from src.storage.storage_module import StorageModule
 
 from src.mockups.api.routes import router as mockups_router
+app.include_router(mockups_router, prefix="/api")
 from src.mockups.mockup_module import MockupModule
 
 
