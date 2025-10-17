@@ -95,6 +95,13 @@ __all__ = [
     "get_system_info"
 ]
 
+# Optional: expose MockupModule at the package level
+try:
+    from src.mockups.mockup_module import MockupModule
+    __all__.append("MockupModule")
+except ImportError:
+    pass
+
 # Development team information
 __team__ = {
     "architecture": "modular_microservices_v3.3.1",

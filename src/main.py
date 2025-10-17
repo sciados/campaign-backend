@@ -58,6 +58,8 @@ from src.content.content_module import ContentModule
 # Storage Module (Session 6) - NEW
 from src.storage.storage_module import StorageModule
 
+from src.mockups.mockup_module import MockupModule
+
 # Mockups routes are initialized inside create_campaignforge_app to allow async initialization
 
 
@@ -267,7 +269,7 @@ async def create_campaignforge_app() -> FastAPI:
     
     # Initialize Mockup Module (moved here to allow 'await')
         try:
-            from src.mockups.mockup_module import MockupModule
+            # from src.mockups.mockup_module import MockupModule
             mockup_module = MockupModule()
             await mockup_module.initialize()
             mockup_router = mockup_module.get_router()
