@@ -59,7 +59,6 @@ from src.content.content_module import ContentModule
 from src.storage.storage_module import StorageModule
 
 from src.mockups.api.routes import router as mockups_router
-app.include_router(mockups_router, prefix="/api")
 from src.mockups.mockup_module import MockupModule
 
 
@@ -269,12 +268,13 @@ async def create_campaignforge_app() -> FastAPI:
          logger.error(f"Failed to include analytics/clickbank routes: {e}")
     
     # Initialize Mockup Module (moved here to allow 'await')
-    try:       
+    try:
+        # app.include_router(mockups_router, prefix="/api")
         mockup_module = MockupModule()
         await mockup_module.initialize()
         mockup_router = mockup_module.get_router()
         if mockup_router:
-            app.include_router(mockup_router, prefix="/api", tags=["mockups"])
+            app.include_router(mockup_router, prefix="/api")
             logger.info("✅ Mockup module initialized successfully")
     except Exception as e:
         logger.error(f"❌ Failed to initialize Mockup module: {e}")
