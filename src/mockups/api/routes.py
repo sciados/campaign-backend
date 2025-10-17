@@ -1,19 +1,29 @@
-# app/api/routes/mockups.py
-from fastapi import APIRouter, UploadFile, Form, HTTPException
-from uuid import UUID
-from src.mockups.services.mockup_service import generate_mockup
-from src.mockups.schemas.mockup_schema import MockupGenerateResponse
+# src/mockups/api/routes.py
 
-router = APIRouter(prefix="", tags=["mockups"])
+from fastapi import APIRouter, HTTPException
+from src.mockups.services.mockup_service import MockupsService
 
-@router.post("/", response_model=MockupGenerateResponse)
-async def create_mockup(
-    user_id: UUID = Form(...),
-    template_name: str = Form(...),
-    product_image: UploadFile = Form(...),
-):
-    try:
-        result = await generate_mockup(user_id, template_name, product_image)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+router = APIRouter(prefix="/mockups", tags=["mockups"])
+service = MockupsService()
+
+
+@router.get("/templates")
+async def get_mockup_templates():
+    return await service.list_templates()
+
+
+@router.post("/")
+async def create_mockup(data: dict):
+    user_id = data.get("user_id")
+    template_name = data.get("template_name")
+    product_image_url = data.get("product_image_url")
+
+    if not all([user_id, template_name, product_image_url]):
+        raise HTTPException(status_code=400, detail="Missing required fields")
+
+    return await service.create_mockup(user_id, template_name, product_image_url)
+
+
+@router.get("/user/{user_id}")
+async def get_user_mockups(user_id: str):
+    return await service.get_user_mockups(user_id)

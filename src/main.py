@@ -58,6 +58,7 @@ from src.content.content_module import ContentModule
 # Storage Module (Session 6) - NEW
 from src.storage.storage_module import StorageModule
 
+from src.mockups.api.routes import router as mockups_router
 from src.mockups.mockup_module import MockupModule
 
 
@@ -272,7 +273,7 @@ async def create_campaignforge_app() -> FastAPI:
         await mockup_module.initialize()
         mockup_router = mockup_module.get_router()
         if mockup_router:
-            app.include_router(mockup_router, prefix="/api/mockups", tags=["mockups"])
+            app.include_router(mockup_router, prefix="/api", tags=["mockups"])
             logger.info("✅ Mockup module initialized successfully")
     except Exception as e:
         logger.error(f"❌ Failed to initialize Mockup module: {e}")
@@ -415,7 +416,12 @@ async def create_campaignforge_app() -> FastAPI:
                     "/api/content/enhanced-images/generate-batch",
                     "/api/content/enhanced-images/cost-calculator",
                     "/api/content/enhanced-images/generator-stats"
+                ],
+                "mockups": [
+                    "/api/mockups",
+                    "/api/mockups/templates"
                 ]
+
             }
         }
     

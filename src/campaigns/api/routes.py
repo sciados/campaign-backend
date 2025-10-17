@@ -16,6 +16,7 @@ from src.users.services.auth_service import AuthService
 
 from src.core.factories.service_factory import ServiceFactory
 from src.campaigns.services.enhanced_campaign_service import EnhancedCampaignService
+from src.mockups.api.routes import router as mockups_router
 
 router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
 security = HTTPBearer()
