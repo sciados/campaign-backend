@@ -266,29 +266,19 @@ async def create_campaignforge_app() -> FastAPI:
         app.include_router(clickbank_router, prefix="/api")
         logger.info("Analytics and ClickBank routes included successfully")
     except Exception as e:
+         logger.error(f"Failed to include analytics/clickbank routes: {e}")
     
     # Initialize Mockup Module (moved here to allow 'await')
-        try:
-            # from src.mockups.mockup_module import MockupModule
-            mockup_module = MockupModule()
-            await mockup_module.initialize()
-            mockup_router = mockup_module.get_router()
-            if mockup_router:
-                app.include_router(mockup_router, prefix="/api/mockups", tags=["mockups"])
-            logger.info("✅ Mockup module initialized successfully")
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize Mockup module: {e}")
-
-    # Add Analytics and ClickBank routes
     try:
-        from src.intelligence.routes.routes_analytics import router as analytics_router
-        from src.intelligence.routes.routes_clickbank import router as clickbank_router
-
-        app.include_router(analytics_router, prefix="/api")
-        app.include_router(clickbank_router, prefix="/api")
-        logger.info("Analytics and ClickBank routes included successfully")
+        # from src.mockups.mockup_module import MockupModule
+        mockup_module = MockupModule()
+        await mockup_module.initialize()
+        mockup_router = mockup_module.get_router()
+        if mockup_router:
+            app.include_router(mockup_router, prefix="/api/mockups", tags=["mockups"])
+            logger.info("✅ Mockup module initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to include analytics/clickbank routes: {e}")
+        logger.error(f"❌ Failed to initialize Mockup module: {e}")
     
 
     # Phase 5: Add Session 6 enhanced endpoints
