@@ -18,4 +18,4 @@ class MockupModule:
 
     def register_routes(self):
         """Register mockup API routes with the FastAPI app"""
-        self.app.include_router(mockup_router, prefix="/mockups", tags=["Mockups"])
+        self.app.include_router(mockup_router, prefix="/api/mockups", tags=["Mockups"])
