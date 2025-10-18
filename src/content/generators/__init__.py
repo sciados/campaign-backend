@@ -1,4 +1,4 @@
-# src/intelligence/__init__.py
+# src/content/generators/__init__.py
 """
 Intelligence Engine Module
 
