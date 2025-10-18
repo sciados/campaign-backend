@@ -1,50 +1,27 @@
-# src/content/generators/__init__.py
+# src/intelligence/__init__.py
 """
-Content Generators Module
+Intelligence Engine Module
 
-Contains all content generation classes for different content types.
-Text-based: Email, Social Media, Blog, Ad Copy
-Multimedia: Image, Video Script
+Provides AI-powered analysis, content enhancement, and research capabilities
+using the consolidated intelligence schema and modular architecture.
 """
 
+from src.intelligence.services.intelligence_service import IntelligenceService
+from src.intelligence.services.analysis_service import AnalysisService
+from src.intelligence.services.enhancement_service import EnhancementService
+from src.intelligence.models.intelligence_models import IntelligenceRequest, IntelligenceResponse
+from src.intelligence.api.intelligence_routes import router as intelligence_router
+from src.intelligence.intelligence_module import IntelligenceModule
+from src.intelligence.analysis.enhanced_handler import EnhancedAnalysisHandler
+
+__version__ = "2.0.0"
 __all__ = [
-    "get_available_generators",
-    "get_generator_count"
+    "IntelligenceService",
+    "AnalysisService", 
+    "EnhancementService",
+    "IntelligenceRequest",
+    "IntelligenceResponse",
+    "intelligence_router",
+    "IntelligenceModule",
+    "EnhancedAnalysisHandler"    
 ]
-
-
-def get_available_generators():
-    """
-    Return list of available generator classes.
-    Classes are imported lazily to prevent circular imports.
-
-    Returns:
-        List[type]: Available generator classes
-    """
-    from src.content.generators.email_generator import EmailGenerator
-    from src.content.generators.social_media_generator import SocialMediaGenerator
-    from src.content.generators.blog_content_generator import BlogContentGenerator
-    from src.content.generators.ad_copy_generator import AdCopyGenerator
-    from src.content.generators.image_generator import ImageGenerator
-    from src.content.generators.video_script_generator import VideoScriptGenerator
-    from src.content.generators.long_form_article_generator import LongFormArticleGenerator
-
-    return [
-        EmailGenerator,
-        SocialMediaGenerator,
-        BlogContentGenerator,
-        AdCopyGenerator,
-        ImageGenerator,
-        VideoScriptGenerator,
-        LongFormArticleGenerator
-    ]
-
-
-def get_generator_count():
-    """
-    Get the number of available generator classes.
-
-    Returns:
-        int: Number of generators
-    """
-    return len(get_available_generators())
