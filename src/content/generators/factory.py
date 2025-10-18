@@ -26,7 +26,7 @@ import json
 import time
 from uuid import UUID
 
-from intelligence.generators.base_generator import extract_product_name_from_intelligence, substitute_placeholders_in_data, validate_no_placeholders
+from content.generators.base_generator import extract_product_name_from_intelligence, substitute_placeholders_in_data, validate_no_placeholders
 
 # ✅ PHASE 2: Import CRUD integration from Phase 1
 try:
@@ -290,7 +290,7 @@ class ContentGeneratorFactory:
             try:
                 module = importlib.import_module(
                     f".{config.module_path}",
-                    package="src.intelligence.generators"
+                    package="src.content.generators"
                 )
                 generator_class = getattr(module, config.class_name)
                 generator_instance = generator_class()

@@ -88,7 +88,7 @@ async def test_video_generation_components():
         print("\n3. Testing utility functions...")
 
         # Test placeholder fix function
-        from src.intelligence.generators.slideshow_video_generator import fix_slideshow_video_placeholders
+        from src.content.generators.slideshow_video_generator import fix_slideshow_video_placeholders
 
         test_result = {
             "video_title": "{{PRODUCT_NAME}} Review",

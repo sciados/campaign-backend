@@ -21,7 +21,7 @@ from uuid import UUID
 from src.core.database.models import IntelligenceCore, ProductData, MarketData
 from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
 from src.intelligence.models.intelligence_models import AnalysisResult, ProductInfo, MarketInfo
-from src.intelligence.generators.factory import ContentGeneratorFactory, get_global_phase2_factory
+from src.content.generators.factory import ContentGeneratorFactory, get_global_phase2_factory
 
 logger = logging.getLogger(__name__)
 

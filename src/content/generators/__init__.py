@@ -87,7 +87,7 @@ except ImportError as e:
 
 # Railway compatibility
 try:
-    from ..utils.railway_compatibility import (
+    from src.intelligence.utils.railway_compatibility import (
         get_railway_compatibility_handler,
         railway_safe_generate_content
     )

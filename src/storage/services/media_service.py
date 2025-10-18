@@ -24,7 +24,7 @@ class MediaService:
         if self._image_generator is None:
             try:
                 # Import from old intelligence generators
-                from src.intelligence.generators.image_generator import UltraCheapImageGenerator
+                from src.content.generators.image_generator import UltraCheapImageGenerator
                 self._image_generator = UltraCheapImageGenerator()
             except ImportError:
                 logger.warning("Image generator not available")
@@ -35,7 +35,7 @@ class MediaService:
         if self._video_generator is None:
             try:
                 # Import from old intelligence generators - DISABLED FOR RAILWAY DEPLOYMENT
-                # from src.intelligence.generators.slideshow_video_generator import SlideshowVideoGenerator
+                # from src.content.generators.slideshow_video_generator import SlideshowVideoGenerator
                 # self._video_generator = SlideshowVideoGenerator()
                 logger.warning("Video generator disabled - legacy dependency")
                 self._video_generator = None

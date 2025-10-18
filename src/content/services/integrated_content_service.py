@@ -61,6 +61,7 @@ class IntegratedContentService:
     
         logger.info(f"✅ IntegratedContentService v{self.version} initialized")
 
+
     def _initialize_generators(self):
         """Initialize all content generators including enhanced platform image generator"""
         try:

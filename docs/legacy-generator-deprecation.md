@@ -11,20 +11,24 @@ The new modular architecture has moved content generation from `src/intelligence
 These intelligence generator files are still actively used and should be retained:
 
 ### Core Infrastructure
+
 - `src/intelligence/generators/base_generator.py` - Base class used by active generators
 - `src/intelligence/generators/factory.py` - Factory pattern used by intelligence_content_service.py
 - `src/intelligence/generators/__init__.py` - Module initialization
 
 ### Active Image/Video Generation
+
 - `src/intelligence/generators/image_generator.py` - Used by media_service.py for image generation
 - `src/intelligence/generators/stability_ai_generator.py` - Stability AI integration
 - `src/intelligence/generators/slideshow_video_generator.py` - Used by media_service.py (commented out but kept for Railway deployment)
 
 ### Email Subject Line Services
+
 - `src/intelligence/generators/subject_line_ai_service.py` - Used by email_generator.py
 - `src/intelligence/generators/self_learning_subject_service.py` - Used by email_generator.py
 
 ### Configuration and Monitoring
+
 - `src/intelligence/generators/config/manager.py` - Configuration management
 - `src/intelligence/generators/monitoring/health_monitor.py` - System health monitoring
 
@@ -33,6 +37,7 @@ These intelligence generator files are still actively used and should be retaine
 These files have been superseded by the new content module:
 
 ### Content Generation (Superseded by src/content/generators/)
+
 ```bash
 # DEPRECATED: Superseded by src/content/generators/ad_copy_generator.py
 src/intelligence/generators/ad_copy_generator.py
@@ -54,12 +59,14 @@ src/intelligence/generators/video_script_generator.py
 ```
 
 ### Database and Utilities (Legacy)
+
 ```bash
 # DEPRECATED: Database seeding moved to core module
 src/intelligence/generators/database_seeder.py
 ```
 
 ### Landing Page Generation (Large Legacy System)
+
 ```bash
 # DEPRECATED: Entire landing page generation system superseded
 src/intelligence/generators/landing_page/
@@ -78,16 +85,19 @@ src/intelligence/generators/landing_page/
 ## Deprecation Strategy
 
 ### Phase 1: Mark as Deprecated (Immediate)
+
 1. Add deprecation warnings to superseded files
 2. Update docstrings to indicate replacement modules
 3. Add comments pointing to new implementations
 
 ### Phase 2: Remove Imports (After Testing)
+
 1. Ensure no active code imports deprecated generators
 2. Update any remaining references to use content module
 3. Test all content generation functionality
 
 ### Phase 3: Archive Files (Future Release)
+
 1. Move deprecated files to `archive/` directory
 2. Keep for historical reference and rollback if needed
 3. Remove from active codebase
@@ -124,7 +134,7 @@ Replace any remaining imports:
 
 ```python
 # OLD (deprecated)
-from src.intelligence.generators.ad_copy_generator import AdCopyGenerator
+from src.content.generators.ad_copy_generator import AdCopyGenerator
 
 # NEW (use instead)
 from src.content.generators.ad_copy_generator import AdCopyGenerator
@@ -133,6 +143,7 @@ from src.content.generators.ad_copy_generator import AdCopyGenerator
 ### Step 3: Verify Content Module Coverage
 
 Ensure the content module provides equivalent functionality for:
+
 - ✅ Ad copy generation
 - ✅ Blog content generation
 - ✅ Email sequence generation
@@ -166,6 +177,7 @@ Before removing deprecated files:
 ## Backup Strategy
 
 Before deprecation:
+
 1. Create git branch with all legacy files intact
 2. Tag current state as "pre-deprecation-backup"
 3. Document rollback procedures if needed

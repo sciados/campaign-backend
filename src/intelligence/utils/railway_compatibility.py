@@ -103,17 +103,17 @@ class ContentHandler:
         
         generator_mappings = {
             "email_sequence": {
-                "module": "src.intelligence.generators.email_generator", 
+                "module": "src.content.generators.email_generator", 
                 "class": "EmailSequenceGenerator",
                 "method": "generate_email_sequence"  # ✅ FIXED: Correct method name
             },
             "ad_copy": {
-                "module": "src.intelligence.generators.ad_copy_generator",
+                "module": "src.content.generators.ad_copy_generator",
                 "class": "AdCopyGenerator",
                 "method": "generate_ad_copy"  # ✅ FIXED: Correct method name
             },
             "social_media": {
-                "module": "src.intelligence.generators.social_media_generator",
+                "module": "src.content.generators.social_media_generator",
                 "class": "SocialMediaGenerator",
                 "method": "generate_social_posts"  # ✅ FIXED: Correct method name
             }

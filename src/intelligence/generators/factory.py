@@ -288,7 +288,7 @@ class ContentGeneratorFactory:
             try:
                 module = importlib.import_module(
                     f".{config.module_path}",
-                    package="src.intelligence.generators"
+                    package="src.content.generators"
                 )
                 generator_class = getattr(module, config.class_name)
                 generator_instance = generator_class()
