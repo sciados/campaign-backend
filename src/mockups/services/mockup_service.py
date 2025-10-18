@@ -1,75 +1,74 @@
-# src/mockups/services/mockup_service.py
 import os
-from pathlib import Path
+import requests
+from io import BytesIO
 from uuid import UUID
 from PIL import Image
-
-TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
-
-TEMPLATE_MAP = {
-    "book_cover": TEMPLATES_DIR / "book_cover.png",
-    "supplement_bottle": TEMPLATES_DIR / "supplement_bottle.png",
-    "product_box": TEMPLATES_DIR / "product_box.png",
-}
-
-MOCKUP_OUTPUT_DIR = Path(__file__).parent.parent / "generated"
-MOCKUP_OUTPUT_DIR.mkdir(exist_ok=True)
+import boto3
 
 
-class MockupService:
-    """Handles all mockup-related operations"""
+class MockupsService:
+    """Generates mockups and stores them in Cloudflare R2."""
+
+    def __init__(self):
+        self.s3 = boto3.client(
+            "s3",
+            endpoint_url=os.getenv("R2_ENDPOINT_URL"),
+            aws_access_key_id=os.getenv("R2_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("R2_SECRET_ACCESS_KEY"),
+        )
+        self.bucket_name = os.getenv("R2_BUCKET_NAME", "mockups")
+        self.cdn_base_url = os.getenv("R2_CDN_BASE_URL", "https://cdn.rodgersdigital.com/mockups")
+
+        # Templates hosted in R2
+        self.template_map = {
+            "book_cover": f"{self.cdn_base_url}/templates/book_cover.png",
+            "supplement_bottle": f"{self.cdn_base_url}/templates/supplement_bottle.png",
+            "product_box": f"{self.cdn_base_url}/templates/product_box.png",
+        }
 
     async def list_templates(self):
-        """Return available mockup templates"""
-        templates = []
-        for name, path in TEMPLATE_MAP.items():
-            templates.append({
-                "name": name,
-                "url": f"/static/mockups/{path.name}"
-            })
-        return templates
+        """Return the available mockup templates"""
+        return [{"name": name, "url": url} for name, url in self.template_map.items()]
 
     async def create_mockup(self, user_id: str, template_name: str, product_image_url: str):
-        """Simulate creating a mockup from a product image URL"""
-        template_path = TEMPLATE_MAP.get(template_name.lower())
-        if not template_path or not template_path.exists():
-            raise FileNotFoundError(f"Template '{template_name}' not found")
+        """Create a composite mockup and upload to Cloudflare R2"""
+        template_url = self.template_map.get(template_name.lower())
+        if not template_url:
+            raise ValueError(f"Template '{template_name}' not found")
 
         try:
-            # Load template
-            template = Image.open(template_path).convert("RGBA")
+            # Download both images from their URLs
+            template_img = Image.open(BytesIO(requests.get(template_url).content)).convert("RGBA")
+            product_img = Image.open(BytesIO(requests.get(product_image_url).content)).convert("RGBA")
 
-            # In production, you’d download product_image_url, here we just reuse the template
-            product = template.copy()
+            # Resize and overlay the product onto the template
+            product_img = product_img.resize((template_img.width // 2, template_img.height // 2))
+            template_img.paste(product_img, (template_img.width // 4, template_img.height // 4), product_img)
 
-            # Overlay (placeholder logic)
-            template.paste(product, (template.width // 4, template.height // 4), product)
+            # Save composite to memory
+            buffer = BytesIO()
+            template_img.save(buffer, format="PNG")
+            buffer.seek(0)
 
-            output_path = MOCKUP_OUTPUT_DIR / f"{user_id}_{template_name}_mockup.png"
-            template.save(output_path)
+            filename = f"generated/{user_id}_{template_name}_mockup.png"
+
+            # Upload to Cloudflare R2
+            self.s3.upload_fileobj(
+                buffer,
+                self.bucket_name,
+                filename,
+                ExtraArgs={"ContentType": "image/png", "ACL": "public-read"},
+            )
+
+            # Return final public URL
+            final_url = f"{self.cdn_base_url}/{filename}"
 
             return {
-                "id": str(UUID(user_id)),
                 "user_id": user_id,
                 "template_name": template_name,
                 "product_image_url": product_image_url,
-                "final_image_url": f"/static/mockups/{output_path.name}",
+                "final_image_url": final_url,
             }
 
         except Exception as e:
-            raise Exception(f"Mockup generation failed: {e}")
-
-    async def get_user_mockups(self, user_id: str):
-        """List all generated mockups for a user"""
-        mockups = []
-        for file in MOCKUP_OUTPUT_DIR.glob(f"{user_id}_*_mockup.png"):
-            template_name = file.stem.replace(f"{user_id}_", "").replace("_mockup", "")
-            mockups.append({
-                "id": str(UUID(user_id)),
-                "user_id": user_id,
-                "template_name": template_name,
-                "product_image_url": "",
-                "final_image_url": f"/static/mockups/{file.name}",
-                "created_at": file.stat().st_mtime,
-            })
-        return mockups
+            raise Exception(f"❌ Mockup generation failed: {e}")

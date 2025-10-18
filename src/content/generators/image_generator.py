@@ -373,7 +373,7 @@ class ImageGenerator:
         # IMPORTANT: Generate scenes WITHOUT products - products will be added later via mockups
         # This creates a reusable library of backgrounds that work across thousands of products
         prompts = {
-            "product_hero": f"Professional studio product photography setup with perfect lighting and backdrop, clean minimalist background for product placement, {style} aesthetic with {personality_desc} mood, empty pedestal or clean surface ready for product, premium commercial photography studio quality, natural health and wellness elements in background, soft diffused lighting, high-end marketing backdrop, absolutely no products or text in scene",
+            "product_hero": f"Clean minimalist background for product placement, {style} aesthetic with {personality_desc} mood, empty pedestal or clean surface ready for product, premium commercial photography studio quality, natural health and wellness elements in background, soft diffused lighting, high-end marketing backdrop, absolutely no products or text in scene",
 
             "lifestyle": f"Authentic lifestyle photography scene of {target_audience} in daily wellness routine, natural environment perfect for product placement, {style} aesthetic, real-world setting showing {desire_desc} lifestyle, natural lighting, genuine moment with empty space for product mockup, warm inviting atmosphere, hands visible ready to hold product, no products or text in scene",
 
