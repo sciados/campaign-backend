@@ -20,7 +20,7 @@ from src.content.services.ai_provider_service import AIProviderService
 from src.content.services.prompt_storage_service import PromptStorageService
 
 # Import all generators
-from src.content.generators.email_generator import EmailGenerator
+from src.content.generators.email_generator import EmailGenerator, generate_email_sequence
 from src.content.generators.ad_copy_generator import AdCopyGenerator
 from src.content.generators.blog_content_generator import BlogContentGenerator
 from src.content.generators.social_media_generator import SocialMediaGenerator
@@ -68,7 +68,7 @@ class IntegratedContentService:
             self.generators.update({
                 # Email generators
                 'email': EmailGenerator(),
-                'email_sequence': EmailGenerator(),
+                'email_sequence': EmailGenerator(generate_email_sequence),
                 
                 # Ad copy generators  
                 'ad_copy': AdCopyGenerator(),
