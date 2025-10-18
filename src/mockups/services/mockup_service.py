@@ -6,7 +6,7 @@ from PIL import Image
 import boto3
 
 
-class MockupsService:
+class MockupService:
     """Generates mockups and stores them in Cloudflare R2."""
 
     def __init__(self):

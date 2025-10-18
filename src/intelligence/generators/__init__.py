@@ -35,7 +35,7 @@ logger.info("📦 Legacy generators disabled - using new modular system")
 
 # Import the actual working generators from content module
 try:
-    from src.content.generators import (
+    from intelligence import (
         EmailGenerator,
         SocialMediaGenerator,
         BlogContentGenerator,
