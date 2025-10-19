@@ -61,7 +61,7 @@ from src.storage.storage_module import StorageModule
 
 from src.mockups.api.routes import router as mockups_router
 from src.mockups.mockup_module import MockupModule
-from src.mockups.services.mockup_service import MockupsService
+from src.mockups.services.mockup_service import MockupService
 from src.intelligence import get_intelligence_router
 
 
@@ -269,7 +269,7 @@ async def create_campaignforge_app() -> FastAPI:
     # Initialize Mockup Module (moved here to allow 'await')
     try:
         # app.include_router(mockups_router, prefix="/api")
-        mockups_service = MockupsService()
+        mockups_service = MockupService()
         asyncio.run(mockups_service.ensure_templates_uploaded())
         mockup_module = MockupModule()
         await mockup_module.initialize()
