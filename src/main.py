@@ -7,6 +7,7 @@ import logging
 import uvicorn
 from datetime import datetime, timezone
 from pathlib import Path
+import asyncio
 
 # ============================================================================
 # PYTHON PATH SETUP
@@ -60,6 +61,7 @@ from src.storage.storage_module import StorageModule
 
 from src.mockups.api.routes import router as mockups_router
 from src.mockups.mockup_module import MockupModule
+from src.mockups.services.mockup_service import MockupsService
 
 
 # ============================================================================
@@ -270,6 +272,8 @@ async def create_campaignforge_app() -> FastAPI:
     # Initialize Mockup Module (moved here to allow 'await')
     try:
         # app.include_router(mockups_router, prefix="/api")
+        mockups_service = MockupsService()
+        asyncio.run(mockups_service.ensure_templates_uploaded())
         mockup_module = MockupModule()
         await mockup_module.initialize()
         mockup_router = mockup_module.get_router()
