@@ -22,9 +22,9 @@ from src.core.database import get_async_db
 from src.users.middleware.auth_middleware import AuthMiddleware
 from src.core.shared.responses import SuccessResponse, PaginatedResponse
 from src.core.shared.exceptions import CampaignForgeException
-from src.intelligence.models.intelligence_models import IntelligenceRequest, IntelligenceResponse, AsyncAnalysisResponse, AnalysisResult, AnalysisMethod
+from src.intelligence.models.intelligence_models import IntelligenceRequest, AnalysisResult, AnalysisMethod
 from src.intelligence.services.intelligence_service import IntelligenceService
-from src.intelligence.services.intelligence_content_service import IntelligenceContentService, generate_intelligence_driven_content
+from src.intelligence.services.intelligence_content_service import IntelligenceContentService
 from src.intelligence.services.product_detection_service import product_detection_service
 from src.intelligence.services.product_image_scraper import ProductImageScraper
 from src.intelligence.repositories.scraped_image_repository import ScrapedImageRepository
