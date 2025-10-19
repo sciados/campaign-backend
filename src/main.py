@@ -62,6 +62,10 @@ from src.storage.storage_module import StorageModule
 from src.mockups.api.routes import router as mockups_router
 from src.mockups.mockup_module import MockupModule
 from src.mockups.services.mockup_service import MockupsService
+from src.intelligence import get_intelligence_router
+
+app.include_router(get_intelligence_router(), prefix="/api/intelligence")
+
 
 
 # ============================================================================

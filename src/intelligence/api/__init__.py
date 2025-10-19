@@ -2,12 +2,12 @@
 # File: src/intelligence/api/__init__.py
 # =====================================
 
-"""
-API layer for Intelligence Engine.
+from fastapi import APIRouter
 
-Provides FastAPI route handlers for intelligence operations.
-"""
+def get_intelligence_router() -> APIRouter:
+    """Lazy import to avoid circular dependency"""
+    from src.intelligence.api.intelligence_routes import router
+    return router
 
-from src.intelligence.api.intelligence_routes import router
 
-__all__ = ["router"]
+__all__ = ["get_intelligence_router"]
