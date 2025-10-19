@@ -37,7 +37,7 @@ logger.info("📦 Legacy generators disabled - using new modular system")
 
 # Import the actual working generators from content module
 try:
-    from src.content import (
+    from src.content.generators import (
         EmailGenerator,
         SocialMediaGenerator,
         BlogContentGenerator,
@@ -53,8 +53,8 @@ try:
     SocialMediaGenerator = SocialMediaGenerator  # Already correct name
     BlogContentGenerator = BlogContentGenerator
     VideoScriptGenerator = VideoScriptGenerator  # Fallback to social media for now
-    CampaignAngleGenerator = SocialMediaGenerator  # Fallback to social media for now
-    UltraCheapImageGenerator = SocialMediaGenerator  # Fallback to social media for now
+    # CampaignAngleGenerator = SocialMediaGenerator  # Fallback to social media for now
+    # UltraCheapImageGenerator = SocialMediaGenerator  # Fallback to social media for now
 
 except ImportError as e:
     logger.warning(f"⚠️ Content generators import failed: {e}")
