@@ -35,21 +35,22 @@ logger.info("📦 Legacy generators disabled - using new modular system")
 
 # Import the actual working generators from content module
 try:
-    from intelligence import (
+    from content import (
         EmailGenerator,
         SocialMediaGenerator,
         BlogContentGenerator,
-        AdCopyGenerator
+        AdCopyGenerator,
+        VideoScriptGenerator
     )
     CONTENT_GENERATORS_AVAILABLE = True
     logger.info("✅ Content generators imported successfully from content module")
 
     # Create aliases for backward compatibility
-    EmailSequenceGenerator = EmailGenerator
+    EmailGenerator = EmailGenerator
     AdCopyGenerator = AdCopyGenerator  # Already correct name
     SocialMediaGenerator = SocialMediaGenerator  # Already correct name
-    BlogPostGenerator = BlogContentGenerator
-    VideoScriptGenerator = SocialMediaGenerator  # Fallback to social media for now
+    BlogContentGenerator = BlogContentGenerator
+    VideoScriptGenerator = VideoScriptGenerator  # Fallback to social media for now
     CampaignAngleGenerator = SocialMediaGenerator  # Fallback to social media for now
     UltraCheapImageGenerator = SocialMediaGenerator  # Fallback to social media for now
 
