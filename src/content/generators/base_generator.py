@@ -417,7 +417,7 @@ class BaseContentGenerator(ABC):
         """Lazy load dynamic router to prevent circular imports"""
         if self._dynamic_router is None:
             try:
-                from ..adapters.dynamic_router import get_dynamic_router
+                from src.intelligence.adapters.dynamic_router import get_dynamic_router
                 self._dynamic_router = await get_dynamic_router()
                 logger.debug(f"Dynamic router loaded for {self.generator_type}")
             except ImportError as e:
@@ -429,7 +429,7 @@ class BaseContentGenerator(ABC):
         """Lazy load smart router to prevent circular imports"""
         if self._smart_router is None:
             try:
-                from ..utils.smart_router import get_smart_router
+                from src.intelligence.utils.smart_router import get_smart_router
                 self._smart_router = get_smart_router()
                 logger.debug(f"Smart router loaded for {self.generator_type}")
             except ImportError as e:
@@ -441,7 +441,7 @@ class BaseContentGenerator(ABC):
         """Lazy load ultra cheap provider to prevent circular imports"""
         if self._ultra_cheap_provider is None:
             try:
-                from ..utils.ultra_cheap_ai_provider import UltraCheapAIProvider
+                from src.intelligence.utils.ultra_cheap_ai_provider import UltraCheapAIProvider
                 self._ultra_cheap_provider = UltraCheapAIProvider()
                 logger.debug(f"Ultra cheap provider loaded for {self.generator_type}")
             except ImportError as e:

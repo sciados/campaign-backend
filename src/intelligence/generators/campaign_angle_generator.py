@@ -17,13 +17,13 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
 
 # ✅ PHASE 2.3: Import proven base generator pattern
-from .base_generator import BaseGenerator
+from src.content.generators.base_generator import BaseGenerator
 
 # ✅ PHASE 2.3: Import CRUD infrastructure
 from src.intelligence.repositories.intelligence_repository import IntelligenceRepository
 
 # ✅ PHASE 2.3: Import storage system
-# from src.storage.universal_dual_storage import... # TODO: Fix this import
+from src.storage.universal_dual_storage import get_storage_manager
 
 # ✅ PHASE 2.3: Import centralized product name utilities
 from src.intelligence.utils.product_name_fix import (
@@ -488,7 +488,7 @@ class CampaignAngleGenerator(BaseGenerator):
         """Create intelligence record using new normalized schema"""
     
         try:
-            # from src.intelligence.analyzers import... # TODO: Fix this import
+            from src.intelligence.analysis.analyzers import OptimizedDatabaseStorage
             storage = OptimizedDatabaseStorage()
         
             # Create intelligence data for new schema
