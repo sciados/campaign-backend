@@ -64,9 +64,6 @@ from src.mockups.mockup_module import MockupModule
 from src.mockups.services.mockup_service import MockupsService
 from src.intelligence import get_intelligence_router
 
-app.include_router(get_intelligence_router(), prefix="/api/intelligence")
-
-
 
 # ============================================================================
 # LOGGING CONFIGURATION
@@ -112,10 +109,6 @@ except Exception as e:
     logger.error(f"Failed to create storage module: {e}")
     storage_module = None
 
-# ==============================
-# Mockup Module Initialization
-# ==============================
-# Mockup Module Initialization
 # ==============================
 # Moved into create_campaignforge_app() to allow async initialization
 # ============================================================================
@@ -183,7 +176,7 @@ async def create_campaignforge_app() -> FastAPI:
             logger.info("Intelligence Engine module initialized successfully")
             intelligence_router = intelligence_module.get_api_router()
             if intelligence_router:
-                app.include_router(intelligence_router, prefix="/api/intelligence")
+                app.include_router(get_intelligence_router, prefix="/api/intelligence")
 
                 # Also include admin intelligence routes under /api/admin
                 try:
