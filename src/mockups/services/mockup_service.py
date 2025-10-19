@@ -25,7 +25,7 @@ TEMPLATE_MAP = {
 }
 
 
-class MockupsService:
+class MockupService:
     """
     Handles generation and storage of product mockup images.
     Templates live in Cloudflare R2 under /templates/
