@@ -8,6 +8,7 @@ import logging
 
 from src.core.config.storage_config import r2_client, BUCKET_NAME, R2_PUBLIC_URL
 
+
 logger = logging.getLogger(__name__)
 
 # Local templates folder inside repository

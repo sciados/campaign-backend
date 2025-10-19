@@ -108,3 +108,15 @@ class StorageConfig:
 
 # Global storage configuration
 storage_config = StorageConfig()
+
+import boto3
+
+# Cloudflare R2 boto3 client, using the existing configuration
+r2_client = boto3.client(
+    "s3",
+    **storage_config.cloudflare_r2.boto3_config
+)
+
+# Convenience exports for other modules
+BUCKET_NAME = storage_config.cloudflare_r2.bucket_name
+R2_PUBLIC_URL = storage_config.cloudflare_r2.public_url
