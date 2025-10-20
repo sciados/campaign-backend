@@ -234,6 +234,14 @@ async def get_async_engine():
     return AsyncSessionManager._engine
 
 
+async def initialize_async_session():
+    """Initialize the async session manager for main.py compatibility"""
+    await AsyncSessionManager.initialize()
+
+
+async def close_async_session():
+    """Close the async session manager for main.py compatibility"""
+    await AsyncSessionManager.close()
 
 
 async def test_database_connection() -> bool:
