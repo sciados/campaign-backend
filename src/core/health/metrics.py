@@ -14,9 +14,9 @@ import time
 from typing import Dict, Any
 from datetime import datetime
 import logging
+from fastapi import FastAPI
 
 logger = logging.getLogger(__name__)
-
 
 class MetricsCollector:
     """System metrics collection and monitoring."""
@@ -169,6 +169,32 @@ class MetricsCollector:
 
 # Global metrics collector
 metrics_collector = MetricsCollector()
+
+
+def initialize_health_checks(app: FastAPI) -> None:
+    """
+    Initialize health check metrics for the FastAPI application.
+    
+    Args:
+        app (FastAPI): The FastAPI application instance to initialize metrics for.
+    """
+    try:
+        global metrics_collector
+        # Ensure metrics collector is initialized
+        if not isinstance(metrics_collector, MetricsCollector):
+            metrics_collector = MetricsCollector()
+            logger.info("Initialized new MetricsCollector instance")
+        
+        # Attach metrics collector to app state for access in routes
+        app.state.metrics_collector = metrics_collector
+        logger.info("MetricsCollector attached to FastAPI app state")
+        
+        # Optionally initialize any background tasks for metrics collection
+        # (e.g., periodic metrics refresh, if needed in the future)
+        logger.info("Health checks initialization completed")
+    except Exception as e:
+        logger.error(f"Failed to initialize health checks: {e}")
+        raise
 
 
 def get_system_metrics() -> Dict[str, Any]:
