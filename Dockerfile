@@ -1,5 +1,5 @@
 # Dockerfile for Railway deployment - Security-optimized for modular architecture
-FROM python:3.11-slim-bullseye
+FROM python:3.11-slim-buster
 
 # Update package lists and install security updates
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
