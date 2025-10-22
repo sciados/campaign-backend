@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     TOGETHER_API_KEY: str
     MINIMAX_API_KEY: str
     AIMLAPI_API_KEY: str
+    XAI_API_KEY: str  # xAI Grok
     
     # ===== MEDIA GENERATION =====
     STABILITY_API_KEY: str
