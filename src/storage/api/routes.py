@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database.session import get_async_db
-from src.users.middleware.auth_middleware import get_current_user
+from src.core.auth.dependencies import get_current_user
 from src.core.factories.service_factory import ServiceFactory
 from typing import List, Optional
 import io
