@@ -96,3 +96,6 @@ class StorageModule(ModuleInterface):
             "api_routes": len(self._router.routes),
             "status": "operational" if self._initialized else "not_initialized"
         }
+
+# Export the module instance
+storage_module = StorageModule()

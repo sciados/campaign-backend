@@ -128,3 +128,6 @@ class UsersModule(ModuleInterface):
         if self._router is None:
             return APIRouter()
         return self._router
+
+# Export the module instance
+users_module = UsersModule()
