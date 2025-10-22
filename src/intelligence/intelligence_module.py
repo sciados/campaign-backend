@@ -62,16 +62,22 @@ class IntelligenceModule(ModuleInterface):
                 logger.error("Database connection failed during Intelligence module initialization")
                 return False
             
-            # Validate AI provider configuration
+            # Validate AI provider configuration - check both enabled AND valid API key
             available_providers = [
-                name for name, provider in ai_provider_config.providers.items() 
-                if provider.enabled
+                name for name, provider in ai_provider_config.providers.items()
+                if provider.enabled and provider.api_key and len(provider.api_key.strip()) > 10
             ]
-            
+
             if not available_providers:
-                logger.error("No AI providers available for Intelligence module")
-                return False
-            
+                logger.warning("No AI providers available for Intelligence module - check API keys are configured")
+                logger.warning(f"Total providers configured: {len(ai_provider_config.providers)}")
+                # Continue initialization even without providers - mark as degraded instead of failing
+                # This allows the module to report its status
+                logger.warning("Intelligence module will be marked as degraded until API keys are configured")
+                self._initialized = True
+                self._healthy = False  # Mark as unhealthy but initialized
+                return True  # Allow initialization to complete
+
             logger.info(f"Intelligence module initialized with {len(available_providers)} AI providers: {available_providers}")
             
             # FIXED: Only initialize cache cleanup task if not already running
@@ -141,10 +147,10 @@ class IntelligenceModule(ModuleInterface):
                     "timestamp": "2024-01-01T00:00:00Z"
                 }
             
-            # Check AI providers
+            # Check AI providers - must have valid API keys
             available_providers = len([
-                p for p in ai_provider_config.providers.values() 
-                if p.enabled
+                p for p in ai_provider_config.providers.values()
+                if p.enabled and p.api_key and len(p.api_key.strip()) > 10
             ])
             
             # Check cache statistics
@@ -170,10 +176,11 @@ class IntelligenceModule(ModuleInterface):
                 "session_5_ready": True,  # Session 5 enhancement
                 "database_check": "safe_method_used"  # Session 5 fix
             }
-            
+
             if available_providers == 0:
-                status = "degraded"
-                details["warning"] = "No AI providers available"
+                status = "unhealthy"
+                details["error"] = "No AI providers available - check API keys configuration"
+                details["warning"] = "Intelligence module requires at least one AI provider with valid API key"
             
             return {
                 "status": status,
