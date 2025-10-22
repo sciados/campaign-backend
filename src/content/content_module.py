@@ -51,52 +51,35 @@ class ContentModule(ModuleInterface):
             try:
                 if self._service_factory_ready:
                     async with ServiceFactory.create_named_service("integrated_content") as test_service:
-                        # FIXED: Safely get generator status with type checking
-                        generator_result = test_service.get_generator_status()
-                        
-                        # Handle both list and dict responses
-                        if isinstance(generator_result, list):
-                            self._generator_status = {
-                                "total_available": len(generator_result),
-                                "generators": generator_result,
-                                "type": "list_response"
-                            }
-                        elif isinstance(generator_result, dict):
-                            self._generator_status = generator_result
-                        else:
-                            self._generator_status = {
-                                "total_available": 0,
-                                "error": f"Unexpected response type: {type(generator_result)}",
-                                "fallback": True
-                            }
-                        
-                        logger.info("Integrated content service tested successfully")
+                        # Get available generators from the service
+                        generator_list = test_service.get_available_generators()
+
+                        # Build generator status from the list
+                        self._generator_status = {
+                            "total_available": len(generator_list) if generator_list else 0,
+                            "generators": generator_list if generator_list else [],
+                            "initialized": True
+                        }
+
+                        logger.info(f"Integrated content service tested successfully - {len(generator_list)} generators available")
                 else:
                     # Test direct service creation
                     from src.content.services.integrated_content_service import IntegratedContentService
                     from src.core.database.session import AsyncSessionManager
                     async with AsyncSessionManager.get_session() as db:
                         test_service = IntegratedContentService(db)
-                        
-                        # FIXED: Same safe handling for direct service
-                        generator_result = test_service.get_generator_status()
-                        
-                        if isinstance(generator_result, list):
-                            self._generator_status = {
-                                "total_available": len(generator_result),
-                                "generators": generator_result,
-                                "type": "list_response"
-                            }
-                        elif isinstance(generator_result, dict):
-                            self._generator_status = generator_result
-                        else:
-                            self._generator_status = {
-                                "total_available": 0,
-                                "error": f"Unexpected response type: {type(generator_result)}",
-                                "fallback": True
-                            }
-                        
-                        logger.info("Direct content service tested successfully")
+
+                        # Get available generators from the service
+                        generator_list = test_service.get_available_generators()
+
+                        # Build generator status from the list
+                        self._generator_status = {
+                            "total_available": len(generator_list) if generator_list else 0,
+                            "generators": generator_list if generator_list else [],
+                            "initialized": True
+                        }
+
+                        logger.info(f"Direct content service tested successfully - {len(generator_list)} generators available")
                 
                 # FIXED: Safe access to generator status
                 available_count = self._generator_status.get("total_available", 0)
