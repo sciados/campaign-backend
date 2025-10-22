@@ -7,7 +7,7 @@ This module contains all API route implementations for content operations.
 
 from src.content.api.routes import router as content_router
 from src.content.api.database_driven_routes import router as db_content_router
-from src.content.api.signature_routes import router as signature_router
+from src.content.api.signature_routes import signature_router
 
 __all__ = [
     "content_router",
